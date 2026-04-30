@@ -1,15 +1,15 @@
-// �ֶε����ݿ��ض�����
+// 字段的数据库特定覆盖
 export interface FieldOverride {
   field_type?: string
   field_length?: number | null
   default?: any
 }
 
-// ���������ݿ��ض�����
+// 索引的数据库特定覆盖
 export interface IndexOverride {
   type?: string
   name?: string
-  using?: string  // �� mysql
+  using?: string  // 仅 mysql
 }
 
 export interface Field {

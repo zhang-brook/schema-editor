@@ -1,5 +1,5 @@
 {
-  "name": "json2sql",
+  "name": "schema-editor",
   "version": "0.0.0",
   "private": true,
   "type": "module",

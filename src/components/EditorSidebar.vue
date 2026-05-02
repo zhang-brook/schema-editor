@@ -1,7 +1,69 @@
 ﻿<script setup lang="ts">
+import { ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 
 const store = useEditorStore()
+
+// 拖拽状态
+const dragSchemaIdx = ref(-1)
+const dragTableIdx = ref(-1)
+
+function onDragStart(e: DragEvent, sIdx: number, tIdx: number) {
+  dragSchemaIdx.value = sIdx
+  dragTableIdx.value = tIdx
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  ;(e.target as HTMLElement)?.classList.add('dragging')
+}
+
+function onDragOver(e: DragEvent, sIdx: number) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  // 仅同一 schema 内才允许拖放
+  if (dragSchemaIdx.value !== sIdx) return
+  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
+}
+
+function onDragLeave(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+}
+
+function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+  if (dragSchemaIdx.value !== sIdx) return
+  if (dragTableIdx.value === tIdx) return
+  store.moveTable(sIdx, dragTableIdx.value, tIdx)
+}
+
+function onDragEnd(e: DragEvent) {
+  ;(e.target as HTMLElement)?.classList.remove('dragging')
+  // 清除所有 drag-over 状态
+  const overEls = document.querySelectorAll('.sidebar-item.drag-over')
+  overEls.forEach(el => el.classList.remove('drag-over'))
+  dragSchemaIdx.value = -1
+  dragTableIdx.value = -1
+}
+
+// ===== Schema CRUD handlers =====
+function handleAddSchema() {
+  const name = prompt('Schema name:')
+  if (name && name.trim()) {
+    store.addSchema(name.trim())
+  }
+}
+
+function handleRenameSchema(sIdx: number) {
+  const schema = store.schemas[sIdx]
+  if (!schema) return
+  const newName = prompt('New name:', schema.schema)
+  if (newName && newName.trim() && newName.trim() !== schema.schema) {
+    store.renameSchema(sIdx, newName.trim())
+  }
+}
 </script>
 
 <template>
@@ -9,6 +71,7 @@ const store = useEditorStore()
   <div class="sidebar">
     <div class="sidebar-header">
       <span>Navigation</span>
+      <span v-if="store.projectOpened" class="add-schema-btn" @click="handleAddSchema" title="Add schema">+</span>
     </div>
     <div class="sidebar-tree">
       <!-- Common Config Entry -->
@@ -27,15 +90,23 @@ const store = useEditorStore()
         <div class="sidebar-item schema-item">
           <span class="sidebar-icon">&#9654;</span>
           <span class="schema-label">{{ schema.schema }}</span>
-          <span style="margin-left:auto; font-size:10px; color:#aaa;">{{ schema.tables.length }}</span>
-          <span class="delete-btn" @click.stop="store.addTable(sIdx)" title="Add table">+</span>
+          <span class="schema-table-count">{{ schema.tables.length }}</span>
+          <span class="schema-action-btn" @click.stop="handleRenameSchema(sIdx)" title="Rename schema">&#9998;</span>
+          <span class="schema-action-btn schema-action-delete" @click.stop="store.deleteSchema(sIdx)" title="Delete schema">&times;</span>
+          <span class="add-table-btn" @click.stop="store.addTable(sIdx)" title="Add table">+</span>
         </div>
         <div
           v-for="(table, tIdx) in schema.tables"
           :key="table.name + tIdx"
           class="sidebar-item table-item"
           :class="{ active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === tIdx && !store.showCommonPanel }"
+          draggable="true"
           @click="store.selectTable(sIdx, tIdx)"
+          @dragstart="onDragStart($event, sIdx, tIdx)"
+          @dragover="onDragOver($event, sIdx, tIdx)"
+          @dragleave="onDragLeave"
+          @drop="onDrop($event, sIdx, tIdx)"
+          @dragend="onDragEnd"
         >
           <span class="sidebar-icon">&#9679;</span>
           <span class="table-name">{{ table.name }}</span>
@@ -119,10 +190,6 @@ const store = useEditorStore()
   padding-left: 8px;
   font-size: 13px;
   cursor: default;
-}
-
-.sidebar-item.schema-item:hover {
-  background: transparent;
 }
 
 .sidebar-item.table-item {
@@ -242,5 +309,60 @@ const store = useEditorStore()
 
 .sidebar-tree::-webkit-scrollbar-thumb:hover {
   background: #aaa;
+}
+
+/* ===== Schema Actions ===== */
+.add-schema-btn {
+  cursor: pointer;
+  font-size: 16px;
+  color: #4a90d9;
+  font-weight: bold;
+  padding: 0 4px;
+  line-height: 1;
+}
+.add-schema-btn:hover {
+  color: #3a7bc8;
+}
+
+.schema-table-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: #aaa;
+}
+
+.schema-item .schema-action-btn,
+.schema-item .add-table-btn {
+  opacity: 0;
+  cursor: pointer;
+  font-size: 11px;
+  margin-left: 2px;
+}
+.schema-item:hover .schema-action-btn,
+.schema-item:hover .add-table-btn {
+  opacity: 0.6;
+}
+.schema-item .schema-action-btn:hover,
+.schema-item .add-table-btn:hover {
+  opacity: 1;
+}
+
+.schema-action-btn {
+  color: #4a90d9;
+}
+.schema-action-delete {
+  color: #d9534f;
+}
+.add-table-btn {
+  color: #5cb85c;
+}
+
+/* ===== Drag-and-Drop ===== */
+.sidebar-item.table-item.dragging {
+  opacity: 0.4;
+}
+
+.sidebar-item.table-item.drag-over {
+  border-top: 2px solid #4a90d9;
+  padding-top: 4px;
 }
 </style>

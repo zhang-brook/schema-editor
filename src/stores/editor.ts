@@ -282,24 +282,94 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataDeletedKeys.add(key)
   }
 
-  // ===== schema CRUD —— 留待下一轮对话实现 =====
-  //
-  // 设计思路：
-  //   async function addSchema(name: string)
-  //     - 创建空 Schema 对象，push 到 schemas[]
-  //     - writeSchemaToHandle(schemaDirHandle, `${name}.json`, data)
-  //     - 文件已通过 auto-sync 自动写入
-  //
-  //   async function deleteSchema(schemaIdx: number)
-  //     - 从 schemas[] splice
-  //     - deleteSchemaFromHandle(schemaDirHandle, `${name}.json`)
-  //     - auto-sync 不再触发（schema 已从数组移除）
-  //
-  //   function renameSchema(schemaIdx: number, newName: string)
-  //     - 删除旧文件，写入新文件
-  //     - 更新 schema.schema = newName
-  //
-  // 这轮对话中暂不实现 UI，但以上注释方法为本轮预留了清晰的接口和状态
+  // ===== Schema CRUD =====
+
+  function addSchema(name: string) {
+    if (schemas.some(s => s.schema === name)) {
+      showToast(`Schema "${name}" already exists`)
+      return
+    }
+    const newSchema: Schema = {
+      schema: name,
+      tables: []
+    }
+    schemas.push(newSchema)
+    selectedSchemaIdx.value = schemas.length - 1
+    selectedTableIdx.value = -1
+    showToast('Schema created')
+  }
+
+  async function deleteSchema(schemaIdx: number) {
+    const schema = schemas[schemaIdx]
+    if (!schema) return
+    if (!confirm(`Delete schema "${schema.schema}" and ALL its tables? This cannot be undone.`)) return
+
+    // Clean up initial data
+    for (const table of schema.tables) {
+      const key = initialDataKey(schema.schema, table.name)
+      if (initialDataMap.has(key)) {
+        initialDataMap.delete(key)
+        initialDataDeletedKeys.add(key)
+      }
+    }
+
+    // Delete file from disk
+    if (schemaDirHandle.value) {
+      try {
+        await deleteSchemaFromHandle(schemaDirHandle.value, `${schema.schema}.json`)
+      } catch (e) {
+        console.warn('Failed to delete schema file:', e)
+      }
+    }
+
+    schemas.splice(schemaIdx, 1)
+
+    // Update selection
+    if (schemas.length === 0) {
+      selectedSchemaIdx.value = -1
+      selectedTableIdx.value = -1
+    } else if (selectedSchemaIdx.value >= schemas.length) {
+      selectedSchemaIdx.value = schemas.length - 1
+    }
+    showToast('Schema deleted')
+  }
+
+  async function renameSchema(schemaIdx: number, newName: string) {
+    const schema = schemas[schemaIdx]
+    if (!schema) return
+    newName = newName.trim()
+    if (!newName) return
+    if (schemas.some((s, i) => i !== schemaIdx && s.schema === newName)) {
+      showToast(`Schema "${newName}" already exists`)
+      return
+    }
+
+    const oldName = schema.schema
+
+    // Delete old file from disk
+    if (schemaDirHandle.value) {
+      try {
+        await deleteSchemaFromHandle(schemaDirHandle.value, `${oldName}.json`)
+      } catch (e) {
+        console.warn('Failed to delete old schema file:', e)
+      }
+    }
+
+    schema.schema = newName
+
+    // Update initial data keys
+    for (const table of schema.tables) {
+      const oldKey = initialDataKey(oldName, table.name)
+      const newKey = initialDataKey(newName, table.name)
+      const data = initialDataMap.get(oldKey)
+      if (data !== undefined) {
+        initialDataMap.delete(oldKey)
+        initialDataMap.set(newKey, data)
+      }
+    }
+
+    showToast('Schema renamed')
+  }
 
   // ===== Navigation =====
   function selectTable(schemaIdx: number, tableIdx: number) {
@@ -355,6 +425,24 @@ export const useEditorStore = defineStore('editor', () => {
       }
     }
     showToast('Table deleted')
+  }
+
+  /** 拖拽调整同一个 schema 下表的顺序 */
+  function moveTable(schemaIdx: number, fromIdx: number, toIdx: number) {
+    const schema = schemas[schemaIdx]
+    if (!schema) return
+    if (fromIdx === toIdx) return
+    if (fromIdx < 0 || fromIdx >= schema.tables.length) return
+    if (toIdx < 0 || toIdx >= schema.tables.length) return
+
+    const [table] = schema.tables.splice(fromIdx, 1)
+    const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
+    schema.tables.splice(insertIdx, 0, table)
+
+    // 保持选中跟随被移动的表
+    if (selectedSchemaIdx.value === schemaIdx && selectedTableIdx.value === fromIdx) {
+      selectedTableIdx.value = insertIdx
+    }
   }
 
   // ===== Field Helpers =====
@@ -754,9 +842,15 @@ export const useEditorStore = defineStore('editor', () => {
     selectTable,
     selectCommonConfig,
 
+    // Schema CRUD
+    addSchema,
+    deleteSchema,
+    renameSchema,
+
     // Table CRUD
     addTable,
     deleteTable,
+    moveTable,
 
     // Field Helpers
     isCommonField,

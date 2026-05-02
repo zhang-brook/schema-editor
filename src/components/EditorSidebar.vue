@@ -4,6 +4,17 @@ import { useEditorStore } from '@/stores/editor'
 
 const store = useEditorStore()
 
+// 每个 schema 的展开/折叠状态（默认全部展开）
+const expandedMap = ref<Record<number, boolean>>({})
+
+function isExpanded(sIdx: number) {
+  return expandedMap.value[sIdx] !== false // 默认展开
+}
+
+function toggleExpand(sIdx: number) {
+  expandedMap.value[sIdx] = !isExpanded(sIdx)
+}
+
 // 拖拽状态
 const dragSchemaIdx = ref(-1)
 const dragTableIdx = ref(-1)
@@ -87,8 +98,12 @@ function handleRenameSchema(sIdx: number) {
 
       <!-- Schema Groups -->
       <template v-for="(schema, sIdx) in store.schemas" :key="schema.schema">
-        <div class="sidebar-item schema-item">
-          <span class="sidebar-icon">&#9654;</span>
+        <div
+          class="sidebar-item schema-item"
+          :class="{ collapsed: !isExpanded(sIdx) }"
+          @click="toggleExpand(sIdx)"
+        >
+          <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }">&#9654;</span>
           <span class="schema-label">{{ schema.schema }}</span>
           <span class="schema-table-count">{{ schema.tables.length }}</span>
           <span class="schema-action-btn" @click.stop="handleRenameSchema(sIdx)" title="Rename schema">&#9998;</span>
@@ -97,6 +112,7 @@ function handleRenameSchema(sIdx: number) {
         </div>
         <div
           v-for="(table, tIdx) in schema.tables"
+          v-show="isExpanded(sIdx)"
           :key="table.name + tIdx"
           class="sidebar-item table-item"
           :class="{ active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === tIdx && !store.showCommonPanel }"
@@ -189,7 +205,21 @@ function handleRenameSchema(sIdx: number) {
   color: #333;
   padding-left: 8px;
   font-size: 13px;
-  cursor: default;
+  cursor: pointer;
+}
+
+.sidebar-item.schema-item.collapsed {
+  cursor: pointer;
+}
+
+/* 箭头旋转动画 */
+.arrow-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 10px;
+}
+.arrow-icon.rotated {
+  transform: rotate(90deg);
 }
 
 .sidebar-item.table-item {

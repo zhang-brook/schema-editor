@@ -7,6 +7,9 @@ import {
   writeSchemaToHandle,
   deleteSchemaFromHandle,
   writeSqlToOutput,
+  readInitialDataFromHandle,
+  writeInitialDataToHandle,
+  deleteInitialDataFromHandle,
   parseFieldLengthInput
 } from '@/utils/file-helpers'
 import {
@@ -37,6 +40,10 @@ export const useEditorStore = defineStore('editor', () => {
   const schemaDirHandle = ref<any>(null)
   const projectOpened = ref(false)
 
+  // Initial Data —— 独立存储在 initial-data/<schema>/<table>.json
+  const initialDataMap = reactive(new Map<string, Record<string, any>[]>())
+  const initialDataDeletedKeys = reactive(new Set<string>())
+
   // ===== Computed =====
   const currentSchema = computed(() => {
     if (selectedSchemaIdx.value >= 0 && selectedSchemaIdx.value < schemas.length) {
@@ -55,6 +62,21 @@ export const useEditorStore = defineStore('editor', () => {
   const commonFieldNames = computed(() => {
     if (!commonConfig.value) return []
     return Object.keys(commonConfig.value.common_used_fields || {})
+  })
+
+  // ===== Initial Data Helpers =====
+  function initialDataKey(schemaName: string, tableName: string): string {
+    return `${schemaName}/${tableName}`
+  }
+
+  const currentInitialDataKey = computed(() => {
+    if (!currentSchema.value || !currentTable.value) return null
+    return initialDataKey(currentSchema.value.schema, currentTable.value.name)
+  })
+
+  const currentInitialData = computed(() => {
+    if (!currentInitialDataKey.value) return undefined
+    return initialDataMap.get(currentInitialDataKey.value)
   })
 
   // ===== Toast =====
@@ -105,6 +127,21 @@ export const useEditorStore = defineStore('editor', () => {
 
       console.log('[openProject] schemas loaded:', schemas.length)
 
+      // 加载 initial-data
+      initialDataMap.clear()
+      initialDataDeletedKeys.clear()
+      try {
+        const initialDataFiles = await readInitialDataFromHandle(rootDirHandle.value)
+        for (const { key, data } of initialDataFiles) {
+          initialDataMap.set(key, data)
+        }
+        if (initialDataFiles.length > 0) {
+          console.log(`[openProject] initial data loaded: ${initialDataFiles.length} file(s)`)
+        }
+      } catch (e) {
+        console.warn('[openProject] failed to load initial data:', e)
+      }
+
       projectOpened.value = true
 
       const parts: string[] = []
@@ -146,6 +183,8 @@ export const useEditorStore = defineStore('editor', () => {
       }
       // 同时生成 SQL 到 output 目录
       await syncSqlToOutput()
+      // 同步 initial-data 文件
+      await syncInitialDataToDisk()
     } catch (e) {
       console.error('Auto-sync failed:', e)
       showToast('Failed to save changes')
@@ -183,6 +222,31 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  /** 将初始数据同步到 initial-data/<schema>/<table>.json */
+  async function syncInitialDataToDisk() {
+    if (!rootDirHandle.value) return
+    try {
+      // 写入所有有数据的条目
+      for (const [key, rows] of initialDataMap.entries()) {
+        const sep = key.indexOf('/')
+        const schemaName = key.substring(0, sep)
+        const tableName = key.substring(sep + 1)
+        await writeInitialDataToHandle(rootDirHandle.value, schemaName, tableName, rows)
+      }
+
+      // 删除标记为已删除的文件
+      for (const key of initialDataDeletedKeys) {
+        const sep = key.indexOf('/')
+        const schemaName = key.substring(0, sep)
+        const tableName = key.substring(sep + 1)
+        await deleteInitialDataFromHandle(rootDirHandle.value, schemaName, tableName)
+      }
+      initialDataDeletedKeys.clear()
+    } catch (e) {
+      console.error('Initial data sync failed:', e)
+    }
+  }
+
   function setupAutoSync() {
     if (_autoSyncSetup) return
     _autoSyncSetup = true
@@ -194,6 +258,28 @@ export const useEditorStore = defineStore('editor', () => {
     watch(schemas, () => {
       if (projectOpened.value) debouncedSync()
     }, { deep: true })
+
+    watch(initialDataMap, () => {
+      if (projectOpened.value) debouncedSync()
+    }, { deep: true })
+  }
+
+  // ===== Initial Data CRUD =====
+  function setInitialData(schemaName: string, tableName: string, rows: Record<string, any>[]) {
+    const key = initialDataKey(schemaName, tableName)
+    if (rows.length === 0) {
+      initialDataMap.delete(key)
+      initialDataDeletedKeys.add(key)
+    } else {
+      initialDataMap.set(key, rows)
+      initialDataDeletedKeys.delete(key)
+    }
+  }
+
+  function deleteInitialData(schemaName: string, tableName: string) {
+    const key = initialDataKey(schemaName, tableName)
+    initialDataMap.delete(key)
+    initialDataDeletedKeys.add(key)
   }
 
   // ===== schema CRUD —— 留待下一轮对话实现 =====
@@ -252,6 +338,14 @@ export const useEditorStore = defineStore('editor', () => {
     const tableName = schema.tables[tableIdx]?.name
     if (!confirm(`Delete table "${tableName}"?`)) return
     schema.tables.splice(tableIdx, 1)
+    // 清理初始数据
+    if (tableName) {
+      const key = initialDataKey(schema.schema, tableName)
+      if (initialDataMap.has(key)) {
+        initialDataMap.delete(key)
+        initialDataDeletedKeys.add(key)
+      }
+    }
     if (selectedSchemaIdx.value === schemaIdx) {
       if (selectedTableIdx.value >= schema.tables.length) {
         selectedTableIdx.value = schema.tables.length - 1
@@ -643,10 +737,18 @@ export const useEditorStore = defineStore('editor', () => {
     currentSchema,
     currentTable,
     commonFieldNames,
+    currentInitialDataKey,
+    currentInitialData,
 
     // Project
     openProject,
     syncAllToDisk,
+
+    // Initial Data
+    initialDataMap,
+    initialDataKey,
+    setInitialData,
+    deleteInitialData,
 
     // Navigation
     selectTable,

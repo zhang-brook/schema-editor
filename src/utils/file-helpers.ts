@@ -117,6 +117,90 @@ export async function writeSqlToOutput(
   await writable.close()
 }
 
+// ===== Initial Data 文件读写 =====
+
+/**
+ * 从 initial-data/ 目录读取所有初始数据文件
+ * 返回 [{ key: "schemaName/tableName", data: [...] }, ...]
+ */
+export async function readInitialDataFromHandle(
+  rootHandle: any
+): Promise<{ key: string; data: Record<string, any>[] }[]> {
+  const result: { key: string; data: Record<string, any>[] }[] = []
+
+  let initialDataHandle: any
+  try {
+    initialDataHandle = await rootHandle.getDirectoryHandle('initial-data')
+  } catch {
+    // initial-data/ 目录不存在，返回空
+    return result
+  }
+
+  // 遍历 schema 子目录
+  for await (const schemaEntry of initialDataHandle.values()) {
+    const schemaHandle: any = schemaEntry
+    if (schemaHandle.kind !== 'directory') continue
+    const schemaName: string = schemaHandle.name
+
+    // 遍历每个 schema 目录下的 .json 文件
+    for await (const fileEntry of schemaHandle.values()) {
+      const fHandle: any = fileEntry
+      const fName: string = fHandle.name
+      if (!fName.endsWith('.json') || fHandle.kind !== 'file') continue
+
+      const tableName = fName.slice(0, -5) // 去掉 .json
+      try {
+        const file = await fHandle.getFile()
+        const data = JSON.parse(await file.text())
+        if (Array.isArray(data)) {
+          result.push({ key: `${schemaName}/${tableName}`, data })
+          console.log(`[readInitialData] loaded "${schemaName}/${tableName}" (${data.length} rows)`)
+        } else {
+          console.warn(`[readInitialData] "${schemaName}/${fName}" is not an array, skipping`)
+        }
+      } catch (e) {
+        console.warn(`[readInitialData] failed to parse "${schemaName}/${fName}":`, e)
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * 将初始数据写入 initial-data/<schemaName>/<tableName>.json
+ */
+export async function writeInitialDataToHandle(
+  rootHandle: any,
+  schemaName: string,
+  tableName: string,
+  data: Record<string, any>[]
+): Promise<void> {
+  const initialDataHandle = await rootHandle.getDirectoryHandle('initial-data', { create: true })
+  const schemaHandle = await initialDataHandle.getDirectoryHandle(schemaName, { create: true })
+  const fileHandle = await schemaHandle.getFileHandle(`${tableName}.json`, { create: true })
+  const writable = await fileHandle.createWritable()
+  await writable.write(JSON.stringify(toRaw(data), null, jsonFileIndent))
+  await writable.close()
+}
+
+/**
+ * 删除 initial-data/<schemaName>/<tableName>.json
+ */
+export async function deleteInitialDataFromHandle(
+  rootHandle: any,
+  schemaName: string,
+  tableName: string
+): Promise<void> {
+  try {
+    const initialDataHandle = await rootHandle.getDirectoryHandle('initial-data')
+    const schemaHandle = await initialDataHandle.getDirectoryHandle(schemaName)
+    await schemaHandle.removeEntry(`${tableName}.json`)
+  } catch {
+    // 文件或目录不存在，静默忽略
+  }
+}
+
 // ===== 业务无关的工具函数 =====
 
 

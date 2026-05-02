@@ -3,6 +3,7 @@ import { useEditorStore } from '@/stores/editor'
 import FieldTable from './FieldTable.vue'
 import IndexTable from './IndexTable.vue'
 import SqlPreview from './SqlPreview.vue'
+import InitialDataEditor from './InitialDataEditor.vue'
 
 const store = useEditorStore()
 </script>
@@ -63,6 +64,9 @@ const store = useEditorStore()
 
     <!-- SQL Preview -->
     <SqlPreview />
+
+    <!-- Initial Data -->
+    <InitialDataEditor />
   </template>
 </template>
 

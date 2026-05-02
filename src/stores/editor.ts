@@ -807,6 +807,72 @@ export const useEditorStore = defineStore('editor', () => {
     if (commonConfig.value) commonConfig.value.default_config.mysql.table.mysql_collation = val
   }
 
+  // ===== Common Used Fields CRUD =====
+  function addCommonUsedField(name: string) {
+    if (!commonConfig.value) return
+    if (!name.trim()) { showToast('Please enter a field name'); return }
+    const key = name.trim()
+    if (commonConfig.value.common_used_fields[key]) {
+      showToast(`Common field "${key}" already exists`)
+      return
+    }
+    commonConfig.value.common_used_fields[key] = {
+      field_name: key,
+      field_type: 'varchar',
+      field_length: 255,
+      not_null: false,
+      primary_key: false,
+      comment: ''
+    }
+    showToast('Common field added')
+  }
+
+  function deleteCommonUsedField(name: string) {
+    if (!commonConfig.value) return
+    if (!commonConfig.value.common_used_fields[name]) return
+    // 检查是否有表正在引用此 common field
+    const referencingTables: string[] = []
+    for (const schema of schemas) {
+      for (const table of schema.tables) {
+        if (table.fields.some(f => f.use_common_used_fields && f.field_name === name)) {
+          referencingTables.push(`${schema.schema}.${table.name}`)
+        }
+      }
+    }
+    if (referencingTables.length > 0) {
+      if (!confirm(
+        `Common field "${name}" is referenced by:\n${referencingTables.join('\n')}\n\nDelete it anyway? References will become stale.`
+      )) return
+    }
+    delete commonConfig.value.common_used_fields[name]
+    showToast('Common field deleted')
+  }
+
+  function updateCommonUsedFieldName(oldName: string, newName: string) {
+    const trimmed = newName.trim()
+    if (!trimmed || oldName === trimmed) return
+    // 更新所有引用此 common field 的表
+    for (const schema of schemas) {
+      for (const table of schema.tables) {
+        for (const field of table.fields) {
+          if (field.use_common_used_fields && field.field_name === oldName) {
+            field.field_name = trimmed
+          }
+        }
+      }
+    }
+  }
+
+  /** 从有序数组重建 record，用于面板编辑后同步 */
+  function rebuildCommonUsedFieldsFromArray(fields: Field[]) {
+    if (!commonConfig.value) return
+    const newRecord: Record<string, Field> = {}
+    for (const field of fields) {
+      newRecord[field.field_name] = field
+    }
+    commonConfig.value.common_used_fields = newRecord
+  }
+
   return {
     // State
     commonConfig,
@@ -905,6 +971,12 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonMysqlEngine,
     setCommonMysqlCharset,
     setCommonMysqlCollation,
+
+    // Common Used Fields CRUD
+    addCommonUsedField,
+    deleteCommonUsedField,
+    updateCommonUsedFieldName,
+    rebuildCommonUsedFieldsFromArray,
 
     // Toast
     showToast

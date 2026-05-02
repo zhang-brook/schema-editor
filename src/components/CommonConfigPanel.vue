@@ -1,13 +1,136 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { displayFieldLength, displayDefault } from '@/utils/file-helpers'
+import type { Field } from '@/types/schema'
+import { displayFieldLength, displayDefault, parseDefaultInput, parseFieldLengthInput } from '@/utils/file-helpers'
 
 const store = useEditorStore()
 
-// Helper to format db override entries as "key=value" pairs
+// ===== 本地数组：从 record 派生，保持稳定顺序 =====
+function readFieldsFromRecord(): Field[] {
+  if (!store.commonConfig) return []
+  return Object.keys(store.commonConfig.common_used_fields).map(
+    k => store.commonConfig!.common_used_fields[k]!
+  )
+}
+
+const localFields = ref<Field[]>(readFieldsFromRecord())
+
+// 切换项目时重新读取
+watch(() => store.commonConfig, () => {
+  localFields.value = readFieldsFromRecord()
+})
+
+// ===== Rename =====
+const editingFieldName = ref('')
+const editingOldName = ref('')
+
+function startRename(oldName: string) {
+  editingOldName.value = oldName
+  editingFieldName.value = oldName
+}
+
+function finishRename() {
+  const oldName = editingOldName.value
+  const newName = editingFieldName.value.trim()
+  editingOldName.value = ''
+
+  if (!newName) { store.showToast('Field name cannot be empty'); return }
+  if (oldName === newName) return
+  if (localFields.value.some(f => f.field_name === newName)) {
+    store.showToast(`Common field "${newName}" already exists`)
+    editingFieldName.value = ''
+    return
+  }
+
+  const field = localFields.value.find(f => f.field_name === oldName)
+  if (!field) return
+  field.field_name = newName
+  store.updateCommonUsedFieldName(oldName, newName)
+  store.rebuildCommonUsedFieldsFromArray(localFields.value)
+  store.showToast('Common field renamed')
+  editingFieldName.value = ''
+}
+
+// ===== Add =====
+const newCommonFieldName = ref('')
+
+function handleAdd() {
+  const name = newCommonFieldName.value.trim()
+  if (!name) { store.showToast('Please enter a field name'); return }
+  if (localFields.value.some(f => f.field_name === name)) {
+    store.showToast(`Common field "${name}" already exists`)
+    return
+  }
+  const newField: Field = {
+    field_name: name,
+    field_type: 'varchar',
+    field_length: 255,
+    not_null: false,
+    primary_key: false,
+    comment: ''
+  }
+  localFields.value.push(newField)
+  store.rebuildCommonUsedFieldsFromArray(localFields.value)
+  newCommonFieldName.value = ''
+  store.showToast('Common field added')
+}
+
+// ===== Delete =====
+function handleDelete(name: string) {
+  const refs: string[] = []
+  for (const schema of store.schemas) {
+    for (const table of schema.tables) {
+      if (table.fields.some(f => f.use_common_used_fields && f.field_name === name)) {
+        refs.push(`${schema.schema}.${table.name}`)
+      }
+    }
+  }
+  if (refs.length > 0) {
+    if (!confirm(
+      `Common field "${name}" is referenced by:\n${refs.join('\n')}\n\nDelete it anyway? References will become stale.`
+    )) return
+  }
+  localFields.value = localFields.value.filter(f => f.field_name !== name)
+  store.rebuildCommonUsedFieldsFromArray(localFields.value)
+  store.showToast('Common field deleted')
+}
+
+// ===== Override helpers =====
 function formatOverride(override: Record<string, any> | undefined): string {
-  if (!override || Object.keys(override).length === 0) return '-'
+  if (!override || Object.keys(override).length === 0) return ''
   return Object.entries(override).map(([k, v]) => `${k}=${v}`).join(', ')
+}
+
+function parseOverride(text: string): Record<string, any> | undefined {
+  const trimmed = text.trim()
+  if (!trimmed) return undefined
+  const result: Record<string, any> = {}
+  const pairs = trimmed.split(',').map(s => s.trim()).filter(s => s)
+  for (const pair of pairs) {
+    const eqIdx = pair.indexOf('=')
+    if (eqIdx === -1) continue
+    const key = pair.substring(0, eqIdx).trim()
+    let val: any = pair.substring(eqIdx + 1).trim()
+    if (val === 'true') val = true
+    else if (val === 'false') val = false
+    else if (val === 'null') val = null
+    else {
+      const num = Number(val)
+      if (!isNaN(num) && val !== '') val = num
+    }
+    if (key) result[key] = val
+  }
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
+  const parsed = parseOverride(text)
+  if (parsed) {
+    field[db] = parsed
+  } else {
+    delete field[db]
+  }
 }
 </script>
 
@@ -50,10 +173,21 @@ function formatOverride(override: Record<string, any> | undefined): string {
     <!-- Common Used Fields -->
     <div class="section-card">
       <div class="section-header">
-        Common Used Fields
-        <span class="badge">{{ store.commonFieldNames.length }} fields</span>
+        <span>
+          Common Used Fields
+          <span class="badge">{{ localFields.length }} fields</span>
+        </span>
+        <div class="header-actions">
+          <input
+            v-model="newCommonFieldName"
+            class="form-input new-field-input"
+            placeholder="New field name..."
+            @keyup.enter="handleAdd"
+          />
+          <button class="btn btn-sm btn-primary" @click="handleAdd">+ Add</button>
+        </div>
       </div>
-      <div class="section-body" style="padding: 0;">
+      <div class="section-body" style="padding: 0; overflow-x: auto;">
         <table class="common-fields-table">
           <thead>
             <tr>
@@ -66,19 +200,96 @@ function formatOverride(override: Record<string, any> | undefined): string {
               <th>comment</th>
               <th>mysql</th>
               <th>pgsql</th>
+              <th style="width:40px;"></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="name in store.commonFieldNames" :key="name">
-              <td><code>{{ name }}</code></td>
-              <td>{{ store.commonConfig!.common_used_fields[name]?.field_type || '-' }}</td>
-              <td>{{ displayFieldLength(store.commonConfig!.common_used_fields[name]?.field_length) || '-' }}</td>
-              <td>{{ store.commonConfig!.common_used_fields[name]?.not_null ? '&#10003;' : '' }}</td>
-              <td>{{ store.commonConfig!.common_used_fields[name]?.primary_key ? '&#10003;' : '' }}</td>
-              <td>{{ displayDefault(store.commonConfig!.common_used_fields[name]?.default) }}</td>
-              <td>{{ store.commonConfig!.common_used_fields[name]?.comment }}</td>
-              <td>{{ formatOverride(store.commonConfig!.common_used_fields[name]?.mysql) }}</td>
-              <td>{{ formatOverride(store.commonConfig!.common_used_fields[name]?.pgsql) }}</td>
+            <tr v-for="field in localFields" :key="field.field_name">
+              <!-- field_name -->
+              <td>
+                <input
+                  v-if="editingOldName === field.field_name"
+                  class="table-input"
+                  v-model="editingFieldName"
+                  @blur="finishRename"
+                  @keyup.enter="($event.target as HTMLInputElement).blur()"
+                  @keyup.escape="editingOldName = ''; editingFieldName = ''"
+                  style="min-width:80px;"
+                />
+                <span
+                  v-else
+                  class="editable-field-name"
+                  @click="startRename(field.field_name)"
+                  title="Click to rename"
+                >{{ field.field_name }}</span>
+              </td>
+              <!-- field_type -->
+              <td>
+                <input class="table-input" v-model="field.field_type" style="min-width:60px;" />
+              </td>
+              <!-- field_length -->
+              <td>
+                <input
+                  class="table-input"
+                  :value="displayFieldLength(field.field_length)"
+                  @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                  style="width:50px;"
+                />
+              </td>
+              <!-- not_null -->
+              <td>
+                <input type="checkbox" class="table-checkbox" v-model="field.not_null" />
+              </td>
+              <!-- primary_key -->
+              <td>
+                <input type="checkbox" class="table-checkbox" v-model="field.primary_key" />
+              </td>
+              <!-- default -->
+              <td>
+                <input
+                  class="table-input"
+                  :value="displayDefault(field.default)"
+                  @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"
+                  style="min-width:60px;"
+                />
+              </td>
+              <!-- comment -->
+              <td>
+                <input class="table-input" v-model="field.comment" style="min-width:80px;" />
+              </td>
+              <!-- mysql override -->
+              <td>
+                <input
+                  class="table-input"
+                  :value="formatOverride(field.mysql)"
+                  @input="setOverride(field, 'mysql', ($event.target as HTMLInputElement).value)"
+                  placeholder="key=val, ..."
+                  style="min-width:80px;"
+                />
+              </td>
+              <!-- pgsql override -->
+              <td>
+                <input
+                  class="table-input"
+                  :value="formatOverride(field.pgsql)"
+                  @input="setOverride(field, 'pgsql', ($event.target as HTMLInputElement).value)"
+                  placeholder="key=val, ..."
+                  style="min-width:80px;"
+                />
+              </td>
+              <!-- delete -->
+              <td>
+                <button
+                  class="btn btn-sm btn-danger"
+                  @click="handleDelete(field.field_name)"
+                  title="Delete common field"
+                >&times;</button>
+              </td>
+            </tr>
+            <tr v-if="localFields.length === 0">
+              <td colspan="10" style="text-align:center; color:#aaa; padding:16px;">
+                No common fields yet. Add one above.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -114,6 +325,18 @@ function formatOverride(override: Record<string, any> | undefined): string {
   font-size: 11px;
   color: #888;
   margin-left: 8px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.new-field-input {
+  width: 150px;
+  padding: 3px 6px;
+  font-size: 11px;
 }
 
 .section-body {
@@ -179,17 +402,90 @@ function formatOverride(override: Record<string, any> | undefined): string {
   color: #666;
   border-bottom: 1px solid #ddd;
   font-size: 11px;
+  white-space: nowrap;
 }
 
 .common-fields-table td {
   padding: 4px 8px;
   border-bottom: 1px solid #eee;
+  vertical-align: middle;
 }
 
-.common-fields-table code {
-  background: #f0f0f0;
-  padding: 1px 4px;
+.common-fields-table tbody tr:hover {
+  background: #f5f5f5;
+}
+
+.editable-field-name {
+  cursor: pointer;
+  color: #4a90d9;
+  font-weight: 500;
+  padding: 2px 4px;
   border-radius: 2px;
+  transition: background .15s;
+}
+
+.editable-field-name:hover {
+  background: #e8f0fe;
+  text-decoration: underline;
+}
+
+/* Button styles */
+.btn {
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn:hover {
+  background: #f5f5f5;
+}
+
+.btn-primary {
+  background: #4a90d9;
+  color: #fff;
+  border-color: #4a90d9;
+}
+
+.btn-primary:hover {
+  background: #3a80c9;
+}
+
+.btn-danger {
+  color: #d32f2f;
+  border-color: #d32f2f;
+}
+
+.btn-danger:hover {
+  background: #ffebee;
+}
+
+.btn-sm {
+  padding: 2px 6px;
   font-size: 11px;
+}
+
+.table-input {
+  padding: 3px 5px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.table-input:focus {
+  outline: none;
+  border-color: #4a90d9;
+}
+
+.table-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 </style>

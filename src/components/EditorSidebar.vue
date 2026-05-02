@@ -119,7 +119,7 @@ function handleRenameSchema(sIdx: number) {
           draggable="true"
           @click="store.selectTable(sIdx, tIdx)"
           @dragstart="onDragStart($event, sIdx, tIdx)"
-          @dragover="onDragOver($event, sIdx, tIdx)"
+          @dragover="onDragOver($event, sIdx)"
           @dragleave="onDragLeave"
           @drop="onDrop($event, sIdx, tIdx)"
           @dragend="onDragEnd"

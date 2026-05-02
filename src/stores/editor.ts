@@ -436,6 +436,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (toIdx < 0 || toIdx >= schema.tables.length) return
 
     const [table] = schema.tables.splice(fromIdx, 1)
+    if (!table) return
     const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
     schema.tables.splice(insertIdx, 0, table)
 

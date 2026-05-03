@@ -293,7 +293,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
                 />
               </td>
               <!-- delete / move -->
-              <td>
+              <td style="min-width: 80px;">
                 <div class="move-btns">
                   <button class="move-btn" @click="moveCommonFieldUp(localFields.indexOf(field))" :disabled="localFields.indexOf(field) === 0">↑</button>
                   <button class="move-btn" @click="moveCommonFieldDown(localFields.indexOf(field))" :disabled="localFields.indexOf(field) === localFields.length - 1">↓</button>

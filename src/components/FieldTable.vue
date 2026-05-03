@@ -27,7 +27,7 @@ const store = useEditorStore()
             <th style="width:40px;">PK</th>
             <th>default</th>
             <th>comment</th>
-            <th style="width:40px;">out</th>
+            <th style="width:40px;">Removed</th>
             <th style="width:90px;">actions</th>
           </tr>
         </thead>
@@ -92,7 +92,7 @@ const store = useEditorStore()
                 </template>
                 <input v-else type="checkbox" class="table-checkbox" v-model="field.is_commented_out">
               </td>
-              <td>
+              <td style="min-width: 80px;">
                 <div class="move-btns" style="display:inline-flex; margin-right:2px;">
                   <button class="move-btn" @click="store.moveFieldUp(store.currentTable!, fIdx)" :disabled="fIdx === 0">↑</button>
                   <button class="move-btn" @click="store.moveFieldDown(store.currentTable!, fIdx)" :disabled="fIdx === store.currentTable!.fields.length - 1">↓</button>

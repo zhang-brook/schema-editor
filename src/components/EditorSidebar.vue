@@ -76,10 +76,36 @@ function onSchemaDrop(e: DragEvent, sIdx: number) {
   expandedMap.value[sIdx] = true
 }
 
+// 尾部 drop 区域：拖到当前 schema 最后一个表之后
+function onDropTailOver(e: DragEvent, _sIdx: number) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  if (dragSchemaIdx.value < 0) return
+  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
+}
+
+function onDropTail(e: DragEvent, sIdx: number) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+  if (dragSchemaIdx.value < 0 || dragTableIdx.value < 0) return
+  const schema = store.schemas[sIdx]
+  if (!schema) return
+  const targetIdx = schema.tables.length
+  if (dragSchemaIdx.value !== sIdx) {
+    store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, targetIdx)
+    expandedMap.value[sIdx] = true
+  } else {
+    // 同 schema 内移到末尾
+    store.moveTable(sIdx, dragTableIdx.value, schema.tables.length - 1)
+  }
+}
+
 function onDragEnd(e: DragEvent) {
   ;(e.target as HTMLElement)?.classList.remove('dragging')
   // 清除所有 drag-over 状态
-  const overEls = document.querySelectorAll('.sidebar-item.drag-over')
+  const overEls = document.querySelectorAll('.sidebar-item.drag-over, .drop-tail.drag-over')
   overEls.forEach(el => el.classList.remove('drag-over'))
   dragSchemaIdx.value = -1
   dragTableIdx.value = -1
@@ -158,6 +184,14 @@ function handleRenameSchema(sIdx: number) {
           <span v-if="table.comment" class="table-comment" :title="table.comment">{{ table.comment }}</span>
           <span class="delete-btn" @click.stop="store.deleteTable(sIdx, tIdx)" title="Delete table">&times;</span>
         </div>
+        <!-- 尾部 drop 区域：拖到当前 schema 最后一个表之后 -->
+        <div
+          v-show="isExpanded(sIdx) && dragSchemaIdx >= 0 && schema.tables.length > 0"
+          class="drop-tail"
+          @dragover="onDropTailOver($event, sIdx)"
+          @dragleave="onDragLeave"
+          @drop="onDropTail($event, sIdx)"
+        ></div>
       </template>
 
       <!-- Empty State -->
@@ -428,5 +462,15 @@ function handleRenameSchema(sIdx: number) {
 .sidebar-item.schema-item.drag-over {
   border: 2px dashed #4a90d9;
   padding: 4px 10px;
+}
+
+.drop-tail {
+  height: 8px;
+  padding: 0 12px 0 24px;
+}
+
+.drop-tail.drag-over {
+  height: 10px;
+  border-top: 2px solid #4a90d9;
 }
 </style>

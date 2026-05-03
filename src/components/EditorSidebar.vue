@@ -97,8 +97,8 @@ function onDropTail(e: DragEvent, sIdx: number) {
     store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, targetIdx)
     expandedMap.value[sIdx] = true
   } else {
-    // 同 schema 内移到末尾
-    store.moveTable(sIdx, dragTableIdx.value, schema.tables.length - 1)
+    // 同 schema 内移到末尾（toIdx = tables.length 表示追加到最后）
+    store.moveTable(sIdx, dragTableIdx.value, schema.tables.length)
   }
 }
 

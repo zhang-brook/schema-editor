@@ -474,7 +474,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (!schema) return
     if (fromIdx === toIdx) return
     if (fromIdx < 0 || fromIdx >= schema.tables.length) return
-    if (toIdx < 0 || toIdx >= schema.tables.length) return
+    if (toIdx < 0 || toIdx > schema.tables.length) return
 
     const [table] = schema.tables.splice(fromIdx, 1)
     if (!table) return

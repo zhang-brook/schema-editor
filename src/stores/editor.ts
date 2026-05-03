@@ -487,6 +487,30 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  /** 跨 schema 拖拽移动表 */
+  function moveTableToSchema(fromSchemaIdx: number, fromTableIdx: number, toSchemaIdx: number, toTableIdx: number) {
+    const fromSchema = schemas[fromSchemaIdx]
+    const toSchema = schemas[toSchemaIdx]
+    if (!fromSchema || !toSchema) return
+    if (fromTableIdx < 0 || fromTableIdx >= fromSchema.tables.length) return
+    if (toTableIdx < 0 || toTableIdx > toSchema.tables.length) return
+
+    // 同一个 schema 内移动，委托给 moveTable
+    if (fromSchemaIdx === toSchemaIdx) {
+      moveTable(fromSchemaIdx, fromTableIdx, toTableIdx)
+      return
+    }
+
+    // 跨 schema 移动
+    const [table] = fromSchema.tables.splice(fromTableIdx, 1)
+    if (!table) return
+    toSchema.tables.splice(toTableIdx, 0, table)
+
+    // 更新选中状态跟随表移动
+    selectedSchemaIdx.value = toSchemaIdx
+    selectedTableIdx.value = toTableIdx
+  }
+
   // ===== Field Helpers =====
   function isCommonField(field: Field) {
     return field.use_common_used_fields === true
@@ -959,6 +983,7 @@ export const useEditorStore = defineStore('editor', () => {
     addTable,
     deleteTable,
     moveTable,
+    moveTableToSchema,
 
     // Field Helpers
     isCommonField,

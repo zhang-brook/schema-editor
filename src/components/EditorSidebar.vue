@@ -33,8 +33,6 @@ function onDragOver(e: DragEvent, sIdx: number) {
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
   }
-  // 仅同一 schema 内才允许拖放
-  if (dragSchemaIdx.value !== sIdx) return
   ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
 }
 
@@ -45,9 +43,37 @@ function onDragLeave(e: DragEvent) {
 function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
-  if (dragSchemaIdx.value !== sIdx) return
-  if (dragTableIdx.value === tIdx) return
-  store.moveTable(sIdx, dragTableIdx.value, tIdx)
+  if (dragSchemaIdx.value === sIdx && dragTableIdx.value === tIdx) return
+  // 跨 schema 移动
+  if (dragSchemaIdx.value !== sIdx) {
+    store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, tIdx)
+    // 自动展开目标 schema
+    expandedMap.value[sIdx] = true
+  } else {
+    store.moveTable(sIdx, dragTableIdx.value, tIdx)
+  }
+}
+
+// Schema header 上的 drop 处理：将表追加到目标 schema 末尾
+function onSchemaDragOver(e: DragEvent, sIdx: number) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  // 允许在 schema header 上拖放
+  if (dragSchemaIdx.value < 0) return
+  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
+}
+
+function onSchemaDrop(e: DragEvent, sIdx: number) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+  if (dragSchemaIdx.value < 0 || dragTableIdx.value < 0) return
+  const schema = store.schemas[sIdx]
+  if (!schema) return
+  store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, schema.tables.length)
+  // 自动展开目标 schema
+  expandedMap.value[sIdx] = true
 }
 
 function onDragEnd(e: DragEvent) {
@@ -102,6 +128,9 @@ function handleRenameSchema(sIdx: number) {
           class="sidebar-item schema-item"
           :class="{ collapsed: !isExpanded(sIdx) }"
           @click="toggleExpand(sIdx)"
+          @dragover="onSchemaDragOver($event, sIdx)"
+          @dragleave="onDragLeave"
+          @drop="onSchemaDrop($event, sIdx)"
         >
           <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }">&#9654;</span>
           <span class="schema-label">{{ schema.schema }}</span>
@@ -394,5 +423,10 @@ function handleRenameSchema(sIdx: number) {
 .sidebar-item.table-item.drag-over {
   border-top: 2px solid #4a90d9;
   padding-top: 4px;
+}
+
+.sidebar-item.schema-item.drag-over {
+  border: 2px dashed #4a90d9;
+  padding: 4px 10px;
 }
 </style>

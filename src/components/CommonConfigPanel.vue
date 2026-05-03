@@ -76,6 +76,21 @@ function handleAdd() {
   store.showToast('Common field added')
 }
 
+// ===== Sort (move up/down) =====
+function moveCommonFieldUp(idx: number) {
+  if (idx <= 0) return
+  const arr = localFields.value;
+  [arr[idx - 1], arr[idx]] = [arr[idx]!, arr[idx - 1]!]
+  store.rebuildCommonUsedFieldsFromArray(arr)
+}
+
+function moveCommonFieldDown(idx: number) {
+  if (idx >= localFields.value.length - 1) return
+  const arr = localFields.value;
+  [arr[idx], arr[idx + 1]] = [arr[idx + 1]!, arr[idx]!]
+  store.rebuildCommonUsedFieldsFromArray(arr)
+}
+
 // ===== Delete =====
 function handleDelete(name: string) {
   const refs: string[] = []
@@ -200,7 +215,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
               <th>comment</th>
               <th>mysql</th>
               <th>pgsql</th>
-              <th style="width:40px;"></th>
+              <th style="width:70px;"></th>
             </tr>
           </thead>
           <tbody>
@@ -277,8 +292,12 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
                   style="min-width:80px;"
                 />
               </td>
-              <!-- delete -->
+              <!-- delete / move -->
               <td>
+                <div class="move-btns">
+                  <button class="move-btn" @click="moveCommonFieldUp(localFields.indexOf(field))" :disabled="localFields.indexOf(field) === 0">↑</button>
+                  <button class="move-btn" @click="moveCommonFieldDown(localFields.indexOf(field))" :disabled="localFields.indexOf(field) === localFields.length - 1">↓</button>
+                </div>
                 <button
                   class="btn btn-sm btn-danger"
                   @click="handleDelete(field.field_name)"
@@ -487,5 +506,29 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
   width: 14px;
   height: 14px;
   cursor: pointer;
+}
+
+.move-btns {
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+.move-btn {
+  padding: 2px 5px;
+  font-size: 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 2px;
+  margin-right: 2px;
+}
+
+.move-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.move-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>

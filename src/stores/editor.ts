@@ -186,12 +186,104 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  // ===== Reload from Disk =====
+
+  /** 放弃网页中的编辑，从本地文件重新读取所有数据 */
+  async function reloadFromDisk() {
+    if (!rootDirHandle.value || !schemaDirHandle.value) return
+
+    _reloading = true
+    if (_syncTimer) {
+      clearTimeout(_syncTimer)
+      _syncTimer = null
+    }
+
+    try {
+      // 重新读取 common.json
+      try {
+        const commonHandle = await rootDirHandle.value.getFileHandle('common.json')
+        const file = await commonHandle.getFile()
+        const data = JSON.parse(await file.text())
+        if (data.default_config && data.common_used_fields) {
+          commonConfig.value = data as CommonConfig
+        }
+      } catch  {
+        console.warn('[reloadFromDisk] Failed to read common.json, resetting to default')
+        commonConfig.value = {
+          default_config: {
+            mysql: {
+              database: {},
+              table: {
+                mysql_engine: 'InnoDB',
+                mysql_charset: 'utf8mb4',
+                mysql_collation: 'utf8mb4_0900_ai_ci',
+              }
+            }
+          },
+          common_used_fields: {}
+        }
+      }
+
+      // 重新读取所有 schema JSON
+      schemas.length = 0
+      for await (const entry of schemaDirHandle.value.values()) {
+        const fHandle = entry as FileSystemFileHandle | FileSystemDirectoryHandle
+        const fName: string = fHandle.name
+        if (fName.endsWith('.json') && fHandle.kind === 'file') {
+          try {
+            const file = await fHandle.getFile()
+            const raw = JSON.parse(await file.text())
+            if (raw.schema && Array.isArray(raw.tables)) {
+              raw.tables.forEach((t: any) => {
+                if (!t.indexes) t.indexes = []
+                if (!t.fields) t.fields = []
+              })
+              schemas.push(raw)
+            }
+          } catch (e) {
+            console.warn(`[reloadFromDisk] Failed to parse "${fName}":`, e)
+          }
+        }
+      }
+
+      // 重新读取 initial-data
+      initialDataMap.clear()
+      initialDataDeletedKeys.clear()
+      try {
+        const initialDataFiles = await readInitialDataFromHandle(rootDirHandle.value)
+        for (const { key, data } of initialDataFiles) {
+          initialDataMap.set(key, data)
+        }
+      } catch (e) {
+        console.warn('[reloadFromDisk] Failed to load initial data:', e)
+      }
+
+      // 恢复选中状态
+      if (schemas.length > 0) {
+        selectedSchemaIdx.value = 0
+        selectedTableIdx.value = schemas[0]!.tables.length > 0 ? 0 : -1
+      } else {
+        selectedSchemaIdx.value = -1
+        selectedTableIdx.value = -1
+      }
+
+      showToast('Reloaded from disk')
+    } catch (e) {
+      console.error('[reloadFromDisk] Failed:', e)
+      showToast('Failed to reload from disk')
+    } finally {
+      _reloading = false
+    }
+  }
+
   // ===== Auto-sync (实时同步到本地文件) =====
 
   let _syncTimer: ReturnType<typeof setTimeout> | null = null
   let _autoSyncSetup = false
+  let _reloading = false
 
   function debouncedSync(delay = 400) {
+    if (_reloading) return
     if (_syncTimer) clearTimeout(_syncTimer)
     _syncTimer = setTimeout(() => syncAllToDisk(), delay)
   }
@@ -962,6 +1054,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Project
     openProject,
+    reloadFromDisk,
     syncAllToDisk,
 
     // Initial Data

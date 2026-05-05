@@ -17,6 +17,15 @@ const store = useEditorStore()
     <span v-if="store.projectOpened" class="sync-badge" title="编辑内容实时同步到本地文件">
       &#128190;&#xFE0E; Auto-saving to disk
     </span>
+
+    <button
+      v-if="store.projectOpened"
+      class="btn btn-reload"
+      title="放弃网页中的修改，从本地文件重新加载"
+      @click="store.reloadFromDisk()"
+    >
+      &#8635;&#xFE0E; Reload from Disk
+    </button>
   </div>
 </template>
 
@@ -86,5 +95,9 @@ const store = useEditorStore()
   align-items: center;
   gap: 3px;
   opacity: 0.618;
+}
+
+.btn-reload {
+  margin-left: auto;
 }
 </style>

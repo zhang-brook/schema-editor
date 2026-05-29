@@ -49,7 +49,10 @@
     "emptyFields": "暫無公共欄位，請在上方新增。",
     "clickToRename": "點擊重新命名",
     "deleteField": "刪除公共欄位",
-    "badge": "{n} 個欄位"
+    "badge": "{n} 個欄位",
+    "defaultPgsqlConfig": "預設 PostgreSQL 設定",
+    "quoteIdentifiers": "識別碼加雙引號",
+    "quoteIdentifiersHint": "產生 SQL 時用雙引號包裹表名和欄位名"
   },
   "tableEditor": {
     "table": "表：",

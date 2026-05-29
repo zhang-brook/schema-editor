@@ -187,6 +187,29 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
       </div>
     </div>
 
+    <!-- Default PostgreSQL Config -->
+    <div class="section-card">
+      <div class="section-header">{{ $t('commonConfig.defaultPgsqlConfig') }}</div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">{{ $t('commonConfig.quoteIdentifiers') }}</label>
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="store.getCommonPgsqlQuoteIdentifiers()"
+                  @change="store.setCommonPgsqlQuoteIdentifiers(($event.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-hint">{{ $t('commonConfig.quoteIdentifiersHint') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Common Used Fields -->
     <div class="section-card">
       <div class="section-header">
@@ -532,5 +555,62 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
 .move-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Toggle switch */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  border-radius: 20px;
+  transition: .2s;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #4a90d9;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.toggle-hint {
+  font-size: 11px;
+  color: #888;
 }
 </style>

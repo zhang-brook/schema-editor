@@ -6,10 +6,18 @@ import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable
   纯函数，不依赖 Node.js fs，可在浏览器端运行
 */
 
+// ===== 工具函数 =====
+
+/** 根据 commonConfig 决定是否对 PostgreSQL 标识符加双引号 */
+function quoteIdent(name: string, commonConfig: CommonConfig | null): string {
+  const shouldQuote = commonConfig?.default_config?.pgsql?.quote_identifiers ?? true
+  return shouldQuote ? `"${name}"` : name
+}
+
 // ===== 表字段定义 =====
 
-function getFieldDefinitionPostgreSQL(field: Field): string {
-  let fieldDef = `"${field.field_name}"`
+function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig | null): string {
+  let fieldDef = quoteIdent(field.field_name, commonConfig)
 
   // 确定字段类型
   let fieldType = field.field_type
@@ -57,6 +65,9 @@ function getFieldDefinitionPostgreSQL(field: Field): string {
 // ===== 生成单表 SQL =====
 
 export function generateTablePostgreSQL(table: Table, schemaName: string, commonConfig: CommonConfig | null): string {
+  const qSchemaName = quoteIdent(schemaName, commonConfig)
+  const qTableName = quoteIdent(table.name, commonConfig)
+
   let sql = ''
 
   sql += renderCommentBeforeTable(table.comment_before_table)
@@ -66,15 +77,15 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   sql += `-- ----------------------------\n`
 
   // DROP TABLE IF EXISTS
-  sql += `DROP TABLE IF EXISTS "${schemaName}"."${table.name}";\n`
+  sql += `DROP TABLE IF EXISTS ${qSchemaName}.${qTableName};\n`
 
   // CREATE TABLE
-  sql += `CREATE TABLE "${schemaName}"."${table.name}" (\n`
+  sql += `CREATE TABLE ${qSchemaName}.${qTableName} (\n`
 
   // 字段定义
   const fieldDefinitions = table.fields.map(field => {
     const fieldConfig = resolveField(field, commonConfig)
-    let fieldDef = `  ${getFieldDefinitionPostgreSQL(fieldConfig)}`
+    let fieldDef = `  ${getFieldDefinitionPostgreSQL(fieldConfig, commonConfig)}`
 
     // 检查是否需要在字段前添加注释
     if (table.comment_before_fields?.[field.field_name]) {
@@ -92,13 +103,13 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
 
   const indexDefinitions: string[] = []
   if (primaryKeyField) {
-    indexDefinitions.push(`  PRIMARY KEY ("${primaryKeyField.field_name}")`)
+    indexDefinitions.push(`  PRIMARY KEY (${quoteIdent(primaryKeyField.field_name, commonConfig)})`)
   }
 
   // UNIQUE 索引在建表语句中定义
   table.indexes.forEach(index => {
     if (index.type === 'unique' || index.pgsql?.type === 'unique') {
-      indexDefinitions.push(`  UNIQUE (${index.columns.map(col => `"${col}"`).join(', ')})`)
+      indexDefinitions.push(`  UNIQUE (${index.columns.map(col => quoteIdent(col, commonConfig)).join(', ')})`)
     }
   })
 
@@ -119,8 +130,8 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
         sql += `-- ${index.pre_comment}\n`
       }
       let indexName = index.pgsql?.name || index.mysql?.name || index.name
-      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '')
-      sql += `CREATE INDEX "${indexName}" ON "${schemaName}"."${table.name}" (${index.columns.map(col => `"${col}"`).join(', ')});\n`
+      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') ?? `idx_${table.name}_${index.columns.join('_')}`
+      sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => quoteIdent(col, commonConfig)).join(', ')});\n`
       hasCreateIndexSql = true
     }
   })
@@ -130,7 +141,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   }
 
   // 表级注释 - 使用 COMMENT ON TABLE 语句
-  sql += `COMMENT ON TABLE "${schemaName}"."${table.name}" IS '${table.comment}';\n`
+  sql += `COMMENT ON TABLE ${qSchemaName}.${qTableName} IS '${table.comment}';\n`
   sql += '\n'
 
   // 字段注释 - 使用 COMMENT ON COLUMN 语句
@@ -139,7 +150,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     .forEach(field => {
       const fieldConfig = resolveField(field, commonConfig)
       if (fieldConfig.comment) {
-        sql += `COMMENT ON COLUMN "${schemaName}"."${table.name}"."${fieldConfig.field_name}" IS '${fieldConfig.comment}';\n`
+        sql += `COMMENT ON COLUMN ${qSchemaName}.${qTableName}.${quoteIdent(fieldConfig.field_name, commonConfig)} IS '${fieldConfig.comment}';\n`
       }
     })
 
@@ -149,6 +160,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
 // ===== 生成整个 schema 的 SQL =====
 
 export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonConfig | null): string {
+  const qSchema = quoteIdent(schema.schema, commonConfig)
   let sql = ''
 
   sql += [
@@ -161,8 +173,8 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
   ].join('\n')
 
   // 创建schema
-  sql += `DROP SCHEMA IF EXISTS "${schema.schema}" CASCADE;\n`
-  sql += `CREATE SCHEMA "${schema.schema}";\n\n`
+  sql += `DROP SCHEMA IF EXISTS ${qSchema} CASCADE;\n`
+  sql += `CREATE SCHEMA ${qSchema};\n\n`
 
   schema.tables.forEach(table => {
     sql += generateTablePostgreSQL(table, schema.schema, commonConfig)
@@ -199,12 +211,15 @@ function generateInitialDataPostgreSQL(
   table: Table,
   schemaName: string,
   rows: Record<string, any>[],
-  rowComments?: (string | null)[]
+  rowComments: (string | null)[] | undefined,
+  commonConfig: CommonConfig | null
 ): string {
   const cols = getTableColumnNames(table, null)
   if (cols.length === 0 || rows.length === 0) return ''
 
-  const colList = cols.map(c => `"${c}"`).join(', ')
+  const qSchema = quoteIdent(schemaName, commonConfig)
+  const qTable = quoteIdent(table.name, commonConfig)
+  const colList = cols.map(c => quoteIdent(c, commonConfig)).join(', ')
 
   // 行注释（仅输出非 null 的）
   let comments = ''
@@ -221,14 +236,14 @@ function generateInitialDataPostgreSQL(
     return `  (${vals.join(', ')})`
   })
 
-  return `${comments}INSERT INTO "${schemaName}"."${table.name}" (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+  return `${comments}INSERT INTO ${qSchema}.${qTable} (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
 /** 生成所有 Schema 的 PostgreSQL initial data INSERT 汇总 */
 export function generateInitialDataAllPostgreSQL(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
-  _commonConfig: CommonConfig | null
+  commonConfig: CommonConfig | null
 ): string {
   let sql = ''
 
@@ -254,8 +269,10 @@ export function generateInitialDataAllPostgreSQL(
       // sql += `-- ----------------------------\n`
       // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
       // sql += `-- ----------------------------\n`
-      sql += `-- Insert data into "${schema.schema}"."${table.name}"\n`
-      sql += generateInitialDataPostgreSQL(table, schema.schema, initData.rows, initData.row_comments)
+      const qSchema = quoteIdent(schema.schema, commonConfig)
+      const qTable = quoteIdent(table.name, commonConfig)
+      sql += `-- Insert data into ${qSchema}.${qTable}\n`
+      sql += generateInitialDataPostgreSQL(table, schema.schema, initData.rows, initData.row_comments, commonConfig)
       sql += '\n'
     }
   }

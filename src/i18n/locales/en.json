@@ -49,7 +49,10 @@
     "emptyFields": "No common fields yet. Add one above.",
     "clickToRename": "Click to rename",
     "deleteField": "Delete common field",
-    "badge": "{n} fields"
+    "badge": "{n} fields",
+    "defaultPgsqlConfig": "Default PostgreSQL Config",
+    "quoteIdentifiers": "Quote Identifiers",
+    "quoteIdentifiersHint": "Wrap table and column names in double quotes in generated SQL"
   },
   "tableEditor": {
     "table": "Table:",

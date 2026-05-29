@@ -68,6 +68,9 @@ export interface DefaultConfig {
       mysql_collation: string
     }
   }
+  pgsql: {
+    quote_identifiers: boolean
+  }
 }
 
 export interface CommonConfig {

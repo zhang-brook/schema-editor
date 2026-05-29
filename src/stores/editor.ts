@@ -120,6 +120,10 @@ export const useEditorStore = defineStore('editor', () => {
       if (result.commonData) {
         const data = result.commonData as any
         if (data.default_config && data.common_used_fields) {
+          // 兼容旧 common.json 无 pgsql 配置
+          if (!data.default_config.pgsql) {
+            data.default_config.pgsql = { quote_identifiers: true }
+          }
           commonConfig.value = data
           console.log('[openProject] commonConfig set')
         }
@@ -135,6 +139,9 @@ export const useEditorStore = defineStore('editor', () => {
                 mysql_charset: 'utf8mb4',
                 mysql_collation: 'utf8mb4_0900_ai_ci',
               }
+            },
+            pgsql: {
+              quote_identifiers: true,
             }
           },
           common_used_fields: {}
@@ -215,6 +222,10 @@ export const useEditorStore = defineStore('editor', () => {
         const file = await commonHandle.getFile()
         const data = JSON.parse(await file.text())
         if (data.default_config && data.common_used_fields) {
+          // 兼容旧 common.json 无 pgsql 配置
+          if (!data.default_config.pgsql) {
+            data.default_config.pgsql = { quote_identifiers: true }
+          }
           commonConfig.value = data as CommonConfig
         }
       } catch  {
@@ -228,6 +239,9 @@ export const useEditorStore = defineStore('editor', () => {
                 mysql_charset: 'utf8mb4',
                 mysql_collation: 'utf8mb4_0900_ai_ci',
               }
+            },
+            pgsql: {
+              quote_identifiers: true
             }
           },
           common_used_fields: {}
@@ -1051,6 +1065,18 @@ export const useEditorStore = defineStore('editor', () => {
     if (commonConfig.value) commonConfig.value.default_config.mysql.table.mysql_collation = val
   }
 
+  function getCommonPgsqlQuoteIdentifiers(): boolean {
+    return commonConfig.value?.default_config?.pgsql?.quote_identifiers ?? true
+  }
+  function setCommonPgsqlQuoteIdentifiers(val: boolean) {
+    if (commonConfig.value) {
+      if (!commonConfig.value.default_config.pgsql) {
+        commonConfig.value.default_config.pgsql = { quote_identifiers: true }
+      }
+      commonConfig.value.default_config.pgsql.quote_identifiers = val
+    }
+  }
+
   // ===== Common Used Fields CRUD =====
   function addCommonUsedField(name: string) {
     if (!commonConfig.value) return
@@ -1219,6 +1245,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonMysqlEngine,
     setCommonMysqlCharset,
     setCommonMysqlCollation,
+    getCommonPgsqlQuoteIdentifiers,
+    setCommonPgsqlQuoteIdentifiers,
 
     // Common Used Fields CRUD
     addCommonUsedField,

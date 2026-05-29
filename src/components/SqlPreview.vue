@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { generateTableMySQL } from '@/utils/sql-generator/mysql'
 import { generateTablePostgreSQL } from '@/utils/sql-generator/postgresql'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
+const { t } = useI18n()
 const dialect = ref<SqlDialect>('mysql')
 
 const previewSql = computed(() => {
@@ -23,7 +25,7 @@ const previewSql = computed(() => {
 
 function copyToClipboard() {
   navigator.clipboard.writeText(previewSql.value).then(() => {
-    store.showToast('SQL copied')
+    store.showToast(t('toast.sqlCopied'))
   })
 }
 </script>
@@ -33,14 +35,14 @@ function copyToClipboard() {
     <div class="section-header">
       <div class="header-tabs">
         <div style="margin-right: 15px;">
-          <span>SQL Preview</span>
+          <span>{{ $t('sqlPreview.title') }}</span>
         </div>
-        <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">MySQL</button>
+        <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">{{ $t('sqlPreview.mysql') }}</button>
         <button class="tab-btn" :class="{ active: dialect === 'postgresql' }"
-          @click="dialect = 'postgresql'">PostgreSQL</button>
+          @click="dialect = 'postgresql'">{{ $t('sqlPreview.postgresql') }}</button>
       </div>
       <div class="header-actions">
-        <button class="btn-copy" @click="copyToClipboard" title="Copy SQL">Copy</button>
+        <button class="btn-copy" @click="copyToClipboard" :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>
       </div>
     </div>
     <div class="section-body">

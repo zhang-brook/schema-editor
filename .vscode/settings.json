@@ -9,5 +9,10 @@
     "source.fixAll": "explicit"
   },
   "editor.formatOnSave": false,
-  "editor.defaultFormatter": "oxc.oxc-vscode"
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+
+  // i18n
+  "i18n-ally.localesPaths": [
+    "src/i18n/locales"
+  ],
 }

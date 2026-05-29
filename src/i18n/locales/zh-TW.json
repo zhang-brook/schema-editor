@@ -1,0 +1,170 @@
+{
+  "app": {
+    "title": "Schema 編輯器",
+    "emptyState": "請先匯入 JSON 檔案，然後從側邊欄選擇一個表"
+  },
+  "toolbar": {
+    "openFolder": "開啟資料夾",
+    "autoSaving": "自動儲存到磁碟",
+    "autoSavingTitle": "編輯內容即時同步到本機檔案",
+    "reloadFromDisk": "從磁碟重新載入",
+    "reloadFromDiskTitle": "放棄網頁修改，從本機檔案重新載入",
+    "language": "語言"
+  },
+  "sidebar": {
+    "navigation": "導覽",
+    "commonConfig": "公共設定",
+    "addSchema": "新增 Schema",
+    "renameSchema": "重新命名 Schema",
+    "deleteSchema": "刪除 Schema",
+    "addTable": "新增表",
+    "deleteTable": "刪除表",
+    "emptyHint": "點擊「開啟資料夾」開始",
+    "open": "開啟",
+    "prompt": {
+      "schemaName": "Schema 名稱：",
+      "newName": "新名稱："
+    }
+  },
+  "commonConfig": {
+    "defaultMysqlConfig": "預設 MySQL 表設定",
+    "commonUsedFields": "公共欄位",
+    "engine": "引擎",
+    "charset": "字元集",
+    "collation": "排序規則",
+    "fields": {
+      "fieldName": "欄位名稱",
+      "fieldType": "欄位類型",
+      "length": "長度",
+      "notNull": "非空",
+      "pk": "主鍵",
+      "default": "預設值",
+      "comment": "註解",
+      "mysql": "mysql",
+      "pgsql": "pgsql"
+    },
+    "addField": "+ 新增",
+    "newFieldPlaceholder": "新欄位名稱...",
+    "overridePlaceholder": "key=val, ...",
+    "emptyFields": "暫無公共欄位，請在上方新增。",
+    "clickToRename": "點擊重新命名",
+    "deleteField": "刪除公共欄位",
+    "badge": "{n} 個欄位"
+  },
+  "tableEditor": {
+    "table": "表：",
+    "tableName": "表名",
+    "comment": "註解",
+    "commentBeforeTable": "表前註解（每行一條註解，空行 = 空白）",
+    "commentHint": "每行會生成為一條 SQL 註解。空行代表空行（null）。",
+    "mysqlEngine": "MySQL 引擎",
+    "mysqlCharset": "MySQL 字元集",
+    "mysqlCollation": "MySQL 排序規則"
+  },
+  "fieldTable": {
+    "fields": "欄位",
+    "fieldName": "欄位名稱",
+    "type": "類型",
+    "length": "長度",
+    "nn": "非空",
+    "pk": "主鍵",
+    "default": "預設值",
+    "comment": "註解",
+    "removed": "已刪除",
+    "actions": "操作",
+    "addField": "新增欄位",
+    "addCommonField": "新增公共欄位",
+    "dbOverrides": "資料庫特定覆寫",
+    "commentBeforeField": "欄位前註解",
+    "commentPlaceholder": "每行一條註解。空行 = null。",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "badge": "{n} 個欄位"
+  },
+  "indexTable": {
+    "indexes": "索引",
+    "name": "名稱",
+    "type": "類型",
+    "columns": "欄",
+    "using": "方法",
+    "actions": "操作",
+    "addIndex": "新增索引",
+    "indexOverrides": "索引覆寫",
+    "preComment": "前置註解",
+    "typeSelect": "-- 類型 --",
+    "namePlaceholder": "{pre}...{post}",
+    "commentPlaceholder": "索引前註解",
+    "empty": "暫無索引"
+  },
+  "addFieldModal": {
+    "addCommonRef": "新增公共欄位引用",
+    "addNewField": "新增欄位",
+    "fieldName": "欄位名稱",
+    "selectCommonField": "選擇公共欄位",
+    "namePlaceholder": "例如 user_code",
+    "selectPlaceholder": "-- 選擇 --",
+    "cancel": "取消",
+    "add": "新增"
+  },
+  "sqlPreview": {
+    "title": "SQL 預覽",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "copy": "複製",
+    "copyTitle": "複製 SQL"
+  },
+  "initialData": {
+    "title": "初始資料",
+    "table": "表格",
+    "json": "JSON",
+    "clear": "清空",
+    "addData": "新增資料",
+    "addRow": "新增列",
+    "hash": "#",
+    "comment": "註解",
+    "actions": "操作",
+    "rowCommentPlaceholder": "列註解",
+    "empty": "未設定初始資料",
+    "emptyRows": "暫無資料 — 點擊「新增列」新增資料",
+    "clearConfirm": "確認清空此表的所有初始資料？",
+    "badge": "{n} 列",
+    "jsonError": {
+      "invalidStructure": "JSON 必須為陣列或 {{ rows: [...], ... }}",
+      "invalidSyntax": "JSON 格式無效",
+      "fixBeforeSwitch": " — 修正後再切換到表格模式"
+    }
+  },
+  "toast": {
+    "skipping": "跳過 {name}：格式無效",
+    "opened": "已開啟 {summary}",
+    "reloadedFromDisk": "已從磁碟重新載入",
+    "failedReloadFromDisk": "從磁碟重新載入失敗",
+    "failedSaveChanges": "儲存變更失敗",
+    "schemaExists": "Schema \"{name}\" 已存在",
+    "schemaCreated": "Schema 已建立",
+    "schemaDeleted": "Schema 已刪除",
+    "schemaRenamed": "Schema 已重新命名",
+    "tableAdded": "表已新增",
+    "tableDeleted": "表已刪除",
+    "pleaseSelectCommonField": "請選擇一個公共欄位",
+    "pleaseEnterFieldName": "請輸入欄位名稱",
+    "fieldExistsInTable": "欄位 \"{name}\" 在此表中已存在",
+    "fieldAdded": "欄位已新增",
+    "fieldDeleted": "欄位已刪除",
+    "fieldNameEmpty": "欄位名稱不能為空",
+    "commonFieldExists": "公共欄位 \"{name}\" 已存在",
+    "commonFieldAdded": "公共欄位已新增",
+    "commonFieldDeleted": "公共欄位已刪除",
+    "commonFieldRenamed": "公共欄位已重新命名",
+    "indexAdded": "索引已新增",
+    "indexDeleted": "索引已刪除",
+    "sqlCopied": "SQL 已複製"
+  },
+  "confirm": {
+    "deleteSchema": "確認刪除 Schema \"{name}\" 及其所有表？此操作無法復原。",
+    "deleteTable": "確認刪除表 \"{name}\"？",
+    "deleteField": "確認刪除欄位 \"{name}\"？",
+    "deleteIndex": "確認刪除此索引？",
+    "deleteCommonField": "公共欄位 \"{name}\" 被以下表引用：\n{refs}\n\n仍要刪除嗎？引用將變為無效。"
+  }
+}

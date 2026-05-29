@@ -1,4 +1,4 @@
-﻿import { toRaw } from 'vue'
+import { toRaw } from 'vue'
 import type { InitialData } from '@/types/schema'
 
 const jsonFileIndent = 4

@@ -268,7 +268,7 @@ function generateInitialDataMySQL(
 export function generateInitialDataAllMySQL(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
-  commonConfig: CommonConfig | null
+  _commonConfig: CommonConfig | null
 ): string {
   let sql = ''
 

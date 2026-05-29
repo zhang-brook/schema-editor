@@ -7,20 +7,20 @@ const store = useEditorStore()
 <template>
   <div class="section-card" v-if="store.currentTable">
     <div class="section-header">
-      Indexes
+      {{ $t('indexTable.indexes') }}
       <span class="badge">{{ store.currentTable.indexes.length }}</span>
-      <button class="btn btn-sm btn-primary" style="margin-left:auto;" @click="store.addIndex(store.currentTable!)">Add Index</button>
+      <button class="btn btn-sm btn-primary" style="margin-left:auto;" @click="store.addIndex(store.currentTable!)">{{ $t('indexTable.addIndex') }}</button>
     </div>
     <div class="section-body" style="padding: 0; overflow-x: auto;">
       <table class="indexes-table" v-if="store.currentTable.indexes.length > 0">
         <thead>
           <tr>
             <th style="width:30px;"></th>
-            <th>name</th>
-            <th>type</th>
-            <th>columns</th>
-            <th>using</th>
-            <th style="width:50px;">actions</th>
+            <th>{{ $t('indexTable.name') }}</th>
+            <th>{{ $t('indexTable.type') }}</th>
+            <th>{{ $t('indexTable.columns') }}</th>
+            <th>{{ $t('indexTable.using') }}</th>
+            <th style="width:50px;">{{ $t('indexTable.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -32,7 +32,7 @@ const store = useEditorStore()
                 </span>
               </td>
               <td>
-                <input class="table-input" v-model="index.name" placeholder="{pre}...{post}" style="min-width:120px;">
+                <input class="table-input" v-model="index.name" :placeholder="$t('indexTable.namePlaceholder', { pre: '{pre}', post: '{post}' })" style="min-width:120px;">
               </td>
               <td>
                 <select class="form-input" v-model="index.type" style="width:80px;">
@@ -55,12 +55,12 @@ const store = useEditorStore()
               <td colspan="6">
                 <div class="field-expand-content">
                   <div class="expand-section">
-                    <div class="expand-section-title">Index Overrides</div>
+                    <div class="expand-section-title">{{ $t('indexTable.indexOverrides') }}</div>
                     <div class="db-override-grid">
                       <div class="db-override-group">
                         <div class="db-label">MySQL</div>
                         <select class="form-input" :value="store.getIndexOverrideValue(index, 'mysql', 'type')" @input="store.setIndexOverrideValue(index, 'mysql', 'type', ($event.target as HTMLSelectElement).value)">
-                          <option value="">-- type --</option>
+                          <option value="">{{ $t('indexTable.typeSelect') }}</option>
                           <option value="index">index</option>
                           <option value="unique">unique</option>
                         </select>
@@ -70,7 +70,7 @@ const store = useEditorStore()
                       <div class="db-override-group">
                         <div class="db-label">PostgreSQL</div>
                         <select class="form-input" :value="store.getIndexOverrideValue(index, 'pgsql', 'type')" @input="store.setIndexOverrideValue(index, 'pgsql', 'type', ($event.target as HTMLSelectElement).value)">
-                          <option value="">-- type --</option>
+                          <option value="">{{ $t('indexTable.typeSelect') }}</option>
                           <option value="index">index</option>
                           <option value="unique">unique</option>
                         </select>
@@ -79,8 +79,8 @@ const store = useEditorStore()
                     </div>
                   </div>
                   <div class="expand-section">
-                    <div class="expand-section-title">Pre Comment</div>
-                    <input class="form-input" v-model="index.pre_comment" placeholder="Comment before index">
+                    <div class="expand-section-title">{{ $t('indexTable.preComment') }}</div>
+                    <input class="form-input" v-model="index.pre_comment" :placeholder="$t('indexTable.commentPlaceholder')">
                   </div>
                 </div>
               </td>
@@ -89,7 +89,7 @@ const store = useEditorStore()
         </tbody>
       </table>
       <div v-else style="padding: 14px; color: #aaa; font-size: 12px; text-align: center;">
-        No indexes defined
+        {{ $t('indexTable.empty') }}
       </div>
     </div>
   </div>

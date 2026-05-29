@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { parseDefaultInput } from '@/utils/file-helpers'
 import type { InitialData } from '@/types/schema'
 
 const store = useEditorStore()
+const { t } = useI18n()
 
 const editorMode = ref<'json' | 'table'>('table')
 const jsonText = ref('')
@@ -68,7 +70,7 @@ function onJsonInput(text: string) {
   try {
     const parsed = parseJsonInput(text)
     if (!parsed) {
-      jsonError.value = 'JSON must be an array or { rows: [...], ... }'
+      jsonError.value = t('initialData.jsonError.invalidStructure')
       return
     }
     jsonError.value = ''
@@ -76,7 +78,7 @@ function onJsonInput(text: string) {
       store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, parsed)
     }
   } catch (e: any) {
-    jsonError.value = e.message || 'Invalid JSON'
+    jsonError.value = e.message || t('initialData.jsonError.invalidSyntax')
   }
 }
 
@@ -88,7 +90,7 @@ function switchMode(mode: 'json' | 'table') {
     try {
       const parsed = parseJsonInput(jsonText.value)
       if (!parsed) {
-        jsonError.value = 'JSON must be an array or { rows: [...], ... } — fix before switching to table mode'
+        jsonError.value = t('initialData.jsonError.invalidStructure') + t('initialData.jsonError.fixBeforeSwitch')
         return
       }
       jsonError.value = ''
@@ -96,7 +98,7 @@ function switchMode(mode: 'json' | 'table') {
         store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, parsed)
       }
     } catch (e: any) {
-      jsonError.value = (e.message || 'Invalid JSON') + ' — fix JSON before switching to table mode'
+      jsonError.value = (e.message || t('initialData.jsonError.invalidSyntax')) + t('initialData.jsonError.fixBeforeSwitch')
       return
     }
   }
@@ -165,7 +167,7 @@ function moveRowDown(rowIdx: number) {
 
 function clearAllData() {
   if (!store.currentSchema || !store.currentTable) return
-  if (!confirm('Clear all initial data for this table?')) return
+  if (!confirm(t('initialData.clearConfirm'))) return
   store.deleteInitialData(store.currentSchema.schema, store.currentTable.name)
   jsonText.value = '[]'
   jsonError.value = ''
@@ -239,8 +241,8 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
 <template>
   <div class="section-card" v-if="store.currentTable">
     <div class="section-header">
-      <span>Initial Data</span>
-      <span class="badge" v-if="hasData">{{ rowCount }} row(s)</span>
+      <span>{{ $t('initialData.title') }}</span>
+      <span class="badge" v-if="hasData">{{ $t('initialData.badge', { n: rowCount }) }}</span>
       <div class="header-actions">
         <template v-if="initialData !== undefined">
           <div class="mode-toggle">
@@ -248,22 +250,22 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
               class="mode-btn"
               :class="{ active: editorMode === 'table' }"
               @click="switchMode('table')"
-            >Table</button>
+            >{{ $t('initialData.table') }}</button>
             <button
               class="mode-btn"
               :class="{ active: editorMode === 'json' }"
               @click="switchMode('json')"
-            >JSON</button>
+            >{{ $t('initialData.json') }}</button>
           </div>
-          <button class="btn btn-sm btn-danger" @click="clearAllData">Clear</button>
+          <button class="btn btn-sm btn-danger" @click="clearAllData">{{ $t('initialData.clear') }}</button>
         </template>
       </div>
     </div>
     <div class="section-body" style="padding: 0;">
       <!-- 空状态 -->
       <div v-if="initialData === undefined" class="empty-state">
-        <span>No initial data configured</span>
-        <button class="btn btn-sm btn-primary" @click="addEmptyData">Add Data</button>
+        <span>{{ $t('initialData.empty') }}</span>
+        <button class="btn btn-sm btn-primary" @click="addEmptyData">{{ $t('initialData.addData') }}</button>
       </div>
 
       <!-- JSON 编辑模式 -->
@@ -280,16 +282,16 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
       <!-- Table 编辑模式 -->
       <template v-else>
         <div class="table-toolbar">
-          <button class="btn btn-sm btn-primary" @click="addRow">Add Row</button>
+          <button class="btn btn-sm btn-primary" @click="addRow">{{ $t('initialData.addRow') }}</button>
         </div>
         <div style="overflow-x: auto;">
           <table class="data-table" v-if="rows && rows.length > 0">
             <thead>
               <tr>
-                <th style="width:36px;">#</th>
+                <th style="width:36px;">{{ $t('initialData.hash') }}</th>
                 <th v-for="fname in fieldNames" :key="fname">{{ fname }}</th>
-                <th style="width:130px;">comment</th>
-                <th style="width:110px;">actions</th>
+                <th style="width:130px;">{{ $t('initialData.comment') }}</th>
+                <th style="width:110px;">{{ $t('initialData.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -314,7 +316,7 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
                     class="comment-input"
                     :value="rowComments?.[rIdx] ?? ''"
                     @change="setRowComment(rIdx, ($event.target as HTMLInputElement).value)"
-                    placeholder="row comment"
+                    :placeholder="$t('initialData.rowCommentPlaceholder')"
                   />
                 </td>
                 <td>
@@ -328,7 +330,7 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
             </tbody>
           </table>
           <div v-else class="empty-rows">
-            No rows — click "Add Row" to add data
+            {{ $t('initialData.emptyRows') }}
           </div>
         </div>
       </template>

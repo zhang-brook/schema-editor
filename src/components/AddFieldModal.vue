@@ -8,20 +8,20 @@ const store = useEditorStore()
   <!-- ===== Add Field Modal ===== -->
   <div class="modal-overlay" v-if="store.showAddFieldModal" @click.self="store.showAddFieldModal = false">
     <div class="modal-box">
-      <h3>{{ store.addFieldMode === 'common' ? 'Add Common Field Reference' : 'Add New Field' }}</h3>
+      <h3>{{ store.addFieldMode === 'common' ? $t('addFieldModal.addCommonRef') : $t('addFieldModal.addNewField') }}</h3>
       <div v-if="store.addFieldMode === 'normal'" class="form-group">
-        <label class="form-label">Field Name</label>
+        <label class="form-label">{{ $t('addFieldModal.fieldName') }}</label>
         <input
           class="form-input"
           v-model="store.newFieldName"
           @keyup.enter="store.confirmAddField()"
-          placeholder="e.g. user_code"
+          :placeholder="$t('addFieldModal.namePlaceholder')"
         />
       </div>
       <div v-else class="form-group">
-        <label class="form-label">Select Common Field</label>
+        <label class="form-label">{{ $t('addFieldModal.selectCommonField') }}</label>
         <select class="form-input" v-model="store.newFieldSelectCommon">
-          <option value="">-- Select --</option>
+          <option value="">{{ $t('addFieldModal.selectPlaceholder') }}</option>
           <option
             v-for="name in store.commonFieldNames"
             :key="name"
@@ -32,8 +32,8 @@ const store = useEditorStore()
         </select>
       </div>
       <div class="modal-actions">
-        <button class="btn" @click="store.showAddFieldModal = false">Cancel</button>
-        <button class="btn btn-primary" @click="store.confirmAddField()">Add</button>
+        <button class="btn" @click="store.showAddFieldModal = false">{{ $t('addFieldModal.cancel') }}</button>
+        <button class="btn btn-primary" @click="store.confirmAddField()">{{ $t('addFieldModal.add') }}</button>
       </div>
     </div>
   </div>

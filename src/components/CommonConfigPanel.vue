@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import type { Field } from '@/types/schema'
 import { displayFieldLength, displayDefault, parseDefaultInput, parseFieldLengthInput } from '@/utils/file-helpers'
 
 const store = useEditorStore()
+const { t } = useI18n()
 
 // ===== 本地数组：从 record 派生，保持稳定顺序 =====
 function readFieldsFromRecord(): Field[] {
@@ -35,10 +37,10 @@ function finishRename() {
   const newName = editingFieldName.value.trim()
   editingOldName.value = ''
 
-  if (!newName) { store.showToast('Field name cannot be empty'); return }
+  if (!newName) { store.showToast(t('toast.fieldNameEmpty')); return }
   if (oldName === newName) return
   if (localFields.value.some(f => f.field_name === newName)) {
-    store.showToast(`Common field "${newName}" already exists`)
+    store.showToast(t('toast.commonFieldExists', { name: newName }))
     editingFieldName.value = ''
     return
   }
@@ -48,7 +50,7 @@ function finishRename() {
   field.field_name = newName
   store.updateCommonUsedFieldName(oldName, newName)
   store.rebuildCommonUsedFieldsFromArray(localFields.value)
-  store.showToast('Common field renamed')
+  store.showToast(t('toast.commonFieldRenamed'))
   editingFieldName.value = ''
 }
 
@@ -57,9 +59,9 @@ const newCommonFieldName = ref('')
 
 function handleAdd() {
   const name = newCommonFieldName.value.trim()
-  if (!name) { store.showToast('Please enter a field name'); return }
+  if (!name) { store.showToast(t('toast.pleaseEnterFieldName')); return }
   if (localFields.value.some(f => f.field_name === name)) {
-    store.showToast(`Common field "${name}" already exists`)
+    store.showToast(t('toast.commonFieldExists', { name }))
     return
   }
   const newField: Field = {
@@ -73,7 +75,7 @@ function handleAdd() {
   localFields.value.push(newField)
   store.rebuildCommonUsedFieldsFromArray(localFields.value)
   newCommonFieldName.value = ''
-  store.showToast('Common field added')
+  store.showToast(t('toast.commonFieldAdded'))
 }
 
 // ===== Sort (move up/down) =====
@@ -103,12 +105,12 @@ function handleDelete(name: string) {
   }
   if (refs.length > 0) {
     if (!confirm(
-      `Common field "${name}" is referenced by:\n${refs.join('\n')}\n\nDelete it anyway? References will become stale.`
+      t('confirm.deleteCommonField', { name, refs: refs.join('\n') })
     )) return
   }
   localFields.value = localFields.value.filter(f => f.field_name !== name)
   store.rebuildCommonUsedFieldsFromArray(localFields.value)
-  store.showToast('Common field deleted')
+  store.showToast(t('toast.commonFieldDeleted'))
 }
 
 // ===== Override helpers =====
@@ -154,11 +156,11 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
   <template v-if="store.showCommonPanel && store.commonConfig">
     <!-- Default MySQL Table Config -->
     <div class="section-card">
-      <div class="section-header">Default MySQL Table Config</div>
+      <div class="section-header">{{ $t('commonConfig.defaultMysqlConfig') }}</div>
       <div class="section-body">
         <div class="form-row">
           <div class="form-group medium">
-            <label class="form-label">Engine</label>
+            <label class="form-label">{{ $t('commonConfig.engine') }}</label>
             <input
               class="form-input"
               :value="store.getCommonMysqlEngine()"
@@ -166,7 +168,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
             />
           </div>
           <div class="form-group medium">
-            <label class="form-label">Charset</label>
+            <label class="form-label">{{ $t('commonConfig.charset') }}</label>
             <input
               class="form-input"
               :value="store.getCommonMysqlCharset()"
@@ -174,7 +176,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
             />
           </div>
           <div class="form-group medium">
-            <label class="form-label">Collation</label>
+            <label class="form-label">{{ $t('commonConfig.collation') }}</label>
             <input
               class="form-input"
               :value="store.getCommonMysqlCollation()"
@@ -189,32 +191,32 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
     <div class="section-card">
       <div class="section-header">
         <span>
-          Common Used Fields
-          <span class="badge">{{ localFields.length }} fields</span>
+          {{ $t('commonConfig.commonUsedFields') }}
+          <span class="badge">{{ $t('commonConfig.badge', { n: localFields.length }) }}</span>
         </span>
         <div class="header-actions">
           <input
             v-model="newCommonFieldName"
             class="form-input new-field-input"
-            placeholder="New field name..."
+            :placeholder="$t('commonConfig.newFieldPlaceholder')"
             @keyup.enter="handleAdd"
           />
-          <button class="btn btn-sm btn-primary" @click="handleAdd">+ Add</button>
+          <button class="btn btn-sm btn-primary" @click="handleAdd">{{ $t('commonConfig.addField') }}</button>
         </div>
       </div>
       <div class="section-body" style="padding: 0; overflow-x: auto;">
         <table class="common-fields-table">
           <thead>
             <tr>
-              <th>field_name</th>
-              <th>field_type</th>
-              <th>length</th>
-              <th>not_null</th>
-              <th>pk</th>
-              <th>default</th>
-              <th>comment</th>
-              <th>mysql</th>
-              <th>pgsql</th>
+              <th>{{ $t('commonConfig.fields.fieldName') }}</th>
+              <th>{{ $t('commonConfig.fields.fieldType') }}</th>
+              <th>{{ $t('commonConfig.fields.length') }}</th>
+              <th>{{ $t('commonConfig.fields.notNull') }}</th>
+              <th>{{ $t('commonConfig.fields.pk') }}</th>
+              <th>{{ $t('commonConfig.fields.default') }}</th>
+              <th>{{ $t('commonConfig.fields.comment') }}</th>
+              <th>{{ $t('commonConfig.fields.mysql') }}</th>
+              <th>{{ $t('commonConfig.fields.pgsql') }}</th>
               <th style="width:70px;"></th>
             </tr>
           </thead>
@@ -235,7 +237,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
                   v-else
                   class="editable-field-name"
                   @click="startRename(field.field_name)"
-                  title="Click to rename"
+                  :title="$t('commonConfig.clickToRename')"
                 >{{ field.field_name }}</span>
               </td>
               <!-- field_type -->
@@ -278,7 +280,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
                   class="table-input"
                   :value="formatOverride(field.mysql)"
                   @input="setOverride(field, 'mysql', ($event.target as HTMLInputElement).value)"
-                  placeholder="key=val, ..."
+                  :placeholder="$t('commonConfig.overridePlaceholder')"
                   style="min-width:80px;"
                 />
               </td>
@@ -288,7 +290,7 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
                   class="table-input"
                   :value="formatOverride(field.pgsql)"
                   @input="setOverride(field, 'pgsql', ($event.target as HTMLInputElement).value)"
-                  placeholder="key=val, ..."
+                  :placeholder="$t('commonConfig.overridePlaceholder')"
                   style="min-width:80px;"
                 />
               </td>
@@ -301,13 +303,13 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
                 <button
                   class="btn btn-sm btn-danger"
                   @click="handleDelete(field.field_name)"
-                  title="Delete common field"
+                  :title="$t('commonConfig.deleteField')"
                 >&times;</button>
               </td>
             </tr>
             <tr v-if="localFields.length === 0">
               <td colspan="10" style="text-align:center; color:#aaa; padding:16px;">
-                No common fields yet. Add one above.
+                {{ $t('commonConfig.emptyFields') }}
               </td>
             </tr>
           </tbody>

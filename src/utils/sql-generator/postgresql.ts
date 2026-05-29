@@ -228,7 +228,7 @@ function generateInitialDataPostgreSQL(
 export function generateInitialDataAllPostgreSQL(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
-  commonConfig: CommonConfig | null
+  _commonConfig: CommonConfig | null
 ): string {
   let sql = ''
 

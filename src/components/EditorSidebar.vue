@@ -1,8 +1,10 @@
 ﻿<script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 
 const store = useEditorStore()
+const { t } = useI18n()
 
 // 每个 schema 的展开/折叠状态（默认全部展开）
 const expandedMap = ref<Record<number, boolean>>({})
@@ -157,7 +159,7 @@ function onSchemaTailDrop(e: DragEvent) {
 
 // ===== Schema CRUD handlers =====
 function handleAddSchema() {
-  const name = prompt('Schema name:')
+  const name = prompt(t('sidebar.prompt.schemaName'))
   if (name && name.trim()) {
     store.addSchema(name.trim())
   }
@@ -166,7 +168,7 @@ function handleAddSchema() {
 function handleRenameSchema(sIdx: number) {
   const schema = store.schemas[sIdx]
   if (!schema) return
-  const newName = prompt('New name:', schema.schema)
+  const newName = prompt(t('sidebar.prompt.newName'), schema.schema)
   if (newName && newName.trim() && newName.trim() !== schema.schema) {
     store.renameSchema(sIdx, newName.trim())
   }
@@ -177,8 +179,8 @@ function handleRenameSchema(sIdx: number) {
   <!-- ===== Left Sidebar ===== -->
   <div class="sidebar">
     <div class="sidebar-header">
-      <span>Navigation</span>
-      <span v-if="store.projectOpened" class="add-schema-btn" @click="handleAddSchema" title="Add schema">+</span>
+      <span>{{ $t('sidebar.navigation') }}</span>
+      <span v-if="store.projectOpened" class="add-schema-btn" @click="handleAddSchema" :title="$t('sidebar.addSchema')">+</span>
     </div>
     <div class="sidebar-tree">
       <!-- Common Config Entry -->
@@ -189,7 +191,7 @@ function handleRenameSchema(sIdx: number) {
         @click="store.selectCommonConfig()"
       >
         <span class="sidebar-icon">&#9881;</span>
-        Common Config
+        {{ $t('sidebar.commonConfig') }}
       </div>
 
       <!-- Schema Groups -->
@@ -208,9 +210,9 @@ function handleRenameSchema(sIdx: number) {
           <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }">&#9654;</span>
           <span class="schema-label">{{ schema.schema }}</span>
           <span class="schema-table-count">{{ schema.tables.length }}</span>
-          <span class="schema-action-btn" @click.stop="handleRenameSchema(sIdx)" title="Rename schema">&#9998;</span>
-          <span class="schema-action-btn schema-action-delete" @click.stop="store.deleteSchema(sIdx)" title="Delete schema">&times;</span>
-          <span class="add-table-btn" @click.stop="store.addTable(sIdx)" title="Add table">+</span>
+          <span class="schema-action-btn" @click.stop="handleRenameSchema(sIdx)" :title="$t('sidebar.renameSchema')">&#9998;</span>
+          <span class="schema-action-btn schema-action-delete" @click.stop="store.deleteSchema(sIdx)" :title="$t('sidebar.deleteSchema')">&times;</span>
+          <span class="add-table-btn" @click.stop="store.addTable(sIdx)" :title="$t('sidebar.addTable')">+</span>
         </div>
         <div
           v-for="(table, tIdx) in schema.tables"
@@ -229,7 +231,7 @@ function handleRenameSchema(sIdx: number) {
           <span class="sidebar-icon">&#9679;</span>
           <span class="table-name">{{ table.name }}</span>
           <span v-if="table.comment" class="table-comment" :title="table.comment">{{ table.comment }}</span>
-          <span class="delete-btn" @click.stop="store.deleteTable(sIdx, tIdx)" title="Delete table">&times;</span>
+          <span class="delete-btn" @click.stop="store.deleteTable(sIdx, tIdx)" :title="$t('sidebar.deleteTable')">&times;</span>
         </div>
         <!-- 尾部 drop 区域：拖到当前 schema 最后一个表之后 -->
         <!-- 始终占位，用 opacity 控制可见性，避免拖拽开始时布局变化 -->
@@ -255,7 +257,7 @@ function handleRenameSchema(sIdx: number) {
 
       <!-- Empty State -->
       <div v-if="!store.projectOpened && store.schemas.length === 0 && !store.commonConfig" class="empty-hint">
-        Click "Open Folder" to start
+        {{ $t('sidebar.emptyHint') }}
       </div>
     </div>
 
@@ -263,7 +265,7 @@ function handleRenameSchema(sIdx: number) {
     <div v-if="!store.projectOpened" class="sidebar-footer">
       <button class="btn-footer btn-footer-primary" @click="store.openProject()">
         <!-- &#128193; Open -->
-        &#128193;&#xFE0E; Open
+        &#128193;&#xFE0E; {{ $t('sidebar.open') }}
       </button>
     </div>
   </div>

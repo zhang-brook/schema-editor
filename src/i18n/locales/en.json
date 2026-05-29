@@ -1,0 +1,170 @@
+{
+  "app": {
+    "title": "Schema Editor",
+    "emptyState": "Please import a JSON file first, then select a table from the sidebar"
+  },
+  "toolbar": {
+    "openFolder": "Open Folder",
+    "autoSaving": "Auto-saving to disk",
+    "autoSavingTitle": "Edits are synced to local files in real-time",
+    "reloadFromDisk": "Reload from Disk",
+    "reloadFromDiskTitle": "Discard web changes and reload from local files",
+    "language": "Language"
+  },
+  "sidebar": {
+    "navigation": "Navigation",
+    "commonConfig": "Common Config",
+    "addSchema": "Add schema",
+    "renameSchema": "Rename schema",
+    "deleteSchema": "Delete schema",
+    "addTable": "Add table",
+    "deleteTable": "Delete table",
+    "emptyHint": "Click \"Open Folder\" to start",
+    "open": "Open",
+    "prompt": {
+      "schemaName": "Schema name:",
+      "newName": "New name:"
+    }
+  },
+  "commonConfig": {
+    "defaultMysqlConfig": "Default MySQL Table Config",
+    "commonUsedFields": "Common Used Fields",
+    "engine": "Engine",
+    "charset": "Charset",
+    "collation": "Collation",
+    "fields": {
+      "fieldName": "field_name",
+      "fieldType": "field_type",
+      "length": "length",
+      "notNull": "not_null",
+      "pk": "pk",
+      "default": "default",
+      "comment": "comment",
+      "mysql": "mysql",
+      "pgsql": "pgsql"
+    },
+    "addField": "+ Add",
+    "newFieldPlaceholder": "New field name...",
+    "overridePlaceholder": "key=val, ...",
+    "emptyFields": "No common fields yet. Add one above.",
+    "clickToRename": "Click to rename",
+    "deleteField": "Delete common field",
+    "badge": "{n} fields"
+  },
+  "tableEditor": {
+    "table": "Table:",
+    "tableName": "Table Name",
+    "comment": "Comment",
+    "commentBeforeTable": "Comment Before Table (one line per comment, empty line = blank)",
+    "commentHint": "Each line becomes a SQL comment. Blank lines represent empty lines (null).",
+    "mysqlEngine": "MySQL Engine",
+    "mysqlCharset": "MySQL Charset",
+    "mysqlCollation": "MySQL Collation"
+  },
+  "fieldTable": {
+    "fields": "Fields",
+    "fieldName": "field_name",
+    "type": "type",
+    "length": "length",
+    "nn": "NN",
+    "pk": "PK",
+    "default": "default",
+    "comment": "comment",
+    "removed": "Removed",
+    "actions": "actions",
+    "addField": "Add Field",
+    "addCommonField": "Add Common Field",
+    "dbOverrides": "Database-specific Overrides",
+    "commentBeforeField": "Comment Before Field",
+    "commentPlaceholder": "One comment per line. Blank line = null.",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "badge": "{n} fields"
+  },
+  "indexTable": {
+    "indexes": "Indexes",
+    "name": "name",
+    "type": "type",
+    "columns": "columns",
+    "using": "using",
+    "actions": "actions",
+    "addIndex": "Add Index",
+    "indexOverrides": "Index Overrides",
+    "preComment": "Pre Comment",
+    "typeSelect": "-- type --",
+    "namePlaceholder": "{pre}...{post}",
+    "commentPlaceholder": "Comment before index",
+    "empty": "No indexes defined"
+  },
+  "addFieldModal": {
+    "addCommonRef": "Add Common Field Reference",
+    "addNewField": "Add New Field",
+    "fieldName": "Field Name",
+    "selectCommonField": "Select Common Field",
+    "namePlaceholder": "e.g. user_code",
+    "selectPlaceholder": "-- Select --",
+    "cancel": "Cancel",
+    "add": "Add"
+  },
+  "sqlPreview": {
+    "title": "SQL Preview",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "copy": "Copy",
+    "copyTitle": "Copy SQL"
+  },
+  "initialData": {
+    "title": "Initial Data",
+    "table": "Table",
+    "json": "JSON",
+    "clear": "Clear",
+    "addData": "Add Data",
+    "addRow": "Add Row",
+    "hash": "#",
+    "comment": "comment",
+    "actions": "actions",
+    "rowCommentPlaceholder": "row comment",
+    "empty": "No initial data configured",
+    "emptyRows": "No rows — click \"Add Row\" to add data",
+    "clearConfirm": "Clear all initial data for this table?",
+    "badge": "{n} row(s)",
+    "jsonError": {
+      "invalidStructure": "JSON must be an array or {{ rows: [...], ... }}",
+      "invalidSyntax": "Invalid JSON",
+      "fixBeforeSwitch": " — fix before switching to table mode"
+    }
+  },
+  "toast": {
+    "skipping": "Skipping {name}: invalid format",
+    "opened": "Opened {summary}",
+    "reloadedFromDisk": "Reloaded from disk",
+    "failedReloadFromDisk": "Failed to reload from disk",
+    "failedSaveChanges": "Failed to save changes",
+    "schemaExists": "Schema \"{name}\" already exists",
+    "schemaCreated": "Schema created",
+    "schemaDeleted": "Schema deleted",
+    "schemaRenamed": "Schema renamed",
+    "tableAdded": "Table added",
+    "tableDeleted": "Table deleted",
+    "pleaseSelectCommonField": "Please select a common field",
+    "pleaseEnterFieldName": "Please enter field name",
+    "fieldExistsInTable": "Field \"{name}\" already exists in this table",
+    "fieldAdded": "Field added",
+    "fieldDeleted": "Field deleted",
+    "fieldNameEmpty": "Field name cannot be empty",
+    "commonFieldExists": "Common field \"{name}\" already exists",
+    "commonFieldAdded": "Common field added",
+    "commonFieldDeleted": "Common field deleted",
+    "commonFieldRenamed": "Common field renamed",
+    "indexAdded": "Index added",
+    "indexDeleted": "Index deleted",
+    "sqlCopied": "SQL copied"
+  },
+  "confirm": {
+    "deleteSchema": "Delete schema \"{name}\" and ALL its tables? This cannot be undone.",
+    "deleteTable": "Delete table \"{name}\"?",
+    "deleteField": "Delete field \"{name}\"?",
+    "deleteIndex": "Delete this index?",
+    "deleteCommonField": "Common field \"{name}\" is referenced by:\n{refs}\n\nDelete it anyway? References will become stale."
+  }
+}

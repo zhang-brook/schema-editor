@@ -28,7 +28,7 @@ const store = useEditorStore()
 
         <!-- 空状态 -->
         <div v-else class="empty-state">
-          <p>请先导入 JSON 文件，然后在左侧选择要编辑的表</p>
+          <p>{{ $t('app.emptyState') }}</p>
         </div>
       </div>
     </div>

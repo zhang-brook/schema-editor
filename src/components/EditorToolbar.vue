@@ -1,31 +1,57 @@
 ﻿<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
+import { availableLocales, persistLocale } from '@/i18n/detection'
+import type { SupportedLocale } from '@/i18n/detection'
 
 const store = useEditorStore()
+const { t, locale } = useI18n()
+
+function switchLocale(newLocale: SupportedLocale) {
+  locale.value = newLocale
+  persistLocale(newLocale)
+  document.documentElement.lang = newLocale
+  document.title = t('app.title')
+}
 </script>
 
 <template>
   <!-- ===== Top Toolbar ===== -->
   <div class="toolbar">
-    <span class="title">Schema Editor</span>
+    <span class="title">{{ $t('app.title') }}</span>
 
     <!-- Primary: Open Folder -->
     <button class="btn btn-primary" @click="store.openProject()">
-      <span class="btn-icon">&#128193;&#xFE0E;</span> Open Folder
+      <span class="btn-icon">&#128193;&#xFE0E;</span> {{ $t('toolbar.openFolder') }}
     </button>
 
-    <span v-if="store.projectOpened" class="sync-badge" title="编辑内容实时同步到本地文件">
-      &#128190;&#xFE0E; Auto-saving to disk
+    <span v-if="store.projectOpened" class="sync-badge" :title="$t('toolbar.autoSavingTitle')">
+      &#128190;&#xFE0E; {{ $t('toolbar.autoSaving') }}
     </span>
 
-    <button
-      v-if="store.projectOpened"
-      class="btn btn-reload"
-      title="放弃网页中的修改，从本地文件重新加载"
-      @click="store.reloadFromDisk()"
-    >
-      &#8635;&#xFE0E; Reload from Disk
-    </button>
+    <div class="toolbar-right">
+      <!-- Language Switch -->
+      <div class="locale-switch" :title="$t('toolbar.language')">
+        <select
+          class="locale-select"
+          :value="locale"
+          @change="switchLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
+        >
+          <option v-for="loc in availableLocales" :key="loc" :value="loc">
+            {{ loc.toUpperCase() }}
+          </option>
+        </select>
+      </div>
+
+      <button
+        v-if="store.projectOpened"
+        class="btn btn-reload"
+        :title="$t('toolbar.reloadFromDiskTitle')"
+        @click="store.reloadFromDisk()"
+      >
+        &#8635;&#xFE0E; {{ $t('toolbar.reloadFromDisk') }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -98,6 +124,38 @@ const store = useEditorStore()
 }
 
 .btn-reload {
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
+}
+
+.locale-switch {
+  display: flex;
+  align-items: center;
+}
+
+.locale-select {
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  color: #555;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.locale-select:hover {
+  border-color: #aaa;
+}
+
+.locale-select:focus {
+  outline: none;
+  border-color: #4a90d9;
 }
 </style>

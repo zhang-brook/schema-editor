@@ -8,11 +8,11 @@ const store = useEditorStore()
 <template>
   <div class="section-card" v-if="store.currentTable">
     <div class="section-header">
-      Fields
-      <span class="badge">{{ store.currentTable.fields.length }} fields</span>
+      {{ $t('fieldTable.fields') }}
+      <span class="badge">{{ $t('fieldTable.badge', { n: store.currentTable.fields.length }) }}</span>
       <div style="margin-left:auto; display:flex; gap:6px;">
-        <button class="btn btn-sm btn-primary" @click="store.openAddFieldModal(store.selectedSchemaIdx, store.selectedTableIdx, 'normal')">Add Field</button>
-        <button class="btn btn-sm" @click="store.openAddFieldModal(store.selectedSchemaIdx, store.selectedTableIdx, 'common')" :disabled="!store.commonConfig">Add Common Field</button>
+        <button class="btn btn-sm btn-primary" @click="store.openAddFieldModal(store.selectedSchemaIdx, store.selectedTableIdx, 'normal')">{{ $t('fieldTable.addField') }}</button>
+        <button class="btn btn-sm" @click="store.openAddFieldModal(store.selectedSchemaIdx, store.selectedTableIdx, 'common')" :disabled="!store.commonConfig">{{ $t('fieldTable.addCommonField') }}</button>
       </div>
     </div>
     <div class="section-body" style="padding: 0; overflow-x: auto;">
@@ -20,15 +20,15 @@ const store = useEditorStore()
         <thead>
           <tr>
             <th style="width:30px;"></th>
-            <th>field_name</th>
-            <th>type</th>
-            <th>length</th>
-            <th style="width:40px;">NN</th>
-            <th style="width:40px;">PK</th>
-            <th>default</th>
-            <th>comment</th>
-            <th style="width:40px;">Removed</th>
-            <th style="width:90px;">actions</th>
+            <th>{{ $t('fieldTable.fieldName') }}</th>
+            <th>{{ $t('fieldTable.type') }}</th>
+            <th>{{ $t('fieldTable.length') }}</th>
+            <th style="width:40px;">{{ $t('fieldTable.nn') }}</th>
+            <th style="width:40px;">{{ $t('fieldTable.pk') }}</th>
+            <th>{{ $t('fieldTable.default') }}</th>
+            <th>{{ $t('fieldTable.comment') }}</th>
+            <th style="width:40px;">{{ $t('fieldTable.removed') }}</th>
+            <th style="width:90px;">{{ $t('fieldTable.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -106,16 +106,16 @@ const store = useEditorStore()
                 <div class="field-expand-content">
                   <!-- MySQL/PGSQL Override -->
                   <div class="expand-section" v-if="!store.isCommonField(field)">
-                    <div class="expand-section-title">Database-specific Overrides</div>
+                    <div class="expand-section-title">{{ $t('fieldTable.dbOverrides') }}</div>
                     <div class="db-override-grid">
                       <div class="db-override-group">
-                        <div class="db-label">MySQL</div>
+                        <div class="db-label">{{ $t('fieldTable.mysql') }}</div>
                         <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'mysql', 'field_type')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_type', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'mysql', 'field_length')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_length', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'mysql', 'default')" @input="store.setFieldOverrideValue(field, 'mysql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                       <div class="db-override-group">
-                        <div class="db-label">PostgreSQL</div>
+                        <div class="db-label">{{ $t('fieldTable.postgresql') }}</div>
                         <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_type')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_type', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_length')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_length', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'pgsql', 'default')" @input="store.setFieldOverrideValue(field, 'pgsql', 'default', ($event.target as HTMLInputElement).value)">
@@ -124,12 +124,12 @@ const store = useEditorStore()
                   </div>
                   <!-- Comment Before Field -->
                   <div class="expand-section">
-                    <div class="expand-section-title">Comment Before Field</div>
+                    <div class="expand-section-title">{{ $t('fieldTable.commentBeforeField') }}</div>
                     <textarea class="field-comment-editor"
                               :value="store.commentBeforeFieldText(store.currentTable!, field.field_name)"
                               @input="store.setCommentBeforeField(store.currentTable!, field.field_name, ($event.target as HTMLTextAreaElement).value)"
                               rows="2"
-                              placeholder="One comment per line. Blank line = null."></textarea>
+                              :placeholder="$t('fieldTable.commentPlaceholder')"></textarea>
                   </div>
                 </div>
               </td>

@@ -1,5 +1,6 @@
-﻿import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { useI18n } from 'vue-i18n'
 import type {
   CommonConfig,
   Schema,
@@ -31,6 +32,8 @@ import {
 } from '@/utils/sql-generator/postgresql'
 
 export const useEditorStore = defineStore('editor', () => {
+  const { t } = useI18n()
+
   // ===== State =====
   const commonConfig = ref<CommonConfig | null>(null)
   const schemas = reactive<Schema[]>([])
@@ -145,7 +148,7 @@ export const useEditorStore = defineStore('editor', () => {
         const data = raw as any
         console.log(`[openProject] processing "${name}": schema="${data.schema}", tables=${Array.isArray(data.tables) ? data.tables.length : 'N/A'}`)
         if (!data.schema || !Array.isArray(data.tables)) {
-          showToast(`Skipping ${name}: invalid format`)
+          showToast(t('toast.skipping', { name }))
           continue
         }
         data.tables.forEach((t: any) => {
@@ -179,7 +182,7 @@ export const useEditorStore = defineStore('editor', () => {
       const parts: string[] = []
       if (schemas.length > 0) parts.push(`${schemas.length} schema(s)`)
       if (commonConfig.value) parts.push('common.json')
-      showToast(`Opened ${parts.join(' + ')}`)
+      showToast(t('toast.opened', { summary: parts.join(' + ') }))
 
       // Select first schema automatically
       if (schemas.length > 0) {
@@ -277,10 +280,10 @@ export const useEditorStore = defineStore('editor', () => {
         selectedTableIdx.value = -1
       }
 
-      showToast('Reloaded from disk')
+      showToast(t('toast.reloadedFromDisk'))
     } catch (e) {
       console.error('[reloadFromDisk] Failed:', e)
-      showToast('Failed to reload from disk')
+      showToast(t('toast.failedReloadFromDisk'))
     } finally {
       _reloading = false
     }
@@ -314,7 +317,7 @@ export const useEditorStore = defineStore('editor', () => {
       await syncInitialDataToDisk()
     } catch (e) {
       console.error('Auto-sync failed:', e)
-      showToast('Failed to save changes')
+      showToast(t('toast.failedSaveChanges'))
     }
   }
 
@@ -484,7 +487,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   function addSchema(name: string) {
     if (schemas.some(s => s.schema === name)) {
-      showToast(`Schema "${name}" already exists`)
+      showToast(t('toast.schemaExists', { name }))
       return
     }
     const newSchema: Schema = {
@@ -495,13 +498,13 @@ export const useEditorStore = defineStore('editor', () => {
     syncSchemaOrder()
     selectedSchemaIdx.value = schemas.length - 1
     selectedTableIdx.value = -1
-    showToast('Schema created')
+    showToast(t('toast.schemaCreated'))
   }
 
   async function deleteSchema(schemaIdx: number) {
     const schema = schemas[schemaIdx]
     if (!schema) return
-    if (!confirm(`Delete schema "${schema.schema}" and ALL its tables? This cannot be undone.`)) return
+    if (!confirm(t('confirm.deleteSchema', { name: schema.schema }))) return
 
     // Clean up initial data
     for (const table of schema.tables) {
@@ -547,7 +550,7 @@ export const useEditorStore = defineStore('editor', () => {
     } else if (selectedSchemaIdx.value >= schemas.length) {
       selectedSchemaIdx.value = schemas.length - 1
     }
-    showToast('Schema deleted')
+    showToast(t('toast.schemaDeleted'))
   }
 
   async function renameSchema(schemaIdx: number, newName: string) {
@@ -556,7 +559,7 @@ export const useEditorStore = defineStore('editor', () => {
     newName = newName.trim()
     if (!newName) return
     if (schemas.some((s, i) => i !== schemaIdx && s.schema === newName)) {
-      showToast(`Schema "${newName}" already exists`)
+      showToast(t('toast.schemaExists', { name: newName }))
       return
     }
 
@@ -585,7 +588,7 @@ export const useEditorStore = defineStore('editor', () => {
       }
     }
 
-    showToast('Schema renamed')
+    showToast(t('toast.schemaRenamed'))
   }
 
   // ===== Navigation =====
@@ -616,14 +619,14 @@ export const useEditorStore = defineStore('editor', () => {
     }
     schema.tables.push(newTable)
     selectTable(schemaIdx, schema.tables.length - 1)
-    showToast('Table added')
+    showToast(t('toast.tableAdded'))
   }
 
   function deleteTable(schemaIdx: number, tableIdx: number) {
     const schema = schemas[schemaIdx]
     if (!schema) return
     const tableName = schema.tables[tableIdx]?.name
-    if (!confirm(`Delete table "${tableName}"?`)) return
+    if (!confirm(t('confirm.deleteTable', { name: tableName }))) return
     schema.tables.splice(tableIdx, 1)
     // 清理初始数据
     if (tableName) {
@@ -641,7 +644,7 @@ export const useEditorStore = defineStore('editor', () => {
         selectedTableIdx.value = -1
       }
     }
-    showToast('Table deleted')
+    showToast(t('toast.tableDeleted'))
   }
 
   /** 拖拽调整同一个 schema 下表的顺序 */
@@ -797,10 +800,10 @@ export const useEditorStore = defineStore('editor', () => {
 
     if (addFieldMode.value === 'common') {
       const name = newFieldSelectCommon.value
-      if (!name) { showToast('Please select a common field'); return }
+      if (!name) { showToast(t('toast.pleaseSelectCommonField')); return }
       // Check duplicate
       if (table.fields.some(f => f.field_name === name)) {
-        showToast(`Field "${name}" already exists in this table`)
+        showToast(t('toast.fieldExistsInTable', { name }))
         return
       }
       table.fields.push({
@@ -809,9 +812,9 @@ export const useEditorStore = defineStore('editor', () => {
       })
     } else {
       const name = newFieldName.value.trim()
-      if (!name) { showToast('Please enter field name'); return }
+      if (!name) { showToast(t('toast.pleaseEnterFieldName')); return }
       if (table.fields.some(f => f.field_name === name)) {
-        showToast(`Field "${name}" already exists in this table`)
+        showToast(t('toast.fieldExistsInTable', { name }))
         return
       }
       table.fields.push({
@@ -825,13 +828,13 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     showAddFieldModal.value = false
-    showToast('Field added')
+    showToast(t('toast.fieldAdded'))
   }
 
   function deleteField(table: Table, fieldIdx: number) {
     const fieldName = table.fields[fieldIdx]?.field_name
     if (!fieldName) return
-    if (!confirm(`Delete field "${fieldName}"?`)) return
+    if (!confirm(t('confirm.deleteField', { name: fieldName }))) return
     table.fields.splice(fieldIdx, 1)
     // Clean up comment_before_fields
     if (table.comment_before_fields && table.comment_before_fields[fieldName]) {
@@ -840,7 +843,7 @@ export const useEditorStore = defineStore('editor', () => {
         delete table.comment_before_fields
       }
     }
-    showToast('Field deleted')
+    showToast(t('toast.fieldDeleted'))
   }
 
   function moveFieldUp(table: Table, fieldIdx: number) {
@@ -862,13 +865,13 @@ export const useEditorStore = defineStore('editor', () => {
       columns: [''],
       using: ''
     })
-    showToast('Index added')
+    showToast(t('toast.indexAdded'))
   }
 
   function deleteIndex(table: Table, indexIdx: number) {
-    if (!confirm('Delete this index?')) return
+    if (!confirm(t('confirm.deleteIndex'))) return
     table.indexes.splice(indexIdx, 1)
-    showToast('Index deleted')
+    showToast(t('toast.indexDeleted'))
   }
 
   function indexColumnsText(index: Index) {
@@ -1051,10 +1054,10 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Common Used Fields CRUD =====
   function addCommonUsedField(name: string) {
     if (!commonConfig.value) return
-    if (!name.trim()) { showToast('Please enter a field name'); return }
+    if (!name.trim()) { showToast(t('toast.pleaseEnterFieldName')); return }
     const key = name.trim()
     if (commonConfig.value.common_used_fields[key]) {
-      showToast(`Common field "${key}" already exists`)
+      showToast(t('toast.commonFieldExists', { name: key }))
       return
     }
     commonConfig.value.common_used_fields[key] = {
@@ -1065,7 +1068,7 @@ export const useEditorStore = defineStore('editor', () => {
       primary_key: false,
       comment: ''
     }
-    showToast('Common field added')
+    showToast(t('toast.commonFieldAdded'))
   }
 
   function deleteCommonUsedField(name: string) {
@@ -1082,11 +1085,11 @@ export const useEditorStore = defineStore('editor', () => {
     }
     if (referencingTables.length > 0) {
       if (!confirm(
-        `Common field "${name}" is referenced by:\n${referencingTables.join('\n')}\n\nDelete it anyway? References will become stale.`
+        t('confirm.deleteCommonField', { name, refs: referencingTables.join('\n') })
       )) return
     }
     delete commonConfig.value.common_used_fields[name]
-    showToast('Common field deleted')
+    showToast(t('toast.commonFieldDeleted'))
   }
 
   function updateCommonUsedFieldName(oldName: string, newName: string) {

@@ -1,0 +1,170 @@
+{
+  "app": {
+    "title": "Schema 编辑器",
+    "emptyState": "请先导入 JSON 文件，然后从侧边栏选择一个表"
+  },
+  "toolbar": {
+    "openFolder": "打开文件夹",
+    "autoSaving": "自动保存到磁盘",
+    "autoSavingTitle": "编辑内容实时同步到本地文件",
+    "reloadFromDisk": "从磁盘重新加载",
+    "reloadFromDiskTitle": "放弃网页修改，从本地文件重新加载",
+    "language": "语言"
+  },
+  "sidebar": {
+    "navigation": "导航",
+    "commonConfig": "公共配置",
+    "addSchema": "添加 Schema",
+    "renameSchema": "重命名 Schema",
+    "deleteSchema": "删除 Schema",
+    "addTable": "添加表",
+    "deleteTable": "删除表",
+    "emptyHint": "点击「打开文件夹」开始",
+    "open": "打开",
+    "prompt": {
+      "schemaName": "Schema 名称：",
+      "newName": "新名称："
+    }
+  },
+  "commonConfig": {
+    "defaultMysqlConfig": "默认 MySQL 表配置",
+    "commonUsedFields": "公共字段",
+    "engine": "引擎",
+    "charset": "字符集",
+    "collation": "排序规则",
+    "fields": {
+      "fieldName": "字段名",
+      "fieldType": "字段类型",
+      "length": "长度",
+      "notNull": "非空",
+      "pk": "主键",
+      "default": "默认值",
+      "comment": "注释",
+      "mysql": "mysql",
+      "pgsql": "pgsql"
+    },
+    "addField": "+ 添加",
+    "newFieldPlaceholder": "新字段名...",
+    "overridePlaceholder": "key=val, ...",
+    "emptyFields": "暂无公共字段，请在上方添加。",
+    "clickToRename": "点击重命名",
+    "deleteField": "删除公共字段",
+    "badge": "{n} 个字段"
+  },
+  "tableEditor": {
+    "table": "表：",
+    "tableName": "表名",
+    "comment": "注释",
+    "commentBeforeTable": "表前注释（每行一条注释，空行 = 空白）",
+    "commentHint": "每行会生成为一条 SQL 注释。空行代表空行（null）。",
+    "mysqlEngine": "MySQL 引擎",
+    "mysqlCharset": "MySQL 字符集",
+    "mysqlCollation": "MySQL 排序规则"
+  },
+  "fieldTable": {
+    "fields": "字段",
+    "fieldName": "字段名",
+    "type": "类型",
+    "length": "长度",
+    "nn": "非空",
+    "pk": "主键",
+    "default": "默认值",
+    "comment": "注释",
+    "removed": "已删除",
+    "actions": "操作",
+    "addField": "添加字段",
+    "addCommonField": "添加公共字段",
+    "dbOverrides": "数据库特定覆盖",
+    "commentBeforeField": "字段前注释",
+    "commentPlaceholder": "每行一条注释。空行 = null。",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "badge": "{n} 个字段"
+  },
+  "indexTable": {
+    "indexes": "索引",
+    "name": "名称",
+    "type": "类型",
+    "columns": "列",
+    "using": "方法",
+    "actions": "操作",
+    "addIndex": "添加索引",
+    "indexOverrides": "索引覆盖",
+    "preComment": "前置注释",
+    "typeSelect": "-- 类型 --",
+    "namePlaceholder": "{pre}...{post}",
+    "commentPlaceholder": "索引前注释",
+    "empty": "暂无索引"
+  },
+  "addFieldModal": {
+    "addCommonRef": "添加公共字段引用",
+    "addNewField": "添加新字段",
+    "fieldName": "字段名",
+    "selectCommonField": "选择公共字段",
+    "namePlaceholder": "例如 user_code",
+    "selectPlaceholder": "-- 选择 --",
+    "cancel": "取消",
+    "add": "添加"
+  },
+  "sqlPreview": {
+    "title": "SQL 预览",
+    "mysql": "MySQL",
+    "postgresql": "PostgreSQL",
+    "copy": "复制",
+    "copyTitle": "复制 SQL"
+  },
+  "initialData": {
+    "title": "初始数据",
+    "table": "表格",
+    "json": "JSON",
+    "clear": "清空",
+    "addData": "添加数据",
+    "addRow": "添加行",
+    "hash": "#",
+    "comment": "注释",
+    "actions": "操作",
+    "rowCommentPlaceholder": "行注释",
+    "empty": "未配置初始数据",
+    "emptyRows": "暂无数据 — 点击「添加行」添加数据",
+    "clearConfirm": "确认清空此表的所有初始数据？",
+    "badge": "{n} 行",
+    "jsonError": {
+      "invalidStructure": "JSON 必须为数组或 {{ rows: [...], ... }}",
+      "invalidSyntax": "JSON 格式无效",
+      "fixBeforeSwitch": " — 修复后再切换到表格模式"
+    }
+  },
+  "toast": {
+    "skipping": "跳过 {name}：格式无效",
+    "opened": "已打开 {summary}",
+    "reloadedFromDisk": "已从磁盘重新加载",
+    "failedReloadFromDisk": "从磁盘重新加载失败",
+    "failedSaveChanges": "保存更改失败",
+    "schemaExists": "Schema \"{name}\" 已存在",
+    "schemaCreated": "Schema 已创建",
+    "schemaDeleted": "Schema 已删除",
+    "schemaRenamed": "Schema 已重命名",
+    "tableAdded": "表已添加",
+    "tableDeleted": "表已删除",
+    "pleaseSelectCommonField": "请选择一个公共字段",
+    "pleaseEnterFieldName": "请输入字段名",
+    "fieldExistsInTable": "字段 \"{name}\" 在此表中已存在",
+    "fieldAdded": "字段已添加",
+    "fieldDeleted": "字段已删除",
+    "fieldNameEmpty": "字段名不能为空",
+    "commonFieldExists": "公共字段 \"{name}\" 已存在",
+    "commonFieldAdded": "公共字段已添加",
+    "commonFieldDeleted": "公共字段已删除",
+    "commonFieldRenamed": "公共字段已重命名",
+    "indexAdded": "索引已添加",
+    "indexDeleted": "索引已删除",
+    "sqlCopied": "SQL 已复制"
+  },
+  "confirm": {
+    "deleteSchema": "确认删除 Schema \"{name}\" 及其所有表？此操作不可撤销。",
+    "deleteTable": "确认删除表 \"{name}\"？",
+    "deleteField": "确认删除字段 \"{name}\"？",
+    "deleteIndex": "确认删除此索引？",
+    "deleteCommonField": "公共字段 \"{name}\" 被以下表引用：\n{refs}\n\n仍然要删除吗？引用将变为无效。"
+  }
+}

@@ -139,6 +139,30 @@ function deleteRow(rowIdx: number) {
   }
 }
 
+function moveRowUp(rowIdx: number) {
+  if (!initialData.value || rowIdx <= 0) return
+  const data = initialData.value
+  ;[data.rows[rowIdx - 1], data.rows[rowIdx]] = [data.rows[rowIdx]!, data.rows[rowIdx - 1]!]
+  if (data.row_comments) {
+    ;[data.row_comments[rowIdx - 1], data.row_comments[rowIdx]] = [data.row_comments[rowIdx]!, data.row_comments[rowIdx - 1]!]
+  }
+  if (data.field_comments) {
+    ;[data.field_comments[rowIdx - 1], data.field_comments[rowIdx]] = [data.field_comments[rowIdx]!, data.field_comments[rowIdx - 1]!]
+  }
+}
+
+function moveRowDown(rowIdx: number) {
+  if (!initialData.value || rowIdx >= initialData.value.rows.length - 1) return
+  const data = initialData.value
+  ;[data.rows[rowIdx], data.rows[rowIdx + 1]] = [data.rows[rowIdx + 1]!, data.rows[rowIdx]!]
+  if (data.row_comments) {
+    ;[data.row_comments[rowIdx], data.row_comments[rowIdx + 1]] = [data.row_comments[rowIdx + 1]!, data.row_comments[rowIdx]!]
+  }
+  if (data.field_comments) {
+    ;[data.field_comments[rowIdx], data.field_comments[rowIdx + 1]] = [data.field_comments[rowIdx + 1]!, data.field_comments[rowIdx]!]
+  }
+}
+
 function clearAllData() {
   if (!store.currentSchema || !store.currentTable) return
   if (!confirm('Clear all initial data for this table?')) return
@@ -265,7 +289,7 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
                 <th style="width:36px;">#</th>
                 <th v-for="fname in fieldNames" :key="fname">{{ fname }}</th>
                 <th style="width:130px;">comment</th>
-                <th style="width:60px;">actions</th>
+                <th style="width:110px;">actions</th>
               </tr>
             </thead>
             <tbody>
@@ -294,6 +318,10 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
                   />
                 </td>
                 <td>
+                  <div class="move-btns" style="display:inline-flex; margin-right:2px;">
+                    <button class="move-btn" @click="moveRowUp(rIdx)" :disabled="rIdx === 0">↑</button>
+                    <button class="move-btn" @click="moveRowDown(rIdx)" :disabled="rIdx === rows.length - 1">↓</button>
+                  </div>
                   <button class="btn btn-sm btn-danger" @click="deleteRow(rIdx)">&times;</button>
                 </td>
               </tr>
@@ -574,5 +602,29 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
 .btn-sm {
   padding: 2px 6px;
   font-size: 11px;
+}
+
+/* Move Buttons */
+.move-btns {
+  display: inline-flex;
+}
+
+.move-btn {
+  padding: 2px 5px;
+  font-size: 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 2px;
+  margin-right: 2px;
+}
+
+.move-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.move-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>

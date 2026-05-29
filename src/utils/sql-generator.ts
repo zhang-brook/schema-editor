@@ -1,4 +1,4 @@
-import type { CommonConfig, Schema, Table, Field, Index } from '@/types/schema'
+import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
 
 /*
   SQL 生成器 —— 移植自 generate-sql.ts
@@ -246,7 +246,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
 
   // 索引
   table.indexes.forEach(index => {
-    let indexDef = `  ${getMySQLIndexDefinition(index)}`
+    const indexDef = `  ${getMySQLIndexDefinition(index)}`
     if (index.pre_comment) {
       indexDefinitions.push(`  -- ${index.pre_comment}\n${indexDef}`)
     } else {
@@ -457,7 +457,8 @@ function getTableColumnNames(table: Table, commonConfig: CommonConfig | null): s
 /** 生成单表的 MySQL INSERT 语句 */
 function generateInitialDataMySQL(
   table: Table,
-  rows: Record<string, any>[]
+  rows: Record<string, any>[],
+  rowComments?: (string | null)[]
 ): string {
   const cols = getTableColumnNames(table, null)  // MySQL DDL 也是用同名字段，不需要 commonConfig 解析字段名（name 在 INSERT 中用引号括起来即可）
   // 实际需要用 resolveField 处理，重新获取列名
@@ -466,37 +467,58 @@ function generateInitialDataMySQL(
 
   const colList = cols.map(c => `\`${c}\``).join(', ')
 
+  // 行注释（仅输出非 null 的）
+  let comments = ''
+  if (rowComments) {
+    for (let i = 0; i < rowComments.length; i++) {
+      if (rowComments[i]) {
+        comments += `-- Row ${i + 1}: ${rowComments[i]}\n`
+      }
+    }
+  }
+
   const valueRows = rows.map(row => {
     const vals = cols.map(col => formatSqlValue(row[col]))
     return `(${vals.join(', ')})`
   })
 
-  return `INSERT INTO \`${table.name}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+  return `${comments}INSERT INTO \`${table.name}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
 /** 生成单表的 PostgreSQL INSERT 语句 */
 function generateInitialDataPostgreSQL(
   table: Table,
   schemaName: string,
-  rows: Record<string, any>[]
+  rows: Record<string, any>[],
+  rowComments?: (string | null)[]
 ): string {
   const cols = getTableColumnNames(table, null)
   if (cols.length === 0 || rows.length === 0) return ''
 
   const colList = cols.map(c => `"${c}"`).join(', ')
 
+  // 行注释（仅输出非 null 的）
+  let comments = ''
+  if (rowComments) {
+    for (let i = 0; i < rowComments.length; i++) {
+      if (rowComments[i]) {
+        comments += `-- Row ${i + 1}: ${rowComments[i]}\n`
+      }
+    }
+  }
+
   const valueRows = rows.map(row => {
     const vals = cols.map(col => formatSqlValue(row[col]))
     return `(${vals.join(', ')})`
   })
 
-  return `INSERT INTO "${schemaName}"."${table.name}" (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+  return `${comments}INSERT INTO "${schemaName}"."${table.name}" (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
 /** 生成所有 Schema 的 MySQL initial data INSERT 汇总 */
 export function generateInitialDataAllMySQL(
   schemas: Schema[],
-  initialDataMap: Map<string, Record<string, any>[]>,
+  initialDataMap: Map<string, InitialData>,
   commonConfig: CommonConfig | null
 ): string {
   let sql = ''
@@ -509,13 +531,13 @@ export function generateInitialDataAllMySQL(
   for (const schema of schemas) {
     for (const table of schema.tables) {
       const key = `${schema.schema}/${table.name}`
-      const rows = initialDataMap.get(key)
-      if (!rows || rows.length === 0) continue
+      const initData = initialDataMap.get(key)
+      if (!initData || initData.rows.length === 0) continue
 
       sql += `-- ----------------------------\n`
       sql += `-- Initial data for ${schema.schema}.${table.name}\n`
       sql += `-- ----------------------------\n`
-      sql += generateInitialDataMySQL(table, rows)
+      sql += generateInitialDataMySQL(table, initData.rows, initData.row_comments)
       sql += '\n'
     }
   }
@@ -526,7 +548,7 @@ export function generateInitialDataAllMySQL(
 /** 生成所有 Schema 的 PostgreSQL initial data INSERT 汇总 */
 export function generateInitialDataAllPostgreSQL(
   schemas: Schema[],
-  initialDataMap: Map<string, Record<string, any>[]>,
+  initialDataMap: Map<string, InitialData>,
   commonConfig: CommonConfig | null
 ): string {
   let sql = ''
@@ -538,13 +560,13 @@ export function generateInitialDataAllPostgreSQL(
   for (const schema of schemas) {
     for (const table of schema.tables) {
       const key = `${schema.schema}/${table.name}`
-      const rows = initialDataMap.get(key)
-      if (!rows || rows.length === 0) continue
+      const initData = initialDataMap.get(key)
+      if (!initData || initData.rows.length === 0) continue
 
       sql += `-- ----------------------------\n`
       sql += `-- Initial data for ${schema.schema}.${table.name}\n`
       sql += `-- ----------------------------\n`
-      sql += generateInitialDataPostgreSQL(table, schema.schema, rows)
+      sql += generateInitialDataPostgreSQL(table, schema.schema, initData.rows, initData.row_comments)
       sql += '\n'
     }
   }

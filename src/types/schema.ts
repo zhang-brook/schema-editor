@@ -75,3 +75,9 @@ export interface CommonConfig {
   schema_order?: string[]
   common_used_fields: Record<string, Field>
 }
+
+export interface InitialData {
+  rows: Record<string, any>[]
+  row_comments?: (string | null)[]
+  field_comments?: (Record<string, string> | null)[]
+}

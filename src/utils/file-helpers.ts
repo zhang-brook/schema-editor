@@ -1,4 +1,5 @@
 ﻿import { toRaw } from 'vue'
+import type { InitialData } from '@/types/schema'
 
 const jsonFileIndent = 4
 
@@ -138,12 +139,13 @@ export async function deleteSqlFromOutput(
 
 /**
  * 从 initial-data/ 目录读取所有初始数据文件
- * 返回 [{ key: "schemaName/tableName", data: [...] }, ...]
+ * 向后兼容：旧格式纯数组自动升级为 { rows: [...] }
+ * // 以前: 返回 [{ key: "schemaName/tableName", data: [...] }, ...]
  */
 export async function readInitialDataFromHandle(
   rootHandle: FileSystemDirectoryHandle
-): Promise<{ key: string; data: Record<string, any>[] }[]> {
-  const result: { key: string; data: Record<string, any>[] }[] = []
+): Promise<{ key: string; data: InitialData }[]> {
+  const result: { key: string; data: InitialData }[] = []
 
   let initialDataHandle: FileSystemDirectoryHandle
   try {
@@ -168,12 +170,13 @@ export async function readInitialDataFromHandle(
       const tableName = fName.slice(0, -5) // 去掉 .json
       try {
         const file = await fHandle.getFile()
-        const data = JSON.parse(await file.text())
-        if (Array.isArray(data)) {
-          result.push({ key: `${schemaName}/${tableName}`, data })
-          console.log(`[readInitialData] loaded "${schemaName}/${tableName}" (${data.length} rows)`)
+        const parsed = JSON.parse(await file.text())
+        const normalized = normalizeInitialData(parsed)
+        if (normalized) {
+          result.push({ key: `${schemaName}/${tableName}`, data: normalized })
+          console.log(`[readInitialData] loaded "${schemaName}/${tableName}" (${normalized.rows.length} rows)`)
         } else {
-          console.warn(`[readInitialData] "${schemaName}/${fName}" is not an array, skipping`)
+          console.warn(`[readInitialData] "${schemaName}/${fName}" invalid format, skipping`)
         }
       } catch (e) {
         console.warn(`[readInitialData] failed to parse "${schemaName}/${fName}":`, e)
@@ -184,20 +187,51 @@ export async function readInitialDataFromHandle(
   return result
 }
 
+/** 归一化原始 JSON 数据为 InitialData 格式 — 兼容旧格式纯数组 */
+function normalizeInitialData(raw: unknown): InitialData | null {
+  if (Array.isArray(raw)) {
+    return { rows: raw }
+  }
+  if (raw && typeof raw === 'object' && Array.isArray((raw as any).rows)) {
+    const obj = raw as Record<string, any>
+    const result: InitialData = { rows: obj.rows }
+    if (Array.isArray(obj.row_comments)) {
+      result.row_comments = obj.row_comments
+    }
+    if (Array.isArray(obj.field_comments)) {
+      result.field_comments = obj.field_comments
+    }
+    return result
+  }
+  return null
+}
+
+/** 检查数组是否全为 null（或 undefined） */
+function isAllNull(arr: (unknown | null)[] | undefined): boolean {
+  if (!arr) return true
+  return arr.every(v => v === null || v === undefined)
+}
+
 /**
  * 将初始数据写入 initial-data/<schemaName>/<tableName>.json
+ * 序列化优化：若注释数组全为 null 则只写 rows 数组（最小文件体积）
  */
 export async function writeInitialDataToHandle(
   rootHandle: FileSystemDirectoryHandle,
   schemaName: string,
   tableName: string,
-  data: Record<string, any>[]
+  data: InitialData
 ): Promise<void> {
   const initialDataHandle = await rootHandle.getDirectoryHandle('initial-data', { create: true })
   const schemaHandle = await initialDataHandle.getDirectoryHandle(schemaName, { create: true })
   const fileHandle = await schemaHandle.getFileHandle(`${tableName}.json`, { create: true })
   const writable = await fileHandle.createWritable()
-  await writable.write(JSON.stringify(toRaw(data), null, jsonFileIndent))
+  // 优化：若注释全为 null，只写 rows 数组
+  if (isAllNull(data.row_comments) && isAllNull(data.field_comments)) {
+    await writable.write(JSON.stringify(toRaw(data.rows), null, jsonFileIndent))
+  } else {
+    await writable.write(JSON.stringify(toRaw(data), null, jsonFileIndent))
+  }
   await writable.close()
 }
 

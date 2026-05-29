@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { parseDefaultInput } from '@/utils/file-helpers'
+import type { InitialData } from '@/types/schema'
 
 const store = useEditorStore()
 
@@ -17,8 +18,12 @@ const fieldNames = computed(() => {
     .map(f => f.field_name)
 })
 
-// 当前初始数据行
-const rows = computed(() => store.currentInitialData)
+// 当前初始数据（wrapper）
+const initialData = computed(() => store.currentInitialData)
+const rows = computed(() => initialData.value?.rows)
+const rowComments = computed(() => initialData.value?.row_comments)
+const fieldComments = computed(() => initialData.value?.field_comments)
+
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
 
@@ -36,24 +41,39 @@ watch(() => rows.value, () => {
 }, { deep: true })
 
 function syncJsonText() {
-  if (rows.value && rows.value.length > 0) {
-    jsonText.value = JSON.stringify(rows.value, null, 4)
+  const wrapper = initialData.value
+  if (wrapper && wrapper.rows.length > 0) {
+    jsonText.value = JSON.stringify(wrapper, null, 4)
   } else {
     jsonText.value = '[]'
   }
 }
 
+function parseJsonInput(text: string): InitialData | null {
+  const parsed = JSON.parse(text)
+  if (Array.isArray(parsed)) {
+    return { rows: parsed }
+  }
+  if (parsed && typeof parsed === 'object' && Array.isArray(parsed.rows)) {
+    const result: InitialData = { rows: parsed.rows }
+    if (Array.isArray(parsed.row_comments)) result.row_comments = parsed.row_comments
+    if (Array.isArray(parsed.field_comments)) result.field_comments = parsed.field_comments
+    return result
+  }
+  return null
+}
+
 function onJsonInput(text: string) {
   jsonText.value = text
   try {
-    const parsed = JSON.parse(text)
-    if (!Array.isArray(parsed)) {
-      jsonError.value = 'JSON must be an array'
+    const parsed = parseJsonInput(text)
+    if (!parsed) {
+      jsonError.value = 'JSON must be an array or { rows: [...], ... }'
       return
     }
     jsonError.value = ''
     if (store.currentSchema && store.currentTable) {
-      store.setInitialData(store.currentSchema.schema, store.currentTable.name, parsed)
+      store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, parsed)
     }
   } catch (e: any) {
     jsonError.value = e.message || 'Invalid JSON'
@@ -66,14 +86,14 @@ function switchMode(mode: 'json' | 'table') {
   if (mode === 'table' && editorMode.value === 'json') {
     // JSON -> Table: 先校验
     try {
-      const parsed = JSON.parse(jsonText.value)
-      if (!Array.isArray(parsed)) {
-        jsonError.value = 'JSON must be an array, cannot switch to table mode'
+      const parsed = parseJsonInput(jsonText.value)
+      if (!parsed) {
+        jsonError.value = 'JSON must be an array or { rows: [...], ... } — fix before switching to table mode'
         return
       }
       jsonError.value = ''
       if (store.currentSchema && store.currentTable) {
-        store.setInitialData(store.currentSchema.schema, store.currentTable.name, parsed)
+        store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, parsed)
       }
     } catch (e: any) {
       jsonError.value = (e.message || 'Invalid JSON') + ' — fix JSON before switching to table mode'
@@ -95,15 +115,26 @@ function addEmptyData() {
 }
 
 function addRow() {
-  if (!store.currentSchema || !store.currentTable || !rows.value) return
-  const newRow: Record<string, any> = {}
-  rows.value.push(newRow)
+  if (!store.currentSchema || !store.currentTable || !initialData.value) return
+  initialData.value.rows.push({})
+  if (initialData.value.row_comments) {
+    initialData.value.row_comments.push(null)
+  }
+  if (initialData.value.field_comments) {
+    initialData.value.field_comments.push(null)
+  }
 }
 
 function deleteRow(rowIdx: number) {
-  if (!store.currentSchema || !store.currentTable || !rows.value) return
-  rows.value.splice(rowIdx, 1)
-  if (rows.value.length === 0) {
+  if (!store.currentSchema || !store.currentTable || !initialData.value) return
+  initialData.value.rows.splice(rowIdx, 1)
+  if (initialData.value.row_comments) {
+    initialData.value.row_comments.splice(rowIdx, 1)
+  }
+  if (initialData.value.field_comments) {
+    initialData.value.field_comments.splice(rowIdx, 1)
+  }
+  if (initialData.value.rows.length === 0) {
     store.setInitialData(store.currentSchema.schema, store.currentTable.name, [])
   }
 }
@@ -129,6 +160,56 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
     row[fieldName] = parseDefaultInput(val)
   }
 }
+
+// ===== Row Comment =====
+function setRowComment(rowIdx: number, val: string) {
+  if (!initialData.value) return
+  const trimmed = val.trim()
+  if (!trimmed) {
+    if (initialData.value.row_comments) {
+      initialData.value.row_comments[rowIdx] = null
+      // 清理全 null 数组
+      if (initialData.value.row_comments.every(c => c === null)) {
+        delete initialData.value.row_comments
+      }
+    }
+  } else {
+    if (!initialData.value.row_comments) {
+      initialData.value.row_comments = Array(initialData.value.rows.length).fill(null)
+    }
+    initialData.value.row_comments[rowIdx] = trimmed
+  }
+}
+
+// ===== Field Comment =====
+function getFieldComment(rowIdx: number, fieldName: string): string {
+  return fieldComments.value?.[rowIdx]?.[fieldName] ?? ''
+}
+
+function setFieldComment(rowIdx: number, fieldName: string, val: string) {
+  if (!initialData.value) return
+  const trimmed = val.trim()
+  if (!trimmed) {
+    if (initialData.value.field_comments?.[rowIdx]) {
+      delete initialData.value.field_comments[rowIdx]![fieldName]
+      if (Object.keys(initialData.value.field_comments[rowIdx]!).length === 0) {
+        initialData.value.field_comments[rowIdx] = null
+      }
+      // 清理全 null 数组
+      if (initialData.value.field_comments.every(c => c === null)) {
+        delete initialData.value.field_comments
+      }
+    }
+  } else {
+    if (!initialData.value.field_comments) {
+      initialData.value.field_comments = Array(initialData.value.rows.length).fill(null)
+    }
+    if (!initialData.value.field_comments[rowIdx] || initialData.value.field_comments[rowIdx] === null) {
+      initialData.value.field_comments[rowIdx] = {}
+    }
+    initialData.value.field_comments[rowIdx]![fieldName] = trimmed
+  }
+}
 </script>
 
 <template>
@@ -137,7 +218,7 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
       <span>Initial Data</span>
       <span class="badge" v-if="hasData">{{ rowCount }} row(s)</span>
       <div class="header-actions">
-        <template v-if="rows !== undefined">
+        <template v-if="initialData !== undefined">
           <div class="mode-toggle">
             <button
               class="mode-btn"
@@ -156,7 +237,7 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
     </div>
     <div class="section-body" style="padding: 0;">
       <!-- 空状态 -->
-      <div v-if="rows === undefined" class="empty-state">
+      <div v-if="initialData === undefined" class="empty-state">
         <span>No initial data configured</span>
         <button class="btn btn-sm btn-primary" @click="addEmptyData">Add Data</button>
       </div>
@@ -183,19 +264,34 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
               <tr>
                 <th style="width:36px;">#</th>
                 <th v-for="fname in fieldNames" :key="fname">{{ fname }}</th>
-                <th style="width:50px;">actions</th>
+                <th style="width:130px;">comment</th>
+                <th style="width:60px;">actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(row, rIdx) in rows" :key="rIdx">
                 <td class="row-num">{{ rIdx + 1 }}</td>
-                <td v-for="fname in fieldNames" :key="fname">
+                <td v-for="fname in fieldNames" :key="fname" class="cell-stack">
                   <input
                     class="table-input"
                     :value="getCellValue(row, fname)"
                     @change="setCellValue(row, fname, ($event.target as HTMLInputElement).value)"
                     :placeholder="fname"
-                  >
+                  />
+                  <input
+                    class="field-comment-input"
+                    :value="getFieldComment(rIdx, fname)"
+                    @change="setFieldComment(rIdx, fname, ($event.target as HTMLInputElement).value)"
+                    placeholder=""
+                  />
+                </td>
+                <td>
+                  <input
+                    class="comment-input"
+                    :value="rowComments?.[rIdx] ?? ''"
+                    @change="setRowComment(rIdx, ($event.target as HTMLInputElement).value)"
+                    placeholder="row comment"
+                  />
                 </td>
                 <td>
                   <button class="btn btn-sm btn-danger" @click="deleteRow(rIdx)">&times;</button>
@@ -336,10 +432,10 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
 
 .data-table th,
 .data-table td {
-  padding: 5px 6px;
+  padding: 4px 6px;
   border-bottom: 1px solid #eee;
   text-align: left;
-  vertical-align: middle;
+  vertical-align: top;
 }
 
 .data-table th {
@@ -358,6 +454,7 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
   text-align: center;
   color: #aaa;
   font-size: 10px;
+  vertical-align: middle !important;
 }
 
 .table-input {
@@ -381,6 +478,63 @@ function setCellValue(row: Record<string, any>, fieldName: string, val: string) 
   color: #aaa;
   font-size: 12px;
   text-align: center;
+}
+
+/* Stacked cell: value + field comment */
+.cell-stack {
+  padding: 2px 4px;
+}
+
+.cell-stack .table-input {
+  margin-bottom: 2px;
+}
+
+/* Row Comment */
+.comment-input {
+  padding: 3px 5px;
+  border: 1px solid #d0dbe8;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: inherit;
+  width: 100%;
+  min-width: 110px;
+  box-sizing: border-box;
+  background: #f8fbff;
+  color: #556;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: #7ba4d9;
+  background: #fff;
+}
+
+/* Field Comment (inside cell, below value) */
+.field-comment-input {
+  padding: 1px 5px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  font-size: 10px;
+  font-style: italic;
+  font-family: inherit;
+  width: 100%;
+  min-width: 60px;
+  box-sizing: border-box;
+  background: transparent;
+  color: #999;
+  transition: border-color .15s, background .15s;
+}
+
+.field-comment-input:hover,
+.field-comment-input:focus {
+  border-color: #ddd;
+  background: #fafafa;
+  outline: none;
+  color: #666;
+}
+
+.field-comment-input::placeholder {
+  color: #ccc;
 }
 
 /* Buttons */

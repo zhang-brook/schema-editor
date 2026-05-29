@@ -7,6 +7,7 @@ import type {
   Field,
   Index,
   TableMysqlConfig,
+  InitialData,
 } from '@/types/schema'
 import {
   openProjectFolder,
@@ -51,7 +52,7 @@ export const useEditorStore = defineStore('editor', () => {
   const projectOpened = ref(false)
 
   // Initial Data —— 独立存储在 initial-data/<schema>/<table>.json
-  const initialDataMap = reactive(new Map<string, Record<string, any>[]>())
+  const initialDataMap = reactive(new Map<string, InitialData>())
   const initialDataDeletedKeys = reactive(new Set<string>())
 
   // ===== Computed =====
@@ -359,11 +360,11 @@ export const useEditorStore = defineStore('editor', () => {
     if (!rootDirHandle.value) return
     try {
       // 写入所有有数据的条目
-      for (const [key, rows] of initialDataMap.entries()) {
+      for (const [key, initialData] of initialDataMap.entries()) {
         const sep = key.indexOf('/')
         const schemaName = key.substring(0, sep)
         const tableName = key.substring(sep + 1)
-        await writeInitialDataToHandle(rootDirHandle.value, schemaName, tableName, rows)
+        await writeInitialDataToHandle(rootDirHandle.value, schemaName, tableName, initialData)
       }
 
       // 删除标记为已删除的文件
@@ -397,13 +398,42 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ===== Initial Data CRUD =====
+
+  /** 将注释数组对齐到新的行数（截断多余或补 null） */
+  function alignToLength<T>(arr: (T | null)[] | undefined, newLen: number): (T | null)[] {
+    if (!arr) return Array(newLen).fill(null)
+    if (arr.length >= newLen) return arr.slice(0, newLen)
+    return [...arr, ...Array(newLen - arr.length).fill(null)]
+  }
+
   function setInitialData(schemaName: string, tableName: string, rows: Record<string, any>[]) {
     const key = initialDataKey(schemaName, tableName)
     if (rows.length === 0) {
       initialDataMap.delete(key)
       initialDataDeletedKeys.add(key)
     } else {
-      initialDataMap.set(key, rows)
+      const existing = initialDataMap.get(key)
+      const result: InitialData = { rows }
+      // 保留已有注释，对齐到新行数
+      if (existing?.row_comments) {
+        result.row_comments = alignToLength(existing.row_comments, rows.length)
+      }
+      if (existing?.field_comments) {
+        result.field_comments = alignToLength(existing.field_comments, rows.length)
+      }
+      initialDataMap.set(key, result)
+      initialDataDeletedKeys.delete(key)
+    }
+  }
+
+  /** JSON 模式：直接设置完整 InitialData 对象 */
+  function setInitialDataObject(schemaName: string, tableName: string, data: InitialData) {
+    const key = initialDataKey(schemaName, tableName)
+    if (data.rows.length === 0) {
+      initialDataMap.delete(key)
+      initialDataDeletedKeys.add(key)
+    } else {
+      initialDataMap.set(key, data)
       initialDataDeletedKeys.delete(key)
     }
   }
@@ -1113,6 +1143,7 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataMap,
     initialDataKey,
     setInitialData,
+    setInitialDataObject,
     deleteInitialData,
 
     // Navigation

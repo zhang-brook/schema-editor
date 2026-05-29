@@ -22,7 +22,9 @@ import {
 } from '@/utils/file-helpers'
 import {
   generateSchemaMySQL,
-  generateSchemaPostgreSQL
+  generateSchemaPostgreSQL,
+  generateInitialDataAllMySQL,
+  generateInitialDataAllPostgreSQL,
 } from '@/utils/sql-generator'
 
 export const useEditorStore = defineStore('editor', () => {
@@ -336,6 +338,16 @@ export const useEditorStore = defineStore('editor', () => {
       }
       if (allPgsql.length > 0) {
         await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__all_schemas__.sql', allPgsql.map(s => s.sql).join('\n\n'))
+      }
+
+      // 生成 Initial Data 的 INSERT 语句汇总文件
+      const initialDataMysql = generateInitialDataAllMySQL(schemas, initialDataMap, commonConfig.value)
+      if (initialDataMysql.trim()) {
+        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__initial_data__.sql', initialDataMysql)
+      }
+      const initialDataPgsql = generateInitialDataAllPostgreSQL(schemas, initialDataMap, commonConfig.value)
+      if (initialDataPgsql.trim()) {
+        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__initial_data__.sql', initialDataPgsql)
       }
     } catch (e) {
       console.error('SQL output sync failed:', e)

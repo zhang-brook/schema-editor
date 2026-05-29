@@ -428,3 +428,126 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
 
   return sql
 }
+
+// ===== Initial Data INSERT 语句生成 =====
+
+/** 将 JS 值格式化为 SQL 字面量（适用于 MySQL 和 PostgreSQL） */
+function formatSqlValue(val: unknown): string {
+  if (val === null || val === undefined) return 'NULL'
+  if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE'
+  if (typeof val === 'number') {
+    if (Number.isNaN(val) || !Number.isFinite(val)) return 'NULL'
+    return String(val)
+  }
+  if (typeof val === 'string') {
+    // 转义单引号：' → ''
+    return `'${val.replace(/'/g, "''")}'`
+  }
+  // 对象/数组等：JSON 序列化后作为字符串
+  return `'${JSON.stringify(val).replace(/'/g, "''")}'`
+}
+
+/** 获取 Table 的有效字段名列表（排除 is_commented_out 的字段），解析 common fields */
+function getTableColumnNames(table: Table, commonConfig: CommonConfig | null): string[] {
+  return table.fields
+    .filter(f => !resolveField(f, commonConfig).is_commented_out)
+    .map(f => resolveField(f, commonConfig).field_name)
+}
+
+/** 生成单表的 MySQL INSERT 语句 */
+function generateInitialDataMySQL(
+  table: Table,
+  rows: Record<string, any>[]
+): string {
+  const cols = getTableColumnNames(table, null)  // MySQL DDL 也是用同名字段，不需要 commonConfig 解析字段名（name 在 INSERT 中用引号括起来即可）
+  // 实际需要用 resolveField 处理，重新获取列名
+  // 列名保持原样，INSERT 中只需字段名一致
+  if (cols.length === 0 || rows.length === 0) return ''
+
+  const colList = cols.map(c => `\`${c}\``).join(', ')
+
+  const valueRows = rows.map(row => {
+    const vals = cols.map(col => formatSqlValue(row[col]))
+    return `(${vals.join(', ')})`
+  })
+
+  return `INSERT INTO \`${table.name}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+}
+
+/** 生成单表的 PostgreSQL INSERT 语句 */
+function generateInitialDataPostgreSQL(
+  table: Table,
+  schemaName: string,
+  rows: Record<string, any>[]
+): string {
+  const cols = getTableColumnNames(table, null)
+  if (cols.length === 0 || rows.length === 0) return ''
+
+  const colList = cols.map(c => `"${c}"`).join(', ')
+
+  const valueRows = rows.map(row => {
+    const vals = cols.map(col => formatSqlValue(row[col]))
+    return `(${vals.join(', ')})`
+  })
+
+  return `INSERT INTO "${schemaName}"."${table.name}" (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+}
+
+/** 生成所有 Schema 的 MySQL initial data INSERT 汇总 */
+export function generateInitialDataAllMySQL(
+  schemas: Schema[],
+  initialDataMap: Map<string, Record<string, any>[]>,
+  commonConfig: CommonConfig | null
+): string {
+  let sql = ''
+
+  sql += '/*\n'
+  sql += ' Initial Data - MySQL\n'
+  sql += '*/\n\n'
+  sql += 'SET NAMES utf8mb4;\n\n'
+
+  for (const schema of schemas) {
+    for (const table of schema.tables) {
+      const key = `${schema.schema}/${table.name}`
+      const rows = initialDataMap.get(key)
+      if (!rows || rows.length === 0) continue
+
+      sql += `-- ----------------------------\n`
+      sql += `-- Initial data for ${schema.schema}.${table.name}\n`
+      sql += `-- ----------------------------\n`
+      sql += generateInitialDataMySQL(table, rows)
+      sql += '\n'
+    }
+  }
+
+  return sql
+}
+
+/** 生成所有 Schema 的 PostgreSQL initial data INSERT 汇总 */
+export function generateInitialDataAllPostgreSQL(
+  schemas: Schema[],
+  initialDataMap: Map<string, Record<string, any>[]>,
+  commonConfig: CommonConfig | null
+): string {
+  let sql = ''
+
+  sql += '/*\n'
+  sql += ' Initial Data - PostgreSQL\n'
+  sql += '*/\n\n'
+
+  for (const schema of schemas) {
+    for (const table of schema.tables) {
+      const key = `${schema.schema}/${table.name}`
+      const rows = initialDataMap.get(key)
+      if (!rows || rows.length === 0) continue
+
+      sql += `-- ----------------------------\n`
+      sql += `-- Initial data for ${schema.schema}.${table.name}\n`
+      sql += `-- ----------------------------\n`
+      sql += generateInitialDataPostgreSQL(table, schema.schema, rows)
+      sql += '\n'
+    }
+  }
+
+  return sql
+}

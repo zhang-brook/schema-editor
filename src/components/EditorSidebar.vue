@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 
 const store = useEditorStore()
@@ -28,6 +28,16 @@ function onDragStart(e: DragEvent, sIdx: number, tIdx: number) {
   ;(e.target as HTMLElement)?.classList.add('dragging')
 }
 
+// Schema 拖拽排序：dragTableIdx === -1 表示拖拽的是 schema 本身
+function onSchemaDragStart(e: DragEvent, sIdx: number) {
+  dragSchemaIdx.value = sIdx
+  dragTableIdx.value = -1
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  ;(e.currentTarget as HTMLElement)?.classList.add('dragging')
+}
+
 function onDragOver(e: DragEvent, sIdx: number) {
   e.preventDefault()
   if (e.dataTransfer) {
@@ -54,8 +64,10 @@ function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
   }
 }
 
-// Schema header 上的 drop 处理：将表追加到目标 schema 末尾
-function onSchemaDragOver(e: DragEvent, sIdx: number) {
+// Schema header 上的 drop 处理：
+//   - 拖拽表：将表追加到目标 schema 末尾
+//   - 拖拽 schema：调整 schema 顺序
+function onSchemaDragOver(e: DragEvent, _sIdx: number) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
@@ -68,7 +80,19 @@ function onSchemaDragOver(e: DragEvent, sIdx: number) {
 function onSchemaDrop(e: DragEvent, sIdx: number) {
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
-  if (dragSchemaIdx.value < 0 || dragTableIdx.value < 0) return
+  if (dragSchemaIdx.value < 0) return
+
+  // 拖拽的是 schema（非 table），执行 schema 排序
+  if (dragTableIdx.value < 0) {
+    const fromIdx = dragSchemaIdx.value
+    // 延迟到 nextTick：避免在 drop 事件中同步修改 DOM 导致浏览器撤销拖拽
+    nextTick(() => {
+      store.moveSchema(fromIdx, sIdx)
+    })
+    return
+  }
+
+  // 原有逻辑：将表追加到目标 schema 末尾
   const schema = store.schemas[sIdx]
   if (!schema) return
   store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, schema.tables.length)
@@ -105,10 +129,30 @@ function onDropTail(e: DragEvent, sIdx: number) {
 function onDragEnd(e: DragEvent) {
   ;(e.target as HTMLElement)?.classList.remove('dragging')
   // 清除所有 drag-over 状态
-  const overEls = document.querySelectorAll('.sidebar-item.drag-over, .drop-tail.drag-over')
+  const overEls = document.querySelectorAll('.sidebar-item.drag-over, .drop-tail.drag-over, .schema-drag-tail.drag-over')
   overEls.forEach(el => el.classList.remove('drag-over'))
   dragSchemaIdx.value = -1
   dragTableIdx.value = -1
+}
+
+// Schema 尾部 drop：将拖拽的 schema 移到列表末尾
+function onSchemaTailOver(e: DragEvent) {
+  if (dragSchemaIdx.value < 0 || dragTableIdx.value >= 0) return
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
+}
+
+function onSchemaTailDrop(e: DragEvent) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+  if (dragSchemaIdx.value < 0 || dragTableIdx.value >= 0) return
+  const fromIdx = dragSchemaIdx.value
+  nextTick(() => {
+    store.moveSchema(fromIdx, store.schemas.length - 1)
+  })
 }
 
 // ===== Schema CRUD handlers =====
@@ -152,11 +196,14 @@ function handleRenameSchema(sIdx: number) {
       <template v-for="(schema, sIdx) in store.schemas" :key="schema.schema">
         <div
           class="sidebar-item schema-item"
-          :class="{ collapsed: !isExpanded(sIdx) }"
+          :class="{ collapsed: !isExpanded(sIdx), 'dragging': dragSchemaIdx === sIdx && dragTableIdx < 0 }"
+          draggable="true"
           @click="toggleExpand(sIdx)"
+          @dragstart="onSchemaDragStart($event, sIdx)"
           @dragover="onSchemaDragOver($event, sIdx)"
           @dragleave="onDragLeave"
           @drop="onSchemaDrop($event, sIdx)"
+          @dragend="onDragEnd"
         >
           <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }">&#9654;</span>
           <span class="schema-label">{{ schema.schema }}</span>
@@ -195,6 +242,16 @@ function handleRenameSchema(sIdx: number) {
           @drop="onDropTail($event, sIdx)"
         ></div>
       </template>
+
+      <!-- Schema 尾部 drop 区域：拖拽 schema 到列表末尾 -->
+      <div
+        v-if="store.schemas.length > 0"
+        class="schema-drag-tail"
+        :class="{ 'drag-active': dragSchemaIdx >= 0, 'drag-over': false }"
+        @dragover="onSchemaTailOver"
+        @dragleave="onDragLeave"
+        @drop="onSchemaTailDrop"
+      ></div>
 
       <!-- Empty State -->
       <div v-if="!store.projectOpened && store.schemas.length === 0 && !store.commonConfig" class="empty-hint">
@@ -456,6 +513,10 @@ function handleRenameSchema(sIdx: number) {
   opacity: 0.4;
 }
 
+.sidebar-item.schema-item.dragging {
+  opacity: 0.4;
+}
+
 .sidebar-item.table-item.drag-over {
   border-top: 2px solid #4a90d9;
   padding-top: 4px;
@@ -472,6 +533,21 @@ function handleRenameSchema(sIdx: number) {
 }
 
 .drop-tail.drag-over {
+  height: 10px;
+  border-top: 2px solid #4a90d9;
+}
+
+.schema-drag-tail {
+  height: 8px;
+  padding: 0 12px;
+  opacity: 0;
+}
+
+.schema-drag-tail.drag-active {
+  opacity: 1;
+}
+
+.schema-drag-tail.drag-over {
   height: 10px;
   border-top: 2px solid #4a90d9;
 }

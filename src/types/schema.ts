@@ -72,5 +72,6 @@ export interface DefaultConfig {
 
 export interface CommonConfig {
   default_config: DefaultConfig
+  schema_order?: string[]
   common_used_fields: Record<string, Field>
 }

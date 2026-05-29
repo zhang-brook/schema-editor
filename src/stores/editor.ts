@@ -151,6 +151,8 @@ export const useEditorStore = defineStore('editor', () => {
       }
 
       console.log('[openProject] schemas loaded:', schemas.length)
+      // 按 schema_order 排序（如果存在）
+      applySchemaOrder()
 
       // 加载 initial-data
       initialDataMap.clear()
@@ -246,6 +248,9 @@ export const useEditorStore = defineStore('editor', () => {
         }
       }
 
+      // 按 schema_order 排序
+      applySchemaOrder()
+
       // 重新读取 initial-data
       initialDataMap.clear()
       initialDataDeletedKeys.clear()
@@ -325,14 +330,12 @@ export const useEditorStore = defineStore('editor', () => {
         allPgsql.push({ name: schema.schema, sql: pgsqlSql })
       }
 
-      // 生成包含所有 schema 的汇总文件（按 schema 名字母序排列）
+      // 生成包含所有 schema 的汇总文件（按 schema_order 顺序排列）
       if (allMysql.length > 0) {
-        const sorted = allMysql.sort((a, b) => a.name.localeCompare(b.name))
-        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__all_schemas__.sql', sorted.map(s => s.sql).join('\n\n'))
+        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__all_schemas__.sql', allMysql.map(s => s.sql).join('\n\n'))
       }
       if (allPgsql.length > 0) {
-        const sorted = allPgsql.sort((a, b) => a.name.localeCompare(b.name))
-        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__all_schemas__.sql', sorted.map(s => s.sql).join('\n\n'))
+        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__all_schemas__.sql', allPgsql.map(s => s.sql).join('\n\n'))
       }
     } catch (e) {
       console.error('SQL output sync failed:', e)
@@ -399,6 +402,40 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataDeletedKeys.add(key)
   }
 
+  // ===== Schema Order =====
+  /** 将当前 schemas 顺序同步到 commonConfig.schema_order */
+  function syncSchemaOrder() {
+    if (!commonConfig.value) return
+    commonConfig.value.schema_order = schemas.map(s => s.schema)
+  }
+
+  /** 按 schema_order 排序 schemas（未在列表中的保留在原位，即末尾） */
+  function applySchemaOrder() {
+    const order = commonConfig.value?.schema_order
+    if (!order || order.length === 0) return
+    const orderMap = new Map<string, number>()
+    order.forEach((name, i) => orderMap.set(name, i))
+    schemas.sort((a, b) => {
+      const ai = orderMap.get(a.schema)
+      const bi = orderMap.get(b.schema)
+      if (ai === undefined && bi === undefined) return 0
+      if (ai === undefined) return 1
+      if (bi === undefined) return -1
+      return ai - bi
+    })
+  }
+
+  /** 拖拽调整 schema 顺序 */
+  function moveSchema(fromIdx: number, toIdx: number) {
+    if (fromIdx === toIdx) return
+    if (fromIdx < 0 || fromIdx >= schemas.length) return
+    if (toIdx < 0 || toIdx >= schemas.length) return
+    const [schema] = schemas.splice(fromIdx, 1)
+    if (!schema) return
+    schemas.splice(toIdx, 0, schema)
+    syncSchemaOrder()
+  }
+
   // ===== Schema CRUD =====
 
   function addSchema(name: string) {
@@ -411,6 +448,7 @@ export const useEditorStore = defineStore('editor', () => {
       tables: []
     }
     schemas.push(newSchema)
+    syncSchemaOrder()
     selectedSchemaIdx.value = schemas.length - 1
     selectedTableIdx.value = -1
     showToast('Schema created')
@@ -440,6 +478,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     schemas.splice(schemaIdx, 1)
+    syncSchemaOrder()
 
     // Delete SQL output files and regenerate aggregate files
     if (rootDirHandle.value) {
@@ -489,6 +528,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     schema.schema = newName
+    syncSchemaOrder()
 
     // Update initial data keys
     for (const table of schema.tables) {
@@ -1071,6 +1111,7 @@ export const useEditorStore = defineStore('editor', () => {
     addSchema,
     deleteSchema,
     renameSchema,
+    moveSchema,
 
     // Table CRUD
     addTable,

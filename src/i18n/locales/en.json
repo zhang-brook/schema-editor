@@ -170,5 +170,6 @@
     "deleteField": "Delete field \"{name}\"?",
     "deleteIndex": "Delete this index?",
     "deleteCommonField": "Common field \"{name}\" is referenced by:\n{refs}\n\nDelete it anyway? References will become stale."
-  }
+  },
+  "github": "View GitHub Repository"
 }

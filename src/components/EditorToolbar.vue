@@ -43,6 +43,16 @@ function switchLocale(newLocale: SupportedLocale) {
         </select>
       </div>
 
+      <a
+        href="https://github.com/coder-xiaomo/schema-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn btn-github"
+        :title="$t('toolbar.github')"
+      >
+        GitHub
+      </a>
+
       <button
         v-if="store.projectOpened"
         class="btn btn-reload"
@@ -121,6 +131,10 @@ function switchLocale(newLocale: SupportedLocale) {
   align-items: center;
   gap: 3px;
   opacity: 0.618;
+}
+
+.btn-github {
+  text-decoration: none;
 }
 
 .btn-reload {

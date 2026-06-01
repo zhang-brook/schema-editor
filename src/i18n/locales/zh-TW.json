@@ -170,5 +170,6 @@
     "deleteField": "確認刪除欄位 \"{name}\"？",
     "deleteIndex": "確認刪除此索引？",
     "deleteCommonField": "公共欄位 \"{name}\" 被以下表引用：\n{refs}\n\n仍要刪除嗎？引用將變為無效。"
-  }
+  },
+  "github": "查看 GitHub 倉庫"
 }

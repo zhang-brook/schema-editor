@@ -611,7 +611,7 @@ export const useEditorStore = defineStore('editor', () => {
     schema.schema = newName
     syncSchemaOrder()
 
-    // Update initial data keys
+    // Update initial data keys and mark old files for deletion
     for (const table of schema.tables) {
       const oldKey = initialDataKey(oldName, table.name)
       const newKey = initialDataKey(newName, table.name)
@@ -620,6 +620,7 @@ export const useEditorStore = defineStore('editor', () => {
         initialDataMap.delete(oldKey)
         initialDataMap.set(newKey, data)
       }
+      initialDataDeletedKeys.add(oldKey)
     }
 
     showToast(t('toast.schemaRenamed'))
@@ -718,6 +719,15 @@ export const useEditorStore = defineStore('editor', () => {
     const [table] = fromSchema.tables.splice(fromTableIdx, 1)
     if (!table) return
     toSchema.tables.splice(toTableIdx, 0, table)
+
+    // Update initial data key when table moves between schemas
+    const oldKey = initialDataKey(fromSchema.schema, table.name)
+    const newKey = initialDataKey(toSchema.schema, table.name)
+    const data = initialDataMap.get(oldKey)
+    if (data !== undefined) {
+      initialDataMap.delete(oldKey)
+      initialDataMap.set(newKey, data)
+    }
 
     // 更新选中状态跟随表移动
     selectedSchemaIdx.value = toSchemaIdx

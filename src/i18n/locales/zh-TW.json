@@ -117,7 +117,8 @@
     "customType": "自訂...",
     "typePlaceholder": "如 varchar",
     "resolvedTypes": "最終解析類型預覽",
-    "quoteDefault": "預設值加引號"
+    "quoteDefault": "預設值加引號",
+    "notSet": "不設定"
   },
   "indexTable": {
     "indexes": "索引",

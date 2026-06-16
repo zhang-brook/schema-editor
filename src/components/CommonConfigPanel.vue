@@ -717,13 +717,14 @@ function handleDeleteUnifiedType(idx: number) {
                     style="width:38px;"
                   />
                   <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="field.field_length_disabled = undefined">—</span>
-                  <input
-                    type="checkbox"
-                    class="mini-checkbox"
-                    :checked="!!field.field_length_disabled"
-                    @change="field.field_length_disabled = ($event.target as HTMLInputElement).checked || undefined"
-                    title="不设置长度"
-                  />
+                  <label class="mini-checkbox-label" title="不设置长度">
+                    <input
+                      type="checkbox"
+                      class="mini-checkbox"
+                      :checked="!!field.field_length_disabled"
+                      @change="field.field_length_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                    />{{ $t('fieldTable.notSet') }}
+                  </label>
                 </div>
               </td>
               <!-- field_scale -->
@@ -738,13 +739,14 @@ function handleDeleteUnifiedType(idx: number) {
                     style="width:38px;"
                   />
                   <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="field.field_scale_disabled = undefined">—</span>
-                  <input
-                    type="checkbox"
-                    class="mini-checkbox"
-                    :checked="!!field.field_scale_disabled"
-                    @change="field.field_scale_disabled = ($event.target as HTMLInputElement).checked || undefined"
-                    title="不设置小数位"
-                  />
+                  <label class="mini-checkbox-label" title="不设置小数位">
+                    <input
+                      type="checkbox"
+                      class="mini-checkbox"
+                      :checked="!!field.field_scale_disabled"
+                      @change="field.field_scale_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                    />{{ $t('fieldTable.notSet') }}
+                  </label>
                 </div>
               </td>
               <!-- not_null -->
@@ -1126,6 +1128,17 @@ function handleDeleteUnifiedType(idx: number) {
   height: 12px;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.mini-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 9px;
+  opacity: 0.6;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .disabled-indicator {

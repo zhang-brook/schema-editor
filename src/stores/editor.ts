@@ -1,4 +1,4 @@
-﻿import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type {
@@ -155,103 +155,13 @@ export const useEditorStore = defineStore('editor', () => {
       rootDirHandle.value = result.rootHandle
       schemaDirHandle.value = result.schemaHandle
 
-      // 加载 common.json
-      if (result.commonData) {
-        const data = result.commonData as any
-        if (data.default_config && data.common_used_fields) {
-          // 兼容旧 common.json 无 pgsql 配置
-          if (!data.default_config.pgsql) {
-            data.default_config.pgsql = { quote_identifiers: true }
-          }
-          commonConfig.value = data
-          console.log('[openProject] commonConfig set')
-        }
-      }
-      // 如果文件夹中没有 common.json，创建默认配置
-      if (!commonConfig.value) {
-        commonConfig.value = {
-          struct_version: CURRENT_STRUCT_VERSION,
-          default_config: {
-            mysql: {
-              database: {},
-              table: {
-                mysql_engine: 'InnoDB',
-                mysql_charset: 'utf8mb4',
-                mysql_collation: 'utf8mb4_0900_ai_ci',
-              }
-            },
-            pgsql: {
-              quote_identifiers: true,
-            }
-          },
-          common_used_fields: {},
-          type_case: 'keep',
-        }
-        console.log('[openProject] default commonConfig created')
-      }
-
-      // 版本检查
-      const versionResult = checkVersion(commonConfig.value)
-      if (!versionResult.ok) {
-        alert(versionResult.error)
-        return
-      }
-      const needsUpgrade = versionResult.needsUpgrade
-
-      // 加载 schema JSON
-      schemas.length = 0
-      for (const { name, data: raw } of result.schemaFiles) {
-        const data = raw as any
-        console.log(`[openProject] processing "${name}": schema="${data.schema}", tables=${Array.isArray(data.tables) ? data.tables.length : 'N/A'}`)
-        if (!data.schema || !Array.isArray(data.tables)) {
-          showToast(t('toast.skipping', { name }))
-          continue
-        }
-        data.tables.forEach((t: any) => {
-          if (!t.indexes) t.indexes = []
-          if (!t.fields) t.fields = []
-        })
-        schemas.push(data)
-      }
-
-      console.log('[openProject] schemas loaded:', schemas.length)
-      // 按 schema_order 排序（如果存在）
-      applySchemaOrder()
-
-      // 升级旧版数据结构
-      if (needsUpgrade) {
-        upgradeSchemaData(schemas, versionResult.fromVersion!)
-        if (commonConfig.value) {
-          commonConfig.value.struct_version = CURRENT_STRUCT_VERSION
-        }
-        // 升级后立即写盘（此时 auto-sync watcher 尚未 setup）
-        await writeCommonToHandle(rootDirHandle.value, commonConfig.value!)
-        for (const schema of schemas) {
-          const data = buildSchemaExportData(schema)
-          await writeSchemaToHandle(schemaDirHandle.value!, `${schema.schema}.json`, data)
-        }
-        console.log('[openProject] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
-      }
-
-      // 初始化 unified_types（若 common.json 中缺失或为空，则填充内置默认集）
-      if (!commonConfig.value.unified_types || commonConfig.value.unified_types.length === 0) {
-        commonConfig.value.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
-      }
-
-      // 加载 initial-data
-      initialDataMap.clear()
-      initialDataDeletedKeys.clear()
-      try {
-        const initialDataFiles = await readInitialDataFromHandle(rootDirHandle.value)
-        for (const { key, data } of initialDataFiles) {
-          initialDataMap.set(key, data)
-        }
-        if (initialDataFiles.length > 0) {
-          console.log(`[openProject] initial data loaded: ${initialDataFiles.length} file(s)`)
-        }
-      } catch (e) {
-        console.warn('[openProject] failed to load initial data:', e)
-      }
+      const ok = await _loadProjectFromHandles(
+        result.rootHandle,
+        result.schemaHandle,
+        result.commonData,
+        result.schemaFiles,
+      )
+      if (!ok) return
 
       projectOpened.value = true
 
@@ -259,12 +169,6 @@ export const useEditorStore = defineStore('editor', () => {
       if (schemas.length > 0) parts.push(`${schemas.length} schema(s)`)
       if (commonConfig.value) parts.push('common.json')
       showToast(t('toast.opened', { summary: parts.join(' + ') }))
-
-      // Select first schema automatically
-      if (schemas.length > 0) {
-        selectedSchemaIdx.value = 0
-        selectedTableIdx.value = schemas[0]!.tables.length > 0 ? 0 : -1
-      }
 
       setupAutoSync()
     } catch {
@@ -296,11 +200,142 @@ export const useEditorStore = defineStore('editor', () => {
     showToast(t('toast.projectClosed'))
   }
 
+  // ===== Shared: Load Project Data from Handles =====
+
+  /**
+   * 从 handles 和已解析数据加载项目全部状态（openProject / reloadFromDisk 共用核心）。
+   * 调用前确保 rootDirHandle / schemaDirHandle 已设置。
+   * 返回 false 表示版本检查未通过，调用方应中止后续操作。
+   */
+  async function _loadProjectFromHandles(
+    rootHandle: FileSystemDirectoryHandle,
+    schemaHandle: FileSystemDirectoryHandle,
+    commonData: unknown | null,
+    schemaFiles: { name: string; data: unknown }[],
+  ): Promise<boolean> {
+    // 清空内存状态（handle 引用保留）
+    commonConfig.value = null
+    schemas.length = 0
+    initialDataMap.clear()
+    initialDataDeletedKeys.clear()
+    selectedSchemaIdx.value = -1
+    selectedTableIdx.value = -1
+    showCommonPanel.value = false
+    expandedFields.clear()
+    expandedIndexes.clear()
+
+    // 加载 common.json
+    if (commonData) {
+      const data = commonData as any
+      if (data.default_config && data.common_used_fields) {
+        // 兼容旧 common.json 无 pgsql 配置
+        if (!data.default_config.pgsql) {
+          data.default_config.pgsql = { quote_identifiers: true }
+        }
+        commonConfig.value = data
+        console.log('[openProject] commonConfig set')
+      }
+    }
+    // 如果文件夹中没有 common.json 或数据无效，创建默认配置
+    if (!commonConfig.value) {
+      commonConfig.value = {
+        struct_version: CURRENT_STRUCT_VERSION,
+        default_config: {
+          mysql: {
+            database: {},
+            table: {
+              mysql_engine: 'InnoDB',
+              mysql_charset: 'utf8mb4',
+              mysql_collation: 'utf8mb4_0900_ai_ci',
+            }
+          },
+          pgsql: {
+            quote_identifiers: true,
+          }
+        },
+        common_used_fields: {},
+        type_case: 'keep',
+      }
+      console.log('[openProject] default commonConfig created')
+    }
+
+    // 版本检查
+    const versionResult = checkVersion(commonConfig.value)
+    if (!versionResult.ok) {
+      alert(versionResult.error)
+      return false
+    }
+    const needsUpgrade = versionResult.needsUpgrade
+
+    // 加载 schema JSON
+    for (const { name, data: raw } of schemaFiles) {
+      const data = raw as any
+      console.log(`[openProject] processing "${name}": schema="${data.schema}", tables=${Array.isArray(data.tables) ? data.tables.length : 'N/A'}`)
+      if (!data.schema || !Array.isArray(data.tables)) {
+        showToast(t('toast.skipping', { name }))
+        continue
+      }
+      data.tables.forEach((t: any) => {
+        if (!t.indexes) t.indexes = []
+        if (!t.fields) t.fields = []
+      })
+      schemas.push(data)
+    }
+
+    console.log('[openProject] schemas loaded:', schemas.length)
+    // 按 schema_order 排序（如果存在）
+    applySchemaOrder()
+
+    // 升级旧版数据结构
+    if (needsUpgrade) {
+      upgradeSchemaData(schemas, versionResult.fromVersion!)
+      if (commonConfig.value) {
+        commonConfig.value.struct_version = CURRENT_STRUCT_VERSION
+      }
+      // 升级后立即写盘（此时 auto-sync watcher 尚未 setup）
+      await writeCommonToHandle(rootHandle, commonConfig.value!)
+      for (const schema of schemas) {
+        const data = buildSchemaExportData(schema)
+        await writeSchemaToHandle(schemaHandle, `${schema.schema}.json`, data)
+      }
+      console.log('[openProject] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
+    }
+
+    // 初始化 unified_types（若缺失或为空，则填充内置默认集）
+    if (!commonConfig.value.unified_types || commonConfig.value.unified_types.length === 0) {
+      commonConfig.value.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
+    }
+
+    // 加载 initial-data
+    try {
+      const initialDataFiles = await readInitialDataFromHandle(rootHandle)
+      for (const { key, data } of initialDataFiles) {
+        initialDataMap.set(key, data)
+      }
+      if (initialDataFiles.length > 0) {
+        console.log(`[openProject] initial data loaded: ${initialDataFiles.length} file(s)`)
+      }
+    } catch (e) {
+      console.warn('[openProject] failed to load initial data:', e)
+    }
+
+    // Select first schema automatically
+    if (schemas.length > 0) {
+      selectedSchemaIdx.value = 0
+      selectedTableIdx.value = schemas[0]!.tables.length > 0 ? 0 : -1
+    }
+
+    return true
+  }
+
   // ===== Reload from Disk =====
 
   /** 放弃网页中的编辑，从本地文件重新读取所有数据 */
   async function reloadFromDisk() {
     if (!rootDirHandle.value || !schemaDirHandle.value) return
+
+    const rootH = rootDirHandle.value
+    const schemaH = schemaDirHandle.value
 
     _reloading = true
     if (_syncTimer) {
@@ -309,115 +344,35 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     try {
-      // 重新读取 common.json
+      // 从磁盘读取 common.json
+      let commonData: unknown | null = null
       try {
-        const commonHandle = await rootDirHandle.value.getFileHandle('common.json')
+        const commonHandle = await rootH.getFileHandle('common.json')
         const file = await commonHandle.getFile()
-        const data = JSON.parse(await file.text())
-        if (data.default_config && data.common_used_fields) {
-          // 兼容旧 common.json 无 pgsql 配置
-          if (!data.default_config.pgsql) {
-            data.default_config.pgsql = { quote_identifiers: true }
-          }
-          commonConfig.value = data as CommonConfig
-        }
-      } catch  {
+        commonData = JSON.parse(await file.text())
+      } catch {
         console.warn('[reloadFromDisk] Failed to read common.json, resetting to default')
-        commonConfig.value = {
-          struct_version: CURRENT_STRUCT_VERSION,
-          default_config: {
-            mysql: {
-              database: {},
-              table: {
-                mysql_engine: 'InnoDB',
-                mysql_charset: 'utf8mb4',
-                mysql_collation: 'utf8mb4_0900_ai_ci',
-              }
-            },
-            pgsql: {
-              quote_identifiers: true
-            }
-          },
-          common_used_fields: {},
-          type_case: 'keep',
-        }
       }
 
-      // 版本检查
-      const versionResult = checkVersion(commonConfig.value)
-      if (!versionResult.ok) {
-        alert(versionResult.error)
-        _reloading = false
-        return
-      }
-      const needsUpgradeFromDisk = versionResult.needsUpgrade
-
-      // 重新读取所有 schema JSON
-      schemas.length = 0
-      for await (const entry of schemaDirHandle.value.values()) {
+      // 从磁盘读取所有 schema JSON
+      const schemaFiles: { name: string; data: unknown }[] = []
+      for await (const entry of schemaH.values()) {
         const fHandle = entry as FileSystemFileHandle | FileSystemDirectoryHandle
         const fName: string = fHandle.name
         if (fName.endsWith('.json') && fHandle.kind === 'file') {
           try {
             const file = await fHandle.getFile()
-            const raw = JSON.parse(await file.text())
-            if (raw.schema && Array.isArray(raw.tables)) {
-              raw.tables.forEach((t: any) => {
-                if (!t.indexes) t.indexes = []
-                if (!t.fields) t.fields = []
-              })
-              schemas.push(raw)
-            }
+            schemaFiles.push({ name: fName, data: JSON.parse(await file.text()) })
           } catch (e) {
             console.warn(`[reloadFromDisk] Failed to parse "${fName}":`, e)
           }
         }
       }
 
-      // 按 schema_order 排序
-      applySchemaOrder()
+      const ok = await _loadProjectFromHandles(rootH, schemaH, commonData, schemaFiles)
+      if (!ok) return
 
-      // 升级旧版数据结构
-      if (needsUpgradeFromDisk) {
-        upgradeSchemaData(schemas, versionResult.fromVersion!)
-        if (commonConfig.value) {
-          commonConfig.value.struct_version = CURRENT_STRUCT_VERSION
-        }
-        // 升级后立即写盘（_reloading 期间 debouncedSync 被阻挡）
-        await writeCommonToHandle(rootDirHandle.value, commonConfig.value!)
-        for (const schema of schemas) {
-          const data = buildSchemaExportData(schema)
-          await writeSchemaToHandle(schemaDirHandle.value!, `${schema.schema}.json`, data)
-        }
-        console.log('[reloadFromDisk] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
-      }
-
-      // 初始化 unified_types（若 common.json 中缺失或为空，则填充内置默认集）
-      if (!commonConfig.value!.unified_types || commonConfig.value!.unified_types.length === 0) {
-        commonConfig.value!.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
-      }
-
-      // 重新读取 initial-data
-      initialDataMap.clear()
-      initialDataDeletedKeys.clear()
-      try {
-        const initialDataFiles = await readInitialDataFromHandle(rootDirHandle.value)
-        for (const { key, data } of initialDataFiles) {
-          initialDataMap.set(key, data)
-        }
-      } catch (e) {
-        console.warn('[reloadFromDisk] Failed to load initial data:', e)
-      }
-
-      // 恢复选中状态
-      if (schemas.length > 0) {
-        selectedSchemaIdx.value = 0
-        selectedTableIdx.value = schemas[0]!.tables.length > 0 ? 0 : -1
-      } else {
-        selectedSchemaIdx.value = -1
-        selectedTableIdx.value = -1
-      }
-
+      projectOpened.value = true
       showToast(t('toast.reloadedFromDisk'))
     } catch (e) {
       console.error('[reloadFromDisk] Failed:', e)

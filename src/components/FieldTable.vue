@@ -92,6 +92,13 @@ function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): strin
   return val !== undefined && val !== null ? String(val) : ''
 }
 
+/** 获取统一类型定义的默认值输入组件类型 */
+function getDefaultInputType(field: Field): string {
+  if (!field.unified_type || !store.commonConfig?.unified_types) return ''
+  const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
+  return def?.default_input || ''
+}
+
 function onDropTailOver(e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
@@ -279,8 +286,19 @@ function onDropTail(e: DragEvent) {
                     @change="toggleHasDefault(field)"
                     :title="$t('fieldTable.hasDefault')"
                   >
+                  <select
+                    v-if="field.default !== undefined && getDefaultInputType(field) === 'boolean'"
+                    class="table-input"
+                    :value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
+                    @change="field.default = ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined"
+                    style="min-width:80px;"
+                  >
+                    <option value=""></option>
+                    <option value="TRUE">TRUE</option>
+                    <option value="FALSE">FALSE</option>
+                  </select>
                   <input
-                    v-if="field.default !== undefined"
+                    v-else-if="field.default !== undefined"
                     class="table-input"
                     :value="displayDefault(field.default)"
                     @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"

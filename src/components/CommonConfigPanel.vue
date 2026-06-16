@@ -338,6 +338,7 @@ function readUnifiedTypes(): UnifiedTypeDefinition[] {
     name: ut.name,
     description: ut.description,
     quote_default: ut.quote_default,
+    default_input: ut.default_input,
     mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
     pgsql: { type: ut.pgsql.type, length: ut.pgsql.length, scale: ut.pgsql.scale },
   }))
@@ -415,6 +416,7 @@ function handleDeleteUnifiedType(idx: number) {
               <th>{{ $t('commonConfig.unifiedTypes.pgsqlLength') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.pgsqlScale') }}</th>
               <th style="width:60px;">{{ $t('commonConfig.unifiedTypes.quoteDefault') }}</th>
+              <th style="width:100px;">{{ $t('commonConfig.unifiedTypes.defaultInput') }}</th>
               <th style="width:90px;"></th>
             </tr>
           </thead>
@@ -503,6 +505,12 @@ function handleDeleteUnifiedType(idx: number) {
               <td style="text-align:center;">
                 <input type="checkbox" class="table-checkbox" v-model="ut.quote_default" @change="syncUnifiedTypes()" />
               </td>
+              <td style="text-align:center;">
+                <select class="table-input" :value="ut.default_input ?? ''" @change="ut.default_input = ($event.target as HTMLSelectElement).value === 'boolean' ? 'boolean' : undefined; syncUnifiedTypes()" style="min-width:100px;">
+                  <option value="">{{ $t('commonConfig.unifiedTypes.defaultInputText') }}</option>
+                  <option value="boolean">{{ $t('commonConfig.unifiedTypes.defaultInputBoolean') }}</option>
+                </select>
+              </td>
               <td style="min-width: 90px;">
                 <div class="move-btns" style="display:inline-flex; margin-right:2px;">
                   <button class="move-btn" @click="moveUnifiedTypeUp(idx)" :disabled="idx === 0">↑</button>
@@ -523,10 +531,10 @@ function handleDeleteUnifiedType(idx: number) {
               @dragleave="onUnifiedTypeDropTailLeave"
               @drop="onUnifiedTypeDropTail"
             >
-              <td :colspan="11"></td>
+              <td :colspan="12"></td>
             </tr>
             <tr v-if="localUnifiedTypes.length === 0">
-              <td colspan="11" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="12" style="text-align:center; color:#aaa; padding:16px;">
                 {{ $t('commonConfig.emptyTypes') }}
               </td>
             </tr>

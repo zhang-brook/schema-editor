@@ -1,6 +1,9 @@
 /** 字段类型大小写转换模式 */
 export type TypeCaseMode = 'keep' | 'lowercase' | 'uppercase' | 'pascal'
 
+/** 默认值输入组件类型 */
+export type DefaultInputType = 'text' | 'boolean'
+
 // 统一顶层类型 — 数据库方言映射
 export interface UnifiedTypeDbMapping {
   type: string
@@ -13,6 +16,8 @@ export interface UnifiedTypeDefinition {
   description?: string
   /** 默认值是否需要引号包裹（字符串类型=true，数字/bool类型=false） */
   quote_default?: boolean
+  /** 默认值的输入组件类型（text=文本输入框, boolean=TRUE/FALSE下拉框），省略默认为 text */
+  default_input?: DefaultInputType
   mysql: UnifiedTypeDbMapping
   pgsql: UnifiedTypeDbMapping
 }

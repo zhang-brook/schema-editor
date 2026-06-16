@@ -10,7 +10,9 @@
     "reloadFromDisk": "從磁碟重新載入",
     "reloadFromDiskTitle": "放棄網頁修改，從本機檔案重新載入",
     "language": "語言",
-    "github": "GitHub"
+    "github": "GitHub",
+    "importSql": "匯入 SQL",
+    "importSqlTitle": "貼上 SQL 建表語句，自動解析並匯入"
   },
   "sidebar": {
     "navigation": "導覽",
@@ -226,6 +228,31 @@
     "deleteField": "確認刪除欄位 \"{name}\"？",
     "deleteIndex": "確認刪除此索引？",
     "deleteCommonField": "公共欄位 \"{name}\" 被以下表引用：\n{refs}\n\n仍要刪除嗎？引用將變為無效。"
+  },
+  "importSqlModal": {
+    "title": "匯入 SQL 建表語句",
+    "dialect": "方言",
+    "autoDetect": "自動檢測",
+    "sqlInput": "SQL 建表語句",
+    "sqlPlaceholder": "貼上 CREATE TABLE 語句...\n\n支援 MySQL 和 PostgreSQL 方言\n可一次貼上多個建表語句",
+    "parsedTables": "解析結果",
+    "summary": "{tables} 張表，{fields} 個欄位，{indexes} 個索引",
+    "fields": "欄位",
+    "indexes": "索引",
+    "colName": "欄名",
+    "colType": "類型",
+    "colDefault": "預設值",
+    "colComment": "註解",
+    "constraints": "表級約束",
+    "target": "匯入到",
+    "newSchema": "新建 Schema",
+    "existingSchema": "追加到現有 Schema",
+    "schemaNamePlaceholder": "Schema 名稱...",
+    "selectSchema": "-- 選擇 Schema --",
+    "cancel": "取消",
+    "importBtn": "確認匯入",
+    "imported": "已匯入 {count} 張表",
+    "noValidTables": "沒有找到有效的表定義"
   },
   "github": "查看 GitHub 倉庫"
 }

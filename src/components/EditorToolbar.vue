@@ -61,6 +61,15 @@ function switchLocale(newLocale: SupportedLocale) {
       >
         &#8635;&#xFE0E; {{ $t('toolbar.reloadFromDisk') }}
       </button>
+
+      <button
+        v-if="store.projectOpened"
+        class="btn btn-import-sql"
+        :title="$t('toolbar.importSqlTitle')"
+        @click="store.openImportSqlModal()"
+      >
+        &#128196;&#xFE0E; {{ $t('toolbar.importSql') }}
+      </button>
     </div>
   </div>
 </template>

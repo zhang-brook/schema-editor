@@ -5,6 +5,7 @@ import EditorSidebar from '@/components/EditorSidebar.vue'
 import CommonConfigPanel from '@/components/CommonConfigPanel.vue'
 import TableEditor from '@/components/TableEditor.vue'
 import AddFieldModal from '@/components/AddFieldModal.vue'
+import ImportSqlModal from '@/components/ImportSqlModal.vue'
 
 const store = useEditorStore()
 </script>
@@ -35,6 +36,9 @@ const store = useEditorStore()
 
     <!-- 添加字段弹窗 -->
     <AddFieldModal />
+
+    <!-- 导入 SQL 弹窗 -->
+    <ImportSqlModal />
 
     <!-- Toast 通知 -->
     <div class="toast" :class="{ show: store.toastVisible }">{{ store.toastMsg }}</div>

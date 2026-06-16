@@ -10,7 +10,9 @@
     "reloadFromDisk": "从磁盘重新加载",
     "reloadFromDiskTitle": "放弃网页修改，从本地文件重新加载",
     "language": "语言",
-    "github": "GitHub"
+    "github": "GitHub",
+    "importSql": "导入 SQL",
+    "importSqlTitle": "粘贴 SQL 建表语句，自动解析并导入"
   },
   "sidebar": {
     "navigation": "导航",
@@ -226,6 +228,31 @@
     "deleteField": "确认删除字段 \"{name}\"？",
     "deleteIndex": "确认删除此索引？",
     "deleteCommonField": "公共字段 \"{name}\" 被以下表引用：\n{refs}\n\n仍然要删除吗？引用将变为无效。"
+  },
+  "importSqlModal": {
+    "title": "导入 SQL 建表语句",
+    "dialect": "方言",
+    "autoDetect": "自动检测",
+    "sqlInput": "SQL 建表语句",
+    "sqlPlaceholder": "粘贴 CREATE TABLE 语句...\n\n支持 MySQL 和 PostgreSQL 方言\n可一次粘贴多个建表语句",
+    "parsedTables": "解析结果",
+    "summary": "{tables} 张表，{fields} 个字段，{indexes} 个索引",
+    "fields": "字段",
+    "indexes": "索引",
+    "colName": "列名",
+    "colType": "类型",
+    "colDefault": "默认值",
+    "colComment": "注释",
+    "constraints": "表级约束",
+    "target": "导入到",
+    "newSchema": "新建 Schema",
+    "existingSchema": "追加到现有 Schema",
+    "schemaNamePlaceholder": "Schema 名称...",
+    "selectSchema": "-- 选择 Schema --",
+    "cancel": "取消",
+    "importBtn": "确认导入",
+    "imported": "已导入 {count} 张表",
+    "noValidTables": "没有找到有效的表定义"
   },
   "github": "查看 GitHub 仓库"
 }

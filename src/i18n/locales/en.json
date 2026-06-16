@@ -10,7 +10,9 @@
     "reloadFromDisk": "Reload from Disk",
     "reloadFromDiskTitle": "Discard web changes and reload from local files",
     "language": "Language",
-    "github": "GitHub"
+    "github": "GitHub",
+    "importSql": "Import SQL",
+    "importSqlTitle": "Paste CREATE TABLE statements, auto-parse and import"
   },
   "sidebar": {
     "navigation": "Navigation",
@@ -226,6 +228,31 @@
     "deleteField": "Delete field \"{name}\"?",
     "deleteIndex": "Delete this index?",
     "deleteCommonField": "Common field \"{name}\" is referenced by:\n{refs}\n\nDelete it anyway? References will become stale."
+  },
+  "importSqlModal": {
+    "title": "Import SQL CREATE TABLE",
+    "dialect": "Dialect",
+    "autoDetect": "Auto-detect",
+    "sqlInput": "SQL CREATE TABLE Statements",
+    "sqlPlaceholder": "Paste CREATE TABLE statements...\n\nSupports MySQL and PostgreSQL dialects\nMultiple statements accepted",
+    "parsedTables": "Parsed Result",
+    "summary": "{tables} table(s), {fields} field(s), {indexes} index(es)",
+    "fields": "fields",
+    "indexes": "indexes",
+    "colName": "Name",
+    "colType": "Type",
+    "colDefault": "Default",
+    "colComment": "Comment",
+    "constraints": "Constraints",
+    "target": "Import to",
+    "newSchema": "New Schema",
+    "existingSchema": "Append to Existing Schema",
+    "schemaNamePlaceholder": "Schema name...",
+    "selectSchema": "-- Select Schema --",
+    "cancel": "Cancel",
+    "importBtn": "Import",
+    "imported": "Imported {count} table(s)",
+    "noValidTables": "No valid table definitions found"
   },
   "github": "View GitHub Repository"
 }

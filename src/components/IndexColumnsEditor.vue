@@ -99,8 +99,8 @@ watch(() => props.modelValue, () => {
         </select>
         <select
           class="form-input sort-select"
-          v-model="col.sort_order"
-          @change="emitChange"
+          :value="col.sort_order ?? ''"
+          @change="col.sort_order = (($event.target as HTMLSelectElement).value || undefined) as any; emitChange()"
         >
           <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
           <option value="ASC">{{ $t('indexColumnsEditor.asc') }}</option>

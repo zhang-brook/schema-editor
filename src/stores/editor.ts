@@ -33,6 +33,9 @@ import {
 } from '@/utils/sql-generator/postgresql'
 import { checkVersion, CURRENT_STRUCT_VERSION, upgradeSchemaData } from '@/utils/version-upgrader'
 import { formatIndexColumn } from '@/utils/index-column-utils'
+import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
+import { resolveFieldTypeForDialect } from '@/utils/sql-generator/shared'
+import type { UnifiedTypeDefinition } from '@/types/schema'
 
 export const useEditorStore = defineStore('editor', () => {
   const { t } = useI18n()
@@ -53,6 +56,7 @@ export const useEditorStore = defineStore('editor', () => {
   const addFieldTableIdx = ref(-1)
   const newFieldName = ref('')
   const newFieldSelectCommon = ref('')
+  const newFieldUnifiedType = ref('')
 
   // File System Access API handles (in-memory, same session)
   const rootDirHandle = ref<any>(null)
@@ -81,6 +85,20 @@ export const useEditorStore = defineStore('editor', () => {
   const commonFieldNames = computed(() => {
     if (!commonConfig.value) return []
     return Object.keys(commonConfig.value.common_used_fields || {})
+  })
+
+  const unifiedTypeNames = computed(() => {
+    if (!commonConfig.value?.unified_types) return []
+    return commonConfig.value.unified_types.map(ut => ut.name)
+  })
+
+  const unifiedTypeMap = computed(() => {
+    const map = new Map<string, UnifiedTypeDefinition>()
+    if (!commonConfig.value?.unified_types) return map
+    for (const ut of commonConfig.value.unified_types) {
+      map.set(ut.name, ut)
+    }
+    return map
   })
 
   // ===== Initial Data Helpers =====
@@ -199,6 +217,11 @@ export const useEditorStore = defineStore('editor', () => {
           await writeSchemaToHandle(schemaDirHandle.value!, `${schema.schema}.json`, data)
         }
         console.log('[openProject] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
+      }
+
+      // 初始化 unified_types（若 common.json 中缺失或为空，则填充内置默认集）
+      if (!commonConfig.value.unified_types || commonConfig.value.unified_types.length === 0) {
+        commonConfig.value.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
       }
 
       // 加载 initial-data
@@ -328,6 +351,11 @@ export const useEditorStore = defineStore('editor', () => {
           await writeSchemaToHandle(schemaDirHandle.value!, `${schema.schema}.json`, data)
         }
         console.log('[reloadFromDisk] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
+      }
+
+      // 初始化 unified_types（若 common.json 中缺失或为空，则填充内置默认集）
+      if (!commonConfig.value.unified_types || commonConfig.value.unified_types.length === 0) {
+        commonConfig.value.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
       }
 
       // 重新读取 initial-data
@@ -821,6 +849,24 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  /** 获取字段在指定数据库方言中最终解析的类型显示字符串（如 "VARCHAR(255)"） */
+  function getResolvedFieldTypeForDb(field: Field, dialect: 'mysql' | 'pgsql'): string {
+    const resolved = getResolvedField(field)
+    const typeInfo = resolveFieldTypeForDialect(resolved, dialect, commonConfig.value)
+    if (!typeInfo.type) return '-'
+    if (typeInfo.length !== null && typeInfo.length !== undefined) {
+      return `${typeInfo.type}(${typeInfo.length})`
+    }
+    return typeInfo.type
+  }
+
+  /** 返回字段在 FieldTable type 列的显示文本 */
+  function fieldTypeDisplay(field: Field): string {
+    const resolved = getResolvedField(field)
+    if (resolved.unified_type) return resolved.unified_type
+    return resolved.field_type || '-'
+  }
+
   // ===== Comment Before Table =====
   function commentBeforeTableText(table: Table) {
     const val = table.comment_before_table
@@ -912,10 +958,13 @@ export const useEditorStore = defineStore('editor', () => {
         showToast(t('toast.fieldExistsInTable', { name }))
         return
       }
+      const ut = newFieldUnifiedType.value || undefined
       table.fields.push({
         field_name: name,
-        field_type: 'varchar',
-        field_length: 255,
+        unified_type: ut,
+        // 仅当未选择 unified_type 时才预设 field_type/field_length
+        field_type: ut ? undefined : 'varchar',
+        field_length: ut ? undefined : 255,
         not_null: false,
         primary_key: false,
         comment: ''
@@ -1106,8 +1155,16 @@ export const useEditorStore = defineStore('editor', () => {
           if (field.use_common_used_fields) {
             f.use_common_used_fields = true
           } else {
-            if (field.field_type !== undefined) f.field_type = field.field_type
-            if (field.field_length !== undefined) f.field_length = field.field_length
+            // 导出 unified_type（仅当有值时）
+            if (field.unified_type) {
+              f.unified_type = field.unified_type
+              // 有 unified_type 时不导出冗余的 field_type/field_length（除非有显式字段级覆盖）
+              if (field.field_type !== undefined && field.field_type !== '') f.field_type = field.field_type
+              if (field.field_length !== undefined) f.field_length = field.field_length
+            } else {
+              if (field.field_type !== undefined) f.field_type = field.field_type
+              if (field.field_length !== undefined) f.field_length = field.field_length
+            }
             if (field.not_null !== undefined) f.not_null = field.not_null
             if (field.primary_key !== undefined) f.primary_key = field.primary_key
             if (field.default !== undefined) f.default = field.default
@@ -1243,6 +1300,63 @@ export const useEditorStore = defineStore('editor', () => {
     commonConfig.value.common_used_fields = newRecord
   }
 
+  // ===== Unified Types CRUD =====
+
+  function addUnifiedType(name: string) {
+    if (!commonConfig.value) return
+    if (!name.trim()) { showToast(t('toast.unifiedTypeNameEmpty')); return }
+    const key = name.trim()
+    if (!commonConfig.value.unified_types) commonConfig.value.unified_types = []
+    if (commonConfig.value.unified_types.some(ut => ut.name === key)) {
+      showToast(t('toast.unifiedTypeExists', { name: key }))
+      return
+    }
+    commonConfig.value.unified_types.push({
+      name: key,
+      description: '',
+      mysql: { type: 'VARCHAR', length: 255 },
+      pgsql: { type: 'VARCHAR', length: 255 },
+    })
+    showToast(t('toast.unifiedTypeAdded'))
+  }
+
+  function deleteUnifiedType(idx: number) {
+    if (!commonConfig.value?.unified_types) return
+    const ut = commonConfig.value.unified_types[idx]
+    if (!ut) return
+    commonConfig.value.unified_types.splice(idx, 1)
+    showToast(t('toast.unifiedTypeDeleted'))
+  }
+
+  /** 重命名统一类型时同步更新所有引用该类型的字段 */
+  function renameUnifiedType(oldName: string, newName: string) {
+    if (oldName === newName || !oldName || !newName) return
+    // 遍历所有 schema 中的表字段
+    for (const schema of schemas) {
+      for (const table of schema.tables) {
+        for (const field of table.fields) {
+          if (field.unified_type === oldName) {
+            field.unified_type = newName
+          }
+        }
+      }
+    }
+    // 遍历 common_used_fields
+    if (commonConfig.value?.common_used_fields) {
+      for (const key of Object.keys(commonConfig.value.common_used_fields)) {
+        const field = commonConfig.value.common_used_fields[key]
+        if (field?.unified_type === oldName) {
+          field.unified_type = newName
+        }
+      }
+    }
+  }
+
+  function rebuildUnifiedTypesFromArray(types: UnifiedTypeDefinition[]) {
+    if (!commonConfig.value) return
+    commonConfig.value.unified_types = types
+  }
+
   return {
     // State
     commonConfig,
@@ -1257,11 +1371,14 @@ export const useEditorStore = defineStore('editor', () => {
     addFieldMode,
     newFieldName,
     newFieldSelectCommon,
+    newFieldUnifiedType,
 
     // Computed
     currentSchema,
     currentTable,
     commonFieldNames,
+    unifiedTypeNames,
+    unifiedTypeMap,
     currentInitialDataKey,
     currentInitialData,
 
@@ -1296,6 +1413,8 @@ export const useEditorStore = defineStore('editor', () => {
     // Field Helpers
     isCommonField,
     getResolvedField,
+    getResolvedFieldTypeForDb,
+    fieldTypeDisplay,
     fieldKey,
     indexKey,
     toggleFieldExpand,
@@ -1354,6 +1473,12 @@ export const useEditorStore = defineStore('editor', () => {
     deleteCommonUsedField,
     updateCommonUsedFieldName,
     rebuildCommonUsedFieldsFromArray,
+
+    // Unified Types CRUD
+    addUnifiedType,
+    deleteUnifiedType,
+    renameUnifiedType,
+    rebuildUnifiedTypesFromArray,
 
     // Toast
     showToast

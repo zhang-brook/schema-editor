@@ -63,13 +63,33 @@ function handleFieldNameChange(field: Field, newName: string) {
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
-                  {{ store.getResolvedField(field).field_type || '-' }}
+                  {{ store.fieldTypeDisplay(field) }}
                 </template>
-                <input v-else class="table-input" v-model="field.field_type" style="min-width:60px;">
+                <div v-else class="type-cell">
+                  <select
+                    class="table-input unified-type-select"
+                    :value="field.unified_type ?? ''"
+                    @change="field.unified_type = ($event.target as HTMLSelectElement).value || undefined"
+                    style="min-width:80px;"
+                  >
+                    <option value="">{{ $t('fieldTable.customType') }}</option>
+                    <option v-for="ut in store.unifiedTypeNames" :key="ut" :value="ut">{{ ut }}</option>
+                  </select>
+                  <input
+                    v-if="!field.unified_type"
+                    class="table-input type-free-input"
+                    v-model="field.field_type"
+                    :placeholder="$t('fieldTable.typePlaceholder')"
+                    style="min-width:60px;"
+                  />
+                </div>
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ displayFieldLength(store.getResolvedField(field).field_length) || '-' }}
+                </template>
+                <template v-else-if="field.unified_type">
+                  <span class="resolved-length">{{ displayFieldLength(field.field_length) || '-' }}</span>
                 </template>
                 <input v-else class="table-input" :value="displayFieldLength(field.field_length)" @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)" style="width:50px;">
               </td>
@@ -115,6 +135,16 @@ function handleFieldNameChange(field: Field, newName: string) {
             <tr v-if="store.expandedFields.has(store.fieldKey(store.currentSchema!, store.currentTable!, field))">
               <td colspan="10">
                 <div class="field-expand-content">
+                  <!-- 解析后类型预览 -->
+                  <div class="expand-section" v-if="!store.isCommonField(field)">
+                    <div class="expand-section-title">{{ $t('fieldTable.resolvedTypes') }}</div>
+                    <div class="resolved-type-row">
+                      <span class="db-label">MySQL:</span>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'mysql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'pgsql') }}</code>
+                    </div>
+                  </div>
                   <!-- MySQL/PGSQL Override -->
                   <div class="expand-section" v-if="!store.isCommonField(field)">
                     <div class="expand-section-title">{{ $t('fieldTable.dbOverrides') }}</div>
@@ -422,5 +452,41 @@ function handleFieldNameChange(field: Field, newName: string) {
 .field-comment-editor:focus {
   outline: none;
   border-color: #4a90d9;
+}
+
+/* Type cell with unified type select + custom input */
+.type-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.unified-type-select {
+  max-width: 100px;
+}
+
+.type-free-input {
+  max-width: 70px;
+}
+
+.resolved-length {
+  color: #666;
+  font-size: 12px;
+}
+
+.resolved-type-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.resolved-type-row code {
+  background: #e8f0fe;
+  color: #333;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 </style>

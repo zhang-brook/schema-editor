@@ -1,3 +1,16 @@
+// 统一顶层类型 — 数据库方言映射
+export interface UnifiedTypeDbMapping {
+  type: string
+  length?: number | null
+}
+
+export interface UnifiedTypeDefinition {
+  name: string
+  description?: string
+  mysql: UnifiedTypeDbMapping
+  pgsql: UnifiedTypeDbMapping
+}
+
 // 字段的数据库特定覆盖
 export interface FieldOverride {
   field_type?: string
@@ -28,6 +41,8 @@ export interface IndexColumn {
 export interface Field {
   field_name: string
   use_common_used_fields?: boolean
+  /** 指向 CommonConfig.unified_types 中的类型名，为空时回退到 field_type 自由文本 */
+  unified_type?: string
   field_type?: string
   field_length?: number | null
   not_null?: boolean
@@ -91,6 +106,8 @@ export interface CommonConfig {
   default_config: DefaultConfig
   schema_order?: string[]
   common_used_fields: Record<string, Field>
+  /** 统一顶层类型定义 — 每个顶层类型映射到各数据库方言的具体类型 */
+  unified_types?: UnifiedTypeDefinition[]
 }
 
 export interface InitialData {

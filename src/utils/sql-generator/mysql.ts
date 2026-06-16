@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -12,15 +12,15 @@ import { splitColumnForSql } from '@/utils/index-column-utils'
 function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null): string {
   let fieldDef = `\`${field.field_name}\``
 
-  // 确定字段类型
-  let fieldType = field.field_type
-  let fieldLength = field.field_length
-  let defaultValue = field.default
+  // 使用统一类型解析链获取最终 type + length
+  const resolved = resolveFieldTypeForDialect(field, 'mysql', commonConfig)
+  const fieldType = resolved.type
+  const fieldLength = resolved.length
 
-  if (field.mysql) {
-    fieldType = field.mysql.field_type !== undefined ? field.mysql.field_type : fieldType
-    fieldLength = field.mysql.field_length !== undefined ? field.mysql.field_length : fieldLength
-    defaultValue = field.mysql.default !== undefined ? field.mysql.default : defaultValue
+  // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
+  let defaultValue = field.default
+  if (field.mysql?.default !== undefined) {
+    defaultValue = field.mysql.default
   }
 
   if (fieldType) {

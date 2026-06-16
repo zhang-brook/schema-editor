@@ -136,7 +136,7 @@ function handleFieldNameChange(field: Field, newName: string) {
               <td colspan="10">
                 <div class="field-expand-content">
                   <!-- 解析后类型预览 -->
-                  <div class="expand-section" v-if="!store.isCommonField(field) && field.unified_type">
+                  <div class="expand-section" v-if="!store.isCommonField(field)">
                     <div class="expand-section-title">{{ $t('fieldTable.resolvedTypes') }}</div>
                     <div class="resolved-type-row">
                       <span class="db-label">MySQL:</span>

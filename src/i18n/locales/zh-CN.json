@@ -50,12 +50,10 @@
       "pk": "主键",
       "default": "默认值",
       "comment": "注释",
-      "mysql": "mysql",
-      "pgsql": "pgsql"
+      "dbOverrides": "数据库方言覆盖"
     },
     "addField": "+ 添加",
     "newFieldPlaceholder": "新字段名...",
-    "overridePlaceholder": "key=val, ...",
     "emptyFields": "暂无公共字段，请在上方添加。",
     "clickToRename": "点击重命名",
     "deleteField": "删除公共字段",

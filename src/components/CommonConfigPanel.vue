@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import type { Field, UnifiedTypeDefinition } from '@/types/schema'
@@ -217,40 +217,14 @@ function getDefaultInputType(field: Field): string {
   return def?.default_input || ''
 }
 
-// ===== Override helpers =====
-function formatOverride(override: Record<string, any> | undefined): string {
-  if (!override || Object.keys(override).length === 0) return ''
-  return Object.entries(override).map(([k, v]) => `${k}=${v}`).join(', ')
-}
+// ===== Common field expand =====
+const expandedCommonFields = reactive(new Set<string>())
 
-function parseOverride(text: string): Record<string, any> | undefined {
-  const trimmed = text.trim()
-  if (!trimmed) return undefined
-  const result: Record<string, any> = {}
-  const pairs = trimmed.split(',').map(s => s.trim()).filter(s => s)
-  for (const pair of pairs) {
-    const eqIdx = pair.indexOf('=')
-    if (eqIdx === -1) continue
-    const key = pair.substring(0, eqIdx).trim()
-    let val: any = pair.substring(eqIdx + 1).trim()
-    if (val === 'true') val = true
-    else if (val === 'false') val = false
-    else if (val === 'null') val = null
-    else {
-      const num = Number(val)
-      if (!isNaN(num) && val !== '') val = num
-    }
-    if (key) result[key] = val
-  }
-  return Object.keys(result).length > 0 ? result : undefined
-}
-
-function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
-  const parsed = parseOverride(text)
-  if (parsed) {
-    field[db] = parsed
+function toggleCommonFieldExpand(fieldName: string) {
+  if (expandedCommonFields.has(fieldName)) {
+    expandedCommonFields.delete(fieldName)
   } else {
-    delete field[db]
+    expandedCommonFields.add(fieldName)
   }
 }
 
@@ -655,6 +629,7 @@ function handleDeleteUnifiedType(idx: number) {
           <thead>
             <tr>
               <th style="width:24px;"></th>
+              <th style="width:30px;"></th>
               <th>{{ $t('commonConfig.fields.fieldName') }}</th>
               <th>{{ $t('commonConfig.fields.fieldType') }}</th>
               <th>{{ $t('commonConfig.fields.length') }}</th>
@@ -667,15 +642,12 @@ function handleDeleteUnifiedType(idx: number) {
                 <span class="quote-help-icon" :title="$t('fieldTable.quoteDefaultHint')">?</span>
               </th>
               <th>{{ $t('commonConfig.fields.comment') }}</th>
-              <th>{{ $t('commonConfig.fields.mysql') }}</th>
-              <th>{{ $t('commonConfig.fields.pgsql') }}</th>
               <th style="width:90px;"></th>
             </tr>
           </thead>
           <tbody>
+            <template v-for="field in localFields" :key="field.field_name">
             <tr
-              v-for="field in localFields"
-              :key="field.field_name"
               @dragover="onCommonFieldDragOver"
               @dragleave="onCommonFieldDragLeave"
               @drop="onCommonFieldDrop($event, localFields.indexOf(field))"
@@ -689,6 +661,12 @@ function handleDeleteUnifiedType(idx: number) {
                 :title="$t('commonConfig.dragToSort')"
               >
                 <span class="drag-handle">⋮⋮</span>
+              </td>
+              <!-- expand toggle -->
+              <td>
+                <span class="expand-toggle" @click="toggleCommonFieldExpand(field.field_name)">
+                  {{ expandedCommonFields.has(field.field_name) ? '▼' : '▶' }}
+                </span>
               </td>
               <!-- field_name -->
               <td>
@@ -824,26 +802,6 @@ function handleDeleteUnifiedType(idx: number) {
               <td>
                 <input class="table-input" v-model="field.comment" style="min-width:80px;" />
               </td>
-              <!-- mysql override -->
-              <td>
-                <input
-                  class="table-input"
-                  :value="formatOverride(field.mysql)"
-                  @input="setOverride(field, 'mysql', ($event.target as HTMLInputElement).value)"
-                  :placeholder="$t('commonConfig.overridePlaceholder')"
-                  style="min-width:80px;"
-                />
-              </td>
-              <!-- pgsql override -->
-              <td>
-                <input
-                  class="table-input"
-                  :value="formatOverride(field.pgsql)"
-                  @input="setOverride(field, 'pgsql', ($event.target as HTMLInputElement).value)"
-                  :placeholder="$t('commonConfig.overridePlaceholder')"
-                  style="min-width:80px;"
-                />
-              </td>
               <!-- delete / move -->
               <td style="min-width: 80px;">
                 <div class="move-btns">
@@ -857,6 +815,33 @@ function handleDeleteUnifiedType(idx: number) {
                 >&times;</button>
               </td>
             </tr>
+            <!-- 展开行：数据库方言覆盖 -->
+            <tr v-if="expandedCommonFields.has(field.field_name)">
+              <td :colspan="12">
+                <div class="field-expand-content">
+                  <div class="expand-section">
+                    <div class="expand-section-title">{{ $t('commonConfig.fields.dbOverrides') }}</div>
+                    <div class="db-override-grid">
+                      <div class="db-override-group">
+                        <div class="db-label">{{ $t('fieldTable.mysql') }}</div>
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'mysql', 'field_type')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'mysql', 'field_length')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'mysql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'mysql', 'default')" @input="store.setFieldOverrideValue(field, 'mysql', 'default', ($event.target as HTMLInputElement).value)">
+                      </div>
+                      <div class="db-override-group">
+                        <div class="db-label">{{ $t('fieldTable.postgresql') }}</div>
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_type')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_length')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'pgsql', 'default')" @input="store.setFieldOverrideValue(field, 'pgsql', 'default', ($event.target as HTMLInputElement).value)">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            </template>
             <!-- 尾部 drop 区域 -->
             <tr
               v-if="localFields.length > 0"
@@ -865,10 +850,10 @@ function handleDeleteUnifiedType(idx: number) {
               @dragleave="onCommonFieldDropTailLeave"
               @drop="onCommonFieldDropTail"
             >
-              <td :colspan="13"></td>
+              <td :colspan="12"></td>
             </tr>
             <tr v-if="localFields.length === 0">
-              <td colspan="13" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="12" style="text-align:center; color:#aaa; padding:16px;">
                 {{ $t('commonConfig.emptyFields') }}
               </td>
             </tr>
@@ -1275,5 +1260,55 @@ function handleDeleteUnifiedType(idx: number) {
 .quote-help-icon:hover {
   border-color: #4a90d9;
   color: #4a90d9;
+}
+
+/* Expand toggle */
+.expand-toggle {
+  cursor: pointer;
+  font-size: 10px;
+  color: #888;
+  user-select: none;
+}
+
+/* Expand content */
+.field-expand-content {
+  padding: 10px 14px;
+  background: #fafafa;
+  border-top: 1px solid #eee;
+}
+
+.expand-section {
+  margin-bottom: 12px;
+}
+
+.expand-section:last-child {
+  margin-bottom: 0;
+}
+
+.expand-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.db-override-grid {
+  display: flex;
+  gap: 16px;
+}
+
+.db-override-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.db-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  margin-bottom: 2px;
 }
 </style>

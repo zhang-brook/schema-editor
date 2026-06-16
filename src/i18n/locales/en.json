@@ -50,12 +50,10 @@
       "pk": "pk",
       "default": "default",
       "comment": "comment",
-      "mysql": "mysql",
-      "pgsql": "pgsql"
+      "dbOverrides": "Database Dialect Overrides"
     },
     "addField": "+ Add",
     "newFieldPlaceholder": "New field name...",
-    "overridePlaceholder": "key=val, ...",
     "emptyFields": "No common fields yet. Add one above.",
     "clickToRename": "Click to rename",
     "deleteField": "Delete common field",

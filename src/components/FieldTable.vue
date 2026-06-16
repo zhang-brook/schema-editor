@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { displayDefault, displayFieldLength, parseDefaultInput, parseFieldLengthInput } from '@/utils/file-helpers'
+import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
 import type { Field } from '@/types/schema'
 
 const store = useEditorStore()
@@ -105,6 +105,7 @@ function onDropTail(e: DragEvent) {
             <th>{{ $t('fieldTable.fieldName') }}</th>
             <th>{{ $t('fieldTable.type') }}</th>
             <th>{{ $t('fieldTable.length') }}</th>
+            <th>{{ $t('fieldTable.scale') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.nn') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.pk') }}</th>
             <th>{{ $t('fieldTable.default') }}</th>
@@ -178,6 +179,15 @@ function onDropTail(e: DragEvent) {
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
+                  {{ displayFieldScale(store.getResolvedField(field).field_scale) || '-' }}
+                </template>
+                <template v-else-if="field.unified_type">
+                  <span class="resolved-length">{{ displayFieldScale(field.field_scale) || '-' }}</span>
+                </template>
+                <input v-else class="table-input" :value="displayFieldScale(field.field_scale)" @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)" style="width:50px;">
+              </td>
+              <td>
+                <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).not_null ? '✓' : '' }}
                 </template>
                 <input v-else type="checkbox" class="table-checkbox" v-model="field.not_null">
@@ -216,7 +226,7 @@ function onDropTail(e: DragEvent) {
             </tr>
             <!-- Expanded Field Detail -->
             <tr v-if="store.expandedFields.has(store.fieldKey(store.currentSchema!, store.currentTable!, field))">
-              <td colspan="11">
+              <td colspan="12">
                 <div class="field-expand-content">
                   <!-- 解析后类型预览 -->
                   <div class="expand-section" v-if="!store.isCommonField(field)">
@@ -236,12 +246,14 @@ function onDropTail(e: DragEvent) {
                         <div class="db-label">{{ $t('fieldTable.mysql') }}</div>
                         <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'mysql', 'field_type')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_type', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'mysql', 'field_length')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'mysql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_scale', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'mysql', 'default')" @input="store.setFieldOverrideValue(field, 'mysql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                       <div class="db-override-group">
                         <div class="db-label">{{ $t('fieldTable.postgresql') }}</div>
                         <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_type')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_type', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_length')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_scale', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'pgsql', 'default')" @input="store.setFieldOverrideValue(field, 'pgsql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
@@ -267,7 +279,7 @@ function onDropTail(e: DragEvent) {
             @dragleave="onDropTailLeave"
             @drop="onDropTail"
           >
-            <td :colspan="11"></td>
+            <td :colspan="12"></td>
           </tr>
         </tbody>
       </table>

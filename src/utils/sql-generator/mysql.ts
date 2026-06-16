@@ -12,10 +12,11 @@ import { splitColumnForSql } from '@/utils/index-column-utils'
 function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null): string {
   let fieldDef = `\`${field.field_name}\``
 
-  // 使用统一类型解析链获取最终 type + length
+  // 使用统一类型解析链获取最终 type + length + scale
   const resolved = resolveFieldTypeForDialect(field, 'mysql', commonConfig)
   const fieldType = resolved.type
   const fieldLength = resolved.length
+  const fieldScale = resolved.scale
 
   // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
   let defaultValue = field.default
@@ -24,7 +25,9 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
   }
 
   if (fieldType) {
-    if (typeof fieldLength === 'number') {
+    if (typeof fieldScale === 'number' && typeof fieldLength === 'number') {
+      fieldDef += ` ${fieldType}(${fieldLength},${fieldScale})`
+    } else if (typeof fieldLength === 'number') {
       fieldDef += ` ${fieldType}(${fieldLength})`
     } else {
       fieldDef += ` ${fieldType}`

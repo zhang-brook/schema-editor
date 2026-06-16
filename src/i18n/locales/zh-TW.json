@@ -45,6 +45,7 @@
       "fieldName": "欄位名稱",
       "fieldType": "欄位類型",
       "length": "長度",
+      "scale": "小數位",
       "notNull": "非空",
       "pk": "主鍵",
       "default": "預設值",
@@ -68,8 +69,10 @@
       "description": "描述",
       "mysqlType": "MySQL 類型",
       "mysqlLength": "MySQL 長度",
+      "mysqlScale": "MySQL 小數位",
       "pgsqlType": "PGSQL 類型",
-      "pgsqlLength": "PGSQL 長度"
+      "pgsqlLength": "PGSQL 長度",
+      "pgsqlScale": "PGSQL 小數位"
     },
     "typeCaseTitle": "欄位類型大小寫",
     "typeCaseLabel": "類型名稱格式",
@@ -95,6 +98,7 @@
     "fieldName": "欄位名稱",
     "type": "類型",
     "length": "長度",
+    "scale": "小數位",
     "nn": "非空",
     "pk": "主鍵",
     "default": "預設值",

@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import type { Field, UnifiedTypeDefinition } from '@/types/schema'
-import { displayFieldLength, displayDefault, parseDefaultInput, parseFieldLengthInput } from '@/utils/file-helpers'
+import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -314,8 +314,8 @@ function readUnifiedTypes(): UnifiedTypeDefinition[] {
   return store.commonConfig.unified_types.map(ut => ({
     name: ut.name,
     description: ut.description,
-    mysql: { type: ut.mysql.type, length: ut.mysql.length },
-    pgsql: { type: ut.pgsql.type, length: ut.pgsql.length },
+    mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
+    pgsql: { type: ut.pgsql.type, length: ut.pgsql.length, scale: ut.pgsql.scale },
   }))
 }
 
@@ -386,8 +386,10 @@ function handleDeleteUnifiedType(idx: number) {
               <th>{{ $t('commonConfig.unifiedTypes.description') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.mysqlType') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.mysqlLength') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.mysqlScale') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.pgsqlType') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.pgsqlLength') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.pgsqlScale') }}</th>
               <th style="width:90px;"></th>
             </tr>
           </thead>
@@ -441,6 +443,14 @@ function handleDeleteUnifiedType(idx: number) {
               <td>
                 <input
                   class="table-input"
+                  :value="displayFieldScale(ut.mysql.scale)"
+                  @input="ut.mysql.scale = parseFieldScaleInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  style="width:50px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
                   v-model="ut.pgsql.type"
                   @change="syncUnifiedTypes()"
                   style="min-width:80px;"
@@ -452,6 +462,14 @@ function handleDeleteUnifiedType(idx: number) {
                   :value="displayFieldLength(ut.pgsql.length)"
                   @input="ut.pgsql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
                   style="width:60px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  :value="displayFieldScale(ut.pgsql.scale)"
+                  @input="ut.pgsql.scale = parseFieldScaleInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  style="width:50px;"
                 />
               </td>
               <td style="min-width: 90px;">
@@ -474,10 +492,10 @@ function handleDeleteUnifiedType(idx: number) {
               @dragleave="onUnifiedTypeDropTailLeave"
               @drop="onUnifiedTypeDropTail"
             >
-              <td :colspan="8"></td>
+              <td :colspan="10"></td>
             </tr>
             <tr v-if="localUnifiedTypes.length === 0">
-              <td colspan="8" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="10" style="text-align:center; color:#aaa; padding:16px;">
                 {{ $t('commonConfig.emptyTypes') }}
               </td>
             </tr>
@@ -589,6 +607,7 @@ function handleDeleteUnifiedType(idx: number) {
               <th>{{ $t('commonConfig.fields.fieldName') }}</th>
               <th>{{ $t('commonConfig.fields.fieldType') }}</th>
               <th>{{ $t('commonConfig.fields.length') }}</th>
+              <th>{{ $t('commonConfig.fields.scale') }}</th>
               <th>{{ $t('commonConfig.fields.notNull') }}</th>
               <th>{{ $t('commonConfig.fields.pk') }}</th>
               <th>{{ $t('commonConfig.fields.default') }}</th>
@@ -663,6 +682,17 @@ function handleDeleteUnifiedType(idx: number) {
                   style="width:50px;"
                 />
               </td>
+              <!-- field_scale -->
+              <td>
+                <span v-if="field.unified_type" class="resolved-length">{{ displayFieldScale(field.field_scale) || '-' }}</span>
+                <input
+                  v-else
+                  class="table-input"
+                  :value="displayFieldScale(field.field_scale)"
+                  @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)"
+                  style="width:50px;"
+                />
+              </td>
               <!-- not_null -->
               <td>
                 <input type="checkbox" class="table-checkbox" v-model="field.not_null" />
@@ -725,10 +755,10 @@ function handleDeleteUnifiedType(idx: number) {
               @dragleave="onCommonFieldDropTailLeave"
               @drop="onCommonFieldDropTail"
             >
-              <td :colspan="11"></td>
+              <td :colspan="12"></td>
             </tr>
             <tr v-if="localFields.length === 0">
-              <td colspan="11" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="12" style="text-align:center; color:#aaa; padding:16px;">
                 {{ $t('commonConfig.emptyFields') }}
               </td>
             </tr>

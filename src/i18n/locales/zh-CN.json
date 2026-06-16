@@ -45,6 +45,7 @@
       "fieldName": "字段名",
       "fieldType": "字段类型",
       "length": "长度",
+      "scale": "小数位",
       "notNull": "非空",
       "pk": "主键",
       "default": "默认值",
@@ -68,8 +69,10 @@
       "description": "描述",
       "mysqlType": "MySQL 类型",
       "mysqlLength": "MySQL 长度",
+      "mysqlScale": "MySQL 小数位",
       "pgsqlType": "PGSQL 类型",
-      "pgsqlLength": "PGSQL 长度"
+      "pgsqlLength": "PGSQL 长度",
+      "pgsqlScale": "PGSQL 小数位"
     },
     "typeCaseTitle": "字段类型大小写",
     "typeCaseLabel": "类型名格式",
@@ -95,6 +98,7 @@
     "fieldName": "字段名",
     "type": "类型",
     "length": "长度",
+    "scale": "小数位",
     "nn": "非空",
     "pk": "主键",
     "default": "默认值",

@@ -45,6 +45,7 @@
       "fieldName": "field_name",
       "fieldType": "field_type",
       "length": "length",
+      "scale": "scale",
       "notNull": "not_null",
       "pk": "pk",
       "default": "default",
@@ -68,8 +69,10 @@
       "description": "Description",
       "mysqlType": "MySQL Type",
       "mysqlLength": "MySQL Length",
+      "mysqlScale": "MySQL Scale",
       "pgsqlType": "PGSQL Type",
-      "pgsqlLength": "PGSQL Length"
+      "pgsqlLength": "PGSQL Length",
+      "pgsqlScale": "PGSQL Scale"
     },
     "typeCaseTitle": "Field Type Case",
     "typeCaseLabel": "Type Name Format",
@@ -95,6 +98,7 @@
     "fieldName": "field_name",
     "type": "type",
     "length": "length",
+    "scale": "scale",
     "nn": "NN",
     "pk": "PK",
     "default": "default",

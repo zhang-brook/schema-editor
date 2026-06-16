@@ -51,8 +51,8 @@ export const DEFAULT_UNIFIED_TYPES: UnifiedTypeDefinition[] = [
   {
     name: 'Decimal',
     description: '精确小数',
-    mysql: { type: 'DECIMAL', length: 10 },
-    pgsql: { type: 'DECIMAL', length: 10 },
+    mysql: { type: 'DECIMAL', length: 10, scale: 2 },
+    pgsql: { type: 'DECIMAL', length: 10, scale: 2 },
   },
   {
     name: 'Float',

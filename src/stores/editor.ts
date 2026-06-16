@@ -852,11 +852,14 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 获取字段在指定数据库方言中最终解析的类型显示字符串（如 "VARCHAR(255)"） */
+  /** 获取字段在指定数据库方言中最终解析的类型显示字符串（如 "VARCHAR(255)" 或 "DECIMAL(10,2)"） */
   function getResolvedFieldTypeForDb(field: Field, dialect: 'mysql' | 'pgsql'): string {
     const resolved = getResolvedField(field)
     const typeInfo = resolveFieldTypeForDialect(resolved, dialect, commonConfig.value)
     if (!typeInfo.type) return '-'
+    if (typeof typeInfo.scale === 'number' && typeof typeInfo.length === 'number') {
+      return `${typeInfo.type}(${typeInfo.length},${typeInfo.scale})`
+    }
     if (typeInfo.length !== null && typeInfo.length !== undefined) {
       return `${typeInfo.type}(${typeInfo.length})`
     }
@@ -1091,7 +1094,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (val === '' || val === null || val === undefined) {
       delete override[key as keyof typeof override]
     } else {
-      if (key === 'field_length') {
+      if (key === 'field_length' || key === 'field_scale') {
         (override as any)[key] = parseFieldLengthInput(val)
       } else {
         (override as any)[key] = val
@@ -1161,12 +1164,14 @@ export const useEditorStore = defineStore('editor', () => {
             // 导出 unified_type（仅当有值时）
             if (field.unified_type) {
               f.unified_type = field.unified_type
-              // 有 unified_type 时不导出冗余的 field_type/field_length（除非有显式字段级覆盖）
+              // 有 unified_type 时不导出冗余的 field_type/field_length/field_scale（除非有显式字段级覆盖）
               if (field.field_type !== undefined && field.field_type !== '') f.field_type = field.field_type
               if (field.field_length !== undefined) f.field_length = field.field_length
+              if (field.field_scale !== undefined) f.field_scale = field.field_scale
             } else {
               if (field.field_type !== undefined) f.field_type = field.field_type
               if (field.field_length !== undefined) f.field_length = field.field_length
+              if (field.field_scale !== undefined) f.field_scale = field.field_scale
             }
             if (field.not_null !== undefined) f.not_null = field.not_null
             if (field.primary_key !== undefined) f.primary_key = field.primary_key

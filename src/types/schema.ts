@@ -5,6 +5,7 @@ export type TypeCaseMode = 'keep' | 'lowercase' | 'uppercase' | 'pascal'
 export interface UnifiedTypeDbMapping {
   type: string
   length?: number | null
+  scale?: number | null
 }
 
 export interface UnifiedTypeDefinition {
@@ -18,6 +19,7 @@ export interface UnifiedTypeDefinition {
 export interface FieldOverride {
   field_type?: string
   field_length?: number | null
+  field_scale?: number | null
   default?: any
 }
 
@@ -48,6 +50,7 @@ export interface Field {
   unified_type?: string
   field_type?: string
   field_length?: number | null
+  field_scale?: number | null
   not_null?: boolean
   primary_key?: boolean
   default?: any

@@ -300,6 +300,20 @@ export function displayFieldLength(val: any): string {
 }
 
 /**
+ * 解析字段小数位
+ */
+export function parseFieldScaleInput(val: string): number | null {
+  return parseFieldLengthInput(val)
+}
+
+/**
+ * 格式化显示字段小数位
+ */
+export function displayFieldScale(val: any): string {
+  return displayFieldLength(val)
+}
+
+/**
  * 文本转注释数组
  */
 export function commentTextToArray(text: string): (string | null)[] {

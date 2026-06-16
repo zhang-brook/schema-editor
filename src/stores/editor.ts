@@ -272,6 +272,30 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  // ===== Close Project =====
+
+  /** 关闭当前项目文件夹，清空所有编辑状态 */
+  function closeProject() {
+    rootDirHandle.value = null
+    schemaDirHandle.value = null
+    projectOpened.value = false
+    commonConfig.value = null
+    schemas.length = 0
+    initialDataMap.clear()
+    initialDataDeletedKeys.clear()
+    selectedSchemaIdx.value = -1
+    selectedTableIdx.value = -1
+    showCommonPanel.value = false
+    expandedFields.clear()
+    expandedIndexes.clear()
+    if (_syncTimer) {
+      clearTimeout(_syncTimer)
+      _syncTimer = null
+    }
+    _autoSyncSetup = false
+    showToast(t('toast.projectClosed'))
+  }
+
   // ===== Reload from Disk =====
 
   /** 放弃网页中的编辑，从本地文件重新读取所有数据 */
@@ -1679,6 +1703,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Project
     openProject,
+    closeProject,
     reloadFromDisk,
     syncAllToDisk,
 

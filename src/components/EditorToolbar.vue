@@ -20,14 +20,35 @@ function switchLocale(newLocale: SupportedLocale) {
   <div class="toolbar">
     <span class="title">{{ $t('app.title') }}</span>
 
-    <!-- Primary: Open Folder -->
-    <button class="btn btn-primary" @click="store.openProject()">
+    <!-- Primary: Open / Close Folder -->
+    <button v-if="!store.projectOpened" class="btn btn-primary" @click="store.openProject()">
       <span class="btn-icon">&#128193;&#xFE0E;</span> {{ $t('toolbar.openFolder') }}
+    </button>
+    <button v-if="store.projectOpened" class="btn btn-close-folder" @click="store.closeProject()">
+      <span class="btn-icon">&#128193;&#xFE0E;</span> {{ $t('toolbar.closeFolder') }}
     </button>
 
     <span v-if="store.projectOpened" class="sync-badge" :title="$t('toolbar.autoSavingTitle')">
       &#128190;&#xFE0E; {{ $t('toolbar.autoSaving') }}
     </span>
+
+    <button
+      v-if="store.projectOpened"
+      class="btn btn-reload"
+      :title="$t('toolbar.reloadFromDiskTitle')"
+      @click="store.reloadFromDisk()"
+    >
+      &#8635;&#xFE0E; {{ $t('toolbar.reloadFromDisk') }}
+    </button>
+
+    <button
+      v-if="store.projectOpened"
+      class="btn btn-import-sql"
+      :title="$t('toolbar.importSqlTitle')"
+      @click="store.openImportSqlModal()"
+    >
+      &#128196;&#xFE0E; {{ $t('toolbar.importSql') }}
+    </button>
 
     <div class="toolbar-right">
       <!-- Language Switch -->
@@ -52,24 +73,6 @@ function switchLocale(newLocale: SupportedLocale) {
       >
         GitHub
       </a>
-
-      <button
-        v-if="store.projectOpened"
-        class="btn btn-reload"
-        :title="$t('toolbar.reloadFromDiskTitle')"
-        @click="store.reloadFromDisk()"
-      >
-        &#8635;&#xFE0E; {{ $t('toolbar.reloadFromDisk') }}
-      </button>
-
-      <button
-        v-if="store.projectOpened"
-        class="btn btn-import-sql"
-        :title="$t('toolbar.importSqlTitle')"
-        @click="store.openImportSqlModal()"
-      >
-        &#128196;&#xFE0E; {{ $t('toolbar.importSql') }}
-      </button>
     </div>
   </div>
 </template>
@@ -147,6 +150,17 @@ function switchLocale(newLocale: SupportedLocale) {
 }
 
 .btn-reload {
+}
+
+.btn-close-folder {
+  border-color: #d94a4a;
+  color: #d94a4a;
+}
+
+.btn-close-folder:hover {
+  background: #d94a4a;
+  color: #fff;
+  border-color: #d94a4a;
 }
 
 .toolbar-right {

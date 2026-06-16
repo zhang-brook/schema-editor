@@ -5,6 +5,7 @@
   },
   "toolbar": {
     "openFolder": "打开文件夹",
+    "closeFolder": "关闭文件夹",
     "autoSaving": "自动保存到磁盘",
     "autoSavingTitle": "编辑内容实时同步到本地文件",
     "reloadFromDisk": "从磁盘重新加载",
@@ -220,7 +221,8 @@
     "indexAdded": "索引已添加",
     "indexDeleted": "索引已删除",
     "sqlCopied": "SQL 已复制",
-    "browserNotSupported": "此功能不支持 Firefox、Safari 和移动端浏览器，请使用 Chrome / Edge / Opera"
+    "browserNotSupported": "此功能不支持 Firefox、Safari 和移动端浏览器，请使用 Chrome / Edge / Opera",
+    "projectClosed": "项目已关闭"
   },
   "confirm": {
     "deleteSchema": "确认删除 Schema \"{name}\" 及其所有表？此操作不可撤销。",

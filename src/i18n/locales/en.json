@@ -5,6 +5,7 @@
   },
   "toolbar": {
     "openFolder": "Open Folder",
+    "closeFolder": "Close Folder",
     "autoSaving": "Auto-saving to disk",
     "autoSavingTitle": "Edits are synced to local files in real-time",
     "reloadFromDisk": "Reload from Disk",
@@ -220,7 +221,8 @@
     "indexAdded": "Index added",
     "indexDeleted": "Index deleted",
     "sqlCopied": "SQL copied",
-    "browserNotSupported": "This feature is unsupported on Firefox, Safari and mobile browsers. Please use Chrome, Edge or Opera"
+    "browserNotSupported": "This feature is unsupported on Firefox, Safari and mobile browsers. Please use Chrome, Edge or Opera",
+    "projectClosed": "Project closed"
   },
   "confirm": {
     "deleteSchema": "Delete schema \"{name}\" and ALL its tables? This cannot be undone.",

@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -20,15 +20,15 @@ function quoteIdent(name: string, commonConfig: CommonConfig | null): string {
 function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig | null): string {
   let fieldDef = quoteIdent(field.field_name, commonConfig)
 
-  // 确定字段类型
-  let fieldType = field.field_type
-  let fieldLength = field.field_length
-  let defaultValue = field.default
+  // 使用统一类型解析链获取最终 type + length
+  const resolved = resolveFieldTypeForDialect(field, 'pgsql', commonConfig)
+  const fieldType = resolved.type
+  const fieldLength = resolved.length
 
-  if (field.pgsql) {
-    fieldType = field.pgsql.field_type !== undefined ? field.pgsql.field_type : fieldType
-    fieldLength = field.pgsql.field_length !== undefined ? field.pgsql.field_length : fieldLength
-    defaultValue = field.pgsql.default !== undefined ? field.pgsql.default : defaultValue
+  // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
+  let defaultValue = field.default
+  if (field.pgsql?.default !== undefined) {
+    defaultValue = field.pgsql.default
   }
 
   if (fieldType) {

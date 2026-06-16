@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import type { Field } from '@/types/schema'
+import type { Field, UnifiedTypeDefinition } from '@/types/schema'
 import { displayFieldLength, displayDefault, parseDefaultInput, parseFieldLengthInput } from '@/utils/file-helpers'
 
 const store = useEditorStore()
@@ -149,11 +149,141 @@ function setOverride(field: Field, db: 'mysql' | 'pgsql', text: string) {
     delete field[db]
   }
 }
+
+// ===== Unified Types 本地数组 =====
+function readUnifiedTypes(): UnifiedTypeDefinition[] {
+  if (!store.commonConfig?.unified_types) return []
+  return store.commonConfig.unified_types
+}
+
+const localUnifiedTypes = ref<UnifiedTypeDefinition[]>(readUnifiedTypes())
+
+watch(() => store.commonConfig, () => {
+  localUnifiedTypes.value = readUnifiedTypes()
+})
+
+// 同步回 store
+function syncUnifiedTypes() {
+  store.rebuildUnifiedTypesFromArray([...localUnifiedTypes.value])
+}
+
+const newUnifiedTypeName = ref('')
+
+function handleAddUnifiedType() {
+  const name = newUnifiedTypeName.value.trim()
+  if (!name) { store.showToast(''); return }
+  store.addUnifiedType(name)
+  localUnifiedTypes.value = readUnifiedTypes()
+  newUnifiedTypeName.value = ''
+}
+
+function handleDeleteUnifiedType(idx: number) {
+  store.deleteUnifiedType(idx)
+  localUnifiedTypes.value = readUnifiedTypes()
+}
 </script>
 
 <template>
   <!-- ===== Common Config Panel ===== -->
   <template v-if="store.showCommonPanel && store.commonConfig">
+    <!-- Unified Types -->
+    <div class="section-card">
+      <div class="section-header">
+        <span>
+          {{ $t('commonConfig.unifiedTypesTitle') }}
+          <span class="badge">{{ $t('commonConfig.badge', { n: localUnifiedTypes.length }) }}</span>
+        </span>
+        <div class="header-actions">
+          <input
+            v-model="newUnifiedTypeName"
+            class="form-input new-field-input"
+            :placeholder="$t('commonConfig.newTypePlaceholder')"
+            @keyup.enter="handleAddUnifiedType"
+          />
+          <button class="btn btn-sm btn-primary" @click="handleAddUnifiedType">{{ $t('commonConfig.addType') }}</button>
+        </div>
+      </div>
+      <div class="section-body" style="padding: 0; overflow-x: auto;">
+        <table class="common-fields-table">
+          <thead>
+            <tr>
+              <th>{{ $t('commonConfig.unifiedTypes.name') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.description') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.mysqlType') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.mysqlLength') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.pgsqlType') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.pgsqlLength') }}</th>
+              <th style="width:40px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(ut, idx) in localUnifiedTypes" :key="ut.name">
+              <td>
+                <input
+                  class="table-input"
+                  v-model="ut.name"
+                  @change="syncUnifiedTypes()"
+                  style="min-width:80px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  v-model="ut.description"
+                  @change="syncUnifiedTypes()"
+                  style="min-width:100px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  v-model="ut.mysql.type"
+                  @change="syncUnifiedTypes()"
+                  style="min-width:80px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  :value="displayFieldLength(ut.mysql.length)"
+                  @input="ut.mysql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  style="width:60px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  v-model="ut.pgsql.type"
+                  @change="syncUnifiedTypes()"
+                  style="min-width:80px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  :value="displayFieldLength(ut.pgsql.length)"
+                  @input="ut.pgsql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  style="width:60px;"
+                />
+              </td>
+              <td>
+                <button
+                  class="btn btn-sm btn-danger"
+                  @click="handleDeleteUnifiedType(idx)"
+                  :title="$t('commonConfig.deleteType')"
+                >&times;</button>
+              </td>
+            </tr>
+            <tr v-if="localUnifiedTypes.length === 0">
+              <td colspan="7" style="text-align:center; color:#aaa; padding:16px;">
+                {{ $t('commonConfig.emptyTypes') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Default MySQL Table Config -->
     <div class="section-card">
       <div class="section-header">{{ $t('commonConfig.defaultMysqlConfig') }}</div>

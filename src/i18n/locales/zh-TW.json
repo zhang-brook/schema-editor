@@ -33,6 +33,11 @@
   "commonConfig": {
     "defaultMysqlConfig": "預設 MySQL 表設定",
     "commonUsedFields": "公共欄位",
+    "unifiedTypesTitle": "統一類型定義",
+    "newTypePlaceholder": "新類型名稱...",
+    "addType": "+ 新增",
+    "deleteType": "刪除類型",
+    "emptyTypes": "暫無類型定義。請在上方新增。",
     "engine": "引擎",
     "charset": "字元集",
     "collation": "排序規則",
@@ -56,7 +61,15 @@
     "badge": "{n} 個欄位",
     "defaultPgsqlConfig": "預設 PostgreSQL 設定",
     "quoteIdentifiers": "識別碼加雙引號",
-    "quoteIdentifiersHint": "產生 SQL 時用雙引號包裹表名和欄位名"
+    "quoteIdentifiersHint": "產生 SQL 時用雙引號包裹表名和欄位名",
+    "unifiedTypes": {
+      "name": "類型名",
+      "description": "描述",
+      "mysqlType": "MySQL 類型",
+      "mysqlLength": "MySQL 長度",
+      "pgsqlType": "PGSQL 類型",
+      "pgsqlLength": "PGSQL 長度"
+    }
   },
   "tableEditor": {
     "table": "表：",
@@ -86,7 +99,10 @@
     "commentPlaceholder": "每行一條註解。空行 = null。",
     "mysql": "MySQL",
     "postgresql": "PostgreSQL",
-    "badge": "{n} 個欄位"
+    "badge": "{n} 個欄位",
+    "customType": "自訂...",
+    "typePlaceholder": "如 varchar",
+    "resolvedTypes": "最終解析類型預覽"
   },
   "indexTable": {
     "indexes": "索引",
@@ -117,6 +133,8 @@
     "addCommonRef": "新增公共欄位引用",
     "addNewField": "新增欄位",
     "fieldName": "欄位名稱",
+    "fieldType": "欄位類型",
+    "customType": "-- 自訂 --",
     "selectCommonField": "選擇公共欄位",
     "namePlaceholder": "例如 user_code",
     "selectPlaceholder": "-- 選擇 --",
@@ -173,6 +191,10 @@
     "commonFieldAdded": "公共欄位已新增",
     "commonFieldDeleted": "公共欄位已刪除",
     "commonFieldRenamed": "公共欄位已重新命名",
+    "unifiedTypeAdded": "統一類型已新增",
+    "unifiedTypeDeleted": "統一類型已刪除",
+    "unifiedTypeExists": "統一類型 \"{name}\" 已存在",
+    "unifiedTypeNameEmpty": "類型名稱不能為空",
     "indexAdded": "索引已新增",
     "indexDeleted": "索引已刪除",
     "sqlCopied": "SQL 已複製",

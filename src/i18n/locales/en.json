@@ -33,6 +33,11 @@
   "commonConfig": {
     "defaultMysqlConfig": "Default MySQL Table Config",
     "commonUsedFields": "Common Used Fields",
+    "unifiedTypesTitle": "Unified Types",
+    "newTypePlaceholder": "New type name...",
+    "addType": "+ Add",
+    "deleteType": "Delete type",
+    "emptyTypes": "No unified types defined. Add one above.",
     "engine": "Engine",
     "charset": "Charset",
     "collation": "Collation",
@@ -56,7 +61,15 @@
     "badge": "{n} fields",
     "defaultPgsqlConfig": "Default PostgreSQL Config",
     "quoteIdentifiers": "Quote Identifiers",
-    "quoteIdentifiersHint": "Wrap table and column names in double quotes in generated SQL"
+    "quoteIdentifiersHint": "Wrap table and column names in double quotes in generated SQL",
+    "unifiedTypes": {
+      "name": "Name",
+      "description": "Description",
+      "mysqlType": "MySQL Type",
+      "mysqlLength": "MySQL Length",
+      "pgsqlType": "PGSQL Type",
+      "pgsqlLength": "PGSQL Length"
+    }
   },
   "tableEditor": {
     "table": "Table:",
@@ -86,7 +99,10 @@
     "commentPlaceholder": "One comment per line. Blank line = null.",
     "mysql": "MySQL",
     "postgresql": "PostgreSQL",
-    "badge": "{n} fields"
+    "badge": "{n} fields",
+    "customType": "Custom...",
+    "typePlaceholder": "e.g. varchar",
+    "resolvedTypes": "Resolved Types Preview"
   },
   "indexTable": {
     "indexes": "Indexes",
@@ -117,6 +133,8 @@
     "addCommonRef": "Add Common Field Reference",
     "addNewField": "Add New Field",
     "fieldName": "Field Name",
+    "fieldType": "Field Type",
+    "customType": "-- Custom --",
     "selectCommonField": "Select Common Field",
     "namePlaceholder": "e.g. user_code",
     "selectPlaceholder": "-- Select --",
@@ -173,6 +191,10 @@
     "commonFieldAdded": "Common field added",
     "commonFieldDeleted": "Common field deleted",
     "commonFieldRenamed": "Common field renamed",
+    "unifiedTypeAdded": "Unified type added",
+    "unifiedTypeDeleted": "Unified type deleted",
+    "unifiedTypeExists": "Unified type \"{name}\" already exists",
+    "unifiedTypeNameEmpty": "Type name cannot be empty",
     "indexAdded": "Index added",
     "indexDeleted": "Index deleted",
     "sqlCopied": "SQL copied",

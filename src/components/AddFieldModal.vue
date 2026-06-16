@@ -18,6 +18,13 @@ const store = useEditorStore()
           :placeholder="$t('addFieldModal.namePlaceholder')"
         />
       </div>
+      <div v-if="store.addFieldMode === 'normal'" class="form-group">
+        <label class="form-label">{{ $t('addFieldModal.fieldType') }}</label>
+        <select class="form-input" v-model="store.newFieldUnifiedType">
+          <option value="">{{ $t('addFieldModal.customType') }}</option>
+          <option v-for="ut in store.unifiedTypeNames" :key="ut" :value="ut">{{ ut }}</option>
+        </select>
+      </div>
       <div v-else class="form-group">
         <label class="form-label">{{ $t('addFieldModal.selectCommonField') }}</label>
         <select class="form-input" v-model="store.newFieldSelectCommon">

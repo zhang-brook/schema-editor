@@ -2,7 +2,7 @@ import type { CommonConfig, Schema } from '@/types/schema'
 import { upgradeIndexColumns } from './index-column-utils'
 
 /** 当前编辑器支持的最高结构版本 */
-export const CURRENT_STRUCT_VERSION = '0.1'
+export const CURRENT_STRUCT_VERSION = '0.2'
 
 export interface VersionCheckResult {
   ok: boolean           // 可以继续加载
@@ -48,6 +48,14 @@ const UPGRADE_STEPS: UpgradeStep[] = [
   //     // 0.1 → 0.2 的结构变更逻辑
   //   },
   // },
+  {
+    from: '0.1',
+    to: '0.2',
+    upgrade: (_schemas) => {
+      // schemas 数据无需迁移（Field.unified_type 为可选字段，旧数据不设置则自动回退到自由文本模式）
+      // CommonConfig.unified_types 的默认值初始化在 store 的 openProject() 中处理
+    },
+  },
 ]
 
 /**

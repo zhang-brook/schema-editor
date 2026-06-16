@@ -1192,6 +1192,8 @@ export const useEditorStore = defineStore('editor', () => {
             if (field.default !== undefined) f.default = field.default
             if (field.comment !== undefined) f.comment = field.comment
             if (field.is_commented_out) f.is_commented_out = true
+            if (field.field_length_disabled) f.field_length_disabled = true
+            if (field.field_scale_disabled) f.field_scale_disabled = true
             // db overrides
             if (field.mysql && Object.keys(field.mysql).length > 0) f.mysql = { ...field.mysql }
             if (field.pgsql && Object.keys(field.pgsql).length > 0) f.pgsql = { ...field.pgsql }

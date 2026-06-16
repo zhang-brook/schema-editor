@@ -196,13 +196,47 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ displayFieldLength(store.getResolvedField(field).field_length) || '-' }}
                 </template>
-                <input v-else class="table-input" :value="displayFieldLength(field.field_length)" :placeholder="getUnifiedTypePlaceholder(field, 'length')" @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)" style="width:50px;">
+                <div v-else class="field-num-cell">
+                  <input
+                    v-if="!field.field_length_disabled"
+                    class="table-input"
+                    :value="displayFieldLength(field.field_length)"
+                    :placeholder="getUnifiedTypePlaceholder(field, 'length')"
+                    @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                    style="width:38px;"
+                  />
+                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="field.field_length_disabled = undefined">—</span>
+                  <input
+                    type="checkbox"
+                    class="mini-checkbox"
+                    :checked="!!field.field_length_disabled"
+                    @change="field.field_length_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                    title="不设置长度"
+                  />
+                </div>
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ displayFieldScale(store.getResolvedField(field).field_scale) || '-' }}
                 </template>
-                <input v-else class="table-input" :value="displayFieldScale(field.field_scale)" :placeholder="getUnifiedTypePlaceholder(field, 'scale')" @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)" style="width:50px;">
+                <div v-else class="field-num-cell">
+                  <input
+                    v-if="!field.field_scale_disabled"
+                    class="table-input"
+                    :value="displayFieldScale(field.field_scale)"
+                    :placeholder="getUnifiedTypePlaceholder(field, 'scale')"
+                    @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)"
+                    style="width:38px;"
+                  />
+                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="field.field_scale_disabled = undefined">—</span>
+                  <input
+                    type="checkbox"
+                    class="mini-checkbox"
+                    :checked="!!field.field_scale_disabled"
+                    @change="field.field_scale_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                    title="不设置小数位"
+                  />
+                </div>
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
@@ -605,6 +639,30 @@ function onDropTail(e: DragEvent) {
 .resolved-length {
   color: #666;
   font-size: 12px;
+}
+
+.field-num-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mini-checkbox {
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.disabled-indicator {
+  color: #999;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.disabled-indicator:hover {
+  color: #4a90d9;
 }
 
 .resolved-type-row {

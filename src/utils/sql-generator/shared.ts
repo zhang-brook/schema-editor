@@ -74,6 +74,14 @@ export function resolveFieldTypeForDialect(
     }
   }
 
+  // 用户勾选了「不设置」，强制跳过长度/小数位（最终裁决）
+  if (field.field_length_disabled) {
+    length = null
+  }
+  if (field.field_scale_disabled) {
+    scale = null
+  }
+
   // 应用全局类型大小写转换
   type = applyTypeCase(type, commonConfig?.type_case)
 

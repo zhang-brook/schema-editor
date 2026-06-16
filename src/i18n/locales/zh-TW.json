@@ -117,7 +117,9 @@
     "customType": "自訂...",
     "typePlaceholder": "如 varchar",
     "resolvedTypes": "最終解析類型預覽",
-    "quoteDefault": "預設值加引號"
+    "quoteDefault": "預設值加引號",
+    "quoteDefaultHint": "當預設值需要使用引號包裹時，請勾選此項",
+    "hasDefault": "有預設值"
   },
   "indexTable": {
     "indexes": "索引",

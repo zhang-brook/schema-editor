@@ -117,7 +117,9 @@
     "customType": "自定义...",
     "typePlaceholder": "如 varchar",
     "resolvedTypes": "最终解析类型预览",
-    "quoteDefault": "默认值加引号"
+    "quoteDefault": "默认值加引号",
+    "quoteDefaultHint": "当默认值需要使用引号包裹时，请勾选此项",
+    "hasDefault": "有默认值"
   },
   "indexTable": {
     "indexes": "索引",

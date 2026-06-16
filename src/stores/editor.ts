@@ -1190,6 +1190,8 @@ export const useEditorStore = defineStore('editor', () => {
             if (field.not_null !== undefined) f.not_null = field.not_null
             if (field.primary_key !== undefined) f.primary_key = field.primary_key
             if (field.default !== undefined) f.default = field.default
+            // 仅自定义类型字段导出 quote_default（统一类型字段从类型定义中获取）
+            if (!field.unified_type && field.quote_default !== undefined) f.quote_default = field.quote_default
             if (field.comment !== undefined) f.comment = field.comment
             if (field.is_commented_out) f.is_commented_out = true
             // db overrides

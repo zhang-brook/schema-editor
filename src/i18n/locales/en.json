@@ -117,7 +117,9 @@
     "customType": "Custom...",
     "typePlaceholder": "e.g. varchar",
     "resolvedTypes": "Resolved Types Preview",
-    "quoteDefault": "Quote Default"
+    "quoteDefault": "Quote Default",
+    "quoteDefaultHint": "Check this when the default value needs to be wrapped in quotes",
+    "hasDefault": "Has Default"
   },
   "indexTable": {
     "indexes": "Indexes",

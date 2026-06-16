@@ -16,6 +16,16 @@ function handleFieldNameChange(field: Field, newName: string) {
   }
 }
 
+/** 切换字段是否有默认值 */
+function toggleHasDefault(field: Field) {
+  if (field.default !== undefined) {
+    field.default = undefined
+    field.quote_default = undefined
+  } else {
+    field.default = ''
+  }
+}
+
 // ===== Drag-and-drop for Fields =====
 const dragFieldIdx = ref(-1)
 
@@ -68,6 +78,8 @@ function handleUnifiedTypeChange(field: Field, value: string) {
     field.field_type = ''
     field.field_length = null
     field.field_scale = null
+    // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
+    field.quote_default = undefined
   } else {
     field.unified_type = undefined
   }
@@ -123,7 +135,10 @@ function onDropTail(e: DragEvent) {
             <th style="width:40px;">{{ $t('fieldTable.nn') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.pk') }}</th>
             <th>{{ $t('fieldTable.default') }}</th>
-            <th style="width:32px;" :title="$t('fieldTable.quoteDefault')">"?"</th>
+            <th style="width:40px;">
+              "?"
+              <span class="quote-help-icon" :title="$t('fieldTable.quoteDefaultHint')">?</span>
+            </th>
             <th>{{ $t('fieldTable.comment') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.removed') }}</th>
             <th style="width:90px;">{{ $t('fieldTable.actions') }}</th>
@@ -219,14 +234,32 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ displayDefault(store.getResolvedField(field).default) }}
                 </template>
-                <input v-else class="table-input" :value="displayDefault(field.default)" @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)" style="min-width:60px;">
+                <div v-else class="default-cell">
+                  <input
+                    type="checkbox"
+                    class="table-checkbox"
+                    :checked="field.default !== undefined"
+                    @change="toggleHasDefault(field)"
+                    :title="$t('fieldTable.hasDefault')"
+                  >
+                  <input
+                    v-if="field.default !== undefined"
+                    class="table-input"
+                    :value="displayDefault(field.default)"
+                    @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"
+                    style="min-width:60px;"
+                  >
+                </div>
               </td>
               <td style="text-align:center;">
                 <template v-if="store.isCommonField(field)">
                   <!-- common field: quote determined by common field definition -->
                 </template>
+                <template v-else-if="field.default === undefined">
+                  <!-- no default set, no quote control -->
+                </template>
                 <template v-else-if="field.unified_type">
-                  <!-- unified type: quote determined by type definition, show resolved status -->
+                  <!-- unified type: quote determined by type definition, non-editable -->
                   <span v-if="store.quoteDefaultForField(field)" style="color:#4a90d9; font-size:11px;">✓</span>
                 </template>
                 <input v-else type="checkbox" class="table-checkbox" v-model="field.quote_default">
@@ -661,5 +694,35 @@ function onDropTail(e: DragEvent) {
 
 .drop-tail-row.drag-over-tail {
   border-top: 2px solid #4a90d9;
+}
+
+/* Default value cell */
+.default-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Quote help icon */
+.quote-help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #999;
+  color: #999;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: help;
+  margin-left: 2px;
+  vertical-align: middle;
+  transition: border-color .15s, color .15s;
+}
+
+.quote-help-icon:hover {
+  border-color: #4a90d9;
+  color: #4a90d9;
 }
 </style>

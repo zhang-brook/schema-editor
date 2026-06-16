@@ -26,6 +26,9 @@
       "newName": "新名稱："
     }
   },
+  "version": {
+    "tooHigh": "專案結構版本（{version}）高於目前編輯器支援的版本，請升級編輯器。"
+  },
   "commonConfig": {
     "defaultMysqlConfig": "預設 MySQL 表設定",
     "commonUsedFields": "公共欄位",
@@ -98,6 +101,15 @@
     "namePlaceholder": "{pre}...{post}",
     "commentPlaceholder": "索引前註解",
     "empty": "暫無索引"
+  },
+  "indexColumnsEditor": {
+    "columnName": "欄名",
+    "sortDirection": "排序",
+    "noDirection": "無",
+    "asc": "ASC",
+    "desc": "DESC",
+    "addColumn": "新增欄",
+    "removeColumn": "移除"
   },
   "addFieldModal": {
     "addCommonRef": "新增公共欄位引用",

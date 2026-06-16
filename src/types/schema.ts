@@ -12,6 +12,19 @@ export interface IndexOverride {
   using?: string  // 仅 mysql
 }
 
+// 索引列的数据库特定覆盖（排序方向）
+export interface IndexColumnDbOverride {
+  sort_order?: 'ASC' | 'DESC'
+}
+
+// 索引列（结构化对象，替代旧版纯字符串）
+export interface IndexColumn {
+  name: string
+  sort_order?: 'ASC' | 'DESC'
+  mysql?: IndexColumnDbOverride
+  pgsql?: IndexColumnDbOverride
+}
+
 export interface Field {
   field_name: string
   use_common_used_fields?: boolean
@@ -31,7 +44,7 @@ export interface Index {
   name?: string
   type: string
   using?: string
-  columns: string[]
+  columns: IndexColumn[]
   mysql?: IndexOverride
   pgsql?: Omit<IndexOverride, 'using'>
   pre_comment?: string
@@ -74,6 +87,7 @@ export interface DefaultConfig {
 }
 
 export interface CommonConfig {
+  struct_version?: string  // 结构版本号，缺省为 "0.0"
   default_config: DefaultConfig
   schema_order?: string[]
   common_used_fields: Record<string, Field>

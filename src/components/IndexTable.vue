@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
+import IndexColumnsEditor from './IndexColumnsEditor.vue'
 
 const store = useEditorStore()
 </script>
@@ -40,8 +41,8 @@ const store = useEditorStore()
                   <option value="unique">unique</option>
                 </select>
               </td>
-              <td>
-                <input class="table-input" :value="store.indexColumnsText(index)" @input="store.setIndexColumns(index, ($event.target as HTMLInputElement).value)" style="min-width:120px;">
+              <td style="min-width:240px;">
+                <IndexColumnsEditor v-model="index.columns" />
               </td>
               <td>
                 <input class="table-input" v-model="index.using" style="width:60px;">

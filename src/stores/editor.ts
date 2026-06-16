@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch } from 'vue'
+﻿import { ref, reactive, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type {
@@ -31,6 +31,8 @@ import {
   generateSchemaPostgreSQL,
   generateInitialDataAllPostgreSQL,
 } from '@/utils/sql-generator/postgresql'
+import { checkVersion, CURRENT_STRUCT_VERSION, upgradeSchemaData } from '@/utils/version-upgrader'
+import { formatIndexColumn } from '@/utils/index-column-utils'
 
 export const useEditorStore = defineStore('editor', () => {
   const { t } = useI18n()
@@ -137,6 +139,7 @@ export const useEditorStore = defineStore('editor', () => {
       // 如果文件夹中没有 common.json，创建默认配置
       if (!commonConfig.value) {
         commonConfig.value = {
+          struct_version: CURRENT_STRUCT_VERSION,
           default_config: {
             mysql: {
               database: {},
@@ -154,6 +157,14 @@ export const useEditorStore = defineStore('editor', () => {
         }
         console.log('[openProject] default commonConfig created')
       }
+
+      // 版本检查
+      const versionResult = checkVersion(commonConfig.value)
+      if (!versionResult.ok) {
+        alert(versionResult.error)
+        return
+      }
+      const needsUpgrade = versionResult.needsUpgrade
 
       // 加载 schema JSON
       schemas.length = 0
@@ -174,6 +185,21 @@ export const useEditorStore = defineStore('editor', () => {
       console.log('[openProject] schemas loaded:', schemas.length)
       // 按 schema_order 排序（如果存在）
       applySchemaOrder()
+
+      // 升级旧版数据结构
+      if (needsUpgrade) {
+        upgradeSchemaData(schemas, versionResult.fromVersion!)
+        if (commonConfig.value) {
+          commonConfig.value.struct_version = CURRENT_STRUCT_VERSION
+        }
+        // 升级后立即写盘（此时 auto-sync watcher 尚未 setup）
+        await writeCommonToHandle(rootDirHandle.value, commonConfig.value!)
+        for (const schema of schemas) {
+          const data = buildSchemaExportData(schema)
+          await writeSchemaToHandle(schemaDirHandle.value!, `${schema.schema}.json`, data)
+        }
+        console.log('[openProject] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
+      }
 
       // 加载 initial-data
       initialDataMap.clear()
@@ -237,6 +263,7 @@ export const useEditorStore = defineStore('editor', () => {
       } catch  {
         console.warn('[reloadFromDisk] Failed to read common.json, resetting to default')
         commonConfig.value = {
+          struct_version: CURRENT_STRUCT_VERSION,
           default_config: {
             mysql: {
               database: {},
@@ -253,6 +280,15 @@ export const useEditorStore = defineStore('editor', () => {
           common_used_fields: {}
         }
       }
+
+      // 版本检查
+      const versionResult = checkVersion(commonConfig.value)
+      if (!versionResult.ok) {
+        alert(versionResult.error)
+        _reloading = false
+        return
+      }
+      const needsUpgradeFromDisk = versionResult.needsUpgrade
 
       // 重新读取所有 schema JSON
       schemas.length = 0
@@ -278,6 +314,21 @@ export const useEditorStore = defineStore('editor', () => {
 
       // 按 schema_order 排序
       applySchemaOrder()
+
+      // 升级旧版数据结构
+      if (needsUpgradeFromDisk) {
+        upgradeSchemaData(schemas, versionResult.fromVersion!)
+        if (commonConfig.value) {
+          commonConfig.value.struct_version = CURRENT_STRUCT_VERSION
+        }
+        // 升级后立即写盘（_reloading 期间 debouncedSync 被阻挡）
+        await writeCommonToHandle(rootDirHandle.value, commonConfig.value!)
+        for (const schema of schemas) {
+          const data = buildSchemaExportData(schema)
+          await writeSchemaToHandle(schemaDirHandle.value!, `${schema.schema}.json`, data)
+        }
+        console.log('[reloadFromDisk] schema data upgraded & saved to version', CURRENT_STRUCT_VERSION)
+      }
 
       // 重新读取 initial-data
       initialDataMap.clear()
@@ -906,7 +957,7 @@ export const useEditorStore = defineStore('editor', () => {
   function addIndex(table: Table) {
     table.indexes.push({
       type: 'index',
-      columns: [''],
+      columns: [{ name: '' }],
       using: ''
     })
     showToast(t('toast.indexAdded'))
@@ -918,14 +969,27 @@ export const useEditorStore = defineStore('editor', () => {
     showToast(t('toast.indexDeleted'))
   }
 
+  /** 当字段名变更时，同步更新所有索引中引用的列名 */
+  function syncFieldNameInIndexes(table: Table, oldName: string, newName: string) {
+    if (!oldName || !newName || oldName === newName) return
+    for (const index of table.indexes) {
+      for (const col of index.columns) {
+        if (col.name === oldName) {
+          col.name = newName
+        }
+      }
+    }
+  }
+
   function indexColumnsText(index: Index) {
-    return (index.columns || []).join(', ')
+    return (index.columns || []).map(c => formatIndexColumn(c)).filter(s => s).join(', ')
   }
 
   function setIndexColumns(index: Index, text: string) {
-    index.columns = text.split(',').map(s => s.trim()).filter(s => s)
+    const raw = text.split(',').map(s => s.trim()).filter(s => s)
+    index.columns = raw.map(s => ({ name: s }))
     if (index.columns.length === 0) {
-      index.columns = ['']
+      index.columns = [{ name: '' }]
     }
   }
 
@@ -1062,7 +1126,13 @@ export const useEditorStore = defineStore('editor', () => {
           if (index.name) idx.name = index.name
           if (index.type) idx.type = index.type
           if (index.using) idx.using = index.using
-          idx.columns = [...index.columns]
+          idx.columns = index.columns.map(c => {
+            const col: any = { name: c.name }
+            if (c.sort_order) col.sort_order = c.sort_order
+            if (c.mysql && Object.keys(c.mysql).length > 0) col.mysql = { ...c.mysql }
+            if (c.pgsql && Object.keys(c.pgsql).length > 0) col.pgsql = { ...c.pgsql }
+            return col
+          })
           if (index.pre_comment) idx.pre_comment = index.pre_comment
           if (index.mysql && Object.keys(index.mysql).length > 0) idx.mysql = { ...index.mysql }
           if (index.pgsql && Object.keys(index.pgsql).length > 0) idx.pgsql = { ...index.pgsql }
@@ -1249,6 +1319,7 @@ export const useEditorStore = defineStore('editor', () => {
     // Index CRUD
     addIndex,
     deleteIndex,
+    syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,
 

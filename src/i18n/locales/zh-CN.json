@@ -26,6 +26,9 @@
       "newName": "新名称："
     }
   },
+  "version": {
+    "tooHigh": "项目结构版本（{version}）高于当前编辑器支持的版本，请升级编辑器。"
+  },
   "commonConfig": {
     "defaultMysqlConfig": "默认 MySQL 表配置",
     "commonUsedFields": "公共字段",
@@ -98,6 +101,15 @@
     "namePlaceholder": "{pre}...{post}",
     "commentPlaceholder": "索引前注释",
     "empty": "暂无索引"
+  },
+  "indexColumnsEditor": {
+    "columnName": "列名",
+    "sortDirection": "排序",
+    "noDirection": "无",
+    "asc": "ASC",
+    "desc": "DESC",
+    "addColumn": "添加列",
+    "removeColumn": "移除"
   },
   "addFieldModal": {
     "addCommonRef": "添加公共字段引用",

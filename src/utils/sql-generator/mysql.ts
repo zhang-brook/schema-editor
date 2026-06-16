@@ -1,5 +1,6 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField } from './shared'
+import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
   SQL 生成器
@@ -93,7 +94,10 @@ function getMySQLIndexDefinition(index: Index): string {
   // 如果没有指定 type，默认使用 BTREE（MySQL 默认索引类型）
   const finalIndexUsing = indexUsing ? ' USING ' + indexUsing.toUpperCase() : ''
 
-  const colList = index.columns.map(c => '`' + c + '`').join(', ')
+  const colList = index.columns.map(c => {
+    const { name, sortPart } = splitColumnForSql(c, 'mysql')
+    return '`' + name + '`' + sortPart
+  }).join(', ')
 
   if (indexType === 'unique') {
     // 也可以写作 UNIQUE INDEX `indexName` (`column1`, `column2`) USING BTREE

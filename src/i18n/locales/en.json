@@ -26,6 +26,9 @@
       "newName": "New name:"
     }
   },
+  "version": {
+    "tooHigh": "The project structure version ({version}) is higher than the current editor supports. Please upgrade the editor."
+  },
   "commonConfig": {
     "defaultMysqlConfig": "Default MySQL Table Config",
     "commonUsedFields": "Common Used Fields",
@@ -98,6 +101,15 @@
     "namePlaceholder": "{pre}...{post}",
     "commentPlaceholder": "Comment before index",
     "empty": "No indexes defined"
+  },
+  "indexColumnsEditor": {
+    "columnName": "Column",
+    "sortDirection": "Sort",
+    "noDirection": "None",
+    "asc": "ASC",
+    "desc": "DESC",
+    "addColumn": "Add Column",
+    "removeColumn": "Remove"
   },
   "addFieldModal": {
     "addCommonRef": "Add Common Field Reference",

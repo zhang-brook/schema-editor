@@ -1,5 +1,6 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField } from './shared'
+import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
   SQL 生成器
@@ -109,7 +110,10 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   // UNIQUE 索引在建表语句中定义
   table.indexes.forEach(index => {
     if (index.type === 'unique' || index.pgsql?.type === 'unique') {
-      indexDefinitions.push(`  UNIQUE (${index.columns.map(col => quoteIdent(col, commonConfig)).join(', ')})`)
+      indexDefinitions.push(`  UNIQUE (${index.columns.map(col => {
+        const { name, sortPart } = splitColumnForSql(col, 'pgsql')
+        return quoteIdent(name, commonConfig) + sortPart
+      }).join(', ')})`)
     }
   })
 
@@ -130,8 +134,11 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
         sql += `-- ${index.pre_comment}\n`
       }
       let indexName = index.pgsql?.name || index.mysql?.name || index.name
-      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') ?? `idx_${table.name}_${index.columns.join('_')}`
-      sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => quoteIdent(col, commonConfig)).join(', ')});\n`
+      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') ?? `idx_${table.name}_${index.columns.map(c => c.name).join('_')}`
+      sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
+        const { name, sortPart } = splitColumnForSql(col, 'pgsql')
+        return quoteIdent(name, commonConfig) + sortPart
+      }).join(', ')});\n`
       hasCreateIndexSql = true
     }
   })

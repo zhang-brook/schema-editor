@@ -72,7 +72,8 @@
       "mysqlScale": "MySQL 小数位",
       "pgsqlType": "PGSQL 类型",
       "pgsqlLength": "PGSQL 长度",
-      "pgsqlScale": "PGSQL 小数位"
+      "pgsqlScale": "PGSQL 小数位",
+      "quoteDefault": "默认值加引号"
     },
     "typeCaseTitle": "字段类型大小写",
     "typeCaseLabel": "类型名格式",
@@ -115,7 +116,8 @@
     "badge": "{n} 个字段",
     "customType": "自定义...",
     "typePlaceholder": "如 varchar",
-    "resolvedTypes": "最终解析类型预览"
+    "resolvedTypes": "最终解析类型预览",
+    "quoteDefault": "默认值加引号"
   },
   "indexTable": {
     "indexes": "索引",

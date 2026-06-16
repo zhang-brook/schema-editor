@@ -95,6 +95,43 @@ export function applyTypeCase(type: string, mode: TypeCaseMode | undefined): str
   }
 }
 
+/**
+ * 解析字段默认值是否需要引号包裹
+ * 优先级：field.quote_default > unified_type.quote_default > 默认 false
+ */
+export function resolveQuoteDefault(
+  field: Field,
+  commonConfig: CommonConfig | null,
+): boolean {
+  // 字段级显式设置优先
+  if (field.quote_default !== undefined) return field.quote_default
+  // 从 unified_type 定义中获取
+  if (field.unified_type && commonConfig?.unified_types) {
+    const def = commonConfig.unified_types.find(ut => ut.name === field.unified_type)
+    if (def?.quote_default !== undefined) return def.quote_default
+  }
+  // 默认不加引号（保持向后兼容，旧数据中 default 值已自带引号）
+  return false
+}
+
+/**
+ * 格式化 SQL DEFAULT 值
+ * - 特殊 SQL 表达式（如 CURRENT_TIMESTAMP）原样输出
+ * - quote=true 时用单引号包裹并转义
+ * - quote=false 时原样输出（适用于数字、布尔等）
+ */
+export function formatSqlDefault(value: any, quote: boolean): string {
+  const str = String(value)
+  // 特殊 SQL 表达式：保持原样
+  if (typeof value === 'string' && (value === 'CURRENT_TIMESTAMP' || value.includes('CURRENT_TIMESTAMP'))) {
+    return str
+  }
+  if (quote) {
+    return `'${str.replace(/'/g, "''")}'`
+  }
+  return str
+}
+
 // ===== comment_before_table 输出 =====
 
 export function renderCommentBeforeTable(comment: string | (string | null)[] | undefined): string {

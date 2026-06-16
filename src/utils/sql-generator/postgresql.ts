@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -52,7 +52,8 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
     if (typeof defaultValue === 'string' && (defaultValue === 'CURRENT_TIMESTAMP' || defaultValue.includes('CURRENT_TIMESTAMP'))) {
       fieldDef += ` DEFAULT ${defaultValue}`
     } else {
-      fieldDef += ` DEFAULT ${defaultValue}`
+      const shouldQuote = resolveQuoteDefault(field, commonConfig)
+      fieldDef += ` DEFAULT ${formatSqlDefault(defaultValue, shouldQuote)}`
     }
   }
 

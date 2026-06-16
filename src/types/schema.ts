@@ -11,6 +11,8 @@ export interface UnifiedTypeDbMapping {
 export interface UnifiedTypeDefinition {
   name: string
   description?: string
+  /** 默认值是否需要引号包裹（字符串类型=true，数字/bool类型=false） */
+  quote_default?: boolean
   mysql: UnifiedTypeDbMapping
   pgsql: UnifiedTypeDbMapping
 }
@@ -53,6 +55,8 @@ export interface Field {
   field_scale?: number | null
   not_null?: boolean
   primary_key?: boolean
+  /** 默认值是否需要引号包裹（覆盖 unified_type 的设置，仅自定义类型时生效） */
+  quote_default?: boolean
   default?: any
   comment?: string
   is_commented_out?: boolean

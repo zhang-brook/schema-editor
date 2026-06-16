@@ -72,7 +72,8 @@
       "mysqlScale": "MySQL 小數位",
       "pgsqlType": "PGSQL 類型",
       "pgsqlLength": "PGSQL 長度",
-      "pgsqlScale": "PGSQL 小數位"
+      "pgsqlScale": "PGSQL 小數位",
+      "quoteDefault": "預設值加引號"
     },
     "typeCaseTitle": "欄位類型大小寫",
     "typeCaseLabel": "類型名稱格式",
@@ -115,7 +116,8 @@
     "badge": "{n} 個欄位",
     "customType": "自訂...",
     "typePlaceholder": "如 varchar",
-    "resolvedTypes": "最終解析類型預覽"
+    "resolvedTypes": "最終解析類型預覽",
+    "quoteDefault": "預設值加引號"
   },
   "indexTable": {
     "indexes": "索引",

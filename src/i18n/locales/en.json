@@ -72,7 +72,8 @@
       "mysqlScale": "MySQL Scale",
       "pgsqlType": "PGSQL Type",
       "pgsqlLength": "PGSQL Length",
-      "pgsqlScale": "PGSQL Scale"
+      "pgsqlScale": "PGSQL Scale",
+      "quoteDefault": "Quote Default"
     },
     "typeCaseTitle": "Field Type Case",
     "typeCaseLabel": "Type Name Format",
@@ -115,7 +116,8 @@
     "badge": "{n} fields",
     "customType": "Custom...",
     "typePlaceholder": "e.g. varchar",
-    "resolvedTypes": "Resolved Types Preview"
+    "resolvedTypes": "Resolved Types Preview",
+    "quoteDefault": "Quote Default"
   },
   "indexTable": {
     "indexes": "Indexes",

@@ -873,6 +873,20 @@ export const useEditorStore = defineStore('editor', () => {
     return resolved.field_type || '-'
   }
 
+  /** 解析字段默认值是否需要引号包裹 */
+  function quoteDefaultForField(field: Field): boolean {
+    const resolved = getResolvedField(field)
+    // 字段级显式设置优先
+    if (resolved.quote_default !== undefined) return resolved.quote_default
+    // 从 unified_type 定义中获取
+    if (resolved.unified_type && commonConfig.value?.unified_types) {
+      const def = commonConfig.value.unified_types.find(ut => ut.name === resolved.unified_type)
+      if (def?.quote_default !== undefined) return def.quote_default
+    }
+    // 默认不加引号（保持向后兼容，旧数据中 default 值已自带引号）
+    return false
+  }
+
   // ===== Comment Before Table =====
   function commentBeforeTableText(table: Table) {
     const val = table.comment_before_table
@@ -1331,6 +1345,7 @@ export const useEditorStore = defineStore('editor', () => {
     commonConfig.value.unified_types.push({
       name: key,
       description: '',
+      quote_default: false,
       mysql: { type: 'VARCHAR', length: 255 },
       pgsql: { type: 'VARCHAR', length: 255 },
     })
@@ -1432,6 +1447,7 @@ export const useEditorStore = defineStore('editor', () => {
     getResolvedField,
     getResolvedFieldTypeForDb,
     fieldTypeDisplay,
+    quoteDefaultForField,
     fieldKey,
     indexKey,
     toggleFieldExpand,

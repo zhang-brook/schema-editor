@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -62,7 +62,8 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
         fieldDef += ' ON UPDATE CURRENT_TIMESTAMP(3)'
       }
     } else {
-      fieldDef += ` DEFAULT ${defaultValue}`
+      const shouldQuote = resolveQuoteDefault(field, commonConfig)
+      fieldDef += ` DEFAULT ${formatSqlDefault(defaultValue, shouldQuote)}`
     }
   }
 

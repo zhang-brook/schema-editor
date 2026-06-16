@@ -109,6 +109,7 @@ function onDropTail(e: DragEvent) {
             <th style="width:40px;">{{ $t('fieldTable.nn') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.pk') }}</th>
             <th>{{ $t('fieldTable.default') }}</th>
+            <th style="width:32px;" :title="$t('fieldTable.quoteDefault')">"?"</th>
             <th>{{ $t('fieldTable.comment') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.removed') }}</th>
             <th style="width:90px;">{{ $t('fieldTable.actions') }}</th>
@@ -204,6 +205,16 @@ function onDropTail(e: DragEvent) {
                 </template>
                 <input v-else class="table-input" :value="displayDefault(field.default)" @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)" style="min-width:60px;">
               </td>
+              <td style="text-align:center;">
+                <template v-if="store.isCommonField(field)">
+                  <!-- common field: quote determined by common field definition -->
+                </template>
+                <template v-else-if="field.unified_type">
+                  <!-- unified type: quote determined by type definition, show resolved status -->
+                  <span v-if="store.quoteDefaultForField(field)" style="color:#4a90d9; font-size:11px;">✓</span>
+                </template>
+                <input v-else type="checkbox" class="table-checkbox" v-model="field.quote_default">
+              </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).comment || '' }}
@@ -226,7 +237,7 @@ function onDropTail(e: DragEvent) {
             </tr>
             <!-- Expanded Field Detail -->
             <tr v-if="store.expandedFields.has(store.fieldKey(store.currentSchema!, store.currentTable!, field))">
-              <td colspan="12">
+              <td colspan="13">
                 <div class="field-expand-content">
                   <!-- 解析后类型预览 -->
                   <div class="expand-section" v-if="!store.isCommonField(field)">
@@ -279,7 +290,7 @@ function onDropTail(e: DragEvent) {
             @dragleave="onDropTailLeave"
             @drop="onDropTail"
           >
-            <td :colspan="12"></td>
+            <td :colspan="13"></td>
           </tr>
         </tbody>
       </table>

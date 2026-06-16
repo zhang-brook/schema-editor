@@ -205,6 +205,23 @@ function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): strin
   return val !== undefined && val !== null ? String(val) : ''
 }
 
+/** 切换字段是否有默认值 */
+function toggleHasDefault(field: Field) {
+  if (field.default !== undefined) {
+    field.default = undefined
+    field.quote_default = undefined
+  } else {
+    field.default = ''
+  }
+}
+
+/** 获取统一类型定义的默认值输入组件类型 */
+function getDefaultInputType(field: Field): string {
+  if (!field.unified_type || !store.commonConfig?.unified_types) return ''
+  const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
+  return def?.default_input || ''
+}
+
 // ===== Override helpers =====
 function formatOverride(override: Record<string, any> | undefined): string {
   if (!override || Object.keys(override).length === 0) return ''
@@ -650,6 +667,10 @@ function handleDeleteUnifiedType(idx: number) {
               <th>{{ $t('commonConfig.fields.notNull') }}</th>
               <th>{{ $t('commonConfig.fields.pk') }}</th>
               <th>{{ $t('commonConfig.fields.default') }}</th>
+              <th style="width:40px;">
+                "?"
+                <span class="quote-help-icon" :title="$t('fieldTable.quoteDefaultHint')">?</span>
+              </th>
               <th>{{ $t('commonConfig.fields.comment') }}</th>
               <th>{{ $t('commonConfig.fields.mysql') }}</th>
               <th>{{ $t('commonConfig.fields.pgsql') }}</th>
@@ -767,12 +788,42 @@ function handleDeleteUnifiedType(idx: number) {
               </td>
               <!-- default -->
               <td>
-                <input
-                  class="table-input"
-                  :value="displayDefault(field.default)"
-                  @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"
-                  style="min-width:60px;"
-                />
+                <div class="default-cell">
+                  <input
+                    type="checkbox"
+                    class="table-checkbox"
+                    :checked="field.default !== undefined"
+                    @change="toggleHasDefault(field)"
+                    :title="$t('fieldTable.hasDefault')"
+                  >
+                  <select
+                    v-if="field.default !== undefined && getDefaultInputType(field) === 'boolean'"
+                    class="table-input"
+                    :value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
+                    @change="field.default = ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined"
+                    style="min-width:80px;"
+                  >
+                    <option value=""></option>
+                    <option value="TRUE">TRUE</option>
+                    <option value="FALSE">FALSE</option>
+                  </select>
+                  <input
+                    v-else-if="field.default !== undefined"
+                    class="table-input"
+                    :value="displayDefault(field.default)"
+                    @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"
+                    style="min-width:60px;"
+                  >
+                </div>
+              </td>
+              <!-- "?" quote_default -->
+              <td style="text-align:center;">
+                <template v-if="field.default === undefined">
+                </template>
+                <template v-else-if="field.unified_type">
+                  <span v-if="store.quoteDefaultForField(field)" style="color:#4a90d9; font-size:11px;">✓</span>
+                </template>
+                <input v-else type="checkbox" class="table-checkbox" v-model="field.quote_default">
               </td>
               <!-- comment -->
               <td>
@@ -819,10 +870,10 @@ function handleDeleteUnifiedType(idx: number) {
               @dragleave="onCommonFieldDropTailLeave"
               @drop="onCommonFieldDropTail"
             >
-              <td :colspan="12"></td>
+              <td :colspan="13"></td>
             </tr>
             <tr v-if="localFields.length === 0">
-              <td colspan="12" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="13" style="text-align:center; color:#aaa; padding:16px;">
                 {{ $t('commonConfig.emptyFields') }}
               </td>
             </tr>
@@ -1199,5 +1250,35 @@ function handleDeleteUnifiedType(idx: number) {
 
 .drop-tail-row.drag-over-tail {
   border-top: 2px solid #4a90d9;
+}
+
+/* Default value cell */
+.default-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Quote help icon */
+.quote-help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #999;
+  color: #999;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: help;
+  margin-left: 2px;
+  vertical-align: middle;
+  transition: border-color .15s, color .15s;
+}
+
+.quote-help-icon:hover {
+  border-color: #4a90d9;
+  color: #4a90d9;
 }
 </style>

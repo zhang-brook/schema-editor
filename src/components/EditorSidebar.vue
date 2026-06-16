@@ -45,17 +45,23 @@ function onDragOver(e: DragEvent, sIdx: number) {
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
   }
+  // 拖拽 schema 时，表项不显示引导线
+  if (dragTableIdx.value < 0) return
   ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
 }
 
 function onDragLeave(e: DragEvent) {
-  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+  const el = e.currentTarget as HTMLElement
+  el?.classList.remove('drag-over')
+  el?.classList.remove('drag-over-line')
 }
 
 function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
   if (dragSchemaIdx.value === sIdx && dragTableIdx.value === tIdx) return
+  // 拖拽的是 schema，不处理表项上的 drop
+  if (dragTableIdx.value < 0) return
   // 跨 schema 移动
   if (dragSchemaIdx.value !== sIdx) {
     store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, tIdx)
@@ -67,21 +73,29 @@ function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
 }
 
 // Schema header 上的 drop 处理：
-//   - 拖拽表：将表追加到目标 schema 末尾
-//   - 拖拽 schema：调整 schema 顺序
+//   - 拖拽表：将表追加到目标 schema 末尾（虚线框引导）
+//   - 拖拽 schema：调整 schema 顺序（实线引导线）
 function onSchemaDragOver(e: DragEvent, _sIdx: number) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
   }
-  // 允许在 schema header 上拖放
   if (dragSchemaIdx.value < 0) return
-  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
+  const el = e.currentTarget as HTMLElement
+  if (dragTableIdx.value < 0) {
+    // 拖拽 schema：显示实线引导线
+    el.classList.add('drag-over-line')
+  } else {
+    // 拖拽 table：显示虚线框
+    el.classList.add('drag-over')
+  }
 }
 
 function onSchemaDrop(e: DragEvent, sIdx: number) {
   e.preventDefault()
-  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
+  const el = e.currentTarget as HTMLElement
+  el?.classList.remove('drag-over')
+  el?.classList.remove('drag-over-line')
   if (dragSchemaIdx.value < 0) return
 
   // 拖拽的是 schema（非 table），执行 schema 排序
@@ -109,6 +123,8 @@ function onDropTailOver(e: DragEvent, _sIdx: number) {
     e.dataTransfer.dropEffect = 'move'
   }
   if (dragSchemaIdx.value < 0) return
+  // 拖拽 schema 时，表尾 drop 区域不显示引导线
+  if (dragTableIdx.value < 0) return
   ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
 }
 
@@ -131,8 +147,11 @@ function onDropTail(e: DragEvent, sIdx: number) {
 function onDragEnd(e: DragEvent) {
   ;(e.target as HTMLElement)?.classList.remove('dragging')
   // 清除所有 drag-over 状态
-  const overEls = document.querySelectorAll('.sidebar-item.drag-over, .drop-tail.drag-over, .schema-drag-tail.drag-over')
-  overEls.forEach(el => el.classList.remove('drag-over'))
+  const overEls = document.querySelectorAll('.sidebar-item.drag-over, .sidebar-item.drag-over-line, .drop-tail.drag-over, .schema-drag-tail.drag-over')
+  overEls.forEach(el => {
+    el.classList.remove('drag-over')
+    el.classList.remove('drag-over-line')
+  })
   dragSchemaIdx.value = -1
   dragTableIdx.value = -1
 }
@@ -527,6 +546,11 @@ function handleRenameSchema(sIdx: number) {
 .sidebar-item.schema-item.drag-over {
   border: 2px dashed #4a90d9;
   padding: 4px 10px;
+}
+
+.sidebar-item.schema-item.drag-over-line {
+  border-top: 2px solid #4a90d9;
+  padding-top: 4px;
 }
 
 .drop-tail {

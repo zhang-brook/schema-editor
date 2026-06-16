@@ -22,6 +22,7 @@ function switchLocale(newLocale: SupportedLocale) {
 <template>
   <!-- ===== Top Toolbar ===== -->
   <div class="toolbar">
+    <img src="/logo.png" alt="Logo" class="toolbar-logo-img" />
     <span class="title">{{ $t('app.title') }}</span>
 
     <!-- Primary: Open / Close Folder -->
@@ -98,6 +99,12 @@ function switchLocale(newLocale: SupportedLocale) {
   border-bottom: 1px solid #ddd;
   flex-shrink: 0;
   flex-wrap: wrap;
+}
+
+.toolbar .toolbar-logo-img {
+  height: 2em;
+  aspect-ratio: 1;
+  margin-top: 0.1em;
 }
 
 .toolbar .title {

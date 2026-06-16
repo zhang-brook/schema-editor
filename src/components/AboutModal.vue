@@ -20,7 +20,7 @@ const { t } = useI18n()
 
       <div class="about-body">
         <div class="about-logo">
-          <img src="/favicon.ico" alt="Logo" class="about-logo-img" />
+          <img src="/logo.png" alt="Logo" class="about-logo-img" />
         </div>
         <div class="about-info">
           <div class="about-name">{{ $t('app.title') }}</div>
@@ -82,8 +82,10 @@ const { t } = useI18n()
 }
 
 .about-logo-img {
-  width: 64px;
-  height: 64px;
+  /* width: 64px; */
+  /* height: 64px; */
+  width: 81px;
+  height: 81px;
   object-fit: contain;
 }
 

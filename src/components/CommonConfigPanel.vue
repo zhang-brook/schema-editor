@@ -395,11 +395,30 @@ function handleDeleteUnifiedType(idx: number) {
               </td>
               <!-- field_type -->
               <td>
-                <input class="table-input" v-model="field.field_type" style="min-width:60px;" />
+                <div class="type-cell">
+                  <select
+                    class="table-input unified-type-select"
+                    :value="field.unified_type ?? ''"
+                    @change="field.unified_type = ($event.target as HTMLSelectElement).value || undefined"
+                    style="min-width:80px;"
+                  >
+                    <option value="">{{ $t('fieldTable.customType') }}</option>
+                    <option v-for="ut in store.unifiedTypeNames" :key="ut" :value="ut">{{ ut }}</option>
+                  </select>
+                  <input
+                    v-if="!field.unified_type"
+                    class="table-input type-free-input"
+                    v-model="field.field_type"
+                    :placeholder="$t('fieldTable.typePlaceholder')"
+                    style="min-width:60px;"
+                  />
+                </div>
               </td>
               <!-- field_length -->
               <td>
+                <span v-if="field.unified_type" class="resolved-length">{{ displayFieldLength(field.field_length) || '-' }}</span>
                 <input
+                  v-else
                   class="table-input"
                   :value="displayFieldLength(field.field_length)"
                   @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
@@ -742,5 +761,25 @@ function handleDeleteUnifiedType(idx: number) {
 .toggle-hint {
   font-size: 11px;
   color: #888;
+}
+
+/* Type cell with unified type select + custom input */
+.type-cell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.unified-type-select {
+  max-width: 100px;
+}
+
+.type-free-input {
+  max-width: 70px;
+}
+
+.resolved-length {
+  color: #666;
+  font-size: 12px;
 }
 </style>

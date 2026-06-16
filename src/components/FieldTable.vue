@@ -68,7 +68,8 @@ function handleFieldNameChange(field: Field, newName: string) {
                 <div v-else class="type-cell">
                   <select
                     class="table-input unified-type-select"
-                    v-model="field.unified_type"
+                    :value="field.unified_type ?? ''"
+                    @change="field.unified_type = ($event.target as HTMLSelectElement).value || undefined"
                     style="min-width:80px;"
                   >
                     <option value="">{{ $t('fieldTable.customType') }}</option>

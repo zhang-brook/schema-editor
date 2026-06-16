@@ -101,7 +101,8 @@ function onCommonFieldDragStart(e: DragEvent, idx: number) {
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
   }
-  ;(e.currentTarget as HTMLElement)?.classList.add('row-dragging')
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.add('row-dragging')
 }
 
 function onCommonFieldDragOver(e: DragEvent) {
@@ -132,7 +133,8 @@ function onCommonFieldDrop(e: DragEvent, toIdx: number) {
 }
 
 function onCommonFieldDragEnd(e: DragEvent) {
-  ;(e.currentTarget as HTMLElement)?.classList.remove('row-dragging')
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.remove('row-dragging')
   document.querySelectorAll('.drag-over-row, .drag-over-tail').forEach(el => el.classList.remove('drag-over-row', 'drag-over-tail'))
   dragCommonFieldIdx.value = -1
 }
@@ -256,7 +258,8 @@ function onUnifiedTypeDragStart(e: DragEvent, idx: number) {
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
   }
-  ;(e.currentTarget as HTMLElement)?.classList.add('row-dragging')
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.add('row-dragging')
 }
 
 function onUnifiedTypeDragOver(e: DragEvent) {
@@ -287,7 +290,8 @@ function onUnifiedTypeDrop(e: DragEvent, toIdx: number) {
 }
 
 function onUnifiedTypeDragEnd(e: DragEvent) {
-  ;(e.currentTarget as HTMLElement)?.classList.remove('row-dragging')
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.remove('row-dragging')
   document.querySelectorAll('.drag-over-row, .drag-over-tail').forEach(el => el.classList.remove('drag-over-row', 'drag-over-tail'))
   dragUnifiedTypeIdx.value = -1
 }
@@ -411,15 +415,18 @@ function handleDeleteUnifiedType(idx: number) {
             <tr
               v-for="(ut, idx) in localUnifiedTypes"
               :key="idx"
-              draggable="true"
-              @dragstart="onUnifiedTypeDragStart($event, idx)"
               @dragover="onUnifiedTypeDragOver"
               @dragleave="onUnifiedTypeDragLeave"
               @drop="onUnifiedTypeDrop($event, idx)"
-              @dragend="onUnifiedTypeDragEnd"
             >
               <!-- drag handle -->
-              <td class="drag-handle-cell" :title="$t('commonConfig.dragToSort')">
+              <td
+                class="drag-handle-cell"
+                draggable="true"
+                @dragstart="onUnifiedTypeDragStart($event, idx)"
+                @dragend="onUnifiedTypeDragEnd"
+                :title="$t('commonConfig.dragToSort')"
+              >
                 <span class="drag-handle">⋮⋮</span>
               </td>
               <td>
@@ -638,15 +645,18 @@ function handleDeleteUnifiedType(idx: number) {
             <tr
               v-for="field in localFields"
               :key="field.field_name"
-              draggable="true"
-              @dragstart="onCommonFieldDragStart($event, localFields.indexOf(field))"
               @dragover="onCommonFieldDragOver"
               @dragleave="onCommonFieldDragLeave"
               @drop="onCommonFieldDrop($event, localFields.indexOf(field))"
-              @dragend="onCommonFieldDragEnd"
             >
               <!-- drag handle -->
-              <td class="drag-handle-cell" :title="$t('commonConfig.dragToSort')">
+              <td
+                class="drag-handle-cell"
+                draggable="true"
+                @dragstart="onCommonFieldDragStart($event, localFields.indexOf(field))"
+                @dragend="onCommonFieldDragEnd"
+                :title="$t('commonConfig.dragToSort')"
+              >
                 <span class="drag-handle">⋮⋮</span>
               </td>
               <!-- field_name -->
@@ -1082,13 +1092,13 @@ function handleDeleteUnifiedType(idx: number) {
 .drag-handle-cell {
   cursor: grab;
   text-align: center;
-  padding: 2px 4px !important;
+  padding: 4px 6px !important;
   user-select: none;
 }
 
 .drag-handle {
   color: #ccc;
-  font-size: 14px;
+  font-size: 18px;
   letter-spacing: -2px;
   line-height: 1;
   transition: color .15s;

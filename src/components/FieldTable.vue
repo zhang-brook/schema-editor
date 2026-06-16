@@ -24,7 +24,8 @@ function onDragStart(e: DragEvent, idx: number) {
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
   }
-  ;(e.currentTarget as HTMLElement)?.classList.add('row-dragging')
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.add('row-dragging')
 }
 
 function onDragOver(e: DragEvent) {
@@ -54,7 +55,8 @@ function onDrop(e: DragEvent, toIdx: number) {
 }
 
 function onDragEnd(e: DragEvent) {
-  ;(e.currentTarget as HTMLElement)?.classList.remove('row-dragging')
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.remove('row-dragging')
   document.querySelectorAll('.drag-over-row, .drag-over-tail').forEach(el => el.classList.remove('drag-over-row', 'drag-over-tail'))
   dragFieldIdx.value = -1
 }
@@ -134,15 +136,17 @@ function onDropTail(e: DragEvent) {
                 'common-field-row': store.isCommonField(field),
                 'commented-out-row': store.getResolvedField(field).is_commented_out
               }"
-              draggable="true"
-              @dragstart="onDragStart($event, fIdx)"
               @dragover="onDragOver"
               @dragleave="onDragLeave"
               @drop="onDrop($event, fIdx)"
-              @dragend="onDragEnd"
             >
               <!-- drag handle -->
-              <td class="drag-handle-cell">
+              <td
+                class="drag-handle-cell"
+                draggable="true"
+                @dragstart="onDragStart($event, fIdx)"
+                @dragend="onDragEnd"
+              >
                 <span class="drag-handle">⋮⋮</span>
               </td>
               <td>
@@ -622,13 +626,13 @@ function onDropTail(e: DragEvent) {
 .drag-handle-cell {
   cursor: grab;
   text-align: center;
-  padding: 2px 4px !important;
+  padding: 4px 6px !important;
   user-select: none;
 }
 
 .drag-handle {
   color: #ccc;
-  font-size: 14px;
+  font-size: 18px;
   letter-spacing: -2px;
   line-height: 1;
   transition: color .15s;

@@ -117,7 +117,8 @@
     "customType": "Custom...",
     "typePlaceholder": "e.g. varchar",
     "resolvedTypes": "Resolved Types Preview",
-    "quoteDefault": "Quote Default"
+    "quoteDefault": "Quote Default",
+    "notSet": "Not set"
   },
   "indexTable": {
     "indexes": "Indexes",

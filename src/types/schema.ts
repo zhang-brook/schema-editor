@@ -53,6 +53,10 @@ export interface Field {
   field_type?: string
   field_length?: number | null
   field_scale?: number | null
+  /** 勾选后强制跳过长度输出，SQL 中不生成 (N) 部分 */
+  field_length_disabled?: boolean
+  /** 勾选后强制跳过小数位输出 */
+  field_scale_disabled?: boolean
   not_null?: boolean
   primary_key?: boolean
   /** 默认值是否需要引号包裹（覆盖 unified_type 的设置，仅自定义类型时生效） */

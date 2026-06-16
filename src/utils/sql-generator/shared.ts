@@ -43,6 +43,7 @@ export function resolveFieldTypeForDialect(
   }
 
   // 第 2 层：字段级 bare 属性（当 unified_type 未命中时作为 base，命中时可作为 override）
+  // 注意：null 表示用户清空了输入框，不应覆盖 unified_type 的值
   if (!type && field.field_type) {
     type = field.field_type
     length = field.field_length ?? null
@@ -52,10 +53,10 @@ export function resolveFieldTypeForDialect(
   if (field.field_type !== undefined && field.field_type !== '') {
     type = field.field_type
   }
-  if (field.field_length !== undefined) {
+  if (field.field_length != null) {
     length = field.field_length
   }
-  if (field.field_scale !== undefined) {
+  if (field.field_scale != null) {
     scale = field.field_scale
   }
 
@@ -71,6 +72,14 @@ export function resolveFieldTypeForDialect(
     if (dbOverride.field_scale !== undefined) {
       scale = dbOverride.field_scale
     }
+  }
+
+  // 用户勾选了「不设置」，强制跳过长度/小数位（最终裁决）
+  if (field.field_length_disabled) {
+    length = null
+  }
+  if (field.field_scale_disabled) {
+    scale = null
   }
 
   // 应用全局类型大小写转换

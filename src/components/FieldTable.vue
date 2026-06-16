@@ -61,16 +61,23 @@ function onDragEnd(e: DragEvent) {
   dragFieldIdx.value = -1
 }
 
-/** 选择统一类型时清除旧的 field_type/field_length，让 unified_type 映射生效 */
+/** 选择统一类型时仅清除 field_type，长度和小数位由用户决定是否覆盖 */
 function handleUnifiedTypeChange(field: Field, value: string) {
   if (value) {
     field.unified_type = value
     field.field_type = ''
-    field.field_length = null
-    field.field_scale = null
   } else {
     field.unified_type = undefined
   }
+}
+
+/** 获取统一类型定义中配置的 placeholder 值（优先取 MySQL 的值） */
+function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): string {
+  if (!field.unified_type || !store.commonConfig?.unified_types) return ''
+  const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
+  if (!def) return ''
+  const val = def.mysql[key]
+  return val !== undefined && val !== null ? String(val) : ''
 }
 
 function onDropTailOver(e: DragEvent) {
@@ -189,19 +196,49 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ displayFieldLength(store.getResolvedField(field).field_length) || '-' }}
                 </template>
-                <template v-else-if="field.unified_type">
-                  <span class="resolved-length">{{ displayFieldLength(field.field_length) || '-' }}</span>
-                </template>
-                <input v-else class="table-input" :value="displayFieldLength(field.field_length)" @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)" style="width:50px;">
+                <div v-else class="field-num-cell">
+                  <input
+                    v-if="!field.field_length_disabled"
+                    class="table-input"
+                    :value="displayFieldLength(field.field_length)"
+                    :placeholder="getUnifiedTypePlaceholder(field, 'length')"
+                    @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                    style="width:38px;"
+                  />
+                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="field.field_length_disabled = undefined">—</span>
+                  <label class="mini-checkbox-label" title="不设置长度">
+                    <input
+                      type="checkbox"
+                      class="mini-checkbox"
+                      :checked="!!field.field_length_disabled"
+                      @change="field.field_length_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                    />{{ $t('fieldTable.notSet') }}
+                  </label>
+                </div>
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ displayFieldScale(store.getResolvedField(field).field_scale) || '-' }}
                 </template>
-                <template v-else-if="field.unified_type">
-                  <span class="resolved-length">{{ displayFieldScale(field.field_scale) || '-' }}</span>
-                </template>
-                <input v-else class="table-input" :value="displayFieldScale(field.field_scale)" @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)" style="width:50px;">
+                <div v-else class="field-num-cell">
+                  <input
+                    v-if="!field.field_scale_disabled"
+                    class="table-input"
+                    :value="displayFieldScale(field.field_scale)"
+                    :placeholder="getUnifiedTypePlaceholder(field, 'scale')"
+                    @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)"
+                    style="width:38px;"
+                  />
+                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="field.field_scale_disabled = undefined">—</span>
+                  <label class="mini-checkbox-label" title="不设置小数位">
+                    <input
+                      type="checkbox"
+                      class="mini-checkbox"
+                      :checked="!!field.field_scale_disabled"
+                      @change="field.field_scale_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                    />{{ $t('fieldTable.notSet') }}
+                  </label>
+                </div>
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
@@ -604,6 +641,41 @@ function onDropTail(e: DragEvent) {
 .resolved-length {
   color: #666;
   font-size: 12px;
+}
+
+.field-num-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mini-checkbox {
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mini-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 9px;
+  opacity: 0.6;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.disabled-indicator {
+  color: #999;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.disabled-indicator:hover {
+  color: #4a90d9;
 }
 
 .resolved-type-row {

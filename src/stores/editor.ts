@@ -357,8 +357,8 @@ export const useEditorStore = defineStore('editor', () => {
       }
 
       // 初始化 unified_types（若 common.json 中缺失或为空，则填充内置默认集）
-      if (!commonConfig.value.unified_types || commonConfig.value.unified_types.length === 0) {
-        commonConfig.value.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
+      if (!commonConfig.value!.unified_types || commonConfig.value!.unified_types.length === 0) {
+        commonConfig.value!.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
       }
 
       // 重新读取 initial-data

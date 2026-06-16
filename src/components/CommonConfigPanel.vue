@@ -819,6 +819,16 @@ function handleDeleteUnifiedType(idx: number) {
             <tr v-if="expandedCommonFields.has(field.field_name)">
               <td :colspan="12">
                 <div class="field-expand-content">
+                  <!-- 解析后类型预览 -->
+                  <div class="expand-section">
+                    <div class="expand-section-title">{{ $t('fieldTable.resolvedTypes') }}</div>
+                    <div class="resolved-type-row">
+                      <span class="db-label">MySQL:</span>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'mysql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'pgsql') }}</code>
+                    </div>
+                  </div>
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('commonConfig.fields.dbOverrides') }}</div>
                     <div class="db-override-grid">
@@ -1310,5 +1320,21 @@ function handleDeleteUnifiedType(idx: number) {
   color: #888;
   text-transform: uppercase;
   margin-bottom: 2px;
+}
+
+.resolved-type-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.resolved-type-row code {
+  background: #e8f0fe;
+  color: #333;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 </style>

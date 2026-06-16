@@ -1286,6 +1286,11 @@ export const useEditorStore = defineStore('editor', () => {
       primary_key: false,
       comment: ''
     }
+    // 同步维护顺序数组
+    if (!commonConfig.value.common_used_field_order) {
+      commonConfig.value.common_used_field_order = []
+    }
+    commonConfig.value.common_used_field_order.push(key)
     showToast(t('toast.commonFieldAdded'))
   }
 
@@ -1307,6 +1312,13 @@ export const useEditorStore = defineStore('editor', () => {
       )) return
     }
     delete commonConfig.value.common_used_fields[name]
+    // 同步维护顺序数组
+    if (commonConfig.value.common_used_field_order) {
+      commonConfig.value.common_used_field_order = commonConfig.value.common_used_field_order.filter(k => k !== name)
+      if (commonConfig.value.common_used_field_order.length === 0) {
+        commonConfig.value.common_used_field_order = undefined
+      }
+    }
     showToast(t('toast.commonFieldDeleted'))
   }
 
@@ -1323,6 +1335,13 @@ export const useEditorStore = defineStore('editor', () => {
         }
       }
     }
+    // 同步维护顺序数组中的名称
+    if (commonConfig.value?.common_used_field_order) {
+      const idx = commonConfig.value.common_used_field_order.indexOf(oldName)
+      if (idx !== -1) {
+        commonConfig.value.common_used_field_order[idx] = trimmed
+      }
+    }
   }
 
   /** 从有序数组重建 record，用于面板编辑后同步 */
@@ -1333,6 +1352,20 @@ export const useEditorStore = defineStore('editor', () => {
       newRecord[field.field_name] = field
     }
     commonConfig.value.common_used_fields = newRecord
+    // 同步更新顺序数组，绕过 JS 对象对纯数字键的自动排序
+    commonConfig.value.common_used_field_order = fields.map(f => f.field_name)
+  }
+
+  /** 获取有序的公共字段列表（遵循 common_used_field_order，回退到 Object.keys） */
+  function getOrderedCommonUsedFields(): Field[] {
+    if (!commonConfig.value) return []
+    const record = commonConfig.value.common_used_fields
+    const order = commonConfig.value.common_used_field_order
+    if (order && order.length > 0) {
+      return order.filter(k => record[k]).map(k => record[k]!)
+    }
+    // 回退：Object.keys（老数据无 order 数组时）
+    return Object.keys(record).map(k => record[k]!)
   }
 
   // ===== Unified Types CRUD =====
@@ -1512,6 +1545,7 @@ export const useEditorStore = defineStore('editor', () => {
     deleteCommonUsedField,
     updateCommonUsedFieldName,
     rebuildCommonUsedFieldsFromArray,
+    getOrderedCommonUsedFields,
 
     // Unified Types CRUD
     addUnifiedType,

@@ -8,19 +8,12 @@ import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInpu
 const store = useEditorStore()
 const { t } = useI18n()
 
-// ===== 本地数组：从 record 派生，保持稳定顺序 =====
-function readFieldsFromRecord(): Field[] {
-  if (!store.commonConfig) return []
-  return Object.keys(store.commonConfig.common_used_fields).map(
-    k => store.commonConfig!.common_used_fields[k]!
-  )
-}
-
-const localFields = ref<Field[]>(readFieldsFromRecord())
+// ===== 本地数组：从 store 有序方法派生 =====
+const localFields = ref<Field[]>([...store.getOrderedCommonUsedFields()])
 
 // 切换项目时重新读取
 watch(() => store.commonConfig, () => {
-  localFields.value = readFieldsFromRecord()
+  localFields.value = [...store.getOrderedCommonUsedFields()]
 })
 
 // ===== Rename =====

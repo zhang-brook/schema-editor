@@ -125,6 +125,8 @@ export interface CommonConfig {
   default_config: DefaultConfig
   schema_order?: string[]
   common_used_fields: Record<string, Field>
+  /** 维护 common_used_fields 的显示顺序（绕过 JS 对象对纯数字键的自动排序） */
+  common_used_field_order?: string[]
   /** 统一顶层类型定义 — 每个顶层类型映射到各数据库方言的具体类型 */
   unified_types?: UnifiedTypeDefinition[]
   /** 字段类型大小写：keep=保持原样, lowercase=全小写, uppercase=全大写, pascal=大驼峰 */

@@ -121,7 +121,8 @@
     "quoteDefault": "預設值加引號",
     "quoteDefaultHint": "當預設值需要使用引號包裹時，請勾選此項",
     "hasDefault": "有預設值",
-    "notSet": "不設定"
+    "notSet": "不設定",
+    "hasOverrides": "此欄位包含資料庫方言覆寫"
   },
   "indexTable": {
     "indexes": "索引",

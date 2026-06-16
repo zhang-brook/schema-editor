@@ -705,6 +705,7 @@ function handleDeleteUnifiedType(idx: number) {
                     :placeholder="$t('fieldTable.typePlaceholder')"
                     style="min-width:60px;"
                   />
+                  <span v-if="store.hasFieldOverrides(field)" class="override-badge" :title="$t('fieldTable.hasOverrides')">⚡</span>
                 </div>
               </td>
               <!-- field_length -->
@@ -1159,6 +1160,13 @@ function handleDeleteUnifiedType(idx: number) {
 
 .type-free-input {
   max-width: 70px;
+}
+
+.override-badge {
+  font-size: 11px;
+  cursor: help;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .resolved-length {

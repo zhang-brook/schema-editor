@@ -121,7 +121,8 @@
     "quoteDefault": "Quote Default",
     "quoteDefaultHint": "Check this when the default value needs to be wrapped in quotes",
     "hasDefault": "Has Default",
-    "notSet": "Not set"
+    "notSet": "Not set",
+    "hasOverrides": "This field has database dialect overrides"
   },
   "indexTable": {
     "indexes": "Indexes",

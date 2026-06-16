@@ -873,6 +873,14 @@ export const useEditorStore = defineStore('editor', () => {
     return resolved.field_type || '-'
   }
 
+  /** 检查字段（含公共字段解析）是否包含任何数据库方言覆盖 */
+  function hasFieldOverrides(field: Field): boolean {
+    const resolved = getResolvedField(field)
+    const m = resolved.mysql
+    const p = resolved.pgsql
+    return (!!m && Object.keys(m).length > 0) || (!!p && Object.keys(p).length > 0)
+  }
+
   /** 解析字段默认值是否需要引号包裹 */
   function quoteDefaultForField(field: Field): boolean {
     const resolved = getResolvedField(field)
@@ -1484,6 +1492,7 @@ export const useEditorStore = defineStore('editor', () => {
     getResolvedField,
     getResolvedFieldTypeForDb,
     fieldTypeDisplay,
+    hasFieldOverrides,
     quoteDefaultForField,
     fieldKey,
     indexKey,

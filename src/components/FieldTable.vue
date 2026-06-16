@@ -194,6 +194,7 @@ function onDropTail(e: DragEvent) {
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ store.fieldTypeDisplay(field) }}
+                  <span v-if="store.hasFieldOverrides(field)" class="override-badge" :title="$t('fieldTable.hasOverrides')">⚡</span>
                 </template>
                 <div v-else class="type-cell">
                   <select
@@ -212,6 +213,7 @@ function onDropTail(e: DragEvent) {
                     :placeholder="$t('fieldTable.typePlaceholder')"
                     style="min-width:60px;"
                   />
+                  <span v-if="store.hasFieldOverrides(field)" class="override-badge" :title="$t('fieldTable.hasOverrides')">⚡</span>
                 </div>
               </td>
               <td>
@@ -687,6 +689,13 @@ function onDropTail(e: DragEvent) {
 
 .type-free-input {
   max-width: 70px;
+}
+
+.override-badge {
+  font-size: 11px;
+  cursor: help;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .resolved-length {

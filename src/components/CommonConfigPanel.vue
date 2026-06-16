@@ -217,7 +217,7 @@ function handleDeleteUnifiedType(idx: number) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(ut, idx) in localUnifiedTypes" :key="ut.name">
+            <tr v-for="(ut, idx) in localUnifiedTypes" :key="idx">
               <td>
                 <input
                   class="table-input"

@@ -6,6 +6,22 @@ import { useEditorStore } from '@/stores/editor'
 const store = useEditorStore()
 const { t } = useI18n()
 
+// 行号
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const lineNumbersRef = ref<HTMLElement | null>(null)
+
+const lineCount = computed(() => {
+  const text = store.importSqlText
+  if (!text) return 1
+  return text.split('\n').length
+})
+
+function syncLineNumbersScroll() {
+  if (textareaRef.value && lineNumbersRef.value) {
+    lineNumbersRef.value.scrollTop = textareaRef.value.scrollTop
+  }
+}
+
 // 防抖解析
 let parseTimer: ReturnType<typeof setTimeout> | null = null
 watch(
@@ -106,12 +122,19 @@ const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'wa
       <!-- SQL 输入区 -->
       <div class="form-group">
         <label class="form-label">{{ $t('importSqlModal.sqlInput') }}</label>
-        <textarea
-          class="sql-textarea"
-          v-model="store.importSqlText"
-          :placeholder="$t('importSqlModal.sqlPlaceholder')"
-          spellcheck="false"
-        ></textarea>
+        <div class="sql-input-container">
+          <div ref="lineNumbersRef" class="line-numbers" aria-hidden="true">
+            <span v-for="n in lineCount" :key="n" class="line-number">{{ n }}</span>
+          </div>
+          <textarea
+            ref="textareaRef"
+            class="sql-textarea"
+            v-model="store.importSqlText"
+            :placeholder="$t('importSqlModal.sqlPlaceholder')"
+            spellcheck="false"
+            @scroll="syncLineNumbersScroll"
+          ></textarea>
+        </div>
       </div>
 
       <!-- 解析错误 -->
@@ -330,24 +353,53 @@ const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'wa
   cursor: pointer;
 }
 
-/* SQL 文本框 */
-.sql-textarea {
-  padding: 8px 10px;
+/* SQL 文本框 — 带行号 */
+.sql-input-container {
+  display: flex;
   border: 1px solid #ccc;
   border-radius: 4px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+
+.sql-input-container:focus-within {
+  border-color: #4a90d9;
+}
+
+.line-numbers {
+  flex-shrink: 0;
+  width: 36px;
+  padding: 8px 0;
+  background: #f5f5f5;
+  border-right: 1px solid #e0e0e0;
+  overflow: hidden;
+  user-select: none;
+  text-align: right;
+}
+
+.line-number {
+  display: block;
+  padding: 0 6px 0 2px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  line-height: 1.6;
+  color: #b0b0b0;
+}
+
+.sql-textarea {
+  flex: 1;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 0;
   font-size: 12px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   color: #333;
   min-height: 120px;
   max-height: 250px;
   resize: vertical;
-  transition: border-color .15s;
   tab-size: 2;
-}
-
-.sql-textarea:focus {
+  line-height: 1.6;
   outline: none;
-  border-color: #4a90d9;
 }
 
 .sql-textarea::placeholder {

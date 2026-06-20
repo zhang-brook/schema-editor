@@ -260,7 +260,7 @@ export function formatSqlValue(val: unknown): string {
 }
 
 /** 生成单表的 INSERT 语句 */
-function generateInitialDataMySQL(
+export function generateInitialDataMySQL(
   table: Table,
   rows: Record<string, any>[],
   rowComments?: (string | null)[]

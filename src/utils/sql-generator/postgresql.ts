@@ -234,7 +234,7 @@ export function formatSqlValue(val: unknown): string {
 }
 
 /** 生成单表的 INSERT 语句 */
-function generateInitialDataPostgreSQL(
+export function generateInitialDataPostgreSQL(
   table: Table,
   schemaName: string,
   rows: Record<string, any>[],

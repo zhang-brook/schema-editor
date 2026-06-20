@@ -16,7 +16,7 @@
     "reloadFromDiskTitle": "放弃网页修改，从本地文件重新加载",
     "language": "语言",
     "github": "GitHub",
-    "importSql": "导入 SQL",
+    "importSql": "通过 SQL 建表语句导入",
     "importSqlTitle": "粘贴 SQL 建表语句，自动解析并导入",
     "about": "关于"
   },
@@ -214,6 +214,8 @@
     "emptyRows": "暂无数据 — 点击「添加行」添加数据",
     "clearConfirm": "确认清空此表的所有初始数据？",
     "badge": "{n} 行",
+    "sqlPreview": "初始数据 SQL 预览",
+    "sqlPreviewEmpty": "暂无数据或前置/后置 SQL — 无预览内容",
     "jsonError": {
       "invalidStructure": "JSON 必须为数组或 {{ rows: [...], ... }}",
       "invalidSyntax": "JSON 格式无效",

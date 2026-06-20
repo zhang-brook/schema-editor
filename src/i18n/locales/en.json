@@ -16,7 +16,7 @@
     "reloadFromDiskTitle": "Discard web changes and reload from local files",
     "language": "Language",
     "github": "GitHub",
-    "importSql": "Import SQL",
+    "importSql": "Import via SQL CREATE TABLE",
     "importSqlTitle": "Paste CREATE TABLE statements, auto-parse and import",
     "about": "About"
   },
@@ -214,6 +214,8 @@
     "emptyRows": "No rows — click \"Add Row\" to add data",
     "clearConfirm": "Clear all initial data for this table?",
     "badge": "{n} row(s)",
+    "sqlPreview": "Initial Data SQL Preview",
+    "sqlPreviewEmpty": "No data or pre/post SQL — nothing to preview",
     "jsonError": {
       "invalidStructure": "JSON must be an array or {{ rows: [...], ... }}",
       "invalidSyntax": "Invalid JSON",

@@ -6,6 +6,7 @@ import { parseDefaultInput } from '@/utils/file-helpers'
 import { getInitialDataPreSql, getInitialDataPostSql } from '@/utils/sql-generator/shared'
 import type { InitialData } from '@/types/schema'
 import PrePostSqlEditor from './PrePostSqlEditor.vue'
+import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -388,6 +389,9 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
         <button class="btn btn-sm btn-danger" @click="clearPrePostSql">{{ $t('initialData.clear') }}</button>
       </template>
     </PrePostSqlEditor>
+
+    <!-- Initial Data SQL Preview -->
+    <InitialDataSqlPreview />
 
     <div class="empty-state">
       <button class="btn btn-sm btn-danger" @click="clearAllData">{{ $t('initialData.clearAll') }}</button>

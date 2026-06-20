@@ -16,7 +16,7 @@
     "reloadFromDiskTitle": "放棄網頁修改，從本機檔案重新載入",
     "language": "語言",
     "github": "GitHub",
-    "importSql": "匯入 SQL",
+    "importSql": "透過 SQL 建表語句匯入",
     "importSqlTitle": "貼上 SQL 建表語句，自動解析並匯入",
     "about": "關於"
   },
@@ -214,6 +214,8 @@
     "emptyRows": "暫無資料 — 點擊「新增列」新增資料",
     "clearConfirm": "確認清空此表的所有初始資料？",
     "badge": "{n} 列",
+    "sqlPreview": "初始資料 SQL 預覽",
+    "sqlPreviewEmpty": "暫無資料或前置/後置 SQL — 無預覽內容",
     "jsonError": {
       "invalidStructure": "JSON 必須為陣列或 {{ rows: [...], ... }}",
       "invalidSyntax": "JSON 格式無效",

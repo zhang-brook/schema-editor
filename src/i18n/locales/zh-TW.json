@@ -114,7 +114,9 @@
     "mysqlCollation": "MySQL 排序規則",
     "prePostSql": "表前置 / 後置 SQL",
     "preSqlPlaceholder": "CREATE TABLE 之前執行的 SQL 語句...",
-    "postSqlPlaceholder": "CREATE TABLE 之後執行的 SQL 語句..."
+    "postSqlPlaceholder": "CREATE TABLE 之後執行的 SQL 語句...",
+    "tabStructure": "表結構定義",
+    "tabInitialData": "初始數據"
   },
   "fieldTable": {
     "fields": "欄位",

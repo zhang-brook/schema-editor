@@ -114,7 +114,9 @@
     "mysqlCollation": "MySQL Collation",
     "prePostSql": "Table Pre / Post SQL",
     "preSqlPlaceholder": "SQL statements executed before CREATE TABLE...",
-    "postSqlPlaceholder": "SQL statements executed after CREATE TABLE..."
+    "postSqlPlaceholder": "SQL statements executed after CREATE TABLE...",
+    "tabStructure": "Table Structure",
+    "tabInitialData": "Initial Data"
   },
   "fieldTable": {
     "fields": "Fields",

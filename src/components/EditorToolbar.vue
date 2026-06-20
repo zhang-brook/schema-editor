@@ -5,6 +5,7 @@ import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/AboutModal.vue'
+import { GITHUB_REPO_URL } from '@/utils/constants'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
@@ -106,7 +107,7 @@ onUnmounted(() => {
       <div v-if="openMenu === 'help'" class="menu-dropdown" @click.stop>
         <a
           class="menu-dropdown-item"
-          href="https://github.com/coder-xiaomo/schema-editor"
+          :href="GITHUB_REPO_URL"
           target="_blank"
           rel="noopener noreferrer"
           @click="closeMenu()"

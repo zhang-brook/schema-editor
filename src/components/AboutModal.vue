@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { version } from '../../package.json'
+import { GITHUB_REPO_URL } from '@/utils/constants'
 
 defineProps<{
   visible: boolean
@@ -28,6 +29,17 @@ const { t } = useI18n()
             {{ $t('about.version') }} {{ version }}
           </div>
         </div>
+      </div>
+
+      <div class="about-github">
+        <a
+          :href="GITHUB_REPO_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="about-github-link"
+        >
+          {{ $t('about.github') }}
+        </a>
       </div>
 
       <div class="modal-actions">
@@ -106,6 +118,25 @@ const { t } = useI18n()
   font-size: 13px;
   color: #666;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.about-github {
+  padding-bottom: 12px;
+}
+
+.about-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #4a90d9;
+  text-decoration: none;
+  transition: color .15s;
+}
+
+.about-github-link:hover {
+  color: #3a7bc8;
+  text-decoration: underline;
 }
 
 .modal-actions {

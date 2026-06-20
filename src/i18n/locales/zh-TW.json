@@ -271,6 +271,7 @@
   "about": {
     "title": "關於 Schema 編輯器",
     "version": "版本",
+    "github": "在 GitHub 上查看",
     "close": "確定"
   }
 }

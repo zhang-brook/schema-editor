@@ -2,7 +2,7 @@ export type SqlDialect = 'mysql' | 'postgresql'
 
 // ===== 解析公共字段 =====
 
-import type { CommonConfig, Field, Table, TypeCaseMode } from "@/types/schema"
+import type { CommonConfig, Field, Table, Schema, InitialData, TypeCaseMode } from "@/types/schema"
 
 export function resolveField(field: Field, commonConfig: CommonConfig | null): Field {
   if (field.use_common_used_fields && commonConfig) {
@@ -187,4 +187,52 @@ export function getTableColumnNames(table: Table, commonConfig: CommonConfig | n
   return table.fields
     .filter(f => !resolveField(f, commonConfig).is_commented_out)
     .map(f => resolveField(f, commonConfig).field_name)
+}
+
+// ===== 前置/后置 SQL 辅助 =====
+
+export function getTablePreSql(table: Table, dialect: 'mysql' | 'pgsql'): string {
+  return table.pre_sql?.[dialect] || ''
+}
+
+export function getTablePostSql(table: Table, dialect: 'mysql' | 'pgsql'): string {
+  return table.post_sql?.[dialect] || ''
+}
+
+export function getSchemaPreSql(schema: Schema, dialect: 'mysql' | 'pgsql'): string {
+  return schema.pre_sql?.[dialect] || ''
+}
+
+export function getSchemaPostSql(schema: Schema, dialect: 'mysql' | 'pgsql'): string {
+  return schema.post_sql?.[dialect] || ''
+}
+
+export function getGlobalPreSql(commonConfig: CommonConfig | null, dialect: 'mysql' | 'pgsql'): string {
+  if (!commonConfig) return ''
+  if (dialect === 'mysql') return commonConfig.default_config.mysql.pre_sql || ''
+  return commonConfig.default_config.pgsql.pre_sql || ''
+}
+
+export function getGlobalPostSql(commonConfig: CommonConfig | null, dialect: 'mysql' | 'pgsql'): string {
+  if (!commonConfig) return ''
+  if (dialect === 'mysql') return commonConfig.default_config.mysql.post_sql || ''
+  return commonConfig.default_config.pgsql.post_sql || ''
+}
+
+export function fmtPrePostSql(sql: string): string {
+  if (!sql) return ''
+  // 确保 SQL 以分号结尾，并添加换行
+  let result = sql.trimEnd()
+  if (result && !result.endsWith(';')) result += ';'
+  return result + '\n'
+}
+
+// ===== Initial-Data 级别 pre/post SQL =====
+
+export function getInitialDataPreSql(initialData: InitialData, dialect: 'mysql' | 'pgsql'): string {
+  return initialData.pre_sql?.[dialect] || ''
+}
+
+export function getInitialDataPostSql(initialData: InitialData, dialect: 'mysql' | 'pgsql'): string {
+  return initialData.post_sql?.[dialect] || ''
 }

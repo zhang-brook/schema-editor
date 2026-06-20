@@ -3,7 +3,9 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { parseDefaultInput } from '@/utils/file-helpers'
+import { getInitialDataPreSql, getInitialDataPostSql } from '@/utils/sql-generator/shared'
 import type { InitialData } from '@/types/schema'
+import PrePostSqlEditor from './PrePostSqlEditor.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -44,11 +46,42 @@ watch(() => rows.value, () => {
 
 function syncJsonText() {
   const wrapper = initialData.value
-  if (wrapper && wrapper.rows.length > 0) {
+  if (wrapper && (wrapper.rows?.length || wrapper.pre_sql || wrapper.post_sql)) {
     jsonText.value = JSON.stringify(wrapper, null, 4)
   } else {
-    jsonText.value = '[]'
+    jsonText.value = '{}'
   }
+}
+
+/** 确保当前表有 initialData 条目，供 pre/post SQL 依附（无条目时创建空对象） */
+function ensureInitialDataEntry(): InitialData | undefined {
+  if (!store.currentSchema || !store.currentTable) return undefined
+  let data = initialData.value
+  if (!data) {
+    const key = store.initialDataKey(store.currentSchema.schema, store.currentTable.name)
+    store.initialDataMap.set(key, {})
+    data = store.currentInitialData
+  }
+  return data
+}
+
+function handlePreSql(dialect: 'mysql' | 'pgsql', val: string) {
+  const data = ensureInitialDataEntry()
+  if (data) store.setInitialDataPreSql(data, dialect, val)
+}
+
+function handlePostSql(dialect: 'mysql' | 'pgsql', val: string) {
+  const data = ensureInitialDataEntry()
+  if (data) store.setInitialDataPostSql(data, dialect, val)
+}
+
+function clearPrePostSql() {
+  const data = initialData.value
+  if (!data) return
+  store.setInitialDataPreSql(data, 'mysql', '')
+  store.setInitialDataPreSql(data, 'pgsql', '')
+  store.setInitialDataPostSql(data, 'mysql', '')
+  store.setInitialDataPostSql(data, 'pgsql', '')
 }
 
 function parseJsonInput(text: string): InitialData | null {
@@ -56,10 +89,13 @@ function parseJsonInput(text: string): InitialData | null {
   if (Array.isArray(parsed)) {
     return { rows: parsed }
   }
-  if (parsed && typeof parsed === 'object' && Array.isArray(parsed.rows)) {
-    const result: InitialData = { rows: parsed.rows }
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    const result: InitialData = {}
+    if (Array.isArray(parsed.rows)) result.rows = parsed.rows
     if (Array.isArray(parsed.row_comments)) result.row_comments = parsed.row_comments
     if (Array.isArray(parsed.field_comments)) result.field_comments = parsed.field_comments
+    if (parsed.pre_sql && typeof parsed.pre_sql === 'object') result.pre_sql = { ...parsed.pre_sql }
+    if (parsed.post_sql && typeof parsed.post_sql === 'object') result.post_sql = { ...parsed.post_sql }
     return result
   }
   return null
@@ -110,14 +146,17 @@ function switchMode(mode: 'json' | 'table') {
   editorMode.value = mode
 }
 
-function addEmptyData() {
+/** 创建初始数据条目（仅创建空 JSON 文件，不添加 rows 属性；各板块按需写入） */
+function addInitialData() {
   if (!store.currentSchema || !store.currentTable) return
-  store.setInitialData(store.currentSchema.schema, store.currentTable.name, [{}])
+  const key = store.initialDataKey(store.currentSchema.schema, store.currentTable.name)
+  store.initialDataMap.set(key, {})
   editorMode.value = 'table'
 }
 
 function addRow() {
   if (!store.currentSchema || !store.currentTable || !initialData.value) return
+  if (!initialData.value.rows) initialData.value.rows = []
   initialData.value.rows.push({})
   if (initialData.value.row_comments) {
     initialData.value.row_comments.push(null)
@@ -128,7 +167,7 @@ function addRow() {
 }
 
 function deleteRow(rowIdx: number) {
-  if (!store.currentSchema || !store.currentTable || !initialData.value) return
+  if (!store.currentSchema || !store.currentTable || !initialData.value || !initialData.value.rows) return
   initialData.value.rows.splice(rowIdx, 1)
   if (initialData.value.row_comments) {
     initialData.value.row_comments.splice(rowIdx, 1)
@@ -137,14 +176,16 @@ function deleteRow(rowIdx: number) {
     initialData.value.field_comments.splice(rowIdx, 1)
   }
   if (initialData.value.rows.length === 0) {
-    store.setInitialData(store.currentSchema.schema, store.currentTable.name, [])
+    delete initialData.value.rows
+    delete initialData.value.row_comments
+    delete initialData.value.field_comments
   }
 }
 
 function moveRowUp(rowIdx: number) {
   if (!initialData.value || rowIdx <= 0) return
   const data = initialData.value
-  ;[data.rows[rowIdx - 1], data.rows[rowIdx]] = [data.rows[rowIdx]!, data.rows[rowIdx - 1]!]
+    ;[data.rows[rowIdx - 1], data.rows[rowIdx]] = [data.rows[rowIdx]!, data.rows[rowIdx - 1]!]
   if (data.row_comments) {
     ;[data.row_comments[rowIdx - 1], data.row_comments[rowIdx]] = [data.row_comments[rowIdx]!, data.row_comments[rowIdx - 1]!]
   }
@@ -156,7 +197,7 @@ function moveRowUp(rowIdx: number) {
 function moveRowDown(rowIdx: number) {
   if (!initialData.value || rowIdx >= initialData.value.rows.length - 1) return
   const data = initialData.value
-  ;[data.rows[rowIdx], data.rows[rowIdx + 1]] = [data.rows[rowIdx + 1]!, data.rows[rowIdx]!]
+    ;[data.rows[rowIdx], data.rows[rowIdx + 1]] = [data.rows[rowIdx + 1]!, data.rows[rowIdx]!]
   if (data.row_comments) {
     ;[data.row_comments[rowIdx], data.row_comments[rowIdx + 1]] = [data.row_comments[rowIdx + 1]!, data.row_comments[rowIdx]!]
   }
@@ -165,12 +206,22 @@ function moveRowDown(rowIdx: number) {
   }
 }
 
+function clearRows() {
+  if (!initialData.value) return
+  if (!confirm(t('initialData.clearRowsConfirm'))) return
+  delete initialData.value.rows
+  delete initialData.value.row_comments
+  delete initialData.value.field_comments
+  syncJsonText()
+}
+
 function clearAllData() {
   if (!store.currentSchema || !store.currentTable) return
   if (!confirm(t('initialData.clearConfirm'))) return
   store.deleteInitialData(store.currentSchema.schema, store.currentTable.name)
-  jsonText.value = '[]'
+  jsonText.value = '{}'
   jsonError.value = ''
+  editorMode.value = 'table'
 }
 
 function getCellValue(row: Record<string, any>, fieldName: string): string {
@@ -239,103 +290,106 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
 </script>
 
 <template>
-  <div class="section-card" v-if="store.currentTable">
-    <div class="section-header">
-      <span>{{ $t('initialData.title') }}</span>
-      <span class="badge" v-if="hasData">{{ $t('initialData.badge', { n: rowCount }) }}</span>
-      <div class="header-actions">
-        <template v-if="initialData !== undefined">
+  <!-- 无初始数据：显示添加提示（数据板块和 pre/post SQL 板块均隐藏） -->
+  <div v-if="initialData === undefined && store.currentTable" class="empty-state">
+    <span>{{ $t('initialData.empty') }}</span>
+    <button class="btn btn-sm btn-primary" @click="addInitialData">{{ $t('initialData.init') }}</button>
+  </div>
+
+  <!-- 有初始数据：显示数据板块 + pre/post SQL 板块 -->
+  <template v-if="initialData !== undefined">
+    <button class="btn btn-sm btn-danger" @click="clearAllData">{{ $t('initialData.clearAll') }}</button>
+    <div class="section-card">
+      <div class="section-header">
+        <span>{{ $t('initialData.title') }}</span>
+        <span class="badge" v-if="hasData">{{ $t('initialData.badge', { n: rowCount }) }}</span>
+        <div class="header-actions">
           <div class="mode-toggle">
-            <button
-              class="mode-btn"
-              :class="{ active: editorMode === 'table' }"
-              @click="switchMode('table')"
-            >{{ $t('initialData.table') }}</button>
-            <button
-              class="mode-btn"
-              :class="{ active: editorMode === 'json' }"
-              @click="switchMode('json')"
-            >{{ $t('initialData.json') }}</button>
+            <button class="mode-btn" :class="{ active: editorMode === 'table' }" @click="switchMode('table')">{{
+              $t('initialData.table') }}</button>
+            <button class="mode-btn" :class="{ active: editorMode === 'json' }" @click="switchMode('json')">{{
+              $t('initialData.json') }}</button>
           </div>
-          <button class="btn btn-sm btn-danger" @click="clearAllData">{{ $t('initialData.clear') }}</button>
+          <button class="btn btn-sm btn-danger" @click="clearRows">{{ $t('initialData.clear') }}</button>
+        </div>
+      </div>
+      <div class="section-body" style="padding: 0;">
+        <!-- rows 未配置：在数据板块内显示“添加数据” -->
+        <div v-if="rows === undefined" class="empty-state">
+          <span>{{ $t('initialData.empty') }}</span>
+          <button class="btn btn-sm btn-primary" @click="addRow">{{ $t('initialData.addData') }}</button>
+        </div>
+
+        <!-- JSON 编辑模式 -->
+        <template v-else-if="editorMode === 'json'">
+          <textarea class="json-editor" :value="jsonText"
+            @input="onJsonInput(($event.target as HTMLTextAreaElement).value)" spellcheck="false"></textarea>
+          <div v-if="jsonError" class="json-error">{{ jsonError }}</div>
+        </template>
+
+        <!-- Table 编辑模式 -->
+        <template v-else>
+          <div class="table-toolbar">
+            <button class="btn btn-sm btn-primary" @click="addRow">{{ $t('initialData.addRow') }}</button>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="data-table" v-if="rows.length > 0">
+              <thead>
+                <tr>
+                  <th style="width:36px;">{{ $t('initialData.hash') }}</th>
+                  <th v-for="fname in fieldNames" :key="fname">{{ fname }}</th>
+                  <th style="width:130px;">{{ $t('initialData.comment') }}</th>
+                  <th style="width:110px;">{{ $t('initialData.actions') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, rIdx) in rows" :key="rIdx">
+                  <td class="row-num">{{ rIdx + 1 }}</td>
+                  <td v-for="fname in fieldNames" :key="fname" class="cell-stack">
+                    <input class="table-input" :value="getCellValue(row, fname)"
+                      @change="setCellValue(row, fname, ($event.target as HTMLInputElement).value)"
+                      :placeholder="fname" />
+                    <input class="field-comment-input" :value="getFieldComment(rIdx, fname)"
+                      @change="setFieldComment(rIdx, fname, ($event.target as HTMLInputElement).value)"
+                      placeholder="" />
+                  </td>
+                  <td>
+                    <input class="comment-input" :value="rowComments?.[rIdx] ?? ''"
+                      @change="setRowComment(rIdx, ($event.target as HTMLInputElement).value)"
+                      :placeholder="$t('initialData.rowCommentPlaceholder')" />
+                  </td>
+                  <td>
+                    <div class="move-btns" style="display:inline-flex; margin-right:2px;">
+                      <button class="move-btn" @click="moveRowUp(rIdx)" :disabled="rIdx === 0">↑</button>
+                      <button class="move-btn" @click="moveRowDown(rIdx)" :disabled="rIdx === rows.length - 1">
+                        ↓
+                      </button>
+                    </div>
+                    <button class="btn btn-sm btn-danger" @click="deleteRow(rIdx)">&times;</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-rows">
+              {{ $t('initialData.emptyRows') }}
+            </div>
+          </div>
         </template>
       </div>
     </div>
-    <div class="section-body" style="padding: 0;">
-      <!-- 空状态 -->
-      <div v-if="initialData === undefined" class="empty-state">
-        <span>{{ $t('initialData.empty') }}</span>
-        <button class="btn btn-sm btn-primary" @click="addEmptyData">{{ $t('initialData.addData') }}</button>
-      </div>
 
-      <!-- JSON 编辑模式 -->
-      <template v-else-if="editorMode === 'json'">
-        <textarea
-          class="json-editor"
-          :value="jsonText"
-          @input="onJsonInput(($event.target as HTMLTextAreaElement).value)"
-          spellcheck="false"
-        ></textarea>
-        <div v-if="jsonError" class="json-error">{{ jsonError }}</div>
+    <!-- Initial Data Pre/Post SQL -->
+    <PrePostSqlEditor v-if="store.currentTable" :title="$t('initialData.prePostSql')"
+      :pre-placeholder="$t('initialData.preSqlPlaceholder')" :post-placeholder="$t('initialData.postSqlPlaceholder')"
+      :mysql-pre="getInitialDataPreSql(initialData, 'mysql')" :mysql-post="getInitialDataPostSql(initialData, 'mysql')"
+      :pgsql-pre="getInitialDataPreSql(initialData, 'pgsql')" :pgsql-post="getInitialDataPostSql(initialData, 'pgsql')"
+      :rows="3" @update:mysql-pre="handlePreSql('mysql', $event)" @update:mysql-post="handlePostSql('mysql', $event)"
+      @update:pgsql-pre="handlePreSql('pgsql', $event)" @update:pgsql-post="handlePostSql('pgsql', $event)">
+      <template #header-actions>
+        <button class="btn btn-sm btn-danger" @click="clearPrePostSql">{{ $t('initialData.clear') }}</button>
       </template>
-
-      <!-- Table 编辑模式 -->
-      <template v-else>
-        <div class="table-toolbar">
-          <button class="btn btn-sm btn-primary" @click="addRow">{{ $t('initialData.addRow') }}</button>
-        </div>
-        <div style="overflow-x: auto;">
-          <table class="data-table" v-if="rows && rows.length > 0">
-            <thead>
-              <tr>
-                <th style="width:36px;">{{ $t('initialData.hash') }}</th>
-                <th v-for="fname in fieldNames" :key="fname">{{ fname }}</th>
-                <th style="width:130px;">{{ $t('initialData.comment') }}</th>
-                <th style="width:110px;">{{ $t('initialData.actions') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(row, rIdx) in rows" :key="rIdx">
-                <td class="row-num">{{ rIdx + 1 }}</td>
-                <td v-for="fname in fieldNames" :key="fname" class="cell-stack">
-                  <input
-                    class="table-input"
-                    :value="getCellValue(row, fname)"
-                    @change="setCellValue(row, fname, ($event.target as HTMLInputElement).value)"
-                    :placeholder="fname"
-                  />
-                  <input
-                    class="field-comment-input"
-                    :value="getFieldComment(rIdx, fname)"
-                    @change="setFieldComment(rIdx, fname, ($event.target as HTMLInputElement).value)"
-                    placeholder=""
-                  />
-                </td>
-                <td>
-                  <input
-                    class="comment-input"
-                    :value="rowComments?.[rIdx] ?? ''"
-                    @change="setRowComment(rIdx, ($event.target as HTMLInputElement).value)"
-                    :placeholder="$t('initialData.rowCommentPlaceholder')"
-                  />
-                </td>
-                <td>
-                  <div class="move-btns" style="display:inline-flex; margin-right:2px;">
-                    <button class="move-btn" @click="moveRowUp(rIdx)" :disabled="rIdx === 0">↑</button>
-                    <button class="move-btn" @click="moveRowDown(rIdx)" :disabled="rIdx === rows.length - 1">↓</button>
-                  </div>
-                  <button class="btn btn-sm btn-danger" @click="deleteRow(rIdx)">&times;</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty-rows">
-            {{ $t('initialData.emptyRows') }}
-          </div>
-        </div>
-      </template>
-    </div>
-  </div>
+    </PrePostSqlEditor>
+  </template>
 </template>
 
 <style scoped>

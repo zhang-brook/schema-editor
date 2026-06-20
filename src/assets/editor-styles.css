@@ -133,10 +133,6 @@ html, body {
   cursor: default;
 }
 
-.sidebar-item.schema-item:hover {
-  background: transparent;
-}
-
 .sidebar-item.table-item {
   padding-left: 24px;
 }

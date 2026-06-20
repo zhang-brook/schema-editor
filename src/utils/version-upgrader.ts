@@ -1,8 +1,8 @@
-import type { CommonConfig, Schema } from '@/types/schema'
+import type { CommonConfig, InitialData, Schema } from '@/types/schema'
 import { upgradeIndexColumns } from './index-column-utils'
 
 /** 当前编辑器支持的最高结构版本 */
-export const CURRENT_STRUCT_VERSION = '0.2'
+export const CURRENT_STRUCT_VERSION = '0.3'
 
 export interface VersionCheckResult {
   ok: boolean           // 可以继续加载
@@ -15,7 +15,7 @@ export interface VersionCheckResult {
 interface UpgradeStep {
   from: string
   to: string
-  upgrade: (schemas: Schema[]) => void
+  upgrade: (schemas: Schema[], rootHandle?: FileSystemDirectoryHandle) => void | Promise<void>
 }
 
 /**
@@ -54,6 +54,17 @@ const UPGRADE_STEPS: UpgradeStep[] = [
     upgrade: (_schemas) => {
       // schemas 数据无需迁移（Field.unified_type 为可选字段，旧数据不设置则自动回退到自由文本模式）
       // CommonConfig.unified_types 的默认值初始化在 store 的 openProject() 中处理
+    },
+  },
+  {
+    from: '0.2',
+    to: '0.3',
+    upgrade: async (_schemas, rootHandle) => {
+      // schemas 数据无需迁移
+      // initial-data JSON 格式迁移：纯数组 → 完整对象格式
+      if (rootHandle) {
+        await migrateInitialDataFormat(rootHandle)
+      }
     },
   },
 ]
@@ -99,10 +110,55 @@ export function checkVersion(commonConfig: CommonConfig | null): VersionCheckRes
 }
 
 /**
+ * 迁移 initial-data/ 目录下的 JSON 文件：
+ * 将纯数组格式 [...] 升级为完整对象格式 { rows: [...] }
+ */
+async function migrateInitialDataFormat(rootHandle: FileSystemDirectoryHandle): Promise<void> {
+  let initialDataHandle: FileSystemDirectoryHandle
+  try {
+    initialDataHandle = await rootHandle.getDirectoryHandle('initial-data')
+  } catch {
+    return // initial-data/ 目录不存在，无需迁移
+  }
+
+  for await (const schemaEntry of initialDataHandle.values()) {
+    if (schemaEntry.kind !== 'directory') continue
+    const schemaName = schemaEntry.name
+
+    for await (const fileEntry of schemaEntry.values()) {
+      if (fileEntry.kind !== 'file' || !fileEntry.name.endsWith('.json')) continue
+      const tableName = fileEntry.name.slice(0, -5)
+
+      try {
+        const file = await fileEntry.getFile()
+        const raw = JSON.parse(await file.text())
+
+        if (!Array.isArray(raw)) continue // 已是对象格式，跳过
+
+        // 纯数组 → { rows: [...] }
+        const data: InitialData = { rows: raw }
+        const exportData: Record<string, any> = { rows: data.rows }
+
+        const writable = await fileEntry.createWritable()
+        await writable.write(JSON.stringify(exportData, null, 4))
+        await writable.close()
+        console.log(`[migrateInitialDataFormat] upgraded "${schemaName}/${tableName}.json" from array to object format`)
+      } catch (e) {
+        console.warn(`[migrateInitialDataFormat] failed to migrate "${schemaName}/${fileEntry.name}":`, e)
+      }
+    }
+  }
+}
+
+/**
  * 增量升级 schema 数据：根据 fromVersion 到 CURRENT_STRUCT_VERSION
  * 按序执行所有必要的升级步骤
  */
-export function upgradeSchemaData(schemas: Schema[], fromVersion: string): void {
+export async function upgradeSchemaData(
+  schemas: Schema[],
+  fromVersion: string,
+  rootHandle?: FileSystemDirectoryHandle,
+): Promise<void> {
   // 筛选并排序需要执行的步骤
   const stepsToRun = UPGRADE_STEPS
     .filter(s => compareVersions(s.from, fromVersion) >= 0)
@@ -110,6 +166,6 @@ export function upgradeSchemaData(schemas: Schema[], fromVersion: string): void 
 
   for (const step of stepsToRun) {
     console.log(`[upgradeSchemaData] upgrading from ${step.from} to ${step.to}`)
-    step.upgrade(schemas)
+    await step.upgrade(schemas, rootHandle)
   }
 }

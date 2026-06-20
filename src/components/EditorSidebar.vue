@@ -217,16 +217,16 @@ function handleRenameSchema(sIdx: number) {
       <template v-for="(schema, sIdx) in store.schemas" :key="schema.schema">
         <div
           class="sidebar-item schema-item"
-          :class="{ collapsed: !isExpanded(sIdx), 'dragging': dragSchemaIdx === sIdx && dragTableIdx < 0 }"
+          :class="{ collapsed: !isExpanded(sIdx), active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === -1 && !store.showCommonPanel, 'dragging': dragSchemaIdx === sIdx && dragTableIdx < 0 }"
           draggable="true"
-          @click="toggleExpand(sIdx)"
+          @click="store.selectSchemaOnly(sIdx)"
           @dragstart="onSchemaDragStart($event, sIdx)"
           @dragover="onSchemaDragOver($event, sIdx)"
           @dragleave="onDragLeave"
           @drop="onSchemaDrop($event, sIdx)"
           @dragend="onDragEnd"
         >
-          <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }">&#9654;</span>
+          <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }" @click.stop="toggleExpand(sIdx)">&#9654;</span>
           <span class="schema-label">{{ schema.schema }}</span>
           <span class="schema-table-count">{{ schema.tables.length }}</span>
           <span class="schema-action-btn" @click.stop="handleRenameSchema(sIdx)" :title="$t('sidebar.renameSchema')">&#9998;</span>
@@ -333,11 +333,8 @@ function handleRenameSchema(sIdx: number) {
   user-select: none;
 }
 
-.sidebar-item:hover {
-  background: #f0f0f0;
-}
-
-.sidebar-item.active {
+.sidebar-item.active,
+.schema-item.active {
   background: #e3edf7;
   color: #4a90d9;
   font-weight: 500;

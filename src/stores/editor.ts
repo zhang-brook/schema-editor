@@ -35,7 +35,7 @@ import {
 import { checkVersion, CURRENT_STRUCT_VERSION, upgradeSchemaData } from '@/utils/version-upgrader'
 import { formatIndexColumn } from '@/utils/index-column-utils'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
-import { resolveFieldTypeForDialect } from '@/utils/sql-generator/shared'
+import { fmtPrePostSql, getGlobalPostSql, getGlobalPreSql, resolveFieldTypeForDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
 import { parseCreateTableStatements, detectDialect, convertColumnToField } from '@/utils/sql-parser'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
@@ -289,7 +289,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // 升级旧版数据结构
     if (needsUpgrade) {
-      upgradeSchemaData(schemas, versionResult.fromVersion!)
+      await upgradeSchemaData(schemas, versionResult.fromVersion!, rootHandle)
       if (commonConfig.value) {
         commonConfig.value.struct_version = CURRENT_STRUCT_VERSION
       }
@@ -307,7 +307,7 @@ export const useEditorStore = defineStore('editor', () => {
       commonConfig.value.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
     }
 
-    // 加载 initial-data
+    // 加载 initial-data（迁移已在 upgradeSchemaData 中完成，文件均为完整对象格式）
     try {
       const initialDataFiles = await readInitialDataFromHandle(rootHandle)
       for (const { key, data } of initialDataFiles) {
@@ -422,6 +422,7 @@ export const useEditorStore = defineStore('editor', () => {
       const allMysql: { name: string; sql: string }[] = []
       const allPgsql: { name: string; sql: string }[] = []
 
+      // 生成每个 Schema 的建表 SQL
       for (const schema of schemas) {
         const mysqlSql = generateSchemaMySQL(schema, commonConfig.value)
         await writeSqlToOutput(rootDirHandle.value, 'mysql', `${schema.schema}.sql`, mysqlSql)
@@ -434,10 +435,28 @@ export const useEditorStore = defineStore('editor', () => {
 
       // 生成包含所有 schema 的汇总文件（按 schema_order 顺序排列）
       if (allMysql.length > 0) {
-        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__all_schemas__.sql', allMysql.map(s => s.sql).join('\n\n'))
+        // 全局前/后置 SQL
+        const globalPreSql = getGlobalPreSql(commonConfig.value, 'mysql')
+        const globalPostSql = getGlobalPostSql(commonConfig.value, 'mysql')
+
+        const finalAllSchemaMySQL = [
+          globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
+          allMysql.map(s => s.sql).join('\n\n'),
+          globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
+        ].join('')
+        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__all_schemas__.sql', finalAllSchemaMySQL)
       }
       if (allPgsql.length > 0) {
-        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__all_schemas__.sql', allPgsql.map(s => s.sql).join('\n\n'))
+        // 全局前/后置 SQL
+        const globalPreSql = getGlobalPreSql(commonConfig.value, 'pgsql')
+        const globalPostSql = getGlobalPostSql(commonConfig.value, 'pgsql')
+
+        const finalAllSchemaPostgreSQL = [
+          globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
+          allPgsql.map(s => s.sql).join('\n\n'),
+          globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
+        ].join('')
+        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__all_schemas__.sql', finalAllSchemaPostgreSQL)
       }
 
       // 生成 Initial Data 的 INSERT 语句汇总文件
@@ -507,7 +526,15 @@ export const useEditorStore = defineStore('editor', () => {
 
   function setInitialData(schemaName: string, tableName: string, rows: Record<string, any>[]) {
     const key = initialDataKey(schemaName, tableName)
-    if (rows.length === 0) {
+    if ((rows?.length ?? 0) === 0) {
+      // 保留有 pre_sql/post_sql 的条目，仅清空数据行
+      const existing = initialDataMap.get(key)
+      if (existing?.pre_sql || existing?.post_sql) {
+        existing.rows = []
+        existing.row_comments = undefined
+        existing.field_comments = undefined
+        return
+      }
       initialDataMap.delete(key)
       initialDataDeletedKeys.add(key)
     } else {
@@ -520,6 +547,12 @@ export const useEditorStore = defineStore('editor', () => {
       if (existing?.field_comments) {
         result.field_comments = alignToLength(existing.field_comments, rows.length)
       }
+      if (existing?.pre_sql) {
+        result.pre_sql = { ...existing.pre_sql }
+      }
+      if (existing?.post_sql) {
+        result.post_sql = { ...existing.post_sql }
+      }
       initialDataMap.set(key, result)
       initialDataDeletedKeys.delete(key)
     }
@@ -528,9 +561,15 @@ export const useEditorStore = defineStore('editor', () => {
   /** JSON 模式：直接设置完整 InitialData 对象 */
   function setInitialDataObject(schemaName: string, tableName: string, data: InitialData) {
     const key = initialDataKey(schemaName, tableName)
-    if (data.rows.length === 0) {
-      initialDataMap.delete(key)
-      initialDataDeletedKeys.add(key)
+    if ((data.rows?.length ?? 0) === 0) {
+      // 保留有 pre_sql/post_sql 的条目
+      if (data.pre_sql || data.post_sql) {
+        initialDataMap.set(key, data)
+        initialDataDeletedKeys.delete(key)
+      } else {
+        initialDataMap.delete(key)
+        initialDataDeletedKeys.add(key)
+      }
     } else {
       initialDataMap.set(key, data)
       initialDataDeletedKeys.delete(key)
@@ -541,6 +580,36 @@ export const useEditorStore = defineStore('editor', () => {
     const key = initialDataKey(schemaName, tableName)
     initialDataMap.delete(key)
     initialDataDeletedKeys.add(key)
+  }
+
+  // ===== Initial Data Pre/Post SQL =====
+
+  function setInitialDataPreSql(initialData: InitialData, dialect: 'mysql' | 'pgsql', val: string) {
+    const trimmed = val.trim()
+    if (!trimmed && !initialData.pre_sql) return
+    if (!initialData.pre_sql) initialData.pre_sql = {}
+    if (trimmed) {
+      initialData.pre_sql[dialect] = trimmed
+    } else {
+      delete initialData.pre_sql[dialect]
+    }
+    if (initialData.pre_sql && !initialData.pre_sql.mysql && !initialData.pre_sql.pgsql) {
+      delete initialData.pre_sql
+    }
+  }
+
+  function setInitialDataPostSql(initialData: InitialData, dialect: 'mysql' | 'pgsql', val: string) {
+    const trimmed = val.trim()
+    if (!trimmed && !initialData.post_sql) return
+    if (!initialData.post_sql) initialData.post_sql = {}
+    if (trimmed) {
+      initialData.post_sql[dialect] = trimmed
+    } else {
+      delete initialData.post_sql[dialect]
+    }
+    if (initialData.post_sql && !initialData.post_sql.mysql && !initialData.post_sql.pgsql) {
+      delete initialData.post_sql
+    }
   }
 
   // ===== Schema Order =====
@@ -714,6 +783,15 @@ export const useEditorStore = defineStore('editor', () => {
     showCommonPanel.value = true
     selectedSchemaIdx.value = -1
     selectedTableIdx.value = -1
+  }
+
+  /** 选中 Schema（不选表），用于显示 SchemaConfigPanel */
+  function selectSchemaOnly(schemaIdx: number) {
+    showCommonPanel.value = false
+    selectedSchemaIdx.value = schemaIdx
+    selectedTableIdx.value = -1
+    expandedFields.clear()
+    expandedIndexes.clear()
   }
 
   // ===== Table CRUD =====
@@ -1137,6 +1215,95 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  // ===== Table Pre/Post SQL =====
+
+  function setTablePreSql(table: Table, dialect: 'mysql' | 'pgsql', val: string) {
+    const trimmed = val.trim()
+    if (!trimmed && !table.pre_sql) return
+    if (!table.pre_sql) table.pre_sql = {}
+    if (trimmed) {
+      table.pre_sql[dialect] = trimmed
+    } else {
+      delete table.pre_sql[dialect]
+    }
+    // 清理空对象
+    if (table.pre_sql && !table.pre_sql.mysql && !table.pre_sql.pgsql) {
+      delete table.pre_sql
+    }
+  }
+
+  function setTablePostSql(table: Table, dialect: 'mysql' | 'pgsql', val: string) {
+    const trimmed = val.trim()
+    if (!trimmed && !table.post_sql) return
+    if (!table.post_sql) table.post_sql = {}
+    if (trimmed) {
+      table.post_sql[dialect] = trimmed
+    } else {
+      delete table.post_sql[dialect]
+    }
+    if (table.post_sql && !table.post_sql.mysql && !table.post_sql.pgsql) {
+      delete table.post_sql
+    }
+  }
+
+  // ===== Schema Pre/Post SQL =====
+
+  function setSchemaPreSql(schema: Schema, dialect: 'mysql' | 'pgsql', val: string) {
+    const trimmed = val.trim()
+    if (!trimmed && !schema.pre_sql) return
+    if (!schema.pre_sql) schema.pre_sql = {}
+    if (trimmed) {
+      schema.pre_sql[dialect] = trimmed
+    } else {
+      delete schema.pre_sql[dialect]
+    }
+    if (schema.pre_sql && !schema.pre_sql.mysql && !schema.pre_sql.pgsql) {
+      delete schema.pre_sql
+    }
+  }
+
+  function setSchemaPostSql(schema: Schema, dialect: 'mysql' | 'pgsql', val: string) {
+    const trimmed = val.trim()
+    if (!trimmed && !schema.post_sql) return
+    if (!schema.post_sql) schema.post_sql = {}
+    if (trimmed) {
+      schema.post_sql[dialect] = trimmed
+    } else {
+      delete schema.post_sql[dialect]
+    }
+    if (schema.post_sql && !schema.post_sql.mysql && !schema.post_sql.pgsql) {
+      delete schema.post_sql
+    }
+  }
+
+  // ===== Global Pre/Post SQL =====
+
+  function setGlobalPreSql(dialect: 'mysql' | 'pgsql', val: string) {
+    if (!commonConfig.value) return
+    const trimmed = val.trim()
+    if (dialect === 'mysql') {
+      commonConfig.value.default_config.mysql.pre_sql = trimmed || undefined
+    } else {
+      if (!commonConfig.value.default_config.pgsql) {
+        commonConfig.value.default_config.pgsql = { quote_identifiers: true }
+      }
+      commonConfig.value.default_config.pgsql.pre_sql = trimmed || undefined
+    }
+  }
+
+  function setGlobalPostSql(dialect: 'mysql' | 'pgsql', val: string) {
+    if (!commonConfig.value) return
+    const trimmed = val.trim()
+    if (dialect === 'mysql') {
+      commonConfig.value.default_config.mysql.post_sql = trimmed || undefined
+    } else {
+      if (!commonConfig.value.default_config.pgsql) {
+        commonConfig.value.default_config.pgsql = { quote_identifiers: true }
+      }
+      commonConfig.value.default_config.pgsql.post_sql = trimmed || undefined
+    }
+  }
+
   // ===== Field mysql/pgsql override helpers =====
   function ensureFieldOverride(field: Field, db: 'mysql' | 'pgsql') {
     if (!field[db]) field[db] = {}
@@ -1204,6 +1371,14 @@ export const useEditorStore = defineStore('editor', () => {
           }
         }
 
+        // pre_sql / post_sql
+        if (table.pre_sql && (table.pre_sql.mysql || table.pre_sql.pgsql)) {
+          tableData.pre_sql = { ...table.pre_sql }
+        }
+        if (table.post_sql && (table.post_sql.mysql || table.post_sql.pgsql)) {
+          tableData.post_sql = { ...table.post_sql }
+        }
+
         // mysql table config
         if (table.mysql && Object.keys(table.mysql).length > 0) {
           const mysqlData: TableMysqlConfig = {}
@@ -1268,6 +1443,13 @@ export const useEditorStore = defineStore('editor', () => {
 
         return tableData as Table
       })
+    }
+    // schema 级别 pre_sql / post_sql
+    if (schema.pre_sql && (schema.pre_sql.mysql || schema.pre_sql.pgsql)) {
+      data.pre_sql = { ...schema.pre_sql }
+    }
+    if (schema.post_sql && (schema.post_sql.mysql || schema.post_sql.pgsql)) {
+      data.post_sql = { ...schema.post_sql }
     }
     return data
   }
@@ -1715,9 +1897,14 @@ export const useEditorStore = defineStore('editor', () => {
     setInitialDataObject,
     deleteInitialData,
 
+    // Initial Data Pre/Post SQL
+    setInitialDataPreSql,
+    setInitialDataPostSql,
+
     // Navigation
     selectTable,
     selectCommonConfig,
+    selectSchemaOnly,
 
     // Schema CRUD
     addSchema,
@@ -1774,6 +1961,14 @@ export const useEditorStore = defineStore('editor', () => {
     setTableMysqlCharset,
     setTableMysqlCollation,
 
+    // Table Pre/Post SQL
+    setTablePreSql,
+    setTablePostSql,
+
+    // Schema Pre/Post SQL
+    setSchemaPreSql,
+    setSchemaPostSql,
+
     // Field overrides
     getFieldOverrideValue,
     setFieldOverrideValue,
@@ -1793,6 +1988,10 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonPgsqlQuoteIdentifiers,
     getCommonTypeCase,
     setCommonTypeCase,
+
+    // Global Pre/Post SQL
+    setGlobalPreSql,
+    setGlobalPostSql,
 
     // Common Used Fields CRUD
     addCommonUsedField,

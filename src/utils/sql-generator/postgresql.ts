@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -80,6 +80,10 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   sql += `-- ----------------------------\n`
   sql += `-- Table structure for ${table.name}\n`
   sql += `-- ----------------------------\n`
+
+  // 表前置 SQL
+  const preSql = getTablePreSql(table, 'pgsql')
+  if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
   // DROP TABLE IF EXISTS
   sql += `DROP TABLE IF EXISTS ${qSchemaName}.${qTableName};\n`
@@ -165,6 +169,10 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
       }
     })
 
+  // 表后置 SQL
+  const postSql = getTablePostSql(table, 'pgsql')
+  if (postSql) sql += '\n' + fmtPrePostSql(postSql)
+
   return sql
 }
 
@@ -183,6 +191,10 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
     '',
   ].join('\n')
 
+  // Schema 前置 SQL
+  const schemaPreSql = getSchemaPreSql(schema, 'pgsql')
+  if (schemaPreSql) sql += fmtPrePostSql(schemaPreSql) + '\n'
+
   // 创建schema
   sql += `DROP SCHEMA IF EXISTS ${qSchema} CASCADE;\n`
   sql += `CREATE SCHEMA ${qSchema};\n\n`
@@ -193,6 +205,10 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
   })
 
   sql = sql.trimEnd() + '\n'
+
+  // Schema 后置 SQL
+  const schemaPostSql = getSchemaPostSql(schema, 'pgsql')
+  if (schemaPostSql) sql += fmtPrePostSql(schemaPostSql) + '\n'
 
   return sql
 }
@@ -268,7 +284,17 @@ export function generateInitialDataAllPostgreSQL(
     for (const table of schema.tables) {
       const key = `${schema.schema}/${table.name}`
       const initData = initialDataMap.get(key)
-      if (!initData || initData.rows.length === 0) continue
+      if (!initData) continue
+
+      const initPreSql = getInitialDataPreSql(initData, 'pgsql')
+      const initPostSql = getInitialDataPostSql(initData, 'pgsql')
+
+      const hasPreSql = !!initPreSql
+      const hasPostSql = !!initPostSql
+      const hasRows = (initData.rows?.length ?? 0) > 0
+
+      // 无数据行且无 pre/post SQL 则跳过
+      if (!hasRows && !hasPreSql && !hasPostSql) continue
 
       if (!isSchemaCommentHeaderPrinted) {
         sql += `-- ----------------------------\n`
@@ -277,14 +303,27 @@ export function generateInitialDataAllPostgreSQL(
         sql += `\n`
         isSchemaCommentHeaderPrinted = true
       }
-      // sql += `-- ----------------------------\n`
-      // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
-      // sql += `-- ----------------------------\n`
-      const qSchema = quoteIdent(schema.schema, commonConfig)
-      const qTable = quoteIdent(table.name, commonConfig)
-      sql += `-- Insert data into ${qSchema}.${qTable}\n`
-      sql += generateInitialDataPostgreSQL(table, schema.schema, initData.rows, initData.row_comments, commonConfig)
-      sql += '\n'
+
+      // initial-data 级别前置 SQL
+      if (hasPreSql) {
+        sql += fmtPrePostSql(initPreSql) + '\n'
+      }
+
+      if (hasRows) {
+        // sql += `-- ----------------------------\n`
+        // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
+        // sql += `-- ----------------------------\n`
+        const qSchema = quoteIdent(schema.schema, commonConfig)
+        const qTable = quoteIdent(table.name, commonConfig)
+        sql += `-- Insert data into ${qSchema}.${qTable}\n`
+        sql += generateInitialDataPostgreSQL(table, schema.schema, initData.rows, initData.row_comments, commonConfig)
+        sql += '\n'
+      }
+
+      // initial-data 级别后置 SQL
+      if (hasPostSql) {
+        sql += fmtPrePostSql(initPostSql) + '\n'
+      }
     }
   }
 

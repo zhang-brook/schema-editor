@@ -178,7 +178,7 @@ export async function readInitialDataFromHandle(
         const normalized = normalizeInitialData(parsed)
         if (normalized) {
           result.push({ key: `${schemaName}/${tableName}`, data: normalized })
-          console.log(`[readInitialData] loaded "${schemaName}/${tableName}" (${normalized.rows.length} rows)`)
+          console.log(`[readInitialData] loaded "${schemaName}/${tableName}" (${normalized.rows?.length ?? 0} rows)`)
         } else {
           console.warn(`[readInitialData] "${schemaName}/${fName}" invalid format, skipping`)
         }
@@ -191,20 +191,16 @@ export async function readInitialDataFromHandle(
   return result
 }
 
-/** 归一化原始 JSON 数据为 InitialData 格式 — 兼容旧格式纯数组 */
+/** 归一化原始 JSON 数据为 InitialData 格式（v0.3+ 只接受对象格式，数组格式已由 version-upgrader 迁移） */
 function normalizeInitialData(raw: unknown): InitialData | null {
-  if (Array.isArray(raw)) {
-    return { rows: raw }
-  }
-  if (raw && typeof raw === 'object' && Array.isArray((raw as any).rows)) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     const obj = raw as Record<string, any>
-    const result: InitialData = { rows: obj.rows }
-    if (Array.isArray(obj.row_comments)) {
-      result.row_comments = obj.row_comments
-    }
-    if (Array.isArray(obj.field_comments)) {
-      result.field_comments = obj.field_comments
-    }
+    const result: InitialData = {}
+    if (Array.isArray(obj.rows)) result.rows = obj.rows
+    if (Array.isArray(obj.row_comments)) result.row_comments = obj.row_comments
+    if (Array.isArray(obj.field_comments)) result.field_comments = obj.field_comments
+    if (obj.pre_sql && typeof obj.pre_sql === 'object') result.pre_sql = { ...obj.pre_sql }
+    if (obj.post_sql && typeof obj.post_sql === 'object') result.post_sql = { ...obj.post_sql }
     return result
   }
   return null
@@ -218,7 +214,7 @@ function isAllNull(arr: (unknown | null)[] | undefined): boolean {
 
 /**
  * 将初始数据写入 initial-data/<schemaName>/<tableName>.json
- * 序列化优化：若注释数组全为 null 则只写 rows 数组（最小文件体积）
+ * v0.3+：永远使用完整对象格式 { rows, row_comments?, field_comments?, pre_sql?, post_sql? }
  */
 export async function writeInitialDataToHandle(
   rootHandle: FileSystemDirectoryHandle,
@@ -230,12 +226,22 @@ export async function writeInitialDataToHandle(
   const schemaHandle = await initialDataHandle.getDirectoryHandle(schemaName, { create: true })
   const fileHandle = await schemaHandle.getFileHandle(`${tableName}.json`, { create: true })
   const writable = await fileHandle.createWritable()
-  // 优化：若注释全为 null，只写 rows 数组
-  if (isAllNull(data.row_comments) && isAllNull(data.field_comments)) {
-    await writable.write(JSON.stringify(toRaw(data.rows), null, jsonFileIndent))
-  } else {
-    await writable.write(JSON.stringify(toRaw(data), null, jsonFileIndent))
+
+  // 构建干净的导出对象，只包含已配置的属性
+  const exportData: Record<string, any> = {}
+  if (data.rows) exportData.rows = toRaw(data.rows)
+  if (data.row_comments && !isAllNull(data.row_comments)) {
+    exportData.row_comments = toRaw(data.row_comments)
   }
+  if (data.field_comments && !isAllNull(data.field_comments)) {
+    exportData.field_comments = toRaw(data.field_comments)
+  }
+  const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.pgsql))
+  if (hasPreSql) exportData.pre_sql = toRaw(data.pre_sql)
+  const hasPostSql = !!(data.post_sql && (data.post_sql.mysql || data.post_sql.pgsql))
+  if (hasPostSql) exportData.post_sql = toRaw(data.post_sql)
+
+  await writable.write(JSON.stringify(exportData, null, jsonFileIndent))
   await writable.close()
 }
 

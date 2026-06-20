@@ -91,7 +91,17 @@
       "lowercase": "統一轉換為小寫",
       "uppercase": "統一轉換為大寫",
       "pascal": "統一轉換為大駝峰"
-    }
+    },
+    "prePostSql": "全域前置 / 後置 SQL",
+    "preSqlPlaceholder": "在所有表之前執行的 SQL 語句...",
+    "postSqlPlaceholder": "在所有表之後執行的 SQL 語句..."
+  },
+  "schemaConfig": {
+    "title": "Schema 設定：",
+    "tableCount": "{n} 張表",
+    "prePostSql": "Schema 前置 / 後置 SQL",
+    "preSqlPlaceholder": "在此 Schema 的所有表之前執行的 SQL 語句...",
+    "postSqlPlaceholder": "在此 Schema 的所有表之後執行的 SQL 語句..."
   },
   "tableEditor": {
     "table": "表：",
@@ -101,7 +111,10 @@
     "commentHint": "每行會生成為一條 SQL 註解。空行代表空行（null）。",
     "mysqlEngine": "MySQL 引擎",
     "mysqlCharset": "MySQL 字元集",
-    "mysqlCollation": "MySQL 排序規則"
+    "mysqlCollation": "MySQL 排序規則",
+    "prePostSql": "表前置 / 後置 SQL",
+    "preSqlPlaceholder": "CREATE TABLE 之前執行的 SQL 語句...",
+    "postSqlPlaceholder": "CREATE TABLE 之後執行的 SQL 語句..."
   },
   "fieldTable": {
     "fields": "欄位",
@@ -180,9 +193,15 @@
   },
   "initialData": {
     "title": "初始資料",
+    "init": "開始配置初始資料",
+    "prePostSql": "初始資料前置 / 後置 SQL",
+    "preSqlPlaceholder": "INSERT 之前執行的 SQL 語句...",
+    "postSqlPlaceholder": "INSERT 之後執行的 SQL 語句...",
     "table": "表格",
     "json": "JSON",
     "clear": "清空",
+    "clearAll": "清除當前標籤頁以下所有設定",
+    "clearRowsConfirm": "確認清空當前資料列？",
     "addData": "新增資料",
     "addRow": "新增列",
     "hash": "#",
@@ -241,6 +260,10 @@
     "deleteField": "確認刪除欄位 \"{name}\"？",
     "deleteIndex": "確認刪除此索引？",
     "deleteCommonField": "公共欄位 \"{name}\" 被以下表引用：\n{refs}\n\n仍要刪除嗎？引用將變為無效。"
+  },
+  "prePostSql": {
+    "pre": "前置 SQL",
+    "post": "後置 SQL"
   },
   "importSqlModal": {
     "title": "匯入 SQL 建表語句",

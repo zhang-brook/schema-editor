@@ -1,3 +1,9 @@
+/** 前置/后置 SQL 语句（按方言分别配置） */
+export interface SqlStatements {
+  mysql?: string
+  pgsql?: string
+}
+
 /** 字段类型大小写转换模式 */
 export type TypeCaseMode = 'keep' | 'lowercase' | 'uppercase' | 'pascal'
 
@@ -99,11 +105,19 @@ export interface Table {
   mysql?: TableMysqlConfig
   fields: Field[]
   indexes: Index[]
+  /** 前置 SQL（按方言分别配置，生成在 CREATE TABLE 和 INSERT 之前） */
+  pre_sql?: SqlStatements
+  /** 后置 SQL（按方言分别配置，生成在 CREATE TABLE 和 INSERT 之后） */
+  post_sql?: SqlStatements
 }
 
 export interface Schema {
   schema: string
   tables: Table[]
+  /** 前置 SQL（按方言分别配置，生成在所有表之前） */
+  pre_sql?: SqlStatements
+  /** 后置 SQL（按方言分别配置，生成在所有表之后） */
+  post_sql?: SqlStatements
 }
 
 export interface DefaultConfig {
@@ -114,9 +128,17 @@ export interface DefaultConfig {
       mysql_charset: string
       mysql_collation: string
     }
+    /** 全局前置 SQL（MySQL 方言） */
+    pre_sql?: string
+    /** 全局后置 SQL（MySQL 方言） */
+    post_sql?: string
   }
   pgsql: {
     quote_identifiers: boolean
+    /** 全局前置 SQL（PostgreSQL 方言） */
+    pre_sql?: string
+    /** 全局后置 SQL（PostgreSQL 方言） */
+    post_sql?: string
   }
 }
 
@@ -134,7 +156,11 @@ export interface CommonConfig {
 }
 
 export interface InitialData {
-  rows: Record<string, any>[]
+  rows?: Record<string, any>[]
   row_comments?: (string | null)[]
   field_comments?: (Record<string, string> | null)[]
+  /** 前置 SQL（按方言分别配置，生成在 INSERT 之前） */
+  pre_sql?: SqlStatements
+  /** 后置 SQL（按方言分别配置，生成在 INSERT 之后） */
+  post_sql?: SqlStatements
 }

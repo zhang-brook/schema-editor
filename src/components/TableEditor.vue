@@ -1,11 +1,33 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
+import { getTablePreSql, getTablePostSql } from '@/utils/sql-generator/shared'
 import FieldTable from './FieldTable.vue'
 import IndexTable from './IndexTable.vue'
 import SqlPreview from './SqlPreview.vue'
 import InitialDataEditor from './InitialDataEditor.vue'
+import PrePostSqlEditor from './PrePostSqlEditor.vue'
 
 const store = useEditorStore()
+
+function tablePreSql(dialect: 'mysql' | 'pgsql'): string {
+  if (!store.currentTable) return ''
+  return getTablePreSql(store.currentTable, dialect)
+}
+
+function tablePostSql(dialect: 'mysql' | 'pgsql'): string {
+  if (!store.currentTable) return ''
+  return getTablePostSql(store.currentTable, dialect)
+}
+
+function setTablePreSql(dialect: 'mysql' | 'pgsql', val: string) {
+  if (!store.currentTable) return
+  store.setTablePreSql(store.currentTable, dialect, val)
+}
+
+function setTablePostSql(dialect: 'mysql' | 'pgsql', val: string) {
+  if (!store.currentTable) return
+  store.setTablePostSql(store.currentTable, dialect, val)
+}
 </script>
 
 <template>
@@ -64,6 +86,22 @@ const store = useEditorStore()
 
     <!-- SQL Preview -->
     <SqlPreview />
+
+    <!-- Table Pre/Post SQL -->
+    <PrePostSqlEditor
+      :title="$t('tableEditor.prePostSql')"
+      :pre-placeholder="$t('tableEditor.preSqlPlaceholder')"
+      :post-placeholder="$t('tableEditor.postSqlPlaceholder')"
+      :mysql-pre="tablePreSql('mysql')"
+      :mysql-post="tablePostSql('mysql')"
+      :pgsql-pre="tablePreSql('pgsql')"
+      :pgsql-post="tablePostSql('pgsql')"
+      :rows="3"
+      @update:mysql-pre="setTablePreSql('mysql', $event)"
+      @update:mysql-post="setTablePostSql('mysql', $event)"
+      @update:pgsql-pre="setTablePreSql('pgsql', $event)"
+      @update:pgsql-post="setTablePostSql('pgsql', $event)"
+    />
 
     <!-- Initial Data -->
     <InitialDataEditor />

@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import type { Field, UnifiedTypeDefinition } from '@/types/schema'
 import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
+import { getGlobalPreSql, getGlobalPostSql } from '@/utils/sql-generator/shared'
+import PrePostSqlEditor from './PrePostSqlEditor.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -584,6 +586,21 @@ function handleDeleteUnifiedType(idx: number) {
         </div>
       </div>
     </div>
+
+    <!-- Pre/Post SQL -->
+    <PrePostSqlEditor
+      :title="$t('commonConfig.prePostSql')"
+      :pre-placeholder="$t('commonConfig.preSqlPlaceholder')"
+      :post-placeholder="$t('commonConfig.postSqlPlaceholder')"
+      :mysql-pre="getGlobalPreSql(store.commonConfig, 'mysql')"
+      :mysql-post="getGlobalPostSql(store.commonConfig, 'mysql')"
+      :pgsql-pre="getGlobalPreSql(store.commonConfig, 'pgsql')"
+      :pgsql-post="getGlobalPostSql(store.commonConfig, 'pgsql')"
+      @update:mysql-pre="store.setGlobalPreSql('mysql', $event)"
+      @update:mysql-post="store.setGlobalPostSql('mysql', $event)"
+      @update:pgsql-pre="store.setGlobalPreSql('pgsql', $event)"
+      @update:pgsql-post="store.setGlobalPostSql('pgsql', $event)"
+    />
 
     <!-- Field Type Case -->
     <div class="section-card">

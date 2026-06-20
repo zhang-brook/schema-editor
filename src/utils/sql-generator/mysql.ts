@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -126,6 +126,10 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   sql += `-- Table structure for ${table.name}\n`
   sql += `-- ----------------------------\n`
 
+  // 表前置 SQL
+  const preSql = getTablePreSql(table, 'mysql')
+  if (preSql) sql += fmtPrePostSql(preSql) + '\n'
+
   // DROP TABLE IF EXISTS
   sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
 
@@ -190,6 +194,10 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   sql += ` COMMENT = '${table.comment}'`
   sql += ' ROW_FORMAT = Dynamic;\n'
 
+  // 表后置 SQL
+  const postSql = getTablePostSql(table, 'mysql')
+  if (postSql) sql += '\n' + fmtPrePostSql(postSql)
+
   return sql
 }
 
@@ -211,12 +219,22 @@ export function generateSchemaMySQL(schema: Schema, commonConfig: CommonConfig |
     '',
   ].join('\n')
 
+  // Schema 前置 SQL
+  const schemaPreSql = getSchemaPreSql(schema, 'mysql')
+  if (schemaPreSql) sql += fmtPrePostSql(schemaPreSql) + '\n'
+
   schema.tables.forEach(table => {
     sql += generateTableMySQL(table, commonConfig)
     sql += '\n\n\n'
   })
 
-  sql = sql.trimEnd() + '\n\n' + 'SET FOREIGN_KEY_CHECKS = 1;' + '\n'
+  sql = sql.trimEnd() + '\n\n'
+
+  // Schema 后置 SQL
+  const schemaPostSql = getSchemaPostSql(schema, 'mysql')
+  if (schemaPostSql) sql += fmtPrePostSql(schemaPostSql) + '\n'
+
+  sql = sql + 'SET FOREIGN_KEY_CHECKS = 1;' + '\n'
 
   return sql
 }
@@ -293,7 +311,17 @@ export function generateInitialDataAllMySQL(
     for (const table of schema.tables) {
       const key = `${schema.schema}/${table.name}`
       const initData = initialDataMap.get(key)
-      if (!initData || initData.rows.length === 0) continue
+      if (!initData) continue
+
+      const initPreSql = getInitialDataPreSql(initData, 'mysql')
+      const initPostSql = getInitialDataPostSql(initData, 'mysql')
+
+      const hasPreSql = !!initPreSql
+      const hasPostSql = !!initPostSql
+      const hasRows = (initData.rows?.length ?? 0) > 0
+
+      // 无数据行且无 pre/post SQL 则跳过
+      if (!hasRows && !hasPreSql && !hasPostSql) continue
 
       if (!isSchemaCommentHeaderPrinted) {
         sql += `-- ----------------------------\n`
@@ -302,12 +330,25 @@ export function generateInitialDataAllMySQL(
         sql += `\n`
         isSchemaCommentHeaderPrinted = true
       }
-      // sql += `-- ----------------------------\n`
-      // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
-      // sql += `-- ----------------------------\n`
-      sql += `-- Insert data into \`${table.name}\`\n`
-      sql += generateInitialDataMySQL(table, initData.rows, initData.row_comments)
-      sql += '\n'
+
+      // initial-data 级别前置 SQL
+      if (hasPreSql) {
+        sql += fmtPrePostSql(initPreSql) + '\n'
+      }
+
+      if (hasRows) {
+        // sql += `-- ----------------------------\n`
+        // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
+        // sql += `-- ----------------------------\n`
+        sql += `-- Insert data into \`${table.name}\`\n`
+        sql += generateInitialDataMySQL(table, initData.rows, initData.row_comments)
+        sql += '\n'
+      }
+
+      // initial-data 级别后置 SQL
+      if (hasPostSql) {
+        sql += fmtPrePostSql(initPostSql) + '\n'
+      }
     }
   }
 

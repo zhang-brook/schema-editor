@@ -3,6 +3,7 @@ import { useEditorStore } from '@/stores/editor'
 import EditorToolbar from '@/components/EditorToolbar.vue'
 import EditorSidebar from '@/components/EditorSidebar.vue'
 import CommonConfigPanel from '@/components/CommonConfigPanel.vue'
+import SchemaConfigPanel from '@/components/SchemaConfigPanel.vue'
 import TableEditor from '@/components/TableEditor.vue'
 import AddFieldModal from '@/components/AddFieldModal.vue'
 import ImportSqlModal from '@/components/ImportSqlModal.vue'
@@ -23,6 +24,9 @@ const store = useEditorStore()
       <div class="content">
         <!-- Common 配置面板 -->
         <CommonConfigPanel v-if="store.showCommonPanel && store.commonConfig" />
+
+        <!-- Schema 配置面板 -->
+        <SchemaConfigPanel v-else-if="store.currentSchema && store.selectedTableIdx === -1" />
 
         <!-- 表编辑面板 -->
         <TableEditor v-else-if="store.currentTable" />

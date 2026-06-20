@@ -91,7 +91,17 @@
       "lowercase": "Convert to Lowercase",
       "uppercase": "Convert to Uppercase",
       "pascal": "Convert to PascalCase"
-    }
+    },
+    "prePostSql": "Global Pre / Post SQL",
+    "preSqlPlaceholder": "SQL statements executed before all schemas...",
+    "postSqlPlaceholder": "SQL statements executed after all schemas..."
+  },
+  "schemaConfig": {
+    "title": "Schema Config:",
+    "tableCount": "{n} table(s)",
+    "prePostSql": "Schema Pre / Post SQL",
+    "preSqlPlaceholder": "SQL statements executed before all tables in this schema...",
+    "postSqlPlaceholder": "SQL statements executed after all tables in this schema..."
   },
   "tableEditor": {
     "table": "Table:",
@@ -101,7 +111,10 @@
     "commentHint": "Each line becomes a SQL comment. Blank lines represent empty lines (null).",
     "mysqlEngine": "MySQL Engine",
     "mysqlCharset": "MySQL Charset",
-    "mysqlCollation": "MySQL Collation"
+    "mysqlCollation": "MySQL Collation",
+    "prePostSql": "Table Pre / Post SQL",
+    "preSqlPlaceholder": "SQL statements executed before CREATE TABLE...",
+    "postSqlPlaceholder": "SQL statements executed after CREATE TABLE..."
   },
   "fieldTable": {
     "fields": "Fields",
@@ -180,9 +193,15 @@
   },
   "initialData": {
     "title": "Initial Data",
+    "init": "Start Initial Data Configuration",
+    "prePostSql": "Initial Data Pre / Post SQL",
+    "preSqlPlaceholder": "SQL statements executed before INSERT...",
+    "postSqlPlaceholder": "SQL statements executed after INSERT...",
     "table": "Table",
     "json": "JSON",
     "clear": "Clear",
+    "clearAll": "Clear All Settings Below",
+    "clearRowsConfirm": "Clear all data rows?",
     "addData": "Add Data",
     "addRow": "Add Row",
     "hash": "#",
@@ -241,6 +260,10 @@
     "deleteField": "Delete field \"{name}\"?",
     "deleteIndex": "Delete this index?",
     "deleteCommonField": "Common field \"{name}\" is referenced by:\n{refs}\n\nDelete it anyway? References will become stale."
+  },
+  "prePostSql": {
+    "pre": "Pre-SQL",
+    "post": "Post-SQL"
   },
   "importSqlModal": {
     "title": "Import SQL CREATE TABLE",

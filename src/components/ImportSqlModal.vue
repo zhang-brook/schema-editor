@@ -96,6 +96,14 @@ function formatConstraintType(type: string): string {
 // 错误和警告分类
 const errors = computed(() => store.importSqlErrors.filter(e => e.type === 'error'))
 const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'warning'))
+
+// SQL 中检测到的 schema 提示
+const detectedSchemaHint = computed(() => {
+  const schema = store.importSqlDetectedSchema
+  if (!schema) return null
+  const matched = store.schemas.some(s => s.schema === schema)
+  return { schema, matched }
+})
 </script>
 
 <template>
@@ -224,13 +232,24 @@ const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'wa
       <!-- 导入目标 -->
       <div v-if="parsedSummary" class="import-target">
         <label class="form-label">{{ $t('importSqlModal.target') }}</label>
+
+        <!-- SQL schema 智能检测提示 -->
+        <div v-if="detectedSchemaHint" class="schema-detect-hint">
+          <template v-if="detectedSchemaHint.matched">
+            {{ $t('importSqlModal.schemaDetectedMatched', { schema: detectedSchemaHint.schema }) }}
+          </template>
+          <template v-else>
+            {{ $t('importSqlModal.schemaDetectedNew', { schema: detectedSchemaHint.schema }) }}
+          </template>
+        </div>
+
         <div class="radio-group">
           <label class="radio-label">
-            <input type="radio" value="new" v-model="store.importSqlTargetMode" />
+            <input type="radio" value="new" v-model="store.importSqlTargetMode" @change="store.importSqlDetectedSchema = null" />
             {{ $t('importSqlModal.newSchema') }}
           </label>
           <label class="radio-label">
-            <input type="radio" value="existing" v-model="store.importSqlTargetMode" />
+            <input type="radio" value="existing" v-model="store.importSqlTargetMode" @change="store.importSqlDetectedSchema = null" />
             {{ $t('importSqlModal.existingSchema') }}
           </label>
         </div>
@@ -240,11 +259,13 @@ const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'wa
             class="form-input target-input"
             v-model="store.importSqlNewSchemaName"
             :placeholder="$t('importSqlModal.schemaNamePlaceholder')"
+            @input="store.importSqlDetectedSchema = null"
           />
           <select
             v-else
             class="form-input target-input"
             v-model="store.importSqlTargetSchemaIdx"
+            @change="store.importSqlDetectedSchema = null"
           >
             <option value="-1" disabled>{{ $t('importSqlModal.selectSchema') }}</option>
             <option v-for="opt in schemaOptions" :key="opt.index" :value="opt.index">
@@ -579,6 +600,17 @@ const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'wa
   padding: 1px 5px;
   border-radius: 2px;
   font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* SQL schema 检测提示 */
+.schema-detect-hint {
+  font-size: 11px;
+  color: #4a90d9;
+  background: #edf4fc;
+  padding: 5px 8px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+  border: 1px solid #c5d9f0;
 }
 
 /* 导入目标 */

@@ -293,6 +293,8 @@
     "existingSchema": "Append to Existing Schema",
     "schemaNamePlaceholder": "Schema name...",
     "selectSchema": "-- Select Schema --",
+    "schemaDetectedMatched": "SQL specifies schema \"{schema}\" → matched existing Schema",
+    "schemaDetectedNew": "SQL specifies schema \"{schema}\" → will create new Schema",
     "cancel": "Cancel",
     "importBtn": "Import",
     "imported": "Imported {count} table(s)",

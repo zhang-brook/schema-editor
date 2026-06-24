@@ -80,6 +80,7 @@ export const useEditorStore = defineStore('editor', () => {
   const importSqlTargetMode = ref<'new' | 'existing'>('new')
   const importSqlTargetSchemaIdx = ref(-1)
   const importSqlNewSchemaName = ref('')
+  const importSqlDetectedSchema = ref<string | null>(null)
 
   // ===== Computed =====
   const currentSchema = computed(() => {
@@ -1799,6 +1800,7 @@ export const useEditorStore = defineStore('editor', () => {
     importSqlParsedTables.value = []
     importSqlErrors.value = []
     importSqlDialect.value = 'auto'
+    importSqlDetectedSchema.value = null
     importSqlTargetMode.value = targetSchemaIdx !== undefined ? 'existing' : 'new'
     importSqlTargetSchemaIdx.value = targetSchemaIdx ?? -1
     importSqlNewSchemaName.value = 'imported'
@@ -1809,6 +1811,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (!text) {
       importSqlParsedTables.value = []
       importSqlErrors.value = []
+      importSqlDetectedSchema.value = null
       return
     }
 
@@ -1823,6 +1826,28 @@ export const useEditorStore = defineStore('editor', () => {
         if (detected !== 'unknown') {
           importSqlDialect.value = detected
         }
+      }
+
+      // 智能检测 SQL 中的 schema 并自动配置导入目标
+      const parsedSchemas = new Set(
+        result.tables
+          .map(t => t.schema)
+          .filter((s): s is string => !!s)
+      )
+      if (parsedSchemas.size > 0) {
+        const sqlSchema = [...parsedSchemas][0]!
+        importSqlDetectedSchema.value = sqlSchema
+        // 尝试匹配已有 schema
+        const existingIdx = schemas.findIndex(s => s.schema === sqlSchema)
+        if (existingIdx >= 0) {
+          importSqlTargetMode.value = 'existing'
+          importSqlTargetSchemaIdx.value = existingIdx
+        } else {
+          importSqlTargetMode.value = 'new'
+          importSqlNewSchemaName.value = sqlSchema
+        }
+      } else {
+        importSqlDetectedSchema.value = null
       }
     } catch (e) {
       importSqlParsedTables.value = []
@@ -1910,6 +1935,7 @@ export const useEditorStore = defineStore('editor', () => {
     importSqlTargetMode,
     importSqlTargetSchemaIdx,
     importSqlNewSchemaName,
+    importSqlDetectedSchema,
 
     // Computed
     currentSchema,

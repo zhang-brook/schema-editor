@@ -293,6 +293,8 @@
     "existingSchema": "追加到现有 Schema",
     "schemaNamePlaceholder": "Schema 名称...",
     "selectSchema": "-- 选择 Schema --",
+    "schemaDetectedMatched": "SQL 中指定了 schema「{schema}」→ 已自动匹配现有 Schema",
+    "schemaDetectedNew": "SQL 中指定了 schema「{schema}」→ 将以此名称新建 Schema",
     "cancel": "取消",
     "importBtn": "确认导入",
     "imported": "已导入 {count} 张表",

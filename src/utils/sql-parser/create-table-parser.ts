@@ -214,8 +214,12 @@ export function parseCreateTableStatements(input: string): ParseResult {
 
     if (state.isEOF()) break
 
+    // 处理 COMMENT ON TABLE / COMMENT ON COLUMN (PostgreSQL)
+    if (state.isKeyword('COMMENT')) {
+      parseCommentOnStatement(state, tables)
+    }
     // 查找 CREATE TABLE
-    if (state.isKeyword('CREATE')) {
+    else if (state.isKeyword('CREATE')) {
       const createToken = state.advance() // CREATE
 
       // OR REPLACE (PostgreSQL)
@@ -880,6 +884,141 @@ function parseNamedConstraint(state: ParserState): ParsedConstraint | null {
   }
 
   return null
+}
+
+// ===== COMMENT ON 语句解析 (PostgreSQL) =====
+
+/** 解析完全限定名: [schema.]table */
+function parseQualifiedName(state: ParserState): { schema?: string; table: string } {
+  let first: string
+  if (state.isIdentOrKeyword()) {
+    first = state.getIdentValue(state.advance())
+  } else {
+    state.addError('Expected identifier in COMMENT ON', state.current())
+    throw new Error('Expected identifier')
+  }
+
+  if (state.matchSymbol('.')) {
+    const schema = first
+    let second: string
+    if (state.isIdentOrKeyword()) {
+      second = state.getIdentValue(state.advance())
+    } else {
+      state.addError('Expected table name after dot', state.current())
+      throw new Error('Expected table name')
+    }
+    return { schema, table: second }
+  }
+
+  return { table: first }
+}
+
+/** 解析完全限定列名: [schema.]table.column */
+function parseQualifiedColumnName(state: ParserState): { schema?: string; table: string; column: string } {
+  let first: string
+  if (state.isIdentOrKeyword()) {
+    first = state.getIdentValue(state.advance())
+  } else {
+    state.addError('Expected identifier in COMMENT ON COLUMN', state.current())
+    throw new Error('Expected identifier')
+  }
+
+  if (state.matchSymbol('.')) {
+    let second: string
+    if (state.isIdentOrKeyword()) {
+      second = state.getIdentValue(state.advance())
+    } else {
+      state.addError('Expected table name after dot', state.current())
+      throw new Error('Expected table name')
+    }
+
+    if (state.matchSymbol('.')) {
+      // schema.table.column
+      let third: string
+      if (state.isIdentOrKeyword()) {
+        third = state.getIdentValue(state.advance())
+      } else {
+        state.addError('Expected column name after dot', state.current())
+        throw new Error('Expected column name')
+      }
+      return { schema: first, table: second, column: third }
+    }
+
+    // table.column
+    return { table: first, column: second }
+  }
+
+  // 只有列名（不太可能出现在 COMMENT ON COLUMN 中，但做容错处理）
+  return { table: '', column: first }
+}
+
+/**
+ * 解析独立的 COMMENT ON TABLE / COMMENT ON COLUMN 语句（PostgreSQL）
+ * 将注释应用到已解析的 ParsedTable / ParsedColumn 上
+ */
+function parseCommentOnStatement(state: ParserState, tables: ParsedTable[]): void {
+  state.advance() // COMMENT
+
+  if (!state.matchKeyword('ON')) {
+    state.skipToSemicolon()
+    return
+  }
+
+  if (state.isKeyword('TABLE')) {
+    state.advance() // TABLE
+    try {
+      const { schema, table: tableName } = parseQualifiedName(state)
+      if (!state.matchKeyword('IS')) {
+        state.addError("Expected 'IS' in COMMENT ON TABLE", state.current())
+        state.skipToSemicolon()
+        return
+      }
+      const commentStr = state.current().type === TokenType.STRING ? state.advance().value : undefined
+      state.matchSymbol(';')
+
+      if (commentStr !== undefined) {
+        const targetTable = tables.find(t => {
+          if (schema) return t.name === tableName && t.schema === schema
+          return t.name === tableName
+        })
+        if (targetTable) {
+          targetTable.comment = commentStr
+        }
+      }
+    } catch {
+      state.skipToSemicolon()
+    }
+  } else if (state.isKeyword('COLUMN')) {
+    state.advance() // COLUMN
+    try {
+      const { schema, table: tableName, column: columnName } = parseQualifiedColumnName(state)
+      if (!state.matchKeyword('IS')) {
+        state.addError("Expected 'IS' in COMMENT ON COLUMN", state.current())
+        state.skipToSemicolon()
+        return
+      }
+      const commentStr = state.current().type === TokenType.STRING ? state.advance().value : undefined
+      state.matchSymbol(';')
+
+      if (commentStr !== undefined) {
+        const targetTable = tables.find(t => {
+          if (schema) return t.name === tableName && t.schema === schema
+          return t.name === tableName
+        })
+        if (targetTable) {
+          const targetCol = targetTable.columns.find(c => c.name === columnName)
+          if (targetCol) {
+            targetCol.comment = commentStr
+          }
+        }
+      }
+    } catch {
+      state.skipToSemicolon()
+    }
+  } else {
+    // 不支持的 COMMENT ON 目标类型，跳过
+    state.skipToSemicolon()
+  }
 }
 
 // ===== 表选项解析 =====

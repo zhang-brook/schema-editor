@@ -405,6 +405,8 @@ function onTableNameEdit(idx: number, val: string) {
   border-radius: 4px;
   overflow: hidden;
   transition: border-color .15s;
+  min-height: 120px;
+  max-height: 250px;
 }
 
 .sql-input-container:focus-within {
@@ -439,8 +441,6 @@ function onTableNameEdit(idx: number, val: string) {
   font-size: 12px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   color: #333;
-  min-height: 120px;
-  max-height: 250px;
   resize: vertical;
   tab-size: 2;
   line-height: 1.6;

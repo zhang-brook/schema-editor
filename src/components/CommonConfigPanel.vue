@@ -587,6 +587,29 @@ function handleDeleteUnifiedType(idx: number) {
       </div>
     </div>
 
+    <!-- DDL 生成选项 -->
+    <div class="section-card">
+      <div class="section-header">{{ $t('commonConfig.ddlOptionsTitle') }}</div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">{{ $t('commonConfig.createTableIfNotExists') }}</label>
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="store.getCreateTableIfNotExists()"
+                  @change="store.setCreateTableIfNotExists(($event.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-hint">{{ $t('commonConfig.createTableIfNotExistsHint') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Pre/Post SQL -->
     <PrePostSqlEditor
       :title="$t('commonConfig.prePostSql')"

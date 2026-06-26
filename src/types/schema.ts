@@ -121,6 +121,8 @@ export interface Schema {
 }
 
 export interface DefaultConfig {
+  /** 使用 CREATE TABLE IF NOT EXISTS 替代 DROP TABLE IF EXISTS + CREATE TABLE */
+  create_table_if_not_exists?: boolean
   mysql: {
     database: Record<string, unknown>
     table: {

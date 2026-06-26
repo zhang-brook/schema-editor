@@ -130,11 +130,14 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   const preSql = getTablePreSql(table, 'mysql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DROP TABLE IF EXISTS
-  sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
-
-  // CREATE TABLE
-  sql += `CREATE TABLE \`${table.name}\` (\n`
+  // DROP TABLE IF EXISTS / CREATE TABLE IF NOT EXISTS
+  const useIfNotExists = commonConfig?.default_config?.create_table_if_not_exists ?? false
+  if (useIfNotExists) {
+    sql += `CREATE TABLE IF NOT EXISTS \`${table.name}\` (\n`
+  } else {
+    sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
+    sql += `CREATE TABLE \`${table.name}\` (\n`
+  }
 
   // 字段定义
   const fieldDefinitions = table.fields.map(field => {

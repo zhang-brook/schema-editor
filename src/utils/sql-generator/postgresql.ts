@@ -85,11 +85,14 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   const preSql = getTablePreSql(table, 'pgsql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DROP TABLE IF EXISTS
-  sql += `DROP TABLE IF EXISTS ${qSchemaName}.${qTableName};\n`
-
-  // CREATE TABLE
-  sql += `CREATE TABLE ${qSchemaName}.${qTableName} (\n`
+  // DROP TABLE IF EXISTS / CREATE TABLE IF NOT EXISTS
+  const useIfNotExists = commonConfig?.default_config?.create_table_if_not_exists ?? false
+  if (useIfNotExists) {
+    sql += `CREATE TABLE IF NOT EXISTS ${qSchemaName}.${qTableName} (\n`
+  } else {
+    sql += `DROP TABLE IF EXISTS ${qSchemaName}.${qTableName};\n`
+    sql += `CREATE TABLE ${qSchemaName}.${qTableName} (\n`
+  }
 
   // 字段定义
   const fieldDefinitions = table.fields.map(field => {

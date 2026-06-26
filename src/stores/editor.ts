@@ -1523,6 +1523,15 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  function getCreateTableIfNotExists(): boolean {
+    return commonConfig.value?.default_config?.create_table_if_not_exists ?? false
+  }
+  function setCreateTableIfNotExists(val: boolean) {
+    if (commonConfig.value) {
+      commonConfig.value.default_config.create_table_if_not_exists = val || undefined
+    }
+  }
+
   function getCommonTypeCase(): TypeCaseMode {
     return commonConfig.value?.type_case ?? 'keep'
   }
@@ -2049,6 +2058,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonMysqlCollation,
     getCommonPgsqlQuoteIdentifiers,
     setCommonPgsqlQuoteIdentifiers,
+    getCreateTableIfNotExists,
+    setCreateTableIfNotExists,
     getCommonTypeCase,
     setCommonTypeCase,
 

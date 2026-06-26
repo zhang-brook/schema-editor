@@ -95,7 +95,10 @@
     },
     "prePostSql": "全域前置 / 後置 SQL",
     "preSqlPlaceholder": "在所有表之前執行的 SQL 語句...",
-    "postSqlPlaceholder": "在所有表之後執行的 SQL 語句..."
+    "postSqlPlaceholder": "在所有表之後執行的 SQL 語句...",
+    "ddlOptionsTitle": "DDL 產生選項",
+    "createTableIfNotExists": "使用 CREATE TABLE IF NOT EXISTS",
+    "createTableIfNotExistsHint": "勾選後，產生的 SQL 將使用 CREATE TABLE IF NOT EXISTS 替代 DROP TABLE IF EXISTS + CREATE TABLE"
   },
   "schemaConfig": {
     "title": "Schema 設定：",

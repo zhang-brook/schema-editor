@@ -95,7 +95,10 @@
     },
     "prePostSql": "Global Pre / Post SQL",
     "preSqlPlaceholder": "SQL statements executed before all schemas...",
-    "postSqlPlaceholder": "SQL statements executed after all schemas..."
+    "postSqlPlaceholder": "SQL statements executed after all schemas...",
+    "ddlOptionsTitle": "DDL Generation Options",
+    "createTableIfNotExists": "Use CREATE TABLE IF NOT EXISTS",
+    "createTableIfNotExistsHint": "When checked, generated SQL will use CREATE TABLE IF NOT EXISTS instead of DROP TABLE IF EXISTS + CREATE TABLE"
   },
   "schemaConfig": {
     "title": "Schema Config:",

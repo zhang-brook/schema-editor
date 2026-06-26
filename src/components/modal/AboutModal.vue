@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { version } from '../../package.json'
+import { version } from '@/../package.json'
 import { GITHUB_REPO_URL } from '@/utils/constants'
 import { useEscClose } from '@/composables/useEscClose'
 

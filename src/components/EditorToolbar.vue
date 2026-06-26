@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
-import AboutModal from '@/components/AboutModal.vue'
+import AboutModal from '@/components/modal/AboutModal.vue'
 import { GITHUB_REPO_URL } from '@/utils/constants'
 
 const store = useEditorStore()

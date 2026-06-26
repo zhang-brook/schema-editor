@@ -6,8 +6,8 @@ import EditorSidebar from '@/components/EditorSidebar.vue'
 import CommonConfigPanel from '@/components/CommonConfigPanel.vue'
 import SchemaConfigPanel from '@/components/SchemaConfigPanel.vue'
 import TableEditor from '@/components/TableEditor.vue'
-import AddFieldModal from '@/components/AddFieldModal.vue'
-import ImportSqlModal from '@/components/ImportSqlModal.vue'
+import AddFieldModal from '@/components/modal/AddFieldModal.vue'
+import ImportSqlModal from '@/components/modal/ImportSqlModal.vue'
 
 const store = useEditorStore()
 const { dragOver, onDragOver, onDragEnter, onDragLeave, onDrop } = useDropFolder()

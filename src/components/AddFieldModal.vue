@@ -1,11 +1,15 @@
 ﻿<script setup lang="ts">
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { useEscClose } from '@/composables/useEscClose'
 import { displayFieldLength, displayFieldScale } from '@/utils/file-helpers'
 
 const store = useEditorStore()
 
 const orderedCommonFields = computed(() => store.getOrderedCommonUsedFields())
+
+// ESC 关闭弹窗
+useEscClose(computed(() => store.showAddFieldModal), () => { store.showAddFieldModal = false })
 </script>
 
 <template>

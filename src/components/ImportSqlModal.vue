@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
+import { useEscClose } from '@/composables/useEscClose'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -122,12 +123,18 @@ function onTableNameEdit(idx: number, val: string) {
     delete store.importSqlTableNameEdits[idx]
   }
 }
+
+// ESC 关闭弹窗
+useEscClose(computed(() => store.showImportSqlModal), () => { store.showImportSqlModal = false })
 </script>
 
 <template>
   <div class="modal-overlay" v-if="store.showImportSqlModal" @click.self="store.showImportSqlModal = false">
     <div class="modal-box modal-lg">
-      <h3>{{ $t('importSqlModal.title') }}</h3>
+      <div class="modal-header">
+        <h3>{{ $t('importSqlModal.title') }}</h3>
+        <button class="modal-close-btn" @click="store.showImportSqlModal = false">&times;</button>
+      </div>
 
       <!-- 方言选择 -->
       <div class="form-group">

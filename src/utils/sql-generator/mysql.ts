@@ -103,14 +103,21 @@ function getMySQLIndexDefinition(index: Index): string {
     return '`' + name + '`' + sortPart
   }).join(', ')
 
+  // 确定索引注释（字段级 comment，非方言覆盖）
+  let commentPart = ''
+  const idxComment = index.comment
+  if (idxComment) {
+    commentPart = ` COMMENT '${idxComment.replace(/'/g, "''")}'`
+  }
+
   if (indexType === 'unique') {
     // 也可以写作 UNIQUE INDEX `indexName` (`column1`, `column2`) USING BTREE
     if (index.columns.length > 1) {
-      return `UNIQUE INDEX \`${indexName}\` (${colList})${finalIndexUsing}`
+      return `UNIQUE INDEX \`${indexName}\` (${colList})${finalIndexUsing}${commentPart}`
     }
-    return `UNIQUE KEY (${colList})`
+    return `UNIQUE KEY (${colList})${commentPart}`
   } else {
-    return `INDEX \`${indexName}\` (${colList})${finalIndexUsing}`
+    return `INDEX \`${indexName}\` (${colList})${finalIndexUsing}${commentPart}`
   }
 }
 

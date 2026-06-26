@@ -85,6 +85,7 @@ export interface Index {
   type: string
   using?: string
   columns: IndexColumn[]
+  comment?: string
   mysql?: IndexOverride
   pgsql?: Omit<IndexOverride, 'using'>
   pre_comment?: string

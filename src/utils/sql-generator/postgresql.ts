@@ -122,8 +122,11 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
 
   // UNIQUE 索引在建表语句中定义
   table.indexes.forEach(index => {
-    if (index.type === 'unique' || index.pgsql?.type === 'unique') {
-      indexDefinitions.push(`  UNIQUE (${index.columns.map(col => {
+    const indexType = index.pgsql?.type || index.type
+    if (indexType === 'unique') {
+      let indexName = index.pgsql?.name || index.name
+      indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
+      indexDefinitions.push(`  CONSTRAINT ${quoteIdent(indexName, commonConfig)} UNIQUE (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'pgsql')
         return quoteIdent(name, commonConfig) + sortPart
       }).join(', ')})`)
@@ -139,19 +142,23 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
 
   // 普通索引在建表语句下方定义
   let hasCreateIndexSql = false
-  table.indexes.forEach(index => {
+  table.indexes.forEach((index, i) => {
     const indexType = index.pgsql?.type || index.type
 
     if (indexType !== 'unique' && (indexType || index.columns)) {
       if (index.pre_comment) {
         sql += `-- ${index.pre_comment}\n`
       }
-      let indexName = index.pgsql?.name || index.mysql?.name || index.name
-      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') ?? `idx_${table.name}_${index.columns.map(c => c.name).join('_')}`
+      let indexName = index.pgsql?.name || index.name
+      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') || `idx__${table.name}__${index.columns.map(c => c.name).join('_')}`
       sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'pgsql')
         return quoteIdent(name, commonConfig) + sortPart
       }).join(', ')});\n`
+      // COMMENT ON INDEX (PostgreSQL)
+      if (index.comment) {
+        sql += `COMMENT ON INDEX ${qSchemaName}.${qTableName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
+      }
       hasCreateIndexSql = true
     }
   })
@@ -173,6 +180,17 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
         sql += `COMMENT ON COLUMN ${qSchemaName}.${qTableName}.${quoteIdent(fieldConfig.field_name, commonConfig)} IS '${fieldConfig.comment.replace(/'/g, "''")}';\n`
       }
     })
+
+  // 索引注释 — 为唯一索引和已命名普通索引生成 COMMENT ON INDEX
+  table.indexes.forEach(index => {
+    if (!index.comment) return
+    const indexType = index.pgsql?.type || index.type
+    if (indexType === 'unique') {
+      let indexName = index.pgsql?.name || index.name
+      indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
+      sql += `COMMENT ON INDEX ${qSchemaName}.${qTableName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
+    }
+  })
 
   // 表后置 SQL
   const postSql = getTablePostSql(table, 'pgsql')

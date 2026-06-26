@@ -32,6 +32,8 @@ export interface ParsedConstraint {
   name?: string
   columns: ParsedConstraintColumn[]
   using?: string
+  /** COMMENT '...' on index/constraint (MySQL inline syntax or PostgreSQL COMMENT ON INDEX) */
+  comment?: string
 }
 
 export interface ParsedConstraintColumn {
@@ -866,7 +868,16 @@ function parseTableConstraint(state: ParserState): ParsedConstraint | null {
     }
   }
 
-  return { type, name, columns, using }
+  // 可选的 COMMENT '...' (MySQL 内联语法)
+  let comment: string | undefined
+  if (state.isKeyword('COMMENT')) {
+    state.advance()
+    if (state.current().type === TokenType.STRING) {
+      comment = state.advance().value
+    }
+  }
+
+  return { type, name, columns, using, comment }
 }
 
 /** 解析 CONSTRAINT name ... 约束 */
@@ -1009,6 +1020,33 @@ function parseCommentOnStatement(state: ParserState, tables: ParsedTable[]): voi
           const targetCol = targetTable.columns.find(c => c.name === columnName)
           if (targetCol) {
             targetCol.comment = commentStr
+          }
+        }
+      }
+    } catch {
+      state.skipToSemicolon()
+    }
+  } else if (state.isKeyword('INDEX')) {
+    state.advance() // INDEX
+    try {
+      const { schema: idxSchema, table: idxName } = parseQualifiedName(state)
+      if (!state.matchKeyword('IS')) {
+        state.addError("Expected 'IS' in COMMENT ON INDEX", state.current())
+        state.skipToSemicolon()
+        return
+      }
+      const commentStr = state.current().type === TokenType.STRING ? state.advance().value : undefined
+      state.matchSymbol(';')
+
+      if (commentStr !== undefined) {
+        // 在所有已解析的表中查找匹配的约束名
+        for (const table of tables) {
+          // 如果有 schema 限定，只匹配对应 schema 下的表
+          if (idxSchema && table.schema !== idxSchema) continue
+          const constraint = table.constraints.find(c => c.name === idxName)
+          if (constraint) {
+            constraint.comment = commentStr
+            break
           }
         }
       }

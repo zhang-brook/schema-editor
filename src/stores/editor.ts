@@ -1568,6 +1568,7 @@ export const useEditorStore = defineStore('editor', () => {
             if (c.pgsql && Object.keys(c.pgsql).length > 0) col.pgsql = { ...c.pgsql }
             return col
           })
+          if (index.comment) idx.comment = index.comment
           if (index.pre_comment) idx.pre_comment = index.pre_comment
           if (index.mysql && Object.keys(index.mysql).length > 0) idx.mysql = { ...index.mysql }
           if (index.pgsql && Object.keys(index.pgsql).length > 0) idx.pgsql = { ...index.pgsql }
@@ -1854,6 +1855,10 @@ export const useEditorStore = defineStore('editor', () => {
 
       if (constraint.using) {
         index.using = constraint.using
+      }
+
+      if (constraint.comment) {
+        index.comment = constraint.comment
       }
 
       // 根据约束类型设置方言覆盖

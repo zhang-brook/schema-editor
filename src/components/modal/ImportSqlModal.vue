@@ -249,10 +249,12 @@ useEscClose(computed(() => store.showImportSqlModal), () => { store.showImportSq
                   v-for="(c, ci) in table.constraints"
                   :key="ci"
                   class="constraint-item"
+                  :title="c.comment || undefined"
                 >
                   {{ formatConstraintType(c.type) }}
                   <template v-if="c.name">`{{ c.name }}`</template>
                   ({{ c.columns.map(col => col.name + (col.sortOrder ? ' ' + col.sortOrder : '')).join(', ') }})
+                  <template v-if="c.comment"> — {{ c.comment }}</template>
                 </span>
               </div>
             </div>

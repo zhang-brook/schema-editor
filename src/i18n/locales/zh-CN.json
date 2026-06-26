@@ -163,10 +163,12 @@
     "actions": "操作",
     "addIndex": "添加索引",
     "indexOverrides": "索引覆盖",
+    "comment": "备注",
     "preComment": "前置注释",
     "typeSelect": "-- 类型 --",
     "namePlaceholder": "{pre}...{post}",
-    "commentPlaceholder": "索引前注释",
+    "commentPlaceholder": "索引备注",
+    "preCommentPlaceholder": "索引前注释",
     "empty": "暂无索引"
   },
   "indexColumnsEditor": {

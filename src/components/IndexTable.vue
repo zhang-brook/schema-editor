@@ -27,6 +27,7 @@ const availableFieldNames = computed(() => {
             <th>{{ $t('indexTable.type') }}</th>
             <th>{{ $t('indexTable.columns') }}</th>
             <th>{{ $t('indexTable.using') }}</th>
+            <th>{{ $t('indexTable.comment') }}</th>
             <th style="width:50px;">{{ $t('indexTable.actions') }}</th>
           </tr>
         </thead>
@@ -54,12 +55,15 @@ const availableFieldNames = computed(() => {
                 <input class="table-input" v-model="index.using" style="width:60px;">
               </td>
               <td>
+                <input class="table-input" v-model="index.comment" :placeholder="$t('indexTable.commentPlaceholder')" style="min-width:100px;">
+              </td>
+              <td>
                 <button class="btn btn-sm btn-danger" @click="store.deleteIndex(store.currentTable!, iIdx)">×</button>
               </td>
             </tr>
             <!-- Expanded Index Detail -->
             <tr v-if="store.expandedIndexes.has(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx))">
-              <td colspan="6">
+              <td colspan="7">
                 <div class="field-expand-content">
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('indexTable.indexOverrides') }}</div>
@@ -87,7 +91,7 @@ const availableFieldNames = computed(() => {
                   </div>
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('indexTable.preComment') }}</div>
-                    <input class="form-input" v-model="index.pre_comment" :placeholder="$t('indexTable.commentPlaceholder')">
+                    <input class="form-input" v-model="index.pre_comment" :placeholder="$t('indexTable.preCommentPlaceholder')">
                   </div>
                 </div>
               </td>

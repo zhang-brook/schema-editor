@@ -163,10 +163,12 @@
     "actions": "actions",
     "addIndex": "Add Index",
     "indexOverrides": "Index Overrides",
+    "comment": "Comment",
     "preComment": "Pre Comment",
     "typeSelect": "-- type --",
     "namePlaceholder": "{pre}...{post}",
-    "commentPlaceholder": "Comment before index",
+    "commentPlaceholder": "Index comment",
+    "preCommentPlaceholder": "Comment before index",
     "empty": "No indexes defined"
   },
   "indexColumnsEditor": {

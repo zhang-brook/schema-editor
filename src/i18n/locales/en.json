@@ -97,8 +97,10 @@
     "preSqlPlaceholder": "SQL statements executed before all schemas...",
     "postSqlPlaceholder": "SQL statements executed after all schemas...",
     "ddlOptionsTitle": "DDL Generation Options",
-    "createTableIfNotExists": "Use CREATE TABLE IF NOT EXISTS",
-    "createTableIfNotExistsHint": "When checked, generated SQL will use CREATE TABLE IF NOT EXISTS instead of DROP TABLE IF EXISTS + CREATE TABLE"
+    "ddlModeLabel": "DDL Generation Mode",
+    "ddlModeCreate": "CREATE TABLE (pure, no DROP TABLE IF EXISTS / CREATE TABLE IF NOT EXISTS)",
+    "ddlModeDropAndCreate": "DROP TABLE IF EXISTS + CREATE TABLE (default)",
+    "ddlModeCreateIfNotExists": "CREATE TABLE IF NOT EXISTS"
   },
   "schemaConfig": {
     "title": "Schema Config:",

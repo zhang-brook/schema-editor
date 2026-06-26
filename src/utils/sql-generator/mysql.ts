@@ -130,10 +130,12 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   const preSql = getTablePreSql(table, 'mysql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DROP TABLE IF EXISTS / CREATE TABLE IF NOT EXISTS
-  const useIfNotExists = commonConfig?.default_config?.create_table_if_not_exists ?? false
-  if (useIfNotExists) {
+  // DDL 生成策略：drop_and_create | create_if_not_exists | create
+  const ddlMode = commonConfig?.default_config?.table_ddl_mode ?? 'drop_and_create'
+  if (ddlMode === 'create_if_not_exists') {
     sql += `CREATE TABLE IF NOT EXISTS \`${table.name}\` (\n`
+  } else if (ddlMode === 'create') {
+    sql += `CREATE TABLE \`${table.name}\` (\n`
   } else {
     sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
     sql += `CREATE TABLE \`${table.name}\` (\n`

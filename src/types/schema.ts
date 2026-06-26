@@ -120,9 +120,11 @@ export interface Schema {
   post_sql?: SqlStatements
 }
 
+export type TableDdlMode = 'create' | 'drop_and_create' | 'create_if_not_exists'
+
 export interface DefaultConfig {
-  /** 使用 CREATE TABLE IF NOT EXISTS 替代 DROP TABLE IF EXISTS + CREATE TABLE */
-  create_table_if_not_exists?: boolean
+  /** DDL 生成策略：create=纯CREATE TABLE, drop_and_create=DROP+CREATE, create_if_not_exists=CREATE IF NOT EXISTS */
+  table_ddl_mode?: TableDdlMode
   mysql: {
     database: Record<string, unknown>
     table: {

@@ -10,6 +10,7 @@ import type {
   TableMysqlConfig,
   InitialData,
   TypeCaseMode,
+  TableDdlMode,
 } from '@/types/schema'
 import {
   openProjectFolder,
@@ -1523,12 +1524,12 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  function getCreateTableIfNotExists(): boolean {
-    return commonConfig.value?.default_config?.create_table_if_not_exists ?? false
+  function getTableDdlMode(): TableDdlMode {
+    return commonConfig.value?.default_config?.table_ddl_mode ?? 'drop_and_create'
   }
-  function setCreateTableIfNotExists(val: boolean) {
+  function setTableDdlMode(val: TableDdlMode) {
     if (commonConfig.value) {
-      commonConfig.value.default_config.create_table_if_not_exists = val || undefined
+      commonConfig.value.default_config.table_ddl_mode = val === 'drop_and_create' ? undefined : val
     }
   }
 
@@ -2058,8 +2059,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonMysqlCollation,
     getCommonPgsqlQuoteIdentifiers,
     setCommonPgsqlQuoteIdentifiers,
-    getCreateTableIfNotExists,
-    setCreateTableIfNotExists,
+    getTableDdlMode,
+    setTableDdlMode,
     getCommonTypeCase,
     setCommonTypeCase,
 

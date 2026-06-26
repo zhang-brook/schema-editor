@@ -85,10 +85,12 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   const preSql = getTablePreSql(table, 'pgsql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DROP TABLE IF EXISTS / CREATE TABLE IF NOT EXISTS
-  const useIfNotExists = commonConfig?.default_config?.create_table_if_not_exists ?? false
-  if (useIfNotExists) {
+  // DDL 生成策略：drop_and_create | create_if_not_exists | create
+  const ddlMode = commonConfig?.default_config?.table_ddl_mode ?? 'drop_and_create'
+  if (ddlMode === 'create_if_not_exists') {
     sql += `CREATE TABLE IF NOT EXISTS ${qSchemaName}.${qTableName} (\n`
+  } else if (ddlMode === 'create') {
+    sql += `CREATE TABLE ${qSchemaName}.${qTableName} (\n`
   } else {
     sql += `DROP TABLE IF EXISTS ${qSchemaName}.${qTableName};\n`
     sql += `CREATE TABLE ${qSchemaName}.${qTableName} (\n`

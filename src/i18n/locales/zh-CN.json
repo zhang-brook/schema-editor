@@ -97,8 +97,10 @@
     "preSqlPlaceholder": "在所有表之前执行的 SQL 语句...",
     "postSqlPlaceholder": "在所有表之后执行的 SQL 语句...",
     "ddlOptionsTitle": "DDL 生成选项",
-    "createTableIfNotExists": "使用 CREATE TABLE IF NOT EXISTS",
-    "createTableIfNotExistsHint": "勾选后，生成的 SQL 将使用 CREATE TABLE IF NOT EXISTS 替代 DROP TABLE IF EXISTS + CREATE TABLE"
+    "ddlModeLabel": "DDL 生成方式",
+    "ddlModeCreate": "CREATE TABLE（纯建表，无 DROP TABLE IF EXISTS / CREATE TABLE IF NOT EXISTS）",
+    "ddlModeDropAndCreate": "DROP TABLE IF EXISTS + CREATE TABLE（默认）",
+    "ddlModeCreateIfNotExists": "CREATE TABLE IF NOT EXISTS"
   },
   "schemaConfig": {
     "title": "Schema 配置：",

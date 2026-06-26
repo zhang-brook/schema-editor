@@ -593,17 +593,22 @@ function handleDeleteUnifiedType(idx: number) {
       <div class="section-body">
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">{{ $t('commonConfig.createTableIfNotExists') }}</label>
-            <div class="toggle-row">
-              <label class="toggle-switch">
+            <label class="form-label">{{ $t('commonConfig.ddlModeLabel') }}</label>
+            <div class="radio-group">
+              <label class="radio-option" v-for="opt in [
+                { value: 'create', label: $t('commonConfig.ddlModeCreate') },
+                { value: 'drop_and_create', label: $t('commonConfig.ddlModeDropAndCreate') },
+                { value: 'create_if_not_exists', label: $t('commonConfig.ddlModeCreateIfNotExists') },
+              ]" :key="opt.value">
                 <input
-                  type="checkbox"
-                  :checked="store.getCreateTableIfNotExists()"
-                  @change="store.setCreateTableIfNotExists(($event.target as HTMLInputElement).checked)"
+                  type="radio"
+                  name="tableDdlMode"
+                  :value="opt.value"
+                  :checked="store.getTableDdlMode() === opt.value"
+                  @change="store.setTableDdlMode(opt.value as any)"
                 />
-                <span class="toggle-slider"></span>
+                <span class="radio-label">{{ opt.label }}</span>
               </label>
-              <span class="toggle-hint">{{ $t('commonConfig.createTableIfNotExistsHint') }}</span>
             </div>
           </div>
         </div>
@@ -1383,6 +1388,45 @@ function handleDeleteUnifiedType(idx: number) {
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* Radio group (DDL mode) */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #333;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: border-color .15s, background .15s;
+}
+
+.radio-option:hover {
+  border-color: #4a90d9;
+  background: #f5f9ff;
+}
+
+.radio-option input[type="radio"] {
+  accent-color: #4a90d9;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.radio-label {
+  font-size: 12px;
+  color: #444;
   font-family: 'Consolas', 'Monaco', monospace;
 }
 </style>

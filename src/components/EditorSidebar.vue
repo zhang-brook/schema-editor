@@ -345,6 +345,10 @@ function handleRenameSchema(sIdx: number) {
   user-select: none;
 }
 
+.sidebar-item:hover {
+  background: #f0f0f0;
+}
+
 .sidebar-item.active,
 .schema-item.active {
   background: #e3edf7;

@@ -349,6 +349,39 @@ function onTableNameEdit(idx: number, val: string) {
   color: #333;
 }
 
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  margin-bottom: 0;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  transition: all .15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.modal-close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

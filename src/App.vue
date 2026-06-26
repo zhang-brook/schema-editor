@@ -57,3 +57,43 @@ const { dragOver, onDragOver, onDragEnter, onDragLeave, onDrop } = useDropFolder
     <div class="toast" :class="{ show: store.toastVisible }">{{ store.toastMsg }}</div>
   </div>
 </template>
+
+<style scoped>
+/* ===== Drop Overlay (拖拽文件夹打开) ===== */
+.drop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(74, 144, 217, 0.12);
+  border: 3px dashed #4a90d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  pointer-events: none;
+}
+
+.drop-overlay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 60px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.drop-overlay-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.drop-overlay-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4a90d9;
+}
+</style>

@@ -157,7 +157,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
       }).join(', ')});\n`
       // COMMENT ON INDEX (PostgreSQL)
       if (index.comment) {
-        sql += `COMMENT ON INDEX ${qSchemaName}.${qTableName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
+        sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
       }
       hasCreateIndexSql = true
     }
@@ -188,7 +188,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     if (indexType === 'unique') {
       let indexName = index.pgsql?.name || index.name
       indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
-      sql += `COMMENT ON INDEX ${qSchemaName}.${qTableName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
+      sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
     }
   })
 

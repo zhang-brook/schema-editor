@@ -80,12 +80,12 @@ const availableFieldNames = computed(() => {
                       </div>
                       <div class="db-override-group">
                         <div class="db-label">PostgreSQL</div>
-                        <select class="form-input" :value="store.getIndexOverrideValue(index, 'pgsql', 'type')" @input="store.setIndexOverrideValue(index, 'pgsql', 'type', ($event.target as HTMLSelectElement).value)">
+                        <select class="form-input" :value="store.getIndexOverrideValue(index, 'postgresql', 'type')" @input="store.setIndexOverrideValue(index, 'postgresql', 'type', ($event.target as HTMLSelectElement).value)">
                           <option value="">{{ $t('indexTable.typeSelect') }}</option>
                           <option value="index">index</option>
                           <option value="unique">unique</option>
                         </select>
-                        <input class="form-input" placeholder="name" :value="store.getIndexOverrideValue(index, 'pgsql', 'name')" @input="store.setIndexOverrideValue(index, 'pgsql', 'name', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="name" :value="store.getIndexOverrideValue(index, 'postgresql', 'name')" @input="store.setIndexOverrideValue(index, 'postgresql', 'name', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
                   </div>

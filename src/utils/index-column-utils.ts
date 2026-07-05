@@ -43,12 +43,12 @@ export function formatIndexColumn(col: IndexColumn): string {
  * 供 SQL 生成器使用：分离列名和排序部分
  * @returns { name: "create_time", sortPart: " DESC" } （sortPart 带前导空格）
  */
-export function splitColumnForSql(col: IndexColumn, db?: 'mysql' | 'pgsql'): { name: string; sortPart: string } {
+export function splitColumnForSql(col: IndexColumn, db?: 'mysql' | 'postgresql'): { name: string; sortPart: string } {
   let sort = col.sort_order
   if (db === 'mysql' && col.mysql?.sort_order) {
     sort = col.mysql.sort_order
-  } else if (db === 'pgsql' && col.pgsql?.sort_order) {
-    sort = col.pgsql.sort_order
+  } else if (db === 'postgresql' && col.postgresql?.sort_order) {
+    sort = col.postgresql.sort_order
   }
   return { name: col.name, sortPart: sort ? ` ${sort}` : '' }
 }

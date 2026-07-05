@@ -13,22 +13,22 @@ const store = useEditorStore()
 
 const activeTab = ref<'structure' | 'initial-data'>('structure')
 
-function tablePreSql(dialect: 'mysql' | 'pgsql'): string {
+function tablePreSql(dialect: 'mysql' | 'postgresql'): string {
   if (!store.currentTable) return ''
   return getTablePreSql(store.currentTable, dialect)
 }
 
-function tablePostSql(dialect: 'mysql' | 'pgsql'): string {
+function tablePostSql(dialect: 'mysql' | 'postgresql'): string {
   if (!store.currentTable) return ''
   return getTablePostSql(store.currentTable, dialect)
 }
 
-function setTablePreSql(dialect: 'mysql' | 'pgsql', val: string) {
+function setTablePreSql(dialect: 'mysql' | 'postgresql', val: string) {
   if (!store.currentTable) return
   store.setTablePreSql(store.currentTable, dialect, val)
 }
 
-function setTablePostSql(dialect: 'mysql' | 'pgsql', val: string) {
+function setTablePostSql(dialect: 'mysql' | 'postgresql', val: string) {
   if (!store.currentTable) return
   store.setTablePostSql(store.currentTable, dialect, val)
 }
@@ -72,13 +72,13 @@ function setTablePostSql(dialect: 'mysql' | 'pgsql', val: string) {
         :post-placeholder="$t('tableEditor.postSqlPlaceholder')"
         :mysql-pre="tablePreSql('mysql')"
         :mysql-post="tablePostSql('mysql')"
-        :pgsql-pre="tablePreSql('pgsql')"
-        :pgsql-post="tablePostSql('pgsql')"
+        :postgresql-pre="tablePreSql('postgresql')"
+        :postgresql-post="tablePostSql('postgresql')"
         :rows="3"
         @update:mysql-pre="setTablePreSql('mysql', $event)"
         @update:mysql-post="setTablePostSql('mysql', $event)"
-        @update:pgsql-pre="setTablePreSql('pgsql', $event)"
-        @update:pgsql-post="setTablePostSql('pgsql', $event)"
+        @update:postgresql-pre="setTablePreSql('postgresql', $event)"
+        @update:postgresql-post="setTablePostSql('postgresql', $event)"
       />
 
       <!-- SQL Preview -->

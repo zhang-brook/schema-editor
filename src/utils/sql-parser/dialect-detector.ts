@@ -8,7 +8,7 @@
 
 import { lex, type Token, TokenType } from './tokenizer'
 
-export type DetectedDialect = 'mysql' | 'pgsql' | 'unknown'
+export type DetectedDialect = 'mysql' | 'postgresql' | 'unknown'
 
 /**
  * 从原始 SQL 文本检测方言
@@ -174,11 +174,11 @@ export function detectDialectFromTokens(tokens: Token[]): DetectedDialect {
   }
 
   // ===== 判定 =====
-  if (score >= 3) return 'pgsql'
+  if (score >= 3) return 'postgresql'
   if (score <= -3) return 'mysql'
 
   // 边缘情况：没有明显特征时
-  if (score > 0) return 'pgsql'
+  if (score > 0) return 'postgresql'
   if (score < 0) return 'mysql'
 
   return 'unknown'

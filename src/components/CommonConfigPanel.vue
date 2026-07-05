@@ -328,7 +328,7 @@ function readUnifiedTypes(): UnifiedTypeDefinition[] {
     quote_default: ut.quote_default,
     default_input: ut.default_input,
     mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
-    pgsql: { type: ut.pgsql.type, length: ut.pgsql.length, scale: ut.pgsql.scale },
+    postgresql: { type: ut.postgresql.type, length: ut.postgresql.length, scale: ut.postgresql.scale },
   }))
 }
 
@@ -400,9 +400,9 @@ function handleDeleteUnifiedType(idx: number) {
               <th>{{ $t('commonConfig.unifiedTypes.mysqlType') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.mysqlLength') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.mysqlScale') }}</th>
-              <th>{{ $t('commonConfig.unifiedTypes.pgsqlType') }}</th>
-              <th>{{ $t('commonConfig.unifiedTypes.pgsqlLength') }}</th>
-              <th>{{ $t('commonConfig.unifiedTypes.pgsqlScale') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.postgresqlType') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.postgresqlLength') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.postgresqlScale') }}</th>
               <th style="width:60px;">{{ $t('commonConfig.unifiedTypes.quoteDefault') }}</th>
               <th style="width:100px;">{{ $t('commonConfig.unifiedTypes.defaultInput') }}</th>
               <th style="width:90px;"></th>
@@ -469,7 +469,7 @@ function handleDeleteUnifiedType(idx: number) {
               <td>
                 <input
                   class="table-input"
-                  v-model="ut.pgsql.type"
+                  v-model="ut.postgresql.type"
                   @change="syncUnifiedTypes()"
                   style="min-width:80px;"
                 />
@@ -477,16 +477,16 @@ function handleDeleteUnifiedType(idx: number) {
               <td>
                 <input
                   class="table-input"
-                  :value="displayFieldLength(ut.pgsql.length)"
-                  @input="ut.pgsql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  :value="displayFieldLength(ut.postgresql.length)"
+                  @input="ut.postgresql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
                   style="width:60px;"
                 />
               </td>
               <td>
                 <input
                   class="table-input"
-                  :value="displayFieldScale(ut.pgsql.scale)"
-                  @input="ut.pgsql.scale = parseFieldScaleInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  :value="displayFieldScale(ut.postgresql.scale)"
+                  @input="ut.postgresql.scale = parseFieldScaleInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
                   style="width:50px;"
                 />
               </td>
@@ -566,7 +566,7 @@ function handleDeleteUnifiedType(idx: number) {
 
     <!-- Default PostgreSQL Config -->
     <div class="section-card">
-      <div class="section-header">{{ $t('commonConfig.defaultPgsqlConfig') }}</div>
+      <div class="section-header">{{ $t('commonConfig.defaultPostgresqlConfig') }}</div>
       <div class="section-body">
         <div class="form-row">
           <div class="form-group">
@@ -575,8 +575,8 @@ function handleDeleteUnifiedType(idx: number) {
               <label class="toggle-switch">
                 <input
                   type="checkbox"
-                  :checked="store.getCommonPgsqlQuoteIdentifiers()"
-                  @change="store.setCommonPgsqlQuoteIdentifiers(($event.target as HTMLInputElement).checked)"
+                  :checked="store.getCommonPostgresqlQuoteIdentifiers()"
+                  @change="store.setCommonPostgresqlQuoteIdentifiers(($event.target as HTMLInputElement).checked)"
                 />
                 <span class="toggle-slider"></span>
               </label>
@@ -622,12 +622,12 @@ function handleDeleteUnifiedType(idx: number) {
       :post-placeholder="$t('commonConfig.postSqlPlaceholder')"
       :mysql-pre="getGlobalPreSql(store.commonConfig, 'mysql')"
       :mysql-post="getGlobalPostSql(store.commonConfig, 'mysql')"
-      :pgsql-pre="getGlobalPreSql(store.commonConfig, 'pgsql')"
-      :pgsql-post="getGlobalPostSql(store.commonConfig, 'pgsql')"
+      :postgresql-pre="getGlobalPreSql(store.commonConfig, 'postgresql')"
+      :postgresql-post="getGlobalPostSql(store.commonConfig, 'postgresql')"
       @update:mysql-pre="store.setGlobalPreSql('mysql', $event)"
       @update:mysql-post="store.setGlobalPostSql('mysql', $event)"
-      @update:pgsql-pre="store.setGlobalPreSql('pgsql', $event)"
-      @update:pgsql-post="store.setGlobalPostSql('pgsql', $event)"
+      @update:postgresql-pre="store.setGlobalPreSql('postgresql', $event)"
+      @update:postgresql-post="store.setGlobalPostSql('postgresql', $event)"
     />
 
     <!-- Field Type Case -->
@@ -872,7 +872,7 @@ function handleDeleteUnifiedType(idx: number) {
                       <span class="db-label">MySQL:</span>
                       <code>{{ store.getResolvedFieldTypeForDb(field, 'mysql') }}</code>
                       <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
-                      <code>{{ store.getResolvedFieldTypeForDb(field, 'pgsql') }}</code>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'postgresql') }}</code>
                     </div>
                   </div>
                   <div class="expand-section">
@@ -887,10 +887,10 @@ function handleDeleteUnifiedType(idx: number) {
                       </div>
                       <div class="db-override-group">
                         <div class="db-label">{{ $t('fieldTable.postgresql') }}</div>
-                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_type')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_type', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_length')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_length', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_scale', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'pgsql', 'default')" @input="store.setFieldOverrideValue(field, 'pgsql', 'default', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_type')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_length')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'postgresql', 'default')" @input="store.setFieldOverrideValue(field, 'postgresql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
                   </div>

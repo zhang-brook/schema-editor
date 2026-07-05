@@ -9,15 +9,15 @@ defineProps<{
   rows?: number
   mysqlPre: string
   mysqlPost: string
-  pgsqlPre: string
-  pgsqlPost: string
+  postgresqlPre: string
+  postgresqlPost: string
 }>()
 
 const emit = defineEmits<{
   'update:mysqlPre': [value: string]
   'update:mysqlPost': [value: string]
-  'update:pgsqlPre': [value: string]
-  'update:pgsqlPost': [value: string]
+  'update:postgresqlPre': [value: string]
+  'update:postgresqlPost': [value: string]
 }>()
 
 const dialect = ref<SqlDialect>('mysql')
@@ -55,8 +55,8 @@ const dialect = ref<SqlDialect>('mysql')
           <textarea
             v-else-if="dialect === 'postgresql'"
             class="sql-textarea"
-            :value="pgsqlPre"
-            @input="emit('update:pgsqlPre', ($event.target as HTMLTextAreaElement).value)"
+            :value="postgresqlPre"
+            @input="emit('update:postgresqlPre', ($event.target as HTMLTextAreaElement).value)"
             :placeholder="prePlaceholder"
             :rows="rows ?? 4"
           ></textarea>
@@ -75,8 +75,8 @@ const dialect = ref<SqlDialect>('mysql')
           <textarea
             v-else-if="dialect === 'postgresql'"
             class="sql-textarea"
-            :value="pgsqlPost"
-            @input="emit('update:pgsqlPost', ($event.target as HTMLTextAreaElement).value)"
+            :value="postgresqlPost"
+            @input="emit('update:postgresqlPost', ($event.target as HTMLTextAreaElement).value)"
             :placeholder="postPlaceholder"
             :rows="rows ?? 4"
           ></textarea>

@@ -5,22 +5,22 @@ import PrePostSqlEditor from './PrePostSqlEditor.vue'
 
 const store = useEditorStore()
 
-function schemaPreSql(dialect: 'mysql' | 'pgsql'): string {
+function schemaPreSql(dialect: 'mysql' | 'postgresql'): string {
   if (!store.currentSchema) return ''
   return getSchemaPreSql(store.currentSchema, dialect)
 }
 
-function schemaPostSql(dialect: 'mysql' | 'pgsql'): string {
+function schemaPostSql(dialect: 'mysql' | 'postgresql'): string {
   if (!store.currentSchema) return ''
   return getSchemaPostSql(store.currentSchema, dialect)
 }
 
-function setPreSql(dialect: 'mysql' | 'pgsql', val: string) {
+function setPreSql(dialect: 'mysql' | 'postgresql', val: string) {
   if (!store.currentSchema) return
   store.setSchemaPreSql(store.currentSchema, dialect, val)
 }
 
-function setPostSql(dialect: 'mysql' | 'pgsql', val: string) {
+function setPostSql(dialect: 'mysql' | 'postgresql', val: string) {
   if (!store.currentSchema) return
   store.setSchemaPostSql(store.currentSchema, dialect, val)
 }
@@ -42,12 +42,12 @@ function setPostSql(dialect: 'mysql' | 'pgsql', val: string) {
       :post-placeholder="$t('schemaConfig.postSqlPlaceholder')"
       :mysql-pre="schemaPreSql('mysql')"
       :mysql-post="schemaPostSql('mysql')"
-      :pgsql-pre="schemaPreSql('pgsql')"
-      :pgsql-post="schemaPostSql('pgsql')"
+      :postgresql-pre="schemaPreSql('postgresql')"
+      :postgresql-post="schemaPostSql('postgresql')"
       @update:mysql-pre="setPreSql('mysql', $event)"
       @update:mysql-post="setPostSql('mysql', $event)"
-      @update:pgsql-pre="setPreSql('pgsql', $event)"
-      @update:pgsql-post="setPostSql('pgsql', $event)"
+      @update:postgresql-pre="setPreSql('postgresql', $event)"
+      @update:postgresql-post="setPostSql('postgresql', $event)"
     />
   </template>
 </template>

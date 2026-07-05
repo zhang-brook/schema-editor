@@ -61,7 +61,7 @@ function toggleTableExpand(idx: number) {
 const dialectOptions = [
   { value: 'auto' as const, label: 'auto' },
   { value: 'mysql' as const, label: 'MySQL' },
-  { value: 'pgsql' as const, label: 'PostgreSQL' },
+  { value: 'postgresql' as const, label: 'PostgreSQL' },
 ]
 
 // 格式化列类型显示

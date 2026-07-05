@@ -92,12 +92,12 @@ function ensureInitialDataEntry(): InitialData | undefined {
   return data
 }
 
-function handlePreSql(dialect: 'mysql' | 'pgsql', val: string) {
+function handlePreSql(dialect: 'mysql' | 'postgresql', val: string) {
   const data = ensureInitialDataEntry()
   if (data) store.setInitialDataPreSql(data, dialect, val)
 }
 
-function handlePostSql(dialect: 'mysql' | 'pgsql', val: string) {
+function handlePostSql(dialect: 'mysql' | 'postgresql', val: string) {
   const data = ensureInitialDataEntry()
   if (data) store.setInitialDataPostSql(data, dialect, val)
 }
@@ -106,9 +106,9 @@ function clearPrePostSql() {
   const data = initialData.value
   if (!data) return
   store.setInitialDataPreSql(data, 'mysql', '')
-  store.setInitialDataPreSql(data, 'pgsql', '')
+  store.setInitialDataPreSql(data, 'postgresql', '')
   store.setInitialDataPostSql(data, 'mysql', '')
-  store.setInitialDataPostSql(data, 'pgsql', '')
+  store.setInitialDataPostSql(data, 'postgresql', '')
 }
 
 function parseJsonInput(text: string): InitialData | null {
@@ -421,9 +421,9 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
     <PrePostSqlEditor v-if="store.currentTable" :title="$t('initialData.prePostSql')"
       :pre-placeholder="$t('initialData.preSqlPlaceholder')" :post-placeholder="$t('initialData.postSqlPlaceholder')"
       :mysql-pre="getInitialDataPreSql(initialData, 'mysql')" :mysql-post="getInitialDataPostSql(initialData, 'mysql')"
-      :pgsql-pre="getInitialDataPreSql(initialData, 'pgsql')" :pgsql-post="getInitialDataPostSql(initialData, 'pgsql')"
+      :postgresql-pre="getInitialDataPreSql(initialData, 'postgresql')" :postgresql-post="getInitialDataPostSql(initialData, 'postgresql')"
       :rows="3" @update:mysql-pre="handlePreSql('mysql', $event)" @update:mysql-post="handlePostSql('mysql', $event)"
-      @update:pgsql-pre="handlePreSql('pgsql', $event)" @update:pgsql-post="handlePostSql('pgsql', $event)">
+      @update:postgresql-pre="handlePreSql('postgresql', $event)" @update:postgresql-post="handlePostSql('postgresql', $event)">
       <template #header-actions>
         <button class="btn btn-sm btn-danger" @click="clearPrePostSql">{{ $t('initialData.clear') }}</button>
       </template>

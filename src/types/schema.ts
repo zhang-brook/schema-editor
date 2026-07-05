@@ -1,7 +1,7 @@
 /** 前置/后置 SQL 语句（按方言分别配置） */
 export interface SqlStatements {
   mysql?: string
-  pgsql?: string
+  postgresql?: string
 }
 
 /** 字段类型大小写转换模式 */
@@ -25,7 +25,7 @@ export interface UnifiedTypeDefinition {
   /** 默认值的输入组件类型（text=文本输入框, boolean=TRUE/FALSE下拉框），省略默认为 text */
   default_input?: DefaultInputType
   mysql: UnifiedTypeDbMapping
-  pgsql: UnifiedTypeDbMapping
+  postgresql: UnifiedTypeDbMapping
 }
 
 // 字段的数据库特定覆盖
@@ -53,7 +53,7 @@ export interface IndexColumn {
   name: string
   sort_order?: 'ASC' | 'DESC'
   mysql?: IndexColumnDbOverride
-  pgsql?: IndexColumnDbOverride
+  postgresql?: IndexColumnDbOverride
 }
 
 export interface Field {
@@ -76,7 +76,7 @@ export interface Field {
   comment?: string
   is_commented_out?: boolean
   mysql?: FieldOverride
-  pgsql?: FieldOverride
+  postgresql?: FieldOverride
 }
 
 export interface Index {
@@ -87,7 +87,7 @@ export interface Index {
   columns: IndexColumn[]
   comment?: string
   mysql?: IndexOverride
-  pgsql?: Omit<IndexOverride, 'using'>
+  postgresql?: Omit<IndexOverride, 'using'>
   pre_comment?: string
 }
 
@@ -138,7 +138,7 @@ export interface DefaultConfig {
     /** 全局后置 SQL（MySQL 方言） */
     post_sql?: string
   }
-  pgsql: {
+  postgresql: {
     quote_identifiers: boolean
     /** 全局前置 SQL（PostgreSQL 方言） */
     pre_sql?: string

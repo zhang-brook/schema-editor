@@ -366,7 +366,7 @@ function onDropTail(e: DragEvent) {
                       <span class="db-label">MySQL:</span>
                       <code>{{ store.getResolvedFieldTypeForDb(field, 'mysql') }}</code>
                       <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
-                      <code>{{ store.getResolvedFieldTypeForDb(field, 'pgsql') }}</code>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'postgresql') }}</code>
                     </div>
                   </div>
                   <!-- MySQL/PGSQL Override -->
@@ -382,10 +382,10 @@ function onDropTail(e: DragEvent) {
                       </div>
                       <div class="db-override-group">
                         <div class="db-label">{{ $t('fieldTable.postgresql') }}</div>
-                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_type')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_type', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_length')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_length', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'pgsql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'pgsql', 'field_scale', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'pgsql', 'default')" @input="store.setFieldOverrideValue(field, 'pgsql', 'default', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_type')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_length')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'postgresql', 'default')" @input="store.setFieldOverrideValue(field, 'postgresql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
                   </div>

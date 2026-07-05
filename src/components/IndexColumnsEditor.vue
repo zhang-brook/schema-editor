@@ -20,7 +20,7 @@ function toggleOverride(idx: number) {
     const col = props.modelValue[idx]
     if (col) {
       if (col.mysql && Object.keys(col.mysql).length === 0) delete col.mysql
-      if (col.pgsql && Object.keys(col.pgsql).length === 0) delete col.pgsql
+      if (col.postgresql && Object.keys(col.postgresql).length === 0) delete col.postgresql
     }
     expandedOverrides.delete(idx)
   } else {
@@ -28,7 +28,7 @@ function toggleOverride(idx: number) {
     const col = props.modelValue[idx]
     if (col) {
       if (!col.mysql) col.mysql = {}
-      if (!col.pgsql) col.pgsql = {}
+      if (!col.postgresql) col.postgresql = {}
     }
     expandedOverrides.add(idx)
   }
@@ -53,7 +53,7 @@ function emitChange() {
   emit('update:modelValue', [...props.modelValue])
 }
 
-function setDbSortOrder(col: IndexColumn, db: 'mysql' | 'pgsql', val: string) {
+function setDbSortOrder(col: IndexColumn, db: 'mysql' | 'postgresql', val: string) {
   if (val) {
     if (!col[db]) col[db] = {}
     col[db]!.sort_order = val as 'ASC' | 'DESC'
@@ -136,8 +136,8 @@ watch(() => props.modelValue, () => {
             <div class="db-label">PostgreSQL</div>
             <select
               class="form-input"
-              :value="col.pgsql?.sort_order ?? ''"
-              @change="setDbSortOrder(col, 'pgsql', ($event.target as HTMLSelectElement).value)"
+              :value="col.postgresql?.sort_order ?? ''"
+              @change="setDbSortOrder(col, 'postgresql', ($event.target as HTMLSelectElement).value)"
             >
               <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
               <option value="ASC">ASC</option>

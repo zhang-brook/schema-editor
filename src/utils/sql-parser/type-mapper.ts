@@ -131,7 +131,7 @@ function normalizePgSqlType(rawType: string): { type: string; length?: number | 
  */
 export function mapSqlTypeToField(
   column: ParsedColumn,
-  dialect: 'mysql' | 'pgsql',
+  dialect: 'mysql' | 'postgresql',
   unifiedTypes: UnifiedTypeDefinition[],
 ): TypeMappingResult {
   // 规范化类型名
@@ -263,7 +263,7 @@ export function mapSqlTypeToField(
  */
 export function convertColumnToField(
   column: ParsedColumn,
-  dialect: 'mysql' | 'pgsql',
+  dialect: 'mysql' | 'postgresql',
   unifiedTypes: UnifiedTypeDefinition[],
 ): Field {
   const typeInfo = mapSqlTypeToField(column, dialect, unifiedTypes)
@@ -296,7 +296,7 @@ export function convertColumnToField(
   }
 
   // 约束
-  if (column.notNull || column.primaryKey || (dialect === 'pgsql' && ['SERIAL', 'BIGSERIAL'].includes(column.rawType.toUpperCase()))) {
+  if (column.notNull || column.primaryKey || (dialect === 'postgresql' && ['SERIAL', 'BIGSERIAL'].includes(column.rawType.toUpperCase()))) {
     field.not_null = true
   }
   if (column.primaryKey) {

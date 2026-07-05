@@ -236,9 +236,9 @@ export async function writeInitialDataToHandle(
   if (data.field_comments && !isAllNull(data.field_comments)) {
     exportData.field_comments = toRaw(data.field_comments)
   }
-  const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.pgsql))
+  const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.postgresql))
   if (hasPreSql) exportData.pre_sql = toRaw(data.pre_sql)
-  const hasPostSql = !!(data.post_sql && (data.post_sql.mysql || data.post_sql.pgsql))
+  const hasPostSql = !!(data.post_sql && (data.post_sql.mysql || data.post_sql.postgresql))
   if (hasPostSql) exportData.post_sql = toRaw(data.post_sql)
 
   await writable.write(JSON.stringify(exportData, null, jsonFileIndent))

@@ -18,7 +18,7 @@ const previewSql = computed(() => {
   const data = store.currentInitialData
   if (!table || !data) return ''
 
-  const dbDialect = dialect.value === 'postgresql' ? 'pgsql' : 'mysql'
+  const dbDialect = dialect.value === 'postgresql' ? 'postgresql' : 'mysql'
   const preSql = getInitialDataPreSql(data, dbDialect)
   const postSql = getInitialDataPostSql(data, dbDialect)
   const hasRows = (data.rows?.length ?? 0) > 0

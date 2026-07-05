@@ -11,7 +11,7 @@ import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /** 根据 commonConfig 决定是否对 PostgreSQL 标识符加双引号 */
 function quoteIdent(name: string, commonConfig: CommonConfig | null): string {
-  const shouldQuote = commonConfig?.default_config?.pgsql?.quote_identifiers ?? true
+  const shouldQuote = commonConfig?.default_config?.postgresql?.quote_identifiers ?? true
   return shouldQuote ? `"${name}"` : name
 }
 
@@ -21,15 +21,15 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
   let fieldDef = quoteIdent(field.field_name, commonConfig)
 
   // 使用统一类型解析链获取最终 type + length + scale
-  const resolved = resolveFieldTypeForDialect(field, 'pgsql', commonConfig)
+  const resolved = resolveFieldTypeForDialect(field, 'postgresql', commonConfig)
   const fieldType = resolved.type
   const fieldLength = resolved.length
   const fieldScale = resolved.scale
 
   // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
   let defaultValue = field.default
-  if (field.pgsql?.default !== undefined) {
-    defaultValue = field.pgsql.default
+  if (field.postgresql?.default !== undefined) {
+    defaultValue = field.postgresql.default
   }
 
   if (fieldType) {
@@ -82,7 +82,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   sql += `-- ----------------------------\n`
 
   // 表前置 SQL
-  const preSql = getTablePreSql(table, 'pgsql')
+  const preSql = getTablePreSql(table, 'postgresql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
   // DDL 生成策略：drop_and_create | create_if_not_exists | create
@@ -122,12 +122,12 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
 
   // UNIQUE 索引在建表语句中定义
   table.indexes.forEach(index => {
-    const indexType = index.pgsql?.type || index.type
+    const indexType = index.postgresql?.type || index.type
     if (indexType === 'unique') {
-      let indexName = index.pgsql?.name || index.name
+      let indexName = index.postgresql?.name || index.name
       indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
       indexDefinitions.push(`  CONSTRAINT ${quoteIdent(indexName, commonConfig)} UNIQUE (${index.columns.map(col => {
-        const { name, sortPart } = splitColumnForSql(col, 'pgsql')
+        const { name, sortPart } = splitColumnForSql(col, 'postgresql')
         return quoteIdent(name, commonConfig) + sortPart
       }).join(', ')})`)
     }
@@ -143,16 +143,16 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   // 普通索引在建表语句下方定义
   let hasCreateIndexSql = false
   table.indexes.forEach((index, i) => {
-    const indexType = index.pgsql?.type || index.type
+    const indexType = index.postgresql?.type || index.type
 
     if (indexType !== 'unique' && (indexType || index.columns)) {
       if (index.pre_comment) {
         sql += `-- ${index.pre_comment}\n`
       }
-      let indexName = index.pgsql?.name || index.name
+      let indexName = index.postgresql?.name || index.name
       indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') || `idx__${table.name}__${index.columns.map(c => c.name).join('_')}`
       sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
-        const { name, sortPart } = splitColumnForSql(col, 'pgsql')
+        const { name, sortPart } = splitColumnForSql(col, 'postgresql')
         return quoteIdent(name, commonConfig) + sortPart
       }).join(', ')});\n`
       // COMMENT ON INDEX (PostgreSQL)
@@ -184,16 +184,16 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   // 索引注释 — 为唯一索引和已命名普通索引生成 COMMENT ON INDEX
   table.indexes.forEach(index => {
     if (!index.comment) return
-    const indexType = index.pgsql?.type || index.type
+    const indexType = index.postgresql?.type || index.type
     if (indexType === 'unique') {
-      let indexName = index.pgsql?.name || index.name
+      let indexName = index.postgresql?.name || index.name
       indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
       sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
     }
   })
 
   // 表后置 SQL
-  const postSql = getTablePostSql(table, 'pgsql')
+  const postSql = getTablePostSql(table, 'postgresql')
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)
 
   return sql
@@ -215,7 +215,7 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
   ].join('\n')
 
   // Schema 前置 SQL
-  const schemaPreSql = getSchemaPreSql(schema, 'pgsql')
+  const schemaPreSql = getSchemaPreSql(schema, 'postgresql')
   if (schemaPreSql) sql += fmtPrePostSql(schemaPreSql) + '\n'
 
   // 创建schema
@@ -230,7 +230,7 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
   sql = sql.trimEnd() + '\n'
 
   // Schema 后置 SQL
-  const schemaPostSql = getSchemaPostSql(schema, 'pgsql')
+  const schemaPostSql = getSchemaPostSql(schema, 'postgresql')
   if (schemaPostSql) sql += fmtPrePostSql(schemaPostSql) + '\n'
 
   return sql
@@ -309,8 +309,8 @@ export function generateInitialDataAllPostgreSQL(
       const initData = initialDataMap.get(key)
       if (!initData) continue
 
-      const initPreSql = getInitialDataPreSql(initData, 'pgsql')
-      const initPostSql = getInitialDataPostSql(initData, 'pgsql')
+      const initPreSql = getInitialDataPreSql(initData, 'postgresql')
+      const initPostSql = getInitialDataPostSql(initData, 'postgresql')
 
       const hasPreSql = !!initPreSql
       const hasPostSql = !!initPostSql

@@ -236,3 +236,32 @@ export function getInitialDataPreSql(initialData: InitialData, dialect: 'mysql' 
 export function getInitialDataPostSql(initialData: InitialData, dialect: 'mysql' | 'postgresql'): string {
   return initialData.post_sql?.[dialect] || ''
 }
+
+/**
+ * 过滤掉被标记为「不生成」(skip_rows[i] === true) 的初始数据行
+ * 返回过滤后的行与对应行注释（索引已对齐），供 INSERT 生成逻辑使用。
+ * 注意：仅剔除 skip 行，不改变未填字段（保持 NULL 语义，由生成器处理）。
+ */
+export function filterInitialDataRows(
+  rows: Record<string, any>[] | undefined,
+  rowComments: (string | null)[] | undefined,
+  skipRows: (boolean | null)[] | undefined
+): {
+  rows: Record<string, any>[]
+  rowComments: (string | null)[]
+  hasRows: boolean
+} {
+  const srcRows = rows ?? []
+  const result: Record<string, any>[] = []
+  const resultComments: (string | null)[] = []
+  for (let i = 0; i < srcRows.length; i++) {
+    if (skipRows?.[i] === true) continue
+    result.push(srcRows[i]!)
+    resultComments.push(rowComments?.[i] ?? null)
+  }
+  return {
+    rows: result,
+    rowComments: resultComments,
+    hasRows: result.length > 0,
+  }
+}

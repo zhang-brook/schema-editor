@@ -164,6 +164,8 @@ export interface InitialData {
   rows?: Record<string, any>[]
   row_comments?: (string | null)[]
   field_comments?: (Record<string, string> | null)[]
+  /** 逐行跳过标记：skip_rows[i] === true 时该行不生成 INSERT 语句 */
+  skip_rows?: (boolean | null)[]
   /** 前置 SQL（按方言分别配置，生成在 INSERT 之前） */
   pre_sql?: SqlStatements
   /** 后置 SQL（按方言分别配置，生成在 INSERT 之后） */

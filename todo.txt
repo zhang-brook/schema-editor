@@ -5,12 +5,7 @@ refactor: schema下的不同表拆分为不同的json，一个表一个json
 feat: 生成一个 json 结构详细介绍的markdown文件用于向 AI 介绍结构细节，方便使用AI来修改当前工程项目中的 json (这个内容需要跟随项目更新而更新)
 比如，"quote_default": true,什么时候用呀，"field_length": "10,6",这个写法不支持，应该分开写 field_length + field_scale呀等等
 
-feat: 检测到磁盘文件变化后询问用户 磁盘文件已改变，是否重新加载
-（这个改动是否好实现？改动大吗）
-
 refactor: editor-styles.css 中大部分是非全局样式，请帮忙将非全局样式移至相关组件内部 (有多处使用到的样式保留在这个文件中)
-
-initial data 不填时的默认值问题（允许选择某行不生成）
 
 feat: 索引 {pre} xxx {post} 更友好化配置
 

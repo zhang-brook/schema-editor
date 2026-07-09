@@ -28,6 +28,7 @@ const initialData = computed(() => store.currentInitialData)
 const rows = computed(() => initialData.value?.rows)
 const rowComments = computed(() => initialData.value?.row_comments)
 const fieldComments = computed(() => initialData.value?.field_comments)
+const skipRows = computed(() => initialData.value?.skip_rows)
 
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
@@ -121,6 +122,7 @@ function parseJsonInput(text: string): InitialData | null {
     if (Array.isArray(parsed.rows)) result.rows = parsed.rows
     if (Array.isArray(parsed.row_comments)) result.row_comments = parsed.row_comments
     if (Array.isArray(parsed.field_comments)) result.field_comments = parsed.field_comments
+    if (Array.isArray(parsed.skip_rows)) result.skip_rows = parsed.skip_rows
     if (parsed.pre_sql && typeof parsed.pre_sql === 'object') result.pre_sql = { ...parsed.pre_sql }
     if (parsed.post_sql && typeof parsed.post_sql === 'object') result.post_sql = { ...parsed.post_sql }
     return result
@@ -194,6 +196,9 @@ function addRow() {
   if (initialData.value.field_comments) {
     initialData.value.field_comments.push(null)
   }
+  if (initialData.value.skip_rows) {
+    initialData.value.skip_rows.push(null)
+  }
   syncJsonText()
 }
 
@@ -206,10 +211,14 @@ function deleteRow(rowIdx: number) {
   if (initialData.value.field_comments) {
     initialData.value.field_comments.splice(rowIdx, 1)
   }
+  if (initialData.value.skip_rows) {
+    initialData.value.skip_rows.splice(rowIdx, 1)
+  }
   if (initialData.value.rows.length === 0) {
     delete initialData.value.rows
     delete initialData.value.row_comments
     delete initialData.value.field_comments
+    delete initialData.value.skip_rows
   }
 }
 
@@ -223,6 +232,9 @@ function moveRowUp(rowIdx: number) {
   if (wrapper.field_comments) {
     ;[wrapper.field_comments[rowIdx - 1], wrapper.field_comments[rowIdx]] = [wrapper.field_comments[rowIdx]!, wrapper.field_comments[rowIdx - 1]!]
   }
+  if (wrapper.skip_rows) {
+    ;[wrapper.skip_rows[rowIdx - 1], wrapper.skip_rows[rowIdx]] = [wrapper.skip_rows[rowIdx]!, wrapper.skip_rows[rowIdx - 1]!]
+  }
 }
 
 function moveRowDown(rowIdx: number) {
@@ -235,6 +247,9 @@ function moveRowDown(rowIdx: number) {
   if (wrapper.field_comments) {
     ;[wrapper.field_comments[rowIdx], wrapper.field_comments[rowIdx + 1]] = [wrapper.field_comments[rowIdx + 1]!, wrapper.field_comments[rowIdx]!]
   }
+  if (wrapper.skip_rows) {
+    ;[wrapper.skip_rows[rowIdx], wrapper.skip_rows[rowIdx + 1]] = [wrapper.skip_rows[rowIdx + 1]!, wrapper.skip_rows[rowIdx]!]
+  }
 }
 
 function clearRows() {
@@ -243,6 +258,7 @@ function clearRows() {
   delete initialData.value.rows
   delete initialData.value.row_comments
   delete initialData.value.field_comments
+  delete initialData.value.skip_rows
   syncJsonText()
 }
 
@@ -288,6 +304,25 @@ function setRowComment(rowIdx: number, val: string) {
       wrapper.row_comments = Array(wrapper.rows.length).fill(null)
     }
     wrapper.row_comments[rowIdx] = trimmed
+  }
+}
+
+// ===== Row Skip (不生成该行 INSERT) =====
+function setSkipRow(rowIdx: number, checked: boolean) {
+  const wrapper = initialData.value
+  if (!wrapper) return
+  if (!wrapper.skip_rows) {
+    if (wrapper.rows && wrapper.rows.length > 0) {
+      wrapper.skip_rows = Array(wrapper.rows.length).fill(null)
+    } else {
+      wrapper.skip_rows = []
+    }
+  }
+  // checked=true 表示勾选了「不生成」，即跳过该行；checked=false 表示生成
+  wrapper.skip_rows[rowIdx] = checked ? true : null
+  // 清理全 null 数组
+  if (wrapper.skip_rows.every(s => s === null || s === undefined)) {
+    delete wrapper.skip_rows
   }
 }
 
@@ -378,6 +413,7 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
                   <th style="width:36px;">{{ $t('initialData.hash') }}</th>
                   <th v-for="fname in fieldNames" :key="fname">{{ fname }}</th>
                   <th style="width:130px;">{{ $t('initialData.comment') }}</th>
+                  <th style="width:80px;">{{ $t('initialData.skipRow') }}<span class="quote-help-icon" :title="$t('initialData.skipRowTitle')">?</span></th>
                   <th style="width:110px;">{{ $t('initialData.actions') }}</th>
                 </tr>
               </thead>
@@ -396,6 +432,11 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
                     <input class="comment-input" :value="rowComments?.[rIdx] ?? ''"
                       @change="setRowComment(rIdx, ($event.target as HTMLInputElement).value)"
                       :placeholder="$t('initialData.rowCommentPlaceholder')" />
+                  </td>
+                  <td class="row-skip">
+                    <input type="checkbox" class="skip-checkbox"
+                      :checked="skipRows?.[rIdx] === true"
+                      @change="setSkipRow(rIdx, ($event.target as HTMLInputElement).checked)" />
                   </td>
                   <td>
                     <div class="move-btns" style="display:inline-flex; margin-right:2px;">
@@ -582,6 +623,39 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
   color: #aaa;
   font-size: 10px;
   vertical-align: middle !important;
+}
+
+/* Row Skip (启用列) */
+.row-skip {
+  text-align: center;
+  vertical-align: middle !important;
+}
+
+.skip-checkbox {
+  cursor: pointer;
+}
+
+/* Quote help icon (参考 FieldTable.vue) */
+.quote-help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid #999;
+  color: #999;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: help;
+  margin-left: 2px;
+  vertical-align: middle;
+  transition: border-color .15s, color .15s;
+}
+
+.quote-help-icon:hover {
+  border-color: #4a90d9;
+  color: #4a90d9;
 }
 
 .table-input {

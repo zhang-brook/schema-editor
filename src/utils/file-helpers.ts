@@ -199,6 +199,7 @@ function normalizeInitialData(raw: unknown): InitialData | null {
     if (Array.isArray(obj.rows)) result.rows = obj.rows
     if (Array.isArray(obj.row_comments)) result.row_comments = obj.row_comments
     if (Array.isArray(obj.field_comments)) result.field_comments = obj.field_comments
+    if (Array.isArray(obj.skip_rows)) result.skip_rows = obj.skip_rows
     if (obj.pre_sql && typeof obj.pre_sql === 'object') result.pre_sql = { ...obj.pre_sql }
     if (obj.post_sql && typeof obj.post_sql === 'object') result.post_sql = { ...obj.post_sql }
     return result
@@ -235,6 +236,9 @@ export async function writeInitialDataToHandle(
   }
   if (data.field_comments && !isAllNull(data.field_comments)) {
     exportData.field_comments = toRaw(data.field_comments)
+  }
+  if (data.skip_rows && !isAllNull(data.skip_rows)) {
+    exportData.skip_rows = toRaw(data.skip_rows)
   }
   const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.postgresql))
   if (hasPreSql) exportData.pre_sql = toRaw(data.pre_sql)

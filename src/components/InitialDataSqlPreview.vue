@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql } from '@/utils/sql-generator/shared'
+import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from '@/utils/sql-generator/shared'
 import { generateInitialDataMySQL } from '@/utils/sql-generator/mysql'
 import { generateInitialDataPostgreSQL } from '@/utils/sql-generator/postgresql'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
@@ -21,16 +21,18 @@ const previewSql = computed(() => {
   const dbDialect = dialect.value === 'postgresql' ? 'postgresql' : 'mysql'
   const preSql = getInitialDataPreSql(data, dbDialect)
   const postSql = getInitialDataPostSql(data, dbDialect)
-  const hasRows = (data.rows?.length ?? 0) > 0
+
+  // 先过滤掉「不生成」的行，得到有效数据行
+  const filtered = filterInitialDataRows(data.rows, data.row_comments, data.skip_rows)
 
   let sql = ''
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
-  if (hasRows) {
+  if (filtered.hasRows) {
     if (dialect.value === 'mysql') {
-      sql += generateInitialDataMySQL(table, data.rows!, data.row_comments)
+      sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments)
     } else {
       const schemaName = schema?.schema || 'public'
-      sql += generateInitialDataPostgreSQL(table, schemaName, data.rows!, data.row_comments, store.commonConfig)
+      sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig)
     }
   }
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)

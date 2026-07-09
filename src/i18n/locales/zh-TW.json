@@ -216,6 +216,8 @@
     "addData": "新增資料",
     "addRow": "新增列",
     "hash": "#",
+    "skipRow": "不生成",
+    "skipRowTitle": "勾選後該列不生成 INSERT 語句",
     "comment": "註解",
     "actions": "操作",
     "rowCommentPlaceholder": "列註解",

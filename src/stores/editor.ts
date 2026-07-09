@@ -656,6 +656,7 @@ export const useEditorStore = defineStore('editor', () => {
         existing.rows = []
         existing.row_comments = undefined
         existing.field_comments = undefined
+        existing.skip_rows = undefined
         return
       }
       initialDataMap.delete(key)
@@ -669,6 +670,9 @@ export const useEditorStore = defineStore('editor', () => {
       }
       if (existing?.field_comments) {
         result.field_comments = alignToLength(existing.field_comments, rows.length)
+      }
+      if (existing?.skip_rows) {
+        result.skip_rows = alignToLength(existing.skip_rows, rows.length)
       }
       if (existing?.pre_sql) {
         result.pre_sql = { ...existing.pre_sql }

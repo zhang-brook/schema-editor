@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 
 /*
@@ -260,7 +260,7 @@ export function formatSqlValue(val: unknown): string {
 export function generateInitialDataPostgreSQL(
   table: Table,
   schemaName: string,
-  rows: Record<string, any>[],
+  rows: Record<string, any>[], // rows 应为已过滤掉 skip 行的有效数据
   rowComments: (string | null)[] | undefined,
   commonConfig: CommonConfig | null
 ): string {
@@ -314,10 +314,12 @@ export function generateInitialDataAllPostgreSQL(
 
       const hasPreSql = !!initPreSql
       const hasPostSql = !!initPostSql
-      const hasRows = (initData.rows?.length ?? 0) > 0
 
-      // 无数据行且无 pre/post SQL 则跳过
-      if (!hasRows && !hasPreSql && !hasPostSql) continue
+      // 先过滤掉「不生成」的行，得到有效数据行（无 skip 逻辑残留）
+      const filtered = filterInitialDataRows(initData.rows, initData.row_comments, initData.skip_rows)
+
+      // 无有效数据行且无 pre/post SQL 则跳过
+      if (!filtered.hasRows && !hasPreSql && !hasPostSql) continue
 
       if (!isSchemaCommentHeaderPrinted) {
         sql += `-- ----------------------------\n`
@@ -332,14 +334,14 @@ export function generateInitialDataAllPostgreSQL(
         sql += fmtPrePostSql(initPreSql) + '\n'
       }
 
-      if (hasRows) {
+      if (filtered.hasRows) {
         // sql += `-- ----------------------------\n`
         // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
         // sql += `-- ----------------------------\n`
         const qSchema = quoteIdent(schema.schema, commonConfig)
         const qTable = quoteIdent(table.name, commonConfig)
         sql += `-- Insert data into ${qSchema}.${qTable}\n`
-        sql += generateInitialDataPostgreSQL(table, schema.schema, initData.rows!, initData.row_comments, commonConfig)
+        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig)
         sql += '\n'
       }
 

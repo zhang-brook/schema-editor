@@ -216,6 +216,8 @@
     "addData": "Add Data",
     "addRow": "Add Row",
     "hash": "#",
+    "skipRow": "Skip",
+    "skipRowTitle": "Check to skip generating the INSERT statement for this row",
     "comment": "comment",
     "actions": "actions",
     "rowCommentPlaceholder": "row comment",

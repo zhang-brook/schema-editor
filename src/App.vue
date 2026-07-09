@@ -10,6 +10,7 @@ import TableEditor from '@/components/TableEditor.vue'
 import AddFieldModal from '@/components/modal/AddFieldModal.vue'
 import ImportSqlModal from '@/components/modal/ImportSqlModal.vue'
 import ConfirmModal from '@/components/modal/ConfirmModal.vue'
+import UpgradingOverlay from '@/components/UpgradingOverlay.vue'
 
 const store = useEditorStore()
 const { dragOver, onDragOver, onDragEnter, onDragLeave, onDrop } = useDropFolder()
@@ -66,6 +67,9 @@ const { t } = useI18n()
       @confirm="store.confirmUpgradeStructure()"
       @cancel="store.cancelUpgradeStructure()"
     />
+
+    <!-- 全局加载遮罩 -->
+    <UpgradingOverlay v-if="store.overlayVisible" :text="store.overlayText" />
 
     <!-- Toast 通知 -->
     <div class="toast" :class="{ show: store.toastVisible }">{{ store.toastMsg }}</div>

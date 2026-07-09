@@ -2,6 +2,7 @@
   "app": {
     "title": "Schema Editor",
     "emptyState": "Drop a folder here, or choose File → Open Folder from the menu to continue",
+    "loadingOpenProject": "Opening project, please wait…",
     "dropHint": "Drop to open folder"
   },
   "menu": {
@@ -276,9 +277,10 @@
   },
   "upgrade": {
     "title": "Project structure needs upgrade",
-    "message": "This project uses the old directory structure. To support the new \"per-table file + baseline management\" layout, it needs to be upgraded to the new structure.\n\nThe upgrade preserves all data (tables, fields, indexes, initial data, comments, pre/post SQL). Old files are NOT deleted, so you can roll back at any time.",
+    "message": "This project uses the old directory structure. To support the new \"per-table file + baseline management\" layout, it needs to be upgraded to the new structure.\n\nThe upgrade preserves all data (tables, fields, indexes, initial data, comments, pre/post SQL) and removes the corresponding old files. Rollback to the old structure is no longer supported after upgrading.",
     "confirm": "Upgrade project structure",
-    "cancel": "Not now"
+    "cancel": "Not now, close project",
+    "loading": "Upgrading project structure, please wait…"
   },
   "confirm": {
     "deleteSchema": "Delete schema \"{name}\" and ALL its tables? This cannot be undone.",

@@ -11,7 +11,7 @@
 - **字段管理**：表格化编辑字段属性，支持增删改查、注释开关、拖拽排序
 - **索引管理**：定义主键、唯一索引、普通索引，含方言覆盖配置
 - **SQL 实时预览**：编辑时实时预览当前表的建表语句及初始数据 INSERT 语句
-- **初始数据编辑**：支持表格模式 / JSON 模式编辑初始数据，自动保存为 `__initial_data__.sql`
+- **初始数据编辑**：支持表格模式 / JSON 模式编辑初始数据，自动保存为 `initial-data/<schema>/<table>.json`
 - **公共配置**：编辑 `common.json` 中的公共字段引用（`common_used_fields`）和默认配置
 - **文件自动保存**：通过 File System Access API 打开本地文件夹，编辑内容实时同步保存
 
@@ -45,13 +45,17 @@ pnpm build
 ```
 your-schema-folder/
 ├── common.json          # 公共字段引用和默认配置
-└── initial-data/        # Table 初始数据 目录 (可选)
-└── schemas/             # Schema JSON 文件目录
-    ├── account.json
-    ├── user.json
-    └── ...
+├── schemas/             # Schema JSON 文件目录
+│   ├── account.json
+│   ├── user.json
+│   └── ...
+└── initial-data/        # Table 初始数据目录 (可选)
+    └── <schema>/
+        └── <table>.json
 ```
 
 ---
 
 如需了解项目架构或参与开发，请参阅 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+
+项目正在进行渐进式重构，方案与进度详见 [docs/refactor/](./docs/refactor/README.md)。

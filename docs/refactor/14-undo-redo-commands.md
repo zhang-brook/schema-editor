@@ -1,7 +1,7 @@
 # 14 · undo/redo 命令模式 + 结构化 patch + 按需写文件
 
 > 目标：当前架构每次重做/恢复都全量快照，且每次改动全量写盘。引入「命令模式 + 结构化补丁」：每次用户改动生成一个原子命令（含 forward/backward 数据），undo/redo 只应用/回滚该命令，并**只写受影响的 json 文件**，顺带解决全量保存问题。
-> 依赖：[`10-workspace-layout.md`](./10-workspace-layout.md)、[`11-directory-restructure.md`](./11-directory-restructure.md)（按需写文件依赖每表独立 JSON）。
+> 依赖：统一路径层 `src/core/workspace/`、`[11-directory-restructure.md](./11-directory-restructure.md)`（按需写文件依赖每表独立 JSON）。
 
 ## 现状问题
 
@@ -28,7 +28,7 @@
    - `undo()`：`cmd.revert()` → 移入 redo 栈 → 按需写盘。
    - `redo()`：重放 `cmd.apply()` → 按需写盘。
    - 通过 `watch` 防抖：用户连续键入等高频操作可合并为单命令（如「编辑字段名」整段操作一个命令）。
-3. **按需写文件**：命令执行后，仅对 `affectedFiles()` 列出的文件调用 [`10`](./10-workspace-layout.md) 的路径解析 + 写盘；
+3. **按需写文件**：命令执行后，仅对 `affectedFiles()` 列出的文件调用 `src/core/workspace/paths.ts` 的路径解析 + 写盘；
    - SQL 生成：本次**先保持全量生成 SQL**（背景已确认「SQL 部分更新可后续」），但仅当 `affectedFiles` 含 `sql` 或全部保存时才写 `output/`。
    - common/database 仅在相关命令时写。
 4. **与现有 auto-sync watcher 协同**：当前 `editor.ts` 用 `watch(schemas/commonConfig/initialDataMap)` 触发全量保存；引入命令模式后，保存由命令驱动，watcher 退化为「非命令来源的外部变更」（如 `reloadFromDisk`）才全量写，避免双写。保留 `_writeDepth` 防抖。

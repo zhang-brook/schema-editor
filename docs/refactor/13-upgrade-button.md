@@ -1,7 +1,7 @@
 # 13 · 手动「升级项目结构」按钮
 
 > 目标：核心重构后目录/数据结构发生破坏性变化（每表独立 JSON、initial-data 行内化、struct_version 2.0）。为避免自动改盘造成的不可预期损失，**提供显式按钮**，由用户手动触发从旧结构迁移到新结构。
-> 依赖：[`10-workspace-layout.md`](./10-workspace-layout.md)、[`11-directory-restructure.md`](./11-directory-restructure.md)、[`12-initial-data-inline.md`](./12-initial-data-inline.md)。
+> 依赖：统一路径层 `src/core/workspace/`、`[11-directory-restructure.md](./11-directory-restructure.md)`、`[12-initial-data-inline.md](./12-initial-data-inline.md)`。
 
 ## 背景
 
@@ -32,7 +32,7 @@
 - 旧结构项目打开时显示升级提示，点击按钮后磁盘变为新结构且数据完整（表、字段、索引、初始数据、注释、跳过、pre/post_sql 均不丢）。
 - 升级后重新打开为「新结构项目」，无再次升级提示。
 - 升级过程不破坏旧文件（保留原文件，便于回退）。
-- 未升级时旧结构可读可编辑（兼容路径经 [`10`](./10-workspace-layout.md) 解析）。
+- 未升级时旧结构可读可编辑（兼容路径经 `src/core/workspace/paths.ts` 解析）。
 - `pnpm build` 通过，界面功能正常。
 
 ## 原子提交拆分建议

@@ -1,7 +1,7 @@
 # 11 · 目录结构重构（每表独立 JSON + current/baselines/migrations）
 
 > 目标：将当前「所有表存于 `schemas/*.json` + `initial-data/` 平行目录」改为每表独立 JSON，并引入 `current/`（当前基线）、`baselines/`（历史基线）、`migrations/`（用户迁移脚本）的目录布局。
-> 依赖：[`10-workspace-layout.md`](./10-workspace-layout.md) 提供的统一路径层。
+> 依赖：已落地的统一路径层 `src/core/workspace/`（见 [`00-background.md`](./00-background.md) 第 4 节）。
 
 ## 目标态目录布局
 
@@ -26,7 +26,7 @@ your-schema-folder/
 ## 关键设计点
 
 1. **基线用普通文件**：工作目录可能被 git 管理，基线采用普通 json 文件名（含时间戳/版本），以保留完整变更历史。
-2. **统一路径层**：所有目录拼接、句柄获取经 [`10-workspace-layout.md`](./10-workspace-layout.md) 的 `paths.ts`，不在本步骤内重散落。
+2. **统一路径层**：所有目录拼接、句柄获取经 `src/core/workspace/paths.ts`，不在本步骤内重散落。
 3. **`common.json` 拆分**：原 `common_config` 中与「基线版本」相关的配置（如 `schema_order`、按基线可能不同的项）移入 `current/database.json`；与基线无关的（default_config / unified_types / common_used_fields）保留在根 `common.json`。
 4. **每表独立 JSON**：原 `schemas/<schema>.json`（含该 schema 下所有 tables）拆为：
    - `current/schemas/<schema>/schema.json`：记录 schema 原始名称 + table 排序数组。

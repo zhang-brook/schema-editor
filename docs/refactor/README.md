@@ -38,7 +38,7 @@
 
 | 文档 | 范围 | 状态 |
 |------|------|------|
-| [`10-workspace-layout.md`](./10-workspace-layout.md) | 统一路径层 `src/core/workspace/` | 待落地 |
+| 统一路径层 `src/core/workspace/` | 路径常量 + handle 原语 + 业务路径解析，收敛散落路径 | ✅ 已完成（代码已落地，方案文档已归档删除） |
 | [`11-directory-restructure.md`](./11-directory-restructure.md) | 每表独立 JSON + current/baselines/migrations 目录 | 待落地 |
 | [`12-initial-data-inline.md`](./12-initial-data-inline.md) | initial-data 行内结构 + 升级器兼容（struct_version→2.0） | 待落地 |
 | [`13-upgrade-button.md`](./13-upgrade-button.md) | 手动「升级项目结构」按钮 | 待落地 |

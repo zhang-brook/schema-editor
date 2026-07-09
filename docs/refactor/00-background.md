@@ -41,7 +41,7 @@
 
 ## 4. 目录与数据模型（核心重构目标态）
 
-> 详细方案见 [`11-directory-restructure.md`](./11-directory-restructure.md) 与 [`10-workspace-layout.md`](./10-workspace-layout.md)。
+> 详细方案见 [`11-directory-restructure.md`](./11-directory-restructure.md)。统一路径层（`src/core/workspace/`）已落地，目录/句柄解析均经此模块。
 
 新工作目录布局（工作目录可能被 git 管理，基线用普通文件以保留完整历史）：
 

@@ -480,6 +480,12 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
 </template>
 
 <style scoped>
+@import '../assets/style/section.css';
+@import '../assets/style/table.css';
+@import '../assets/style/btn.css';
+@import '../assets/style/help.css';
+@import '../assets/style/move-btn.css';
+
 .section-header {
   display: flex;
   align-items: center;

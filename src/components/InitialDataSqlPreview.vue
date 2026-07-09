@@ -72,6 +72,9 @@ function copyToClipboard() {
 </template>
 
 <style scoped>
+@import '../assets/style/section.css';
+@import '../assets/style/btn.css';
+
 .header-tabs {
   display: flex;
   gap: 0;

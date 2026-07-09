@@ -154,6 +154,11 @@ watch(() => props.modelValue, () => {
 </template>
 
 <style scoped>
+@import '../assets/style/table.css';
+@import '../assets/style/form.css';
+@import '../assets/style/btn.css';
+@import '../assets/style/expand.css';
+
 .index-columns-editor {
   display: flex;
   flex-direction: column;

@@ -419,6 +419,16 @@ function onDropTail(e: DragEvent) {
 </template>
 
 <style scoped>
+@import '../assets/style/section.css';
+@import '../assets/style/table.css';
+@import '../assets/style/form.css';
+@import '../assets/style/btn.css';
+@import '../assets/style/badge.css';
+@import '../assets/style/expand.css';
+@import '../assets/style/comment.css';
+@import '../assets/style/help.css';
+@import '../assets/style/move-btn.css';
+
 .fields-table {
   width: 100%;
   border-collapse: collapse;

@@ -53,4 +53,7 @@ const store = useEditorStore()
 </template>
 
 <style scoped>
+@import '../assets/style/section.css';
+@import '../assets/style/form.css';
+@import '../assets/style/comment.css';
 </style>

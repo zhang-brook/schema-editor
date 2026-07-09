@@ -107,6 +107,12 @@ const availableFieldNames = computed(() => {
 </template>
 
 <style scoped>
+@import '../assets/style/section.css';
+@import '../assets/style/table.css';
+@import '../assets/style/form.css';
+@import '../assets/style/btn.css';
+@import '../assets/style/expand.css';
+
 .indexes-table {
   width: 100%;
   border-collapse: collapse;

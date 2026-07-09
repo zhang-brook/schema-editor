@@ -57,6 +57,9 @@ useEscClose(computed(() => props.visible), () => emit('close'))
 </template>
 
 <style scoped>
+@import '../../assets/style/modal.css';
+@import '../../assets/style/btn.css';
+
 .modal-box {
   background: #fff;
   border-radius: 8px;

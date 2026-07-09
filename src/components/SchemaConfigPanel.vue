@@ -53,4 +53,5 @@ function setPostSql(dialect: 'mysql' | 'postgresql', val: string) {
 </template>
 
 <style scoped>
+@import '../assets/style/section.css';
 </style>

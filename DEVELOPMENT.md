@@ -2,6 +2,8 @@
 
 本文档面向参与 schema-editor 开发的成员，涵盖技术栈、项目结构、架构设计和质量保障体系。
 
+> 项目正在进行渐进式重构，具体方案与进度详见 [`docs/refactor/`](./docs/refactor/README.md)。
+
 ## 技术栈
 
 - **Vue 3** + **TypeScript** + **Vite**
@@ -14,28 +16,54 @@
 ```
 src/
 ├── App.vue                      # 根组件，整体布局框架（工具栏 + 侧边栏 + 编辑区）
-├── main.ts                      # 入口文件，挂载 Vue 应用 & Pinia
+├── main.ts                      # 入口文件，挂载 Vue 应用 & Pinia，引入全局样式
+├── assets/
+│   └── style/                   # 按功能拆分的全局 .css（base / layout / table / modal / form 等），由 main.ts 引入
 ├── components/
 │   ├── EditorToolbar.vue        # 顶部工具栏：Open Folder / Reload from Disk
 │   ├── EditorSidebar.vue        # 左侧树形导航：Schema > Table，支持折叠/展开/拖拽
 │   ├── CommonConfigPanel.vue    # Common 配置编辑面板（common_used_fields、排序、default_config）
+│   ├── SchemaConfigPanel.vue    # Schema 配置编辑面板
 │   ├── TableEditor.vue          # 表编辑主面板，组合以下子组件
+│   ├── TableBasicInfo.vue       # 表基础信息编辑
 │   ├── FieldTable.vue           # 字段列表表格编辑
 │   ├── IndexTable.vue           # 索引列表表格编辑
-│   ├── AddFieldModal.vue        # 添加字段弹窗
+│   ├── IndexColumnsEditor.vue   # 索引列结构化编辑（排序列 + 方言覆盖）
 │   ├── SqlPreview.vue           # SQL 建表语句实时预览（MySQL / PostgreSQL 标签切换）
-│   └── InitialDataEditor.vue    # 初始数据编辑器（表格模式 / JSON 模式）
+│   ├── InitialDataEditor.vue    # 初始数据编辑器（表格模式 / JSON 模式）
+│   ├── InitialDataSqlPreview.vue# 初始数据 INSERT 语句预览
+│   ├── PrePostSqlEditor.vue     # 前置 / 后置 SQL 编辑
+│   ├── icon/                    # 图标组件
+│   └── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal）
+├── composables/
+│   ├── useDropFolder.ts         # 拖拽文件夹打开的组合式函数
+│   └── useEscClose.ts           # Esc 关闭弹窗的组合式函数
+├── i18n/
+│   ├── index.ts                 # vue-i18n 初始化
+│   ├── detection.ts             # 浏览器语言检测
+│   └── locales/                 # en / zh-CN / zh-TW 语言包
 ├── stores/
 │   └── editor.ts                # Pinia Store：编辑器全局状态管理（表/字段/索引 CRUD、拖拽、文件读写）
 ├── types/
 │   ├── schema.ts                # Schema 核心类型定义（Schema、Table、Field、Index 等）
 │   └── global.d.ts              # 全局类型声明
 └── utils/
+    ├── constants.ts             # 全局常量
     ├── file-helpers.ts          # 文件系统操作（File System Access API 封装）
-    └── sql-generator/
-        ├── shared.ts            # SQL 生成公共逻辑
-        ├── mysql.ts             # MySQL 方言 SQL 生成
-        └── postgresql.ts        # PostgreSQL 方言 SQL 生成
+    ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
+    ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
+    ├── unified-types.ts         # 跨模块共用的统一类型
+    ├── version-upgrader.ts      # 运行时数据结构升级器（struct_version）
+    ├── sql-generator/
+    │   ├── shared.ts            # SQL 生成公共逻辑
+    │   ├── mysql.ts             # MySQL 方言 SQL 生成
+    │   └── postgresql.ts        # PostgreSQL 方言 SQL 生成
+    └── sql-parser/
+        ├── index.ts            # SQL 解析入口
+        ├── tokenizer.ts        # SQL 词法分析
+        ├── create-table-parser.ts # CREATE TABLE 语句解析
+        ├── dialect-detector.ts # 方言自动检测
+        └── type-mapper.ts      # 字段类型映射
 ```
 
 ## 架构概览
@@ -43,7 +71,7 @@ src/
 ### 数据流
 
 ```
-本地文件夹 (common.json + schema/*.json)
+本地文件夹 (common.json + schemas/*.json + initial-data/<schema>/<table>.json)
         │ File System Access API
         ▼
   file-helpers.ts  ←→  Pinia Store (editor.ts)

@@ -27,6 +27,7 @@ import {
   writeInitialDataToNewStructure,
   deleteTableDirFromHandle,
   deleteSchemaDirFromHandle,
+  pruneTableDirsFromHandle,
   deleteInitialDataFromNewStructure,
 } from '@/utils/file-helpers'
 import {
@@ -44,7 +45,7 @@ import { getDialectSubConfig } from '@/utils/dialect-resolver'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
 import { getCommonFileHandle, getCurrentDir } from '@/core/workspace/paths'
 import { readJsonFile } from '@/core/workspace/handles'
-import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
+import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION, sanitizeName } from '@/core/workspace/layout'
 import { fmtPrePostSql, getGlobalPostSql, getGlobalPreSql, resolveFieldTypeForDialect } from '@/utils/sql-generator/shared'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
@@ -553,7 +554,10 @@ export const useEditorStore = defineStore('editor', () => {
       }
       // 每 schema 目录 + 每表目录
       for (const schema of schemas) {
-        const tableOrder = schema.tables.map(t => t.name)
+        const tableNames = schema.tables.map(t => t.name)
+        // 先清理磁盘上已失效的旧表目录（如改名后残留的旧 table.json 目录），避免脏数据累积
+        await pruneTableDirsFromHandle(rootDirHandle.value, schema.schema, tableNames)
+        const tableOrder = tableNames
         await writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, {
           schema: schema.schema,
           table_order: tableOrder,
@@ -983,6 +987,52 @@ export const useEditorStore = defineStore('editor', () => {
     schema.tables.push(newTable)
     selectTable(schemaIdx, schema.tables.length - 1)
     showToast(t('toast.tableAdded'))
+  }
+
+  /** 重命名表：同步更新表名、迁移初始数据 key 并清理旧表目录 */
+  async function renameTable(schemaIdx: number, tableIdx: number, newName: string): Promise<boolean> {
+    const schema = schemas[schemaIdx]
+    if (!schema) return false
+    const table = schema.tables[tableIdx]
+    if (!table) return false
+    newName = newName.trim()
+    if (!newName) return false
+    if (schema.tables.some((t, i) => i !== tableIdx && t.name === newName)) {
+      showToast(t('toast.tableExists', { name: newName }))
+      return false
+    }
+
+    const oldName = table.name
+
+    _enterWriteScope()
+    try {
+      // 迁移初始数据 key（oldTable -> newTable），并标记旧 key 待删除
+      const oldKey = initialDataKey(schema.schema, oldName)
+      const newKey = initialDataKey(schema.schema, newName)
+      const data = initialDataMap.get(oldKey)
+      if (data !== undefined) {
+        initialDataMap.delete(oldKey)
+        initialDataMap.set(newKey, data)
+      }
+      // 仅当旧表目录与新模式下的目录确实不同时，才标记旧文件待删除。
+      // 若两者经 sanitize 后同名（如仅改大小写的 users -> Users），在大小写
+      // 不敏感文件系统上指向同一物理目录，新数据会覆盖旧文件，无需删除，
+      // 否则会在写入新 initial-data.json 之后又被误删。
+      if (sanitizeName(oldName) !== sanitizeName(newName)) {
+        initialDataDeletedKeys.add(oldKey)
+      }
+
+      table.name = newName
+
+      // 重新写盘：syncAllToDisk 会先 prune 失效的旧表目录（含旧 initial-data.json），
+      // 再按新表名写入 table.json 与 initial-data.json
+      await syncAllToDisk()
+
+      showToast(t('toast.tableRenamed'))
+      return true
+    } finally {
+      _leaveWriteScope()
+    }
   }
 
   async function deleteTable(schemaIdx: number, tableIdx: number) {
@@ -2160,6 +2210,7 @@ export const useEditorStore = defineStore('editor', () => {
     // Table CRUD
     addTable,
     deleteTable,
+    renameTable,
     moveTable,
     moveTableToSchema,
 

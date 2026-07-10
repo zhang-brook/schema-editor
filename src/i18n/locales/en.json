@@ -247,6 +247,8 @@
     "schemaRenamed": "Schema renamed",
     "tableAdded": "Table added",
     "tableDeleted": "Table deleted",
+    "tableExists": "Table \"{name}\" already exists",
+    "tableRenamed": "Table renamed",
     "pleaseSelectCommonField": "Please select a common field",
     "pleaseEnterFieldName": "Please enter field name",
     "fieldExistsInTable": "Field \"{name}\" already exists in this table",

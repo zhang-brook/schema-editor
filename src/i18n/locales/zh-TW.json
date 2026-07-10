@@ -247,6 +247,8 @@
     "schemaRenamed": "Schema 已重新命名",
     "tableAdded": "表已新增",
     "tableDeleted": "表已刪除",
+    "tableExists": "表 \"{name}\" 已存在",
+    "tableRenamed": "表已重新命名",
     "pleaseSelectCommonField": "請選擇一個公共欄位",
     "pleaseEnterFieldName": "請輸入欄位名稱",
     "fieldExistsInTable": "欄位 \"{name}\" 在此表中已存在",

@@ -357,6 +357,42 @@ export async function deleteTableDirFromHandle(
   }
 }
 
+/**
+ * 清理某 schema 目录下「磁盘存在、但内存态已不存在」的表目录。
+ *
+ * 用于修复「表名变更时旧 table.json 未被删除、仅创建了新目录」的问题：
+ * 表名经 auto-sync 直接双向绑定改名后，旧目录 current/schemas/<schema>/<oldTable>/
+ * 仍残留，本函数依据内存态中的真实表名集合，删除已失效的表目录。
+ *
+ * 仅删除不在 `currentTableNames`（sanitize 后的磁盘友好名集合）中的表子目录，
+ * 不会误删仍在使用的表目录。
+ */
+export async function pruneTableDirsFromHandle(
+  rootHandle: FileSystemDirectoryHandle,
+  schemaName: string,
+  currentTableNames: string[],
+): Promise<void> {
+  // 大小写不敏感匹配：Windows 等大小写不敏感文件系统上，磁盘目录名可能与
+  // 表名大小写不同（如 users / Users 指向同一物理目录）。若用大小写敏感的
+  // Set 判断，会误将「正在使用」的目录当作失效目录删掉，进而连带删除其中的
+  // initial-data.json（详见 renameTable 场景）。
+  const validNames = new Set(currentTableNames.map(name => sanitizeName(name).toLowerCase()))
+  try {
+    const currentDir = await getCurrentDir(rootHandle, false)
+    const schemasDir = await getCurrentSchemasDir(currentDir, false)
+    const schemaDir = await getSchemaDirUnderCurrent(schemasDir, sanitizeName(schemaName), false)
+
+    for await (const entry of schemaDir.values()) {
+      if (entry.kind !== 'directory') continue
+      // 跳过 schema.json 之外的非表目录（理论上 schema 目录下只有 table 子目录 + schema.json）
+      if (validNames.has(entry.name.toLowerCase())) continue
+      await removeEntry(schemaDir, entry.name, { recursive: true })
+    }
+  } catch {
+    // schema 目录不存在，静默忽略
+  }
+}
+
 /** 删除整个 schema 目录 current/schemas/<schema>/ */
 export async function deleteSchemaDirFromHandle(
   rootHandle: FileSystemDirectoryHandle,

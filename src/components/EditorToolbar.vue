@@ -45,6 +45,18 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape' && openMenu.value) {
     closeMenu()
   }
+  // Undo/Redo 快捷键（仅在项目打开时生效，避免与输入框原生撤销冲突由 store 接管）
+  if (store.projectOpened) {
+    const mod = e.ctrlKey || e.metaKey
+    if (mod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault()
+      if (e.shiftKey) store.redo()
+      else store.undo()
+    } else if (mod && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault()
+      store.redo()
+    }
+  }
 }
 
 onMounted(() => {
@@ -123,6 +135,19 @@ onUnmounted(() => {
 
     <!-- Right Side -->
     <div class="menu-bar-right">
+      <button
+        class="toolbar-btn"
+        :disabled="!store.canUndo"
+        :title="store.undoLabel ? $t('history.undoTitle', { label: store.undoLabel }) : $t('history.undo')"
+        @click="store.canUndo && store.undo()"
+      >&#8630; {{ $t('history.undo') }}</button>
+      <button
+        class="toolbar-btn"
+        :disabled="!store.canRedo"
+        :title="store.redoLabel ? $t('history.redoTitle', { label: store.redoLabel }) : $t('history.redo')"
+        @click="store.canRedo && store.redo()"
+      >&#8631; {{ $t('history.redo') }}</button>
+
       <span v-if="store.projectOpened" class="sync-badge" :title="$t('toolbar.autoSavingTitle')">
         &#128190;&#xFE0E; {{ $t('toolbar.autoSaving') }}
       </span>
@@ -233,6 +258,28 @@ onUnmounted(() => {
   gap: 8px;
   margin-left: auto;
   padding-right: 8px;
+}
+
+.toolbar-btn {
+  padding: 3px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .sync-badge {

@@ -40,8 +40,8 @@
 |------|------|------|
 | 统一路径层 `src/core/workspace/` | 路径常量 + handle 原语 + 业务路径解析，收敛散落路径 | ✅ 已完成（代码已落地，方案文档已归档删除） |
 | initial-data 行内结构 | initial-data 行内结构 + 升级器兼容（并入 v0.4→v1.0 步骤） | ✅ 已完成（代码已落地，方案文档已归档删除） |
-| [`13-upgrade-button.md`](./13-upgrade-button.md) | 手动「升级项目结构」按钮 | 待落地 |
-| [`14-undo-redo-commands.md`](./14-undo-redo-commands.md) | 命令模式 + 结构化 patch + 按需写文件 | 待落地 |
+| 手动「升级项目结构」 | 打开旧结构 → 弹窗确认 → 迁移 → 清理旧文件 → 加载新结构 | ✅ 已完成（代码已落地，方案文档已归档删除） |
+| 命令模式 undo/redo + 按需写文件 | 命令模式 + 结构化 patch + 按需写受影响 json + 工具栏 undo/redo | ✅ 已完成（代码已落地，方案文档已归档删除） |
 | [`15-baseline-migrations-design.md`](./15-baseline-migrations-design.md) | 基线快照 / 迁移脚本 设计文档（实现待 field_id） | 设计待评审 |
 
 ## 不在当前范围（仅记录，后续批次实现）

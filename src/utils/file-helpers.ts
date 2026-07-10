@@ -1,10 +1,9 @@
 import { toRaw } from 'vue'
-import type { InitialData, Schema, Table } from '@/types/schema'
+import type { InitialData, InitialDataRow, LegacyInitialData, Schema, Table } from '@/types/schema'
 import {
   getCommonFileHandle,
   getSchemasDir,
   getInitialDataDir,
-  getOldInitialDataFileHandle,
   removeOldInitialDataFile,
   getOutputDir,
   getOutputDialectDir,
@@ -409,7 +408,7 @@ export async function deleteSchemaDirFromHandle(
 
 /**
  * 将初始数据写入 current/schemas/<schema>/<table>/initial-data.json
- * v0.3+：永远使用完整对象格式。
+ * v1.1+：永远使用行内结构（rows: [{ data, field_comments?, is_skip?, row_comment? }]）。
  */
 export async function writeInitialDataToNewStructure(
   rootHandle: FileSystemDirectoryHandle,
@@ -423,22 +422,8 @@ export async function writeInitialDataToNewStructure(
   const tableDir = await getTableDirUnderSchema(schemaDir, sanitizeName(tableName))
   const handle = await getInitialDataFileHandle(tableDir)
 
-  // 构建干净的导出对象，只包含已配置的属性
-  const exportData: Record<string, any> = {}
-  if (data.rows) exportData.rows = toRaw(data.rows)
-  if (data.row_comments && !isAllNull(data.row_comments)) {
-    exportData.row_comments = toRaw(data.row_comments)
-  }
-  if (data.field_comments && !isAllNull(data.field_comments)) {
-    exportData.field_comments = toRaw(data.field_comments)
-  }
-  if (data.skip_rows && !isAllNull(data.skip_rows)) {
-    exportData.skip_rows = toRaw(data.skip_rows)
-  }
-  const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.postgresql))
-  if (hasPreSql) exportData.pre_sql = toRaw(data.pre_sql)
-  const hasPostSql = !!(data.post_sql && (data.post_sql.mysql || data.post_sql.postgresql))
-  if (hasPostSql) exportData.post_sql = toRaw(data.post_sql)
+  // 构建干净的导出对象（行内结构，只写非空字段）
+  const exportData = buildInitialDataExport(data)
 
   await writeJsonFile(handle, exportData)
 }
@@ -693,79 +678,97 @@ export async function readInitialDataFromHandle(
   return result
 }
 
-/** 归一化原始 JSON 数据为 InitialData 格式（v0.3+ 只接受对象格式，数组格式已由 structure-migrations 迁移） */
-function normalizeInitialData(raw: unknown): InitialData | null {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+/**
+ * 归一化原始 JSON 数据为行内 InitialData 结构（幂等）。
+ * 兼容三种输入：
+ *   1. 纯数组 [...]          → { rows: [{ data: r }] }
+ *   2. 旧「平行数组」对象     → 合并 rows/row_comments/field_comments/skip_rows 为行内
+ *   3. 新「行内」对象         → 原样返回（rows 元素带 data）
+ */
+export function normalizeInitialData(raw: unknown): InitialData | null {
+  // 纯数组：直接包成行内 rows
+  if (Array.isArray(raw)) {
+    return { rows: raw.map(r => ({ data: (r ?? {}) as Record<string, any> })) }
+  }
+
+  if (raw && typeof raw === 'object') {
     const obj = raw as Record<string, any>
     const result: InitialData = {}
-    if (Array.isArray(obj.rows)) result.rows = obj.rows
-    if (Array.isArray(obj.row_comments)) result.row_comments = obj.row_comments
-    if (Array.isArray(obj.field_comments)) result.field_comments = obj.field_comments
-    if (Array.isArray(obj.skip_rows)) result.skip_rows = obj.skip_rows
+
+    if (Array.isArray(obj.rows)) {
+      result.rows = mergeToInlineRows(obj as LegacyInitialData)
+    }
     if (obj.pre_sql && typeof obj.pre_sql === 'object') result.pre_sql = { ...obj.pre_sql }
     if (obj.post_sql && typeof obj.post_sql === 'object') result.post_sql = { ...obj.post_sql }
     return result
   }
+
   return null
 }
 
-/** 检查数组是否全为 null（或 undefined） */
-function isAllNull(arr: (unknown | null)[] | undefined): boolean {
-  if (!arr) return true
-  return arr.every(v => v === null || v === undefined)
+/**
+ * 将「平行数组」或「已行内化」的 rows 统一合并为行内 InitialDataRow[]（幂等）。
+ * - 若 rows 元素已是 { data: ... } 行内格式，原样保留（补齐平行数组中的注释/跳过标记）。
+ * - 若 rows 元素是裸数据对象（旧格式），则包成 { data: ... } 并从平行数组读取注释/跳过标记。
+ */
+function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
+  const rows = obj.rows ?? []
+  const rowComments = obj.row_comments
+  const fieldComments = obj.field_comments
+  const skipRows = obj.skip_rows
+
+  return rows.map((r, i) => {
+    const raw = (r ?? {}) as Record<string, any>
+    // 已是行内格式（带 data 键）：原样沿用，仅在缺省时从平行数组补齐
+    const isInline = raw.data !== undefined && typeof raw.data === 'object'
+    const row: InitialDataRow = isInline
+      ? {
+          data: (raw.data ?? {}) as Record<string, any>,
+          ...(raw.field_comments ? { field_comments: raw.field_comments } : {}),
+          ...(raw.is_skip === true ? { is_skip: true } : {}),
+          ...(raw.row_comment ? { row_comment: raw.row_comment } : {}),
+        }
+      : { data: raw }
+
+    if (!isInline) {
+      const fc = fieldComments?.[i]
+      if (fc && Object.keys(fc).length > 0) row.field_comments = { ...fc }
+
+      if (skipRows?.[i] === true) row.is_skip = true
+
+      const rc = rowComments?.[i]
+      if (rc) row.row_comment = rc
+    }
+
+    return row
+  })
 }
 
 /**
- * 将初始数据写入 initial-data/<schemaName>/<tableName>.json
- * v0.3+：永远使用完整对象格式 { rows, row_comments?, field_comments?, pre_sql?, post_sql? }
+ * 构建行内 InitialData 的干净导出对象：只写非空字段，保持磁盘文件精简。
+ * 每行仅在有值时输出 field_comments / is_skip / row_comment。
  */
-export async function writeInitialDataToHandle(
-  rootHandle: FileSystemDirectoryHandle,
-  schemaName: string,
-  tableName: string,
-  data: InitialData
-): Promise<void> {
-  const initialDataHandle = await getInitialDataDir(rootHandle)
-  const schemaHandle = await getOrCreateDir(initialDataHandle, schemaName)
-  const fileHandle = await getOldInitialDataFileHandle(schemaHandle, tableName)
-  const writable = await fileHandle.createWritable()
-
-  // 构建干净的导出对象，只包含已配置的属性
+export function buildInitialDataExport(data: InitialData): Record<string, any> {
   const exportData: Record<string, any> = {}
-  if (data.rows) exportData.rows = toRaw(data.rows)
-  if (data.row_comments && !isAllNull(data.row_comments)) {
-    exportData.row_comments = toRaw(data.row_comments)
+
+  if (data.rows) {
+    exportData.rows = toRaw(data.rows).map(row => {
+      const out: Record<string, any> = { data: toRaw(row.data) }
+      if (row.field_comments && Object.keys(row.field_comments).length > 0) {
+        out.field_comments = toRaw(row.field_comments)
+      }
+      if (row.is_skip === true) out.is_skip = true
+      if (row.row_comment) out.row_comment = row.row_comment
+      return out
+    })
   }
-  if (data.field_comments && !isAllNull(data.field_comments)) {
-    exportData.field_comments = toRaw(data.field_comments)
-  }
-  if (data.skip_rows && !isAllNull(data.skip_rows)) {
-    exportData.skip_rows = toRaw(data.skip_rows)
-  }
+
   const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.postgresql))
   if (hasPreSql) exportData.pre_sql = toRaw(data.pre_sql)
   const hasPostSql = !!(data.post_sql && (data.post_sql.mysql || data.post_sql.postgresql))
   if (hasPostSql) exportData.post_sql = toRaw(data.post_sql)
 
-  await writable.write(JSON.stringify(exportData, null, jsonFileIndent))
-  await writable.close()
-}
-
-/**
- * 删除 initial-data/<schemaName>/<tableName>.json
- */
-export async function deleteInitialDataFromHandle(
-  rootHandle: FileSystemDirectoryHandle,
-  schemaName: string,
-  tableName: string
-): Promise<void> {
-  try {
-    const initialDataHandle = await getInitialDataDir(rootHandle, false)
-    const schemaHandle = await getOrCreateDir(initialDataHandle, schemaName, false)
-    await removeOldInitialDataFile(schemaHandle, tableName)
-  } catch {
-    // 文件或目录不存在，静默忽略
-  }
+  return exportData
 }
 
 // ===== 业务无关的工具函数 =====

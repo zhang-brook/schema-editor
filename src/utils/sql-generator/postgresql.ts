@@ -314,7 +314,7 @@ export function generateInitialDataAllPostgreSQL(
       const hasPostSql = !!initPostSql
 
       // 先过滤掉「不生成」的行，得到有效数据行（无 skip 逻辑残留）
-      const filtered = filterInitialDataRows(initData.rows, initData.row_comments, initData.skip_rows)
+      const filtered = filterInitialDataRows(initData.rows)
 
       // 无有效数据行且无 pre/post SQL 则跳过
       if (!filtered.hasRows && !hasPreSql && !hasPostSql) continue

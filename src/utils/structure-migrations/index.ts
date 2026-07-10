@@ -80,12 +80,6 @@ export const STRUCTURE_MIGRATION_STEPS: StructureMigrationStep[] = [
     to: '1.0',
     migrate: migrateV0_4ToV1_0,
   },
-  // 未来示例（当前目标版本为 1.0）：
-  // {
-  //   from: '1.0',
-  //   to: '2.0',
-  //   migrate: migrateV1_0ToV2_0,
-  // },
 ]
 
 /** 语义化版本比较：a < b 返回 < 0，a === b 返回 0，a > b 返回 > 0 */

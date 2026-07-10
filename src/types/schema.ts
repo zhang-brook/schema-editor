@@ -160,7 +160,35 @@ export interface CommonConfig {
   type_case?: TypeCaseMode
 }
 
+/**
+ * 单行初始数据（行内结构）。
+ * 行数据与其注释/跳过标记内聚在同一对象，根除旧「平行数组靠索引对齐」的脆弱性。
+ */
+export interface InitialDataRow {
+  /** 行的字段数据 */
+  data: Record<string, any>
+  /** 该行的字段级注释（仅有注释的字段才出现） */
+  field_comments?: Record<string, string>
+  /** 是否跳过该行（true 时该行不生成 INSERT 语句，语义同旧 skip_rows[i]===true） */
+  is_skip?: boolean
+  /** 行级注释（可选） */
+  row_comment?: string
+}
+
 export interface InitialData {
+  /** 行内化的数据行；未初始化数据板块时为 undefined，空表为 [] */
+  rows?: InitialDataRow[]
+  /** 前置 SQL（按方言分别配置，生成在 INSERT 之前） */
+  pre_sql?: SqlStatements
+  /** 后置 SQL（按方言分别配置，生成在 INSERT 之后） */
+  post_sql?: SqlStatements
+}
+
+/**
+ * 旧版初始数据结构（四个平行数组，靠索引对齐）。
+ * 仅用于升级器读取旧磁盘格式，运行时内存态一律使用 {@link InitialData} 行内结构。
+ */
+export interface LegacyInitialData {
   rows?: Record<string, any>[]
   row_comments?: (string | null)[]
   field_comments?: (Record<string, string> | null)[]

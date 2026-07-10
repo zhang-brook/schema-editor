@@ -680,51 +680,6 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== Initial Data CRUD =====
 
-  /** 将注释数组对齐到新的行数（截断多余或补 null） */
-  function alignToLength<T>(arr: (T | null)[] | undefined, newLen: number): (T | null)[] {
-    if (!arr) return Array(newLen).fill(null)
-    if (arr.length >= newLen) return arr.slice(0, newLen)
-    return [...arr, ...Array(newLen - arr.length).fill(null)]
-  }
-
-  function setInitialData(schemaName: string, tableName: string, rows: Record<string, any>[]) {
-    const key = initialDataKey(schemaName, tableName)
-    if ((rows?.length ?? 0) === 0) {
-      // 保留有 pre_sql/post_sql 的条目，仅清空数据行
-      const existing = initialDataMap.get(key)
-      if (existing?.pre_sql || existing?.post_sql) {
-        existing.rows = []
-        existing.row_comments = undefined
-        existing.field_comments = undefined
-        existing.skip_rows = undefined
-        return
-      }
-      initialDataMap.delete(key)
-      initialDataDeletedKeys.add(key)
-    } else {
-      const existing = initialDataMap.get(key)
-      const result: InitialData = { rows }
-      // 保留已有注释，对齐到新行数
-      if (existing?.row_comments) {
-        result.row_comments = alignToLength(existing.row_comments, rows.length)
-      }
-      if (existing?.field_comments) {
-        result.field_comments = alignToLength(existing.field_comments, rows.length)
-      }
-      if (existing?.skip_rows) {
-        result.skip_rows = alignToLength(existing.skip_rows, rows.length)
-      }
-      if (existing?.pre_sql) {
-        result.pre_sql = { ...existing.pre_sql }
-      }
-      if (existing?.post_sql) {
-        result.post_sql = { ...existing.post_sql }
-      }
-      initialDataMap.set(key, result)
-      initialDataDeletedKeys.delete(key)
-    }
-  }
-
   /** JSON 模式：直接设置完整 InitialData 对象 */
   function setInitialDataObject(schemaName: string, tableName: string, data: InitialData) {
     const key = initialDataKey(schemaName, tableName)
@@ -2188,7 +2143,6 @@ export const useEditorStore = defineStore('editor', () => {
     // Initial Data
     initialDataMap,
     initialDataKey,
-    setInitialData,
     setInitialDataObject,
     deleteInitialData,
 

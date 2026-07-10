@@ -39,7 +39,7 @@
 | 文档 | 范围 | 状态 |
 |------|------|------|
 | 统一路径层 `src/core/workspace/` | 路径常量 + handle 原语 + 业务路径解析，收敛散落路径 | ✅ 已完成（代码已落地，方案文档已归档删除） |
-| [`12-initial-data-inline.md`](./12-initial-data-inline.md) | initial-data 行内结构 + 升级器兼容（struct_version→1.0） | 待落地 |
+| initial-data 行内结构 | initial-data 行内结构 + 升级器兼容（并入 v0.4→v1.0 步骤） | ✅ 已完成（代码已落地，方案文档已归档删除） |
 | [`13-upgrade-button.md`](./13-upgrade-button.md) | 手动「升级项目结构」按钮 | 待落地 |
 | [`14-undo-redo-commands.md`](./14-undo-redo-commands.md) | 命令模式 + 结构化 patch + 按需写文件 | 待落地 |
 | [`15-baseline-migrations-design.md`](./15-baseline-migrations-design.md) | 基线快照 / 迁移脚本 设计文档（实现待 field_id） | 设计待评审 |

@@ -13,6 +13,7 @@ import {
 } from '@/core/workspace/paths'
 import { readJsonFile, writeJsonFile } from '@/core/workspace/handles'
 import { sanitizeName } from '@/core/workspace/layout'
+import { normalizeInitialData, buildInitialDataExport } from '@/utils/file-helpers'
 
 /**
  * 结构迁移的公共磁盘 IO 层。
@@ -220,8 +221,9 @@ async function readNewInitialData(
       const tableDir = tableEntry as FileSystemDirectoryHandle
       try {
         const handle = await getInitialDataFileHandle(tableDir, false)
-        const data = await readJsonFile<InitialData>(handle)
-        map.set(`${schemaEntry.name}/${tableEntry.name}`, data)
+        const raw = await readJsonFile<unknown>(handle)
+        const normalized = normalizeInitialData(raw)
+        if (normalized) map.set(`${schemaEntry.name}/${tableEntry.name}`, normalized)
       } catch {
         // 无 initial-data.json
       }
@@ -249,7 +251,7 @@ async function writeNewLayout(rootHandle: FileSystemDirectoryHandle, data: Proje
       const initial = data.initialData.get(key)
       if (initial) {
         const initHandle = await getInitialDataFileHandle(tableDir)
-        await writeJsonFile(initHandle, initial)
+        await writeJsonFile(initHandle, buildInitialDataExport(initial))
       }
     }
   }

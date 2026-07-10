@@ -303,7 +303,9 @@
     "dropNotSupported": "拖拽打开不支持当前浏览器，请使用 Chrome / Edge",
     "dropFolderOnly": "请拖拽文件夹而非文件",
     "diskFileChanged": "磁盘文件已改变，是否重新加载？",
-    "upgradeFailed": "项目结构升级失败"
+    "upgradeFailed": "项目结构升级失败",
+    "undo": "已撤销",
+    "redo": "已重做"
   },
   "upgrade": {
     "title": "项目结构需要升级",

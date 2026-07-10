@@ -303,7 +303,9 @@
     "dropNotSupported": "Drag-and-drop is unsupported in this browser. Please use Chrome or Edge",
     "dropFolderOnly": "Please drop a folder, not a file",
     "diskFileChanged": "The disk file has changed. Reload?",
-    "upgradeFailed": "Project structure upgrade failed"
+    "upgradeFailed": "Project structure upgrade failed",
+    "undo": "Undone",
+    "redo": "Redone"
   },
   "upgrade": {
     "title": "Project structure needs upgrade",

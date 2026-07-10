@@ -42,6 +42,18 @@ import { checkVersion } from '@/utils/structure-migrations/version-utils'
 import { runStructureMigrations } from '@/utils/structure-migrations'
 import { formatIndexColumn } from '@/utils/index-column-utils'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
+import {
+  CommandManager,
+  affectedTable,
+  affectedInitialData,
+  affectedSchema,
+  affectedDatabase,
+  affectedCommon,
+  affectedSql,
+  mergeAffectedFiles,
+  type Command,
+  type AffectedFile,
+} from '@/core/history/command'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
 import { getCommonFileHandle, getCurrentDir } from '@/core/workspace/paths'
 import { readJsonFile } from '@/core/workspace/handles'
@@ -82,6 +94,21 @@ export const useEditorStore = defineStore('editor', () => {
   // Initial Data —— 独立存储在 initial-data/<schema>/<table>.json
   const initialDataMap = reactive(new Map<string, InitialData>())
   const initialDataDeletedKeys = reactive(new Set<string>())
+
+  // ===== Undo/Redo (命令模式) =====
+  const history = new CommandManager()
+  const canUndo = ref(false)
+  const canRedo = ref(false)
+  const undoLabel = ref<string | null>(null)
+  const redoLabel = ref<string | null>(null)
+
+  /** 同步 undo/redo 可用态到 UI */
+  function refreshHistoryFlags() {
+    canUndo.value = history.canUndo
+    canRedo.value = history.canRedo
+    undoLabel.value = history.undoLabel
+    redoLabel.value = history.redoLabel
+  }
 
   // ===== Import SQL State =====
   const showImportSqlModal = ref(false)
@@ -262,6 +289,8 @@ export const useEditorStore = defineStore('editor', () => {
       _syncTimer = null
     }
     _autoSyncSetup = false
+    history.clear()
+    refreshHistoryFlags()
     if (!silent) showToast(t('toast.projectClosed'))
   }
 
@@ -526,16 +555,159 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  // ===== Undo/Redo 接入 & 按需写盘 =====
+
+  /** 注入命令写盘回调：命令执行/undo/redo 后只写受影响文件 */
+  history.setPersistHook((files) => {
+    void persistAffectedFiles(files)
+  })
+
+  /** 经命令管理器执行一个命令（apply + 入栈 + 按需写盘） */
+  function executeCommand(cmd: Command) {
+    history.execute(cmd)
+    refreshHistoryFlags()
+  }
+
+  /** 撤销 */
+  function undo() {
+    if (!history.canUndo) return
+    history.undo()
+    refreshHistoryFlags()
+    showToast(t('toast.undo'))
+  }
+
+  /** 重做 */
+  function redo() {
+    if (!history.canRedo) return
+    history.redo()
+    refreshHistoryFlags()
+    showToast(t('toast.redo'))
+  }
+
+  /**
+   * 按需写盘：仅对命令声明的受影响文件集合写盘，不再全量遍历所有 schema。
+   * SQL 因暂无部分更新能力，仍全量重新生成并写 output/（行为保持与重构前一致）。
+   */
+  async function persistAffectedFiles(files: AffectedFile[]) {
+    if (!rootDirHandle.value || !currentDirHandle.value) return
+    const merged = mergeAffectedFiles(files)
+    const needSql = merged.some(f => f.kind === 'sql')
+
+    _enterWriteScope()
+    try {
+      // common / database 仅当相关命令时写
+      if (merged.some(f => f.kind === 'common')) {
+        const commonToWrite: any = { ...commonConfig.value }
+        delete commonToWrite.schema_order
+        await writeCommonToHandle(rootDirHandle.value, commonToWrite)
+      }
+      if (merged.some(f => f.kind === 'database')) {
+        await writeDatabaseToHandle(rootDirHandle.value, {
+          schema_order: commonConfig.value?.schema_order ?? schemas.map(s => s.schema),
+        })
+      }
+
+      // schema 级：写 schema.json（含表顺序）+ 清理失效表目录；schema 已删除则清理整个目录
+      for (const f of merged.filter(x => x.kind === 'schema')) {
+        const schema = schemas.find(s => s.schema === f.schema)
+        if (schema) {
+          const tableNames = schema.tables.map(t => t.name)
+          await pruneTableDirsFromHandle(rootDirHandle.value, schema.schema, tableNames)
+          await writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, {
+            schema: schema.schema,
+            table_order: tableNames,
+          })
+          // 重命名 schema：清理旧名目录（旧名经 sanitize 不同于新名时）
+          if (f.oldSchema && sanitizeName(f.oldSchema) !== sanitizeName(schema.schema)) {
+            await deleteSchemaDirFromHandle(rootDirHandle.value, f.oldSchema)
+          }
+        } else if (rootDirHandle.value && f.schema) {
+          // schema 已从内存移除：清理整个 schema 目录 + 其 initial-data + SQL output
+          await deleteSchemaDirFromHandle(rootDirHandle.value, f.schema)
+          for (const key of [...initialDataDeletedKeys]) {
+            if (key.startsWith(`${f.schema}/`)) {
+              const sep = key.indexOf('/')
+              const tableName = key.substring(sep + 1)
+              await deleteInitialDataFromNewStructure(rootDirHandle.value, f.schema, tableName)
+              initialDataDeletedKeys.delete(key)
+            }
+          }
+          try {
+            await deleteSqlFromOutput(rootDirHandle.value, 'mysql', `${f.schema}.sql`)
+          } catch { /* 忽略 */ }
+          try {
+            await deleteSqlFromOutput(rootDirHandle.value, 'postgresql', `${f.schema}.sql`)
+          } catch { /* 忽略 */ }
+        }
+      }
+
+      // table 级：表存在则写 table.json；表已被删除（如 undo 后的重做）则清理磁盘目录
+      for (const f of merged.filter(x => x.kind === 'table')) {
+        const schema = schemas.find(s => s.schema === f.schema)
+        const table = schema?.tables.find(tb => tb.name === f.table)
+        if (table) {
+          await writeTableToHandle(rootDirHandle.value, schema!.schema, buildTableExportData(table))
+        } else if (rootDirHandle.value && f.schema && f.table) {
+          // 表已从内存移除（删除命令生效）：清理磁盘对应目录 + initial-data + SQL output
+          await deleteTableDirFromHandle(rootDirHandle.value, f.schema, f.table)
+          await deleteInitialDataFromNewStructure(rootDirHandle.value, f.schema, f.table)
+          try {
+            await deleteSqlFromOutput(rootDirHandle.value, 'mysql', `${f.schema}.sql`)
+          } catch { /* 忽略 */ }
+          try {
+            await deleteSqlFromOutput(rootDirHandle.value, 'postgresql', `${f.schema}.sql`)
+          } catch { /* 忽略 */ }
+        }
+      }
+
+      // initial-data 级：写对应 initial-data.json + 清理已标记删除的文件
+      for (const f of merged.filter(x => x.kind === 'initial-data')) {
+        const key = initialDataKey(f.schema!, f.table!)
+        const data = initialDataMap.get(key)
+        if (data) {
+          await writeInitialDataToNewStructure(rootDirHandle.value, f.schema!, f.table!, data)
+        }
+      }
+      for (const key of initialDataDeletedKeys) {
+        const sep = key.indexOf('/')
+        const schemaName = key.substring(0, sep)
+        const tableName = key.substring(sep + 1)
+        await deleteInitialDataFromNewStructure(rootDirHandle.value, schemaName, tableName)
+      }
+      initialDataDeletedKeys.clear()
+
+      // SQL：全量重新生成并写 output/（保持与重构前一致）
+      if (needSql) {
+        await syncSqlToOutput()
+      }
+    } catch (e) {
+      console.error('[persistAffectedFiles] failed:', e)
+      showToast(t('toast.failedSaveChanges'))
+    } finally {
+      _leaveWriteScope()
+    }
+    // 标记命令写盘完成，抑制随后 watcher 触发的全量写（避免双写）
+    _lastCommandPersist = Date.now()
+  }
+
   // ===== Auto-sync (实时同步到本地文件) =====
 
   let _syncTimer: ReturnType<typeof setTimeout> | null = null
   let _autoSyncSetup = false
   let _reloading = false
 
+  /** 命令写盘时间戳：命令执行后会经 persistAffectedFiles 按需写盘，
+   *  此时抑制短时间内 watcher 触发全量写盘，避免双写与性能回归。 */
+  let _lastCommandPersist = 0
+
   function debouncedSync(delay = 400) {
     if (_reloading) return
     if (_syncTimer) clearTimeout(_syncTimer)
-    _syncTimer = setTimeout(() => syncAllToDisk(), delay)
+    _syncTimer = setTimeout(() => {
+      // 命令刚按需写盘，跳过本次全量写，避免双写
+      if (Date.now() - _lastCommandPersist < 800) return
+      void syncAllToDisk()
+    }, delay)
   }
 
   async function syncAllToDisk() {
@@ -704,6 +876,134 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataDeletedKeys.add(key)
   }
 
+  /** 切换某行是否跳过（不生成 INSERT），支持 undo/redo */
+  function setInitialDataRowSkip(
+    schemaName: string,
+    tableName: string,
+    row: { is_skip?: boolean },
+    checked: boolean,
+  ) {
+    const oldSkip = row.is_skip
+    executeCommand({
+      label: t('history.toggleSkipRow'),
+      apply() {
+        if (checked) {
+          row.is_skip = true
+        } else {
+          delete row.is_skip
+        }
+      },
+      revert() {
+        if (oldSkip === undefined) {
+          delete row.is_skip
+        } else {
+          row.is_skip = oldSkip
+        }
+      },
+      affectedFiles() {
+        return [affectedInitialData(schemaName, tableName), affectedSql()]
+      },
+    })
+  }
+
+  /** 设置某行某字段的注释，支持 undo/redo */
+  function setInitialDataFieldComment(
+    schemaName: string,
+    tableName: string,
+    row: { field_comments?: Record<string, string> },
+    fieldName: string,
+    val: string,
+  ) {
+    const trimmed = val.trim()
+    const oldVal = row.field_comments?.[fieldName]
+    const oldObj = row.field_comments ? { ...row.field_comments } : undefined
+    executeCommand({
+      label: t('history.editInitialDataComment', { name: fieldName }),
+      apply() {
+        if (!trimmed) {
+          if (row.field_comments) {
+            delete row.field_comments[fieldName]
+            if (Object.keys(row.field_comments).length === 0) {
+              delete row.field_comments
+            }
+          }
+        } else {
+          if (!row.field_comments) row.field_comments = {}
+          row.field_comments[fieldName] = trimmed
+        }
+      },
+      revert() {
+        if (oldVal === undefined) {
+          if (row.field_comments && Object.keys(oldObj ?? {}).length === 0) {
+            delete row.field_comments
+          } else if (row.field_comments) {
+            delete row.field_comments[fieldName]
+          }
+        } else if (oldObj) {
+          row.field_comments = { ...oldObj }
+        }
+      },
+      affectedFiles() {
+        return [affectedInitialData(schemaName, tableName), affectedSql()]
+      },
+    })
+  }
+
+  /** 设置某行某字段的数据值，支持 undo/redo（连续编辑合并） */
+  function setInitialDataCell(
+    schemaName: string,
+    tableName: string,
+    row: { data: Record<string, any> },
+    fieldName: string,
+    val: string,
+  ) {
+    const oldVal = row.data[fieldName]
+    if (oldVal === val) return
+    executeCommand({
+      label: t('history.editInitialDataCell', { name: fieldName }),
+      apply() {
+        row.data[fieldName] = val
+      },
+      revert() {
+        row.data[fieldName] = oldVal
+      },
+      affectedFiles() {
+        return [affectedInitialData(schemaName, tableName), affectedSql()]
+      },
+    })
+  }
+
+  /** 设置整行注释，支持 undo/redo */
+  function setInitialDataRowComment(
+    schemaName: string,
+    tableName: string,
+    row: { row_comment?: string },
+    val: string,
+  ) {
+    const trimmed = val.trim()
+    const oldVal = row.row_comment
+    executeCommand({
+      label: t('history.editInitialDataRowComment'),
+      apply() {
+        if (trimmed) {
+          row.row_comment = trimmed
+        } else {
+          delete row.row_comment
+        }
+      },
+      revert() {
+        if (oldVal === undefined) {
+          delete row.row_comment
+        } else {
+          row.row_comment = oldVal
+        }
+      },
+      affectedFiles() {
+        return [affectedInitialData(schemaName, tableName), affectedSql()]
+      },
+    })
+  }
+
   // ===== Initial Data Pre/Post SQL =====
 
   function setInitialDataPreSql(initialData: InitialData, dialect: SqlDialect, val: string) {
@@ -764,8 +1064,23 @@ export const useEditorStore = defineStore('editor', () => {
     if (toIdx < 0 || toIdx >= schemas.length) return
     const [schema] = schemas.splice(fromIdx, 1)
     if (!schema) return
-    schemas.splice(toIdx, 0, schema)
-    syncSchemaOrder()
+    executeCommand({
+      label: t('history.moveSchema'),
+      coalesceKey: `move-schema:${fromIdx}-${toIdx}`,
+      apply() {
+        schemas.splice(toIdx, 0, schema)
+        syncSchemaOrder()
+      },
+      revert() {
+        const curIdx = schemas.indexOf(schema)
+        if (curIdx >= 0) schemas.splice(curIdx, 1)
+        schemas.splice(fromIdx, 0, schema)
+        syncSchemaOrder()
+      },
+      affectedFiles() {
+        return [affectedDatabase(), affectedSql()]
+      },
+    })
   }
 
   // ===== Schema CRUD =====
@@ -779,71 +1094,82 @@ export const useEditorStore = defineStore('editor', () => {
       schema: name,
       tables: []
     }
-    schemas.push(newSchema)
-    syncSchemaOrder()
+    executeCommand({
+      label: t('history.addSchema'),
+      coalesceKey: `add-schema:${name}`,
+      apply() {
+        schemas.push(newSchema)
+        syncSchemaOrder()
+      },
+      revert() {
+        const idx = schemas.indexOf(newSchema)
+        if (idx >= 0) schemas.splice(idx, 1)
+      },
+      affectedFiles() {
+        return [affectedDatabase(), affectedSchema(name), affectedSql()]
+      },
+    })
     selectedSchemaIdx.value = schemas.length - 1
     selectedTableIdx.value = -1
     showToast(t('toast.schemaCreated'))
   }
 
-  async function deleteSchema(schemaIdx: number) {
+  function deleteSchema(schemaIdx: number) {
     const schema = schemas[schemaIdx]
     if (!schema) return
     if (!confirm(t('confirm.deleteSchema', { name: schema.schema }))) return
 
-    _enterWriteScope()
-    try {
-      // Clean up initial data
-      for (const table of schema.tables) {
-        const key = initialDataKey(schema.schema, table.name)
-        if (initialDataMap.has(key)) {
-          initialDataMap.delete(key)
-          initialDataDeletedKeys.add(key)
-        }
+    // 记录该 schema 下各表的 initial-data 状态，便于 revert 恢复
+    const removedInitialData: { key: string; data: InitialData }[] = []
+    for (const table of schema.tables) {
+      const key = initialDataKey(schema.schema, table.name)
+      if (initialDataMap.has(key)) {
+        removedInitialData.push({ key, data: initialDataMap.get(key)! })
       }
-
-      // Delete schema directory from disk (current/schemas/<schema>/)
-      if (rootDirHandle.value) {
-        try {
-          await deleteSchemaDirFromHandle(rootDirHandle.value, schema.schema)
-        } catch (e) {
-          console.warn('Failed to delete schema directory:', e)
-        }
-      }
-
-      schemas.splice(schemaIdx, 1)
-      syncSchemaOrder()
-
-      // Delete SQL output files and regenerate aggregate files
-      if (rootDirHandle.value) {
-        const schemaName = schema.schema
-        try {
-          await deleteSqlFromOutput(rootDirHandle.value, 'mysql', `${schemaName}.sql`)
-        } catch (e) {
-          console.warn('Failed to delete mysql output:', e)
-        }
-        try {
-          await deleteSqlFromOutput(rootDirHandle.value, 'postgresql', `${schemaName}.sql`)
-        } catch (e) {
-          console.warn('Failed to delete postgresql output:', e)
-        }
-        await syncSqlToOutput()
-      }
-
-      // Update selection
-      if (schemas.length === 0) {
-        selectedSchemaIdx.value = -1
-        selectedTableIdx.value = -1
-      } else if (selectedSchemaIdx.value >= schemas.length) {
-        selectedSchemaIdx.value = schemas.length - 1
-      }
-      showToast(t('toast.schemaDeleted'))
-    } finally {
-      _leaveWriteScope()
     }
+    const removedIdx = schemaIdx
+    const removedSchema = schema
+
+    executeCommand({
+      label: t('history.deleteSchema', { name: removedSchema.schema }),
+      coalesceKey: `delete-schema:${removedSchema.schema}`,
+      apply() {
+        // 标记该 schema 所有 initial-data 待删除
+        for (const { key } of removedInitialData) {
+          if (initialDataMap.has(key)) {
+            initialDataMap.delete(key)
+            initialDataDeletedKeys.add(key)
+          }
+        }
+        const idx = schemas.indexOf(removedSchema)
+        if (idx >= 0) schemas.splice(idx, 1)
+        syncSchemaOrder()
+        // 更新选中
+        if (schemas.length === 0) {
+          selectedSchemaIdx.value = -1
+          selectedTableIdx.value = -1
+        } else if (selectedSchemaIdx.value >= schemas.length) {
+          selectedSchemaIdx.value = schemas.length - 1
+        }
+      },
+      revert() {
+        schemas.splice(removedIdx, 0, removedSchema)
+        syncSchemaOrder()
+        for (const { key, data } of removedInitialData) {
+          initialDataMap.set(key, data)
+          initialDataDeletedKeys.delete(key)
+        }
+        selectedSchemaIdx.value = removedIdx
+        selectedTableIdx.value = removedSchema.tables.length > 0 ? 0 : -1
+      },
+      affectedFiles() {
+        return [affectedDatabase(), affectedSchema(removedSchema.schema), affectedSql()]
+      },
+    })
+    showToast(t('toast.schemaDeleted'))
   }
 
-  async function renameSchema(schemaIdx: number, newName: string) {
+  function renameSchema(schemaIdx: number, newName: string) {
     const schema = schemas[schemaIdx]
     if (!schema) return
     newName = newName.trim()
@@ -854,54 +1180,55 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     const oldName = schema.schema
+    // 记录该 schema 下各表 initial-data key 的迁移，便于 revert
+    const keyMigrations = schema.tables.map(table => ({
+      oldKey: initialDataKey(oldName, table.name),
+      newKey: initialDataKey(newName, table.name),
+      data: initialDataMap.has(initialDataKey(oldName, table.name))
+        ? initialDataMap.get(initialDataKey(oldName, table.name))!
+        : undefined,
+    }))
 
-    _enterWriteScope()
-    try {
-      // Delete old schema directory from disk
-      if (rootDirHandle.value) {
-        try {
-          await deleteSchemaDirFromHandle(rootDirHandle.value, oldName)
-        } catch (e) {
-          console.warn('Failed to delete old schema directory:', e)
+    executeCommand({
+      label: t('history.renameSchema', { name: newName }),
+      coalesceKey: `rename-schema:${oldName}`,
+      apply() {
+        schema.schema = newName
+        syncSchemaOrder()
+        for (const m of keyMigrations) {
+          if (m.data !== undefined) {
+            initialDataMap.delete(m.oldKey)
+            initialDataMap.set(m.newKey, m.data)
+          }
+          initialDataDeletedKeys.add(m.oldKey)
         }
-      }
-
-      // Delete old SQL output files
-      if (rootDirHandle.value) {
-        try {
-          await deleteSqlFromOutput(rootDirHandle.value, 'mysql', `${oldName}.sql`)
-        } catch (e) {
-          console.warn('Failed to delete old mysql output:', e)
+      },
+      revert() {
+        schema.schema = oldName
+        syncSchemaOrder()
+        for (const m of keyMigrations) {
+          if (m.data !== undefined) {
+            initialDataMap.delete(m.newKey)
+            initialDataMap.set(m.oldKey, m.data)
+          }
+          initialDataDeletedKeys.delete(m.oldKey)
         }
-        try {
-          await deleteSqlFromOutput(rootDirHandle.value, 'postgresql', `${oldName}.sql`)
-        } catch (e) {
-          console.warn('Failed to delete old postgresql output:', e)
+      },
+      affectedFiles() {
+        const files: AffectedFile[] = [
+          affectedDatabase(),
+          { kind: 'schema', schema: newName, oldSchema: oldName },
+          affectedSql(),
+        ]
+        for (const table of schema.tables) {
+          files.push(affectedTable(newName, table.name))
+          files.push(affectedInitialData(newName, table.name))
         }
-      }
+        return files
+      },
+    })
 
-      schema.schema = newName
-      syncSchemaOrder()
-
-      // Update initial data keys and mark old files for deletion
-      for (const table of schema.tables) {
-        const oldKey = initialDataKey(oldName, table.name)
-        const newKey = initialDataKey(newName, table.name)
-        const data = initialDataMap.get(oldKey)
-        if (data !== undefined) {
-          initialDataMap.delete(oldKey)
-          initialDataMap.set(newKey, data)
-        }
-        initialDataDeletedKeys.add(oldKey)
-      }
-
-      // 重写新目录（database.json + schema.json + 各 table.json + initial-data + SQL）
-      await syncAllToDisk()
-
-      showToast(t('toast.schemaRenamed'))
-    } finally {
-      _leaveWriteScope()
-    }
+    showToast(t('toast.schemaRenamed'))
   }
 
   // ===== Navigation =====
@@ -939,13 +1266,26 @@ export const useEditorStore = defineStore('editor', () => {
       fields: [],
       indexes: []
     }
-    schema.tables.push(newTable)
+    executeCommand({
+      label: t('history.addTable'),
+      coalesceKey: `add-table:${schema.schema}`,
+      apply() {
+        schema.tables.push(newTable)
+      },
+      revert() {
+        const idx = schema.tables.indexOf(newTable)
+        if (idx >= 0) schema.tables.splice(idx, 1)
+      },
+      affectedFiles() {
+        return [affectedSchema(schema.schema), affectedTable(schema.schema, newTable.name), affectedSql()]
+      },
+    })
     selectTable(schemaIdx, schema.tables.length - 1)
     showToast(t('toast.tableAdded'))
   }
 
   /** 重命名表：同步更新表名、迁移初始数据 key 并清理旧表目录 */
-  async function renameTable(schemaIdx: number, tableIdx: number, newName: string): Promise<boolean> {
+  function renameTable(schemaIdx: number, tableIdx: number, newName: string): boolean {
     const schema = schemas[schemaIdx]
     if (!schema) return false
     const table = schema.tables[tableIdx]
@@ -958,36 +1298,48 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     const oldName = table.name
+    const oldKey = initialDataKey(schema.schema, oldName)
+    const newKey = initialDataKey(schema.schema, newName)
+    const movedData = initialDataMap.has(oldKey) ? initialDataMap.get(oldKey)! : undefined
+    // 仅当旧表目录与新目录经 sanitize 后不同名时，才标记旧 key 待删除（避免
+    // 大小写不敏感文件系统上误删同一物理目录）。
+    const markOldKeyForDelete = sanitizeName(oldName) !== sanitizeName(newName)
 
-    _enterWriteScope()
-    try {
-      // 迁移初始数据 key（oldTable -> newTable），并标记旧 key 待删除
-      const oldKey = initialDataKey(schema.schema, oldName)
-      const newKey = initialDataKey(schema.schema, newName)
-      const data = initialDataMap.get(oldKey)
-      if (data !== undefined) {
-        initialDataMap.delete(oldKey)
-        initialDataMap.set(newKey, data)
-      }
-      // 仅当旧表目录与新模式下的目录确实不同时，才标记旧文件待删除。
-      // 若两者经 sanitize 后同名（如仅改大小写的 users -> Users），在大小写
-      // 不敏感文件系统上指向同一物理目录，新数据会覆盖旧文件，无需删除，
-      // 否则会在写入新 initial-data.json 之后又被误删。
-      if (sanitizeName(oldName) !== sanitizeName(newName)) {
-        initialDataDeletedKeys.add(oldKey)
-      }
+    executeCommand({
+      label: t('history.renameTable', { name: newName }),
+      coalesceKey: `rename-table:${schema.schema}:${oldName}`,
+      apply() {
+        if (movedData !== undefined) {
+          initialDataMap.delete(oldKey)
+          initialDataMap.set(newKey, movedData)
+        }
+        if (markOldKeyForDelete) {
+          initialDataDeletedKeys.add(oldKey)
+        }
+        table.name = newName
+      },
+      revert() {
+        if (movedData !== undefined) {
+          initialDataMap.delete(newKey)
+          initialDataMap.set(oldKey, movedData)
+        }
+        if (markOldKeyForDelete) {
+          initialDataDeletedKeys.delete(oldKey)
+        }
+        table.name = oldName
+      },
+      affectedFiles() {
+        return [
+          affectedSchema(schema.schema),
+          affectedTable(schema.schema, newName),
+          affectedInitialData(schema.schema, newName),
+          affectedSql(),
+        ]
+      },
+    })
 
-      table.name = newName
-
-      // 重新写盘：syncAllToDisk 会先 prune 失效的旧表目录（含旧 initial-data.json），
-      // 再按新表名写入 table.json 与 initial-data.json
-      await syncAllToDisk()
-
-      showToast(t('toast.tableRenamed'))
-      return true
-    } finally {
-      _leaveWriteScope()
-    }
+    showToast(t('toast.tableRenamed'))
+    return true
   }
 
   async function deleteTable(schemaIdx: number, tableIdx: number) {
@@ -995,23 +1347,40 @@ export const useEditorStore = defineStore('editor', () => {
     if (!schema) return
     const tableName = schema.tables[tableIdx]?.name
     if (!confirm(t('confirm.deleteTable', { name: tableName }))) return
-    schema.tables.splice(tableIdx, 1)
-    // 清理初始数据
-    if (tableName) {
-      const key = initialDataKey(schema.schema, tableName)
-      if (initialDataMap.has(key)) {
-        initialDataMap.delete(key)
-        initialDataDeletedKeys.add(key)
-      }
-      // 删除磁盘上的 table 目录（current/schemas/<schema>/<table>/）
-      if (rootDirHandle.value) {
-        try {
-          await deleteTableDirFromHandle(rootDirHandle.value, schema.schema, tableName)
-        } catch (e) {
-          console.warn('Failed to delete table directory:', e)
+
+    const removedTable = schema.tables[tableIdx]
+    if (!removedTable) return
+    const removedIdx = tableIdx
+    // 记录被删表的 initial-data 状态，便于 revert 恢复
+    const dataKey = initialDataKey(schema.schema, removedTable.name)
+    const removedInitialData = initialDataMap.has(dataKey)
+      ? { key: dataKey, data: initialDataMap.get(dataKey)! }
+      : null
+
+    executeCommand({
+      label: t('history.deleteTable', { name: removedTable.name }),
+      coalesceKey: `delete-table:${schema.schema}:${removedTable.name}`,
+      apply() {
+        if (removedIdx < schema.tables.length) {
+          schema.tables.splice(removedIdx, 1)
         }
-      }
-    }
+        if (removedInitialData) {
+          initialDataMap.delete(removedInitialData.key)
+          initialDataDeletedKeys.add(removedInitialData.key)
+        }
+      },
+      revert() {
+        schema.tables.splice(removedIdx, 0, removedTable)
+        if (removedInitialData) {
+          initialDataMap.set(removedInitialData.key, removedInitialData.data)
+          initialDataDeletedKeys.delete(removedInitialData.key)
+        }
+      },
+      affectedFiles() {
+        return [affectedSchema(schema.schema), affectedTable(schema.schema, removedTable.name), affectedInitialData(schema.schema, removedTable.name), affectedSql()]
+      },
+    })
+
     if (selectedSchemaIdx.value === schemaIdx) {
       if (selectedTableIdx.value >= schema.tables.length) {
         selectedTableIdx.value = schema.tables.length - 1
@@ -1034,12 +1403,27 @@ export const useEditorStore = defineStore('editor', () => {
     const [table] = schema.tables.splice(fromIdx, 1)
     if (!table) return
     const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
-    schema.tables.splice(insertIdx, 0, table)
-
-    // 保持选中跟随被移动的表
-    if (selectedSchemaIdx.value === schemaIdx && selectedTableIdx.value === fromIdx) {
-      selectedTableIdx.value = insertIdx
-    }
+    executeCommand({
+      label: t('history.moveTable'),
+      coalesceKey: `move-table:${schema.schema}:${fromIdx}-${toIdx}`,
+      apply() {
+        schema.tables.splice(insertIdx, 0, table)
+        if (selectedSchemaIdx.value === schemaIdx && selectedTableIdx.value === fromIdx) {
+          selectedTableIdx.value = insertIdx
+        }
+      },
+      revert() {
+        const curIdx = schema.tables.indexOf(table)
+        if (curIdx >= 0) schema.tables.splice(curIdx, 1)
+        schema.tables.splice(fromIdx, 0, table)
+        if (selectedSchemaIdx.value === schemaIdx && selectedTableIdx.value === insertIdx) {
+          selectedTableIdx.value = fromIdx
+        }
+      },
+      affectedFiles() {
+        return [affectedSchema(schema.schema), affectedSql()]
+      },
+    })
   }
 
   /** 跨 schema 拖拽移动表 */
@@ -1056,7 +1440,6 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
 
-    // 跨 schema 移动
     const [table] = fromSchema.tables.splice(fromTableIdx, 1)
     if (!table) return
     toSchema.tables.splice(toTableIdx, 0, table)
@@ -1064,15 +1447,40 @@ export const useEditorStore = defineStore('editor', () => {
     // Update initial data key when table moves between schemas
     const oldKey = initialDataKey(fromSchema.schema, table.name)
     const newKey = initialDataKey(toSchema.schema, table.name)
-    const data = initialDataMap.get(oldKey)
-    if (data !== undefined) {
-      initialDataMap.delete(oldKey)
-      initialDataMap.set(newKey, data)
-    }
+    const movedData = initialDataMap.has(oldKey) ? initialDataMap.get(oldKey)! : undefined
 
-    // 更新选中状态跟随表移动
-    selectedSchemaIdx.value = toSchemaIdx
-    selectedTableIdx.value = toTableIdx
+    executeCommand({
+      label: t('history.moveTableToSchema'),
+      coalesceKey: `move-table-to-schema:${fromSchema.schema}-${toSchema.schema}:${table.name}`,
+      apply() {
+        if (movedData !== undefined) {
+          initialDataMap.delete(oldKey)
+          initialDataMap.set(newKey, movedData)
+        }
+        selectedSchemaIdx.value = toSchemaIdx
+        selectedTableIdx.value = toTableIdx
+      },
+      revert() {
+        const curIdx = toSchema.tables.indexOf(table)
+        if (curIdx >= 0) toSchema.tables.splice(curIdx, 1)
+        fromSchema.tables.splice(fromTableIdx, 0, table)
+        if (movedData !== undefined) {
+          initialDataMap.delete(newKey)
+          initialDataMap.set(oldKey, movedData)
+        }
+        selectedSchemaIdx.value = fromSchemaIdx
+        selectedTableIdx.value = fromTableIdx
+      },
+      affectedFiles() {
+        return [
+          affectedSchema(fromSchema.schema),
+          affectedSchema(toSchema.schema),
+          affectedTable(toSchema.schema, table.name),
+          affectedInitialData(toSchema.schema, table.name),
+          affectedSql(),
+        ]
+      },
+    })
   }
 
   // ===== Field Helpers =====
@@ -1166,15 +1574,32 @@ export const useEditorStore = defineStore('editor', () => {
 
   function setCommentBeforeTable(table: Table, text: string) {
     const lines = text.split('\n')
-    if (lines.length === 1) {
-      if (lines[0] === '') {
-        delete table.comment_before_table
-      } else {
-        table.comment_before_table = lines[0]
-      }
-    } else {
-      table.comment_before_table = lines.map(line => line === '' ? null : line)
-    }
+    const target: string | string[] | undefined = lines.length === 1
+      ? (lines[0] === '' ? undefined : lines[0])
+      : lines.map(line => line === '' ? null : line) as string[]
+    const oldVal = table.comment_before_table
+
+    executeCommand({
+      label: t('history.editCommentBeforeTable'),
+      coalesceKey: `comment-before-table:${table.name}`,
+      apply() {
+        if (target === undefined) {
+          delete table.comment_before_table
+        } else {
+          table.comment_before_table = target
+        }
+      },
+      revert() {
+        if (oldVal === undefined) {
+          delete table.comment_before_table
+        } else {
+          table.comment_before_table = oldVal
+        }
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
   }
 
   // ===== Comment Before Fields =====
@@ -1188,24 +1613,47 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function setCommentBeforeField(table: Table, fieldName: string, text: string) {
-    if (!text.trim()) {
-      if (table.comment_before_fields) {
-        delete table.comment_before_fields[fieldName]
-        if (Object.keys(table.comment_before_fields).length === 0) {
-          delete table.comment_before_fields
+    // 计算目标值（与原逻辑一致）
+    let target: string | string[] | undefined
+    if (text.trim()) {
+      const lines = text.split('\n')
+      target = lines.length === 1 ? lines[0]! : lines.map(line => line === '' ? null : line) as string[]
+    }
+    const oldVal = table.comment_before_fields?.[fieldName]
+    const oldObj = table.comment_before_fields ? { ...table.comment_before_fields } : undefined
+
+    executeCommand({
+      label: t('history.editCommentBeforeField', { name: fieldName }),
+      coalesceKey: `comment-before-field:${table.name}:${fieldName}`,
+      apply() {
+        if (target === undefined) {
+          if (table.comment_before_fields) {
+            delete table.comment_before_fields[fieldName]
+            if (Object.keys(table.comment_before_fields).length === 0) {
+              delete table.comment_before_fields
+            }
+          }
+        } else {
+          if (!table.comment_before_fields) table.comment_before_fields = {}
+          table.comment_before_fields[fieldName] = target
         }
-      }
-      return
-    }
-    if (!table.comment_before_fields) {
-      table.comment_before_fields = {}
-    }
-    const lines = text.split('\n')
-    if (lines.length === 1) {
-      table.comment_before_fields[fieldName] = lines[0]!
-    } else {
-      table.comment_before_fields[fieldName] = lines.map(line => line === '' ? null : line)
-    }
+      },
+      revert() {
+        if (oldVal === undefined) {
+          if (table.comment_before_fields) {
+            delete table.comment_before_fields[fieldName]
+            if (oldObj && Object.keys(oldObj).length === 0) {
+              delete table.comment_before_fields
+            }
+          }
+        } else if (oldObj) {
+          table.comment_before_fields = { ...oldObj }
+        }
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
   }
 
   // ===== Field CRUD =====
@@ -1239,34 +1687,55 @@ export const useEditorStore = defineStore('editor', () => {
         .filter(f => f.use_common_used_fields)
         .map(f => f.field_name)
       // 删除：表中存在但未被勾选的公共字段引用
-      let removedCount = 0
+      const removed: Field[] = []
       for (let i = table.fields.length - 1; i >= 0; i--) {
         const f = table.fields[i]!
         if (f.use_common_used_fields && !selectedNames.includes(f.field_name)) {
+          removed.unshift(f)
           table.fields.splice(i, 1)
-          removedCount++
         }
       }
       // 添加：勾选了但表中不存在的公共字段引用
-      let addedCount = 0
+      const added: Field[] = []
       for (const name of selectedNames) {
         if (!existingCommonNames.includes(name)) {
-          table.fields.push({
-            field_name: name,
-            use_common_used_fields: true
-          })
-          addedCount++
+          const f: Field = { field_name: name, use_common_used_fields: true }
+          added.push(f)
+          table.fields.push(f)
         }
       }
-      if (addedCount > 0 && removedCount > 0) {
-        showToast(t('toast.commonFieldsUpdated', { added: addedCount, removed: removedCount }))
-      } else if (addedCount > 0) {
-        showToast(t('toast.commonFieldsAdded', { n: addedCount }))
-      } else if (removedCount > 0) {
-        showToast(t('toast.commonFieldsRemoved', { n: removedCount }))
-      } else {
-        showToast(t('toast.noChange'))
-      }
+
+      const schemaName = schemas[sIdx]!.schema
+      const finalMsg = (() => {
+        if (added.length > 0 && removed.length > 0) {
+          return t('toast.commonFieldsUpdated', { added: added.length, removed: removed.length })
+        } else if (added.length > 0) {
+          return t('toast.commonFieldsAdded', { n: added.length })
+        } else if (removed.length > 0) {
+          return t('toast.commonFieldsRemoved', { n: removed.length })
+        }
+        return t('toast.noChange')
+      })()
+
+      // 记录增删前后的字段数组快照，便于 undo/redo 完整回滚
+      const beforeFields = table.fields.filter(f => !added.includes(f))
+      const afterFields = table.fields.slice()
+
+      executeCommand({
+        label: t('history.editCommonFields'),
+        coalesceKey: `edit-common-fields:${table.name}`,
+        apply() {
+          table.fields.splice(0, table.fields.length, ...afterFields)
+        },
+        revert() {
+          table.fields.splice(0, table.fields.length, ...beforeFields)
+        },
+        affectedFiles() {
+          return [affectedTable(schemaName, table.name), affectedSql()]
+        },
+      })
+
+      showToast(finalMsg)
     } else {
       const name = newFieldName.value.trim()
       if (!name) { showToast(t('toast.pleaseEnterFieldName')); return }
@@ -1275,7 +1744,7 @@ export const useEditorStore = defineStore('editor', () => {
         return
       }
       const ut = newFieldUnifiedType.value || undefined
-      table.fields.push({
+      const newField: Field = {
         field_name: name,
         unified_type: ut,
         // 仅当未选择 unified_type 时才预设 field_type/field_length
@@ -1284,6 +1753,20 @@ export const useEditorStore = defineStore('editor', () => {
         not_null: false,
         primary_key: false,
         comment: ''
+      }
+      executeCommand({
+        label: t('history.addField'),
+        coalesceKey: `add-field-named:${table.name}:${name}`,
+        apply() {
+          table.fields.push(newField)
+        },
+        revert() {
+          const idx = table.fields.indexOf(newField)
+          if (idx >= 0) table.fields.splice(idx, 1)
+        },
+        affectedFiles() {
+          return [affectedTable(schemas[sIdx]!.schema, table.name), affectedSql()]
+        },
       })
       showToast(t('toast.fieldAdded'))
     }
@@ -1295,13 +1778,28 @@ export const useEditorStore = defineStore('editor', () => {
     if (schemaIdx < 0 || tableIdx < 0) return
     const table = schemas[schemaIdx]?.tables[tableIdx]
     if (!table) return
-    table.fields.push({
+
+    const newField: Field = {
       field_name: '',
       field_type: 'varchar',
       field_length: 255,
       not_null: false,
       primary_key: false,
       comment: ''
+    }
+    executeCommand({
+      label: t('history.addField'),
+      coalesceKey: `add-field:${table.name}`,
+      apply() {
+        table.fields.push(newField)
+      },
+      revert() {
+        const idx = table.fields.indexOf(newField)
+        if (idx >= 0) table.fields.splice(idx, 1)
+      },
+      affectedFiles() {
+        return [affectedTable(schemas[schemaIdx]!.schema, table.name), affectedSql()]
+      },
     })
     showToast(t('toast.fieldAdded'))
   }
@@ -1310,27 +1808,175 @@ export const useEditorStore = defineStore('editor', () => {
     const fieldName = table.fields[fieldIdx]?.field_name
     // 空字段名直接删除，不限确认
     if (fieldName && !confirm(t('confirm.deleteField', { name: fieldName }))) return
-    table.fields.splice(fieldIdx, 1)
-    // Clean up comment_before_fields
-    if (fieldName && table.comment_before_fields && table.comment_before_fields[fieldName]) {
-      delete table.comment_before_fields[fieldName]
-      if (Object.keys(table.comment_before_fields).length === 0) {
-        delete table.comment_before_fields
+
+    const removed = table.fields[fieldIdx]
+    if (!removed) return
+    const removedIdx = fieldIdx
+    // 删除 comment_before_fields 中该字段的注释（revert 时一并恢复）
+    const removedCommentBefore = fieldName && table.comment_before_fields
+      ? { ...table.comment_before_fields }
+      : undefined
+
+    executeCommand({
+      label: t('history.deleteField', { name: fieldName || '' }),
+      coalesceKey: `delete-field:${table.name}:${fieldIdx}`,
+      apply() {
+        table.fields.splice(removedIdx, 1)
+        if (fieldName && table.comment_before_fields && table.comment_before_fields[fieldName]) {
+          delete table.comment_before_fields[fieldName]
+          if (Object.keys(table.comment_before_fields).length === 0) {
+            delete table.comment_before_fields
+          }
+        }
+      },
+      revert() {
+        table.fields.splice(removedIdx, 0, removed)
+        if (removedCommentBefore) {
+          table.comment_before_fields = removedCommentBefore
+        }
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+    showToast(t('toast.fieldDeleted'))
+  }
+
+  /** 从表对象反查其所属 schema 名称（用于 affectedFiles） */
+  function currentSchemaName(table: Table): string {
+    const schema = schemas.find(s => s.tables.includes(table))
+    return schema?.schema ?? currentSchema.value?.schema ?? ''
+  }
+
+  /** 从字段对象反查其所属 schema 名称（用于 affectedFiles） */
+  function currentSchemaNameOfField(field: Field): string {
+    for (const schema of schemas) {
+      for (const table of schema.tables) {
+        if (table.fields.includes(field)) {
+          return schema.schema
+        }
       }
     }
-    showToast(t('toast.fieldDeleted'))
+    return currentSchema.value?.schema ?? ''
+  }
+
+  /**
+   * 通用字段属性编辑命令：apply 设为新值，revert 恢复旧值。
+   * 用于字段名/注释/类型/长度/默认值/skip 等所有字段属性编辑，统一支持 undo/redo。
+   * 同一字段同一属性的连续编辑通过 coalesceKey 合并为单条 undo 记录。
+   */
+  function updateFieldProp(
+    table: Table,
+    field: Field,
+    prop: keyof Field,
+    value: unknown,
+    coalesceKey?: string,
+  ) {
+    const oldValue = field[prop]
+    if (oldValue === value) return
+    executeCommand({
+      label: t('history.editField', { prop: String(prop) }),
+      coalesceKey: coalesceKey ?? `field-prop:${table.name}:${field.field_name}:${String(prop)}`,
+      apply() {
+        ;(field as any)[prop] = value
+      },
+      revert() {
+        ;(field as any)[prop] = oldValue
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+  }
+
+  /** 一次性更新字段多个属性（如切换统一类型时清 field_type/quote_default），作为一个撤销单元 */
+  function updateFieldProps(
+    table: Table,
+    field: Field,
+    changes: Partial<Field>,
+    coalesceKey?: string,
+  ) {
+    const oldValues: Partial<Field> = {}
+    for (const k of Object.keys(changes) as (keyof Field)[]) {
+      ;(oldValues as any)[k] = field[k]
+    }
+    executeCommand({
+      label: t('history.editField', { prop: 'multiple' }),
+      coalesceKey: coalesceKey ?? `field-props:${table.name}:${field.field_name}`,
+      apply() {
+        Object.assign(field, changes)
+      },
+      revert() {
+        Object.assign(field, oldValues)
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+  }
+
+  /** 字段名编辑命令：改名后同步索引中引用的列名 */
+  function updateFieldName(table: Table, field: Field, newName: string) {
+    const oldName = field.field_name
+    const trimmed = newName.trim()
+    if (!trimmed || oldName === trimmed) return
+    executeCommand({
+      label: t('history.renameField', { name: trimmed }),
+      coalesceKey: `rename-field:${table.name}:${oldName}`,
+      apply() {
+        field.field_name = trimmed
+        syncFieldNameInIndexes(table, oldName, trimmed)
+      },
+      revert() {
+        field.field_name = oldName
+        syncFieldNameInIndexes(table, trimmed, oldName)
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
   }
 
   function moveFieldUp(table: Table, fieldIdx: number) {
     if (fieldIdx <= 0) return
-    const arr = table.fields;
-    [arr[fieldIdx - 1], arr[fieldIdx]] = [arr[fieldIdx]!, arr[fieldIdx - 1]!]
+    const fromIdx = fieldIdx
+    const toIdx = fieldIdx - 1
+    executeCommand({
+      label: t('history.moveField'),
+      coalesceKey: `move-field:${table.name}:${fieldIdx}`,
+      apply() {
+        const arr = table.fields
+        ;[arr[toIdx], arr[fromIdx]] = [arr[fromIdx]!, arr[toIdx]!]
+      },
+      revert() {
+        const arr = table.fields
+        ;[arr[fromIdx], arr[toIdx]] = [arr[toIdx]!, arr[fromIdx]!]
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
   }
 
   function moveFieldDown(table: Table, fieldIdx: number) {
     if (fieldIdx >= table.fields.length - 1) return
-    const arr = table.fields;
-    [arr[fieldIdx], arr[fieldIdx + 1]] = [arr[fieldIdx + 1]!, arr[fieldIdx]!]
+    const fromIdx = fieldIdx
+    const toIdx = fieldIdx + 1
+    executeCommand({
+      label: t('history.moveField'),
+      coalesceKey: `move-field:${table.name}:${fieldIdx}`,
+      apply() {
+        const arr = table.fields
+        ;[arr[toIdx], arr[fromIdx]] = [arr[fromIdx]!, arr[toIdx]!]
+      },
+      revert() {
+        const arr = table.fields
+        ;[arr[fromIdx], arr[toIdx]] = [arr[toIdx]!, arr[fromIdx]!]
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
   }
 
   // ===== Index CRUD =====
@@ -1504,20 +2150,37 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function setFieldOverrideValue(field: Field, db: SqlDialect, key: string, val: any) {
-    const override = ensureFieldOverride(field, db)
-    if (val === '' || val === null || val === undefined) {
-      delete override[key as keyof typeof override]
-    } else {
-      if (key === 'field_length' || key === 'field_scale') {
-        (override as any)[key] = parseFieldLengthInput(val)
-      } else {
-        (override as any)[key] = val
-      }
-    }
-    // Clean up empty override object
-    if (field[db] && Object.keys(field[db]!).length === 0) {
-      delete field[db]
-    }
+    const oldOverride = field[db] ? { ...field[db] } : undefined
+    const oldDeleted = oldOverride === undefined
+    const newVal = (val === '' || val === null || val === undefined)
+      ? undefined
+      : (key === 'field_length' || key === 'field_scale' ? parseFieldLengthInput(val) : val)
+
+    executeCommand({
+      label: t('history.editFieldOverride', { db }),
+      coalesceKey: `field-override:${field.field_name}:${db}:${key}`,
+      apply() {
+        const override = ensureFieldOverride(field, db)
+        if (newVal === undefined) {
+          delete override[key as keyof typeof override]
+        } else {
+          (override as any)[key] = newVal
+        }
+        if (field[db] && Object.keys(field[db]!).length === 0) {
+          delete field[db]
+        }
+      },
+      revert() {
+        if (oldDeleted) {
+          delete field[db]
+        } else {
+          field[db] = { ...oldOverride! } as any
+        }
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaNameOfField(field), field.field_name), affectedSql()]
+      },
+    })
   }
 
   // ===== Index mysql/postgresql override helpers =====
@@ -2034,7 +2697,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  function confirmImportSql() {
+  async function confirmImportSql() {
     const dialect: SqlDialect = importSqlDialect.value === 'auto' ? 'mysql' : importSqlDialect.value
     const unifiedTypes = commonConfig.value?.unified_types ?? DEFAULT_UNIFIED_TYPES
 
@@ -2088,6 +2751,8 @@ export const useEditorStore = defineStore('editor', () => {
 
     showImportSqlModal.value = false
     showToast(t('importSqlModal.imported', { count: tables.length }))
+    // 导入为低频批量操作，显式全量写盘（命令式按需写未覆盖此路径）
+    await syncAllToDisk()
   }
 
   return {
@@ -2145,6 +2810,10 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataKey,
     setInitialDataObject,
     deleteInitialData,
+    setInitialDataRowSkip,
+    setInitialDataFieldComment,
+    setInitialDataCell,
+    setInitialDataRowComment,
 
     // Initial Data Pre/Post SQL
     setInitialDataPreSql,
@@ -2195,6 +2864,17 @@ export const useEditorStore = defineStore('editor', () => {
     deleteField,
     moveFieldUp,
     moveFieldDown,
+    updateFieldProp,
+    updateFieldProps,
+    updateFieldName,
+
+    // Undo/Redo
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    undoLabel,
+    redoLabel,
 
     // Index CRUD
     addIndex,

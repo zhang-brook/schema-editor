@@ -221,11 +221,15 @@ function getCellValue(row: InitialDataRow, fieldName: string): string {
 }
 
 function setCellValue(row: InitialDataRow, fieldName: string, val: string) {
-  if (val === '') {
-    delete row.data[fieldName]
-  } else {
-    row.data[fieldName] = parseDefaultInput(val)
-  }
+  if (!store.currentSchema || !store.currentTable) return
+  const parsed = val === '' ? undefined : parseDefaultInput(val)
+  store.setInitialDataCell(
+    store.currentSchema.schema,
+    store.currentTable.name,
+    row,
+    fieldName,
+    parsed as string,
+  )
 }
 
 // ===== Row Comment =====
@@ -234,12 +238,8 @@ function getRowComment(row: InitialDataRow): string {
 }
 
 function setRowComment(row: InitialDataRow, val: string) {
-  const trimmed = val.trim()
-  if (!trimmed) {
-    delete row.row_comment
-  } else {
-    row.row_comment = trimmed
-  }
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataRowComment(store.currentSchema.schema, store.currentTable.name, row, val)
 }
 
 // ===== Row Skip (不生成该行 INSERT) =====
@@ -248,12 +248,8 @@ function isSkipRow(row: InitialDataRow): boolean {
 }
 
 function setSkipRow(row: InitialDataRow, checked: boolean) {
-  // checked=true 表示勾选了「不生成」，即跳过该行；checked=false 表示生成
-  if (checked) {
-    row.is_skip = true
-  } else {
-    delete row.is_skip
-  }
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataRowSkip(store.currentSchema.schema, store.currentTable.name, row, checked)
 }
 
 // ===== Field Comment =====
@@ -262,18 +258,8 @@ function getFieldComment(row: InitialDataRow, fieldName: string): string {
 }
 
 function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
-  const trimmed = val.trim()
-  if (!trimmed) {
-    if (row.field_comments) {
-      delete row.field_comments[fieldName]
-      if (Object.keys(row.field_comments).length === 0) {
-        delete row.field_comments
-      }
-    }
-  } else {
-    if (!row.field_comments) row.field_comments = {}
-    row.field_comments[fieldName] = trimmed
-  }
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataFieldComment(store.currentSchema.schema, store.currentTable.name, row, fieldName, val)
 }
 </script>
 

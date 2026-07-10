@@ -91,7 +91,7 @@ const x = obj.mysql?.attr ?? obj.attr ?? 'default'
 - 数据结构版本存于 `common.json` 的 `struct_version`。
 - 打开项目时 `version-upgrader.ts` 按版本逐步升级到 `CURRENT_STRUCT_VERSION`。
 - 历史兼容：`pgsql` → `postgresql` 字段重命名，旧字段访问已收敛到 `readLegacyField()`。
-- 核心重构新增「**手动升级项目结构**」按钮（见 [`13-upgrade-button.md`](./13-upgrade-button.md)）：旧目录结构不自动改盘，由用户显式触发迁移到新目录结构。
+- 核心重构新增「**手动升级项目结构**」流程：旧目录结构不自动改盘，打开旧结构项目时弹窗确认，由用户显式触发迁移到新目录结构（迁移链见 `src/utils/structure-migrations/`）。
 
 ## 7. 文档约定
 

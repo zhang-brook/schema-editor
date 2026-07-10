@@ -23,7 +23,7 @@ const previewSql = computed(() => {
   const postSql = getInitialDataPostSql(data, dbDialect)
 
   // 先过滤掉「不生成」的行，得到有效数据行
-  const filtered = filterInitialDataRows(data.rows, data.row_comments, data.skip_rows)
+  const filtered = filterInitialDataRows(data.rows)
 
   let sql = ''
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'

@@ -12,7 +12,8 @@
  *
  * 说明：「0.4」是数据级升级链的当前末端版本，旧磁盘格式（schemas/ 平行目录 +
  * initial-data/ 平行目录）对应的结构版本即记为 0.4；「1.0」是引入 current/ 新布局后的
- * 第一个结构版本（= CURRENT_STRUCT_VERSION）。
+ * 第一个结构版本（= CURRENT_STRUCT_VERSION）。本步骤同时完成 initial-data 行内化
+ * （读旧盘时经 normalizeInitialData 转行内、写新盘时经 buildInitialDataExport 只写行内）。
  */
 
 import {
@@ -21,8 +22,10 @@ import {
   migrateOldToNewStructure,
   cleanupOldStructure,
 } from '@/utils/file-helpers'
-import { CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
 import { readProject } from './structure-io'
+
+/** 本步骤的终点版本（引入 current/ 新布局后的第一个结构版本） */
+const V1_0 = '1.0'
 
 /** 结构迁移依赖（由调度器注入） */
 export interface StructureMigrationDeps {
@@ -46,10 +49,11 @@ export async function migrate(
   const oldInitialData = await readInitialDataFromHandle(rootHandle)
 
   // 2. 数据级升级已在 0.0→0.4 各独立步骤中完成，此处内存态 oldSchemas 已是 0.4 数据态
-  if (oldCommon) oldCommon.struct_version = CURRENT_STRUCT_VERSION
+  //    仅推进到本步骤终点 1.0（后续 1.0→1.1 由独立步骤链式接力，不可在此直接跳到最终版本）
+  if (oldCommon) oldCommon.struct_version = V1_0
 
   // 3. 构造新结构写盘数据
-  const newCommon = oldCommon ?? { struct_version: CURRENT_STRUCT_VERSION }
+  const newCommon = oldCommon ?? { struct_version: V1_0 }
   // 将 schema_order 从根 common 迁入 database.json：
   // - 旧 common 中若存在 schema_order，原样沿用（必须和之前保持一致）；
   // - 旧 common 中若不存在，则不写该字段（使用方 applySchemaOrder 已兼容「排序不存在」的情况，

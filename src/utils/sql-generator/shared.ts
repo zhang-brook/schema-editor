@@ -2,7 +2,7 @@ export type SqlDialect = 'mysql' | 'postgresql'
 
 // ===== 解析公共字段 =====
 
-import type { CommonConfig, Field, Table, Schema, InitialData, TypeCaseMode } from "@/types/schema"
+import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, TypeCaseMode } from "@/types/schema"
 
 export function resolveField(field: Field, commonConfig: CommonConfig | null): Field {
   if (field.use_common_used_fields && commonConfig) {
@@ -238,14 +238,12 @@ export function getInitialDataPostSql(initialData: InitialData, dialect: SqlDial
 }
 
 /**
- * 过滤掉被标记为「不生成」(skip_rows[i] === true) 的初始数据行
- * 返回过滤后的行与对应行注释（索引已对齐），供 INSERT 生成逻辑使用。
+ * 过滤掉被标记为「不生成」(is_skip === true) 的初始数据行
+ * 从行内结构中提取有效行的裸数据与对应行注释（索引已对齐），供 INSERT 生成逻辑使用。
  * 注意：仅剔除 skip 行，不改变未填字段（保持 NULL 语义，由生成器处理）。
  */
 export function filterInitialDataRows(
-  rows: Record<string, any>[] | undefined,
-  rowComments: (string | null)[] | undefined,
-  skipRows: (boolean | null)[] | undefined
+  rows: InitialDataRow[] | undefined
 ): {
   rows: Record<string, any>[]
   rowComments: (string | null)[]
@@ -254,10 +252,10 @@ export function filterInitialDataRows(
   const srcRows = rows ?? []
   const result: Record<string, any>[] = []
   const resultComments: (string | null)[] = []
-  for (let i = 0; i < srcRows.length; i++) {
-    if (skipRows?.[i] === true) continue
-    result.push(srcRows[i]!)
-    resultComments.push(rowComments?.[i] ?? null)
+  for (const row of srcRows) {
+    if (row.is_skip === true) continue
+    result.push(row.data ?? {})
+    resultComments.push(row.row_comment ?? null)
   }
   return {
     rows: result,

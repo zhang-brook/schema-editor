@@ -3,10 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useDropFolder } from '@/composables/useDropFolder'
 import EditorToolbar from '@/components/EditorToolbar.vue'
-import EditorSidebar from '@/components/EditorSidebar.vue'
-import CommonConfigPanel from '@/components/CommonConfigPanel.vue'
-import SchemaConfigPanel from '@/components/SchemaConfigPanel.vue'
-import TableEditor from '@/components/TableEditor.vue'
+import ProjectSettingsPanel from '@/components/ProjectSettingsPanel.vue'
 import AddFieldModal from '@/components/modal/AddFieldModal.vue'
 import ImportSqlModal from '@/components/modal/ImportSqlModal.vue'
 import ConfirmModal from '@/components/modal/ConfirmModal.vue'
@@ -30,24 +27,12 @@ const { t } = useI18n()
     <EditorToolbar />
 
     <div class="main-layout">
-      <!-- 左侧导航 -->
-      <EditorSidebar />
+      <!-- 已打开文件夹：统一使用新版布局（左侧 tab 切换列 + 右侧页面） -->
+      <ProjectSettingsPanel v-if="store.projectOpened" />
 
-      <!-- 右侧内容区 -->
-      <div class="content">
-        <!-- Common 配置面板 -->
-        <CommonConfigPanel v-if="store.showCommonPanel && store.commonConfig" />
-
-        <!-- Schema 配置面板 -->
-        <SchemaConfigPanel v-else-if="store.currentSchema && store.selectedTableIdx === -1" />
-
-        <!-- 表编辑面板 -->
-        <TableEditor v-else-if="store.currentTable" />
-
-        <!-- 空状态 -->
-        <div v-else class="global-empty-state">
-          <p>{{ $t('app.emptyState') }}</p>
-        </div>
+      <!-- 未打开文件夹：直接提示打开 -->
+      <div v-else class="app-not-opened">
+        <p>{{ $t('app.notOpened') }}</p>
       </div>
     </div>
 
@@ -119,5 +104,17 @@ const { t } = useI18n()
   font-size: 16px;
   font-weight: 600;
   color: #4a90d9;
+}
+
+/* ===== 未打开文件夹时的全局提示 ===== */
+.app-not-opened {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 14px;
+  padding: 24px;
+  text-align: center;
 }
 </style>

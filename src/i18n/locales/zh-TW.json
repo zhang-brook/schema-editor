@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "Schema 編輯器",
-    "emptyState": "拖入資料夾，或從上方選單選擇「檔案 → 開啟資料夾」以繼續",
+    "notOpened": "拖入資料夾，或從上方選單選擇「檔案 → 開啟資料夾 (Ctrl+O)」以繼續",
     "loadingOpenProject": "正在開啟專案，請稍候…",
     "dropHint": "釋放以開啟資料夾"
   },
@@ -90,8 +90,6 @@
     "deleteSchema": "刪除 Schema",
     "addTable": "新增表",
     "deleteTable": "刪除表",
-    "emptyHint": "點擊「開啟資料夾」開始",
-    "open": "開啟",
     "prompt": {
       "schemaName": "Schema 名稱：",
       "newName": "新名稱："
@@ -99,6 +97,17 @@
   },
   "version": {
     "tooHigh": "專案結構版本（{version}）高於目前編輯器支援的版本，請升級編輯器。"
+  },
+  "settings": {
+    "title": "專案設定",
+    "tabs": {
+      "global": "全域設定",
+      "structure": "庫結構設計",
+      "version": "版本管理",
+      "project": "專案設定"
+    },
+    "structureEmpty": "請從上方「新增 Schema」開始，或點擊左側 Schema 下的表進行編輯",
+    "projectEmpty": "暫無設定項，後續將遷移部分公共設定至此。"
   },
   "commonConfig": {
     "defaultMysqlConfig": "預設 MySQL 表設定",

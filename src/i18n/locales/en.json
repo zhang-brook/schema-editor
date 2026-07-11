@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "Schema Editor",
-    "emptyState": "Drop a folder here, or choose File → Open Folder from the menu to continue",
+    "notOpened": "Drop a folder here, or choose File → Open Folder (Ctrl+O) from the menu to continue",
     "loadingOpenProject": "Opening project, please wait…",
     "dropHint": "Drop to open folder"
   },
@@ -90,8 +90,6 @@
     "deleteSchema": "Delete schema",
     "addTable": "Add table",
     "deleteTable": "Delete table",
-    "emptyHint": "Click \"Open Folder\" to start",
-    "open": "Open",
     "prompt": {
       "schemaName": "Schema name:",
       "newName": "New name:"
@@ -99,6 +97,17 @@
   },
   "version": {
     "tooHigh": "The project structure version ({version}) is higher than the current editor supports. Please upgrade the editor."
+  },
+  "settings": {
+    "title": "Project Settings",
+    "tabs": {
+      "global": "Global Config",
+      "structure": "Schema Structure",
+      "version": "Version Management",
+      "project": "Project Settings"
+    },
+    "structureEmpty": "Add a Schema from the top, or click a table under a Schema on the left to edit",
+    "projectEmpty": "No settings yet. Some common config items will be moved here later."
   },
   "commonConfig": {
     "defaultMysqlConfig": "Default MySQL Table Config",

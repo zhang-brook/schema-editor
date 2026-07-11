@@ -97,6 +97,8 @@ export const useEditorStore = defineStore('editor', () => {
   const expandedFields = reactive(new Set<string>())
   const expandedIndexes = reactive(new Set<string>())
   const showCommonPanel = ref(false)
+  // ===== 项目设置（VSCode 风格：左侧 tab 切换） =====
+  const settingsTab = ref<'global' | 'structure' | 'version' | 'project'>('structure')
   const toastMsg = ref('')
   const toastVisible = ref(false)
   const showAddFieldModal = ref(false)
@@ -322,6 +324,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectedSchemaIdx.value = -1
     selectedTableIdx.value = -1
     showCommonPanel.value = false
+    settingsTab.value = 'structure'
     expandedFields.clear()
     expandedIndexes.clear()
     if (_syncTimer) {
@@ -635,6 +638,9 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     projectOpened.value = true
+    // 打开项目后默认选中「库结构设计」tab
+    settingsTab.value = 'structure'
+    showCommonPanel.value = false
     // 加载基线/迁移列表（只读元数据，不加载完整快照）
     await loadBaselinesAndMigrations()
     const parts: string[] = []
@@ -1578,6 +1584,18 @@ export const useEditorStore = defineStore('editor', () => {
     selectedTableIdx.value = -1
     expandedFields.clear()
     expandedIndexes.clear()
+  }
+
+  // ===== 项目设置 =====
+  /** 切换到指定设置 tab */
+  function selectSettingsTab(tab: 'global' | 'structure' | 'version' | 'project') {
+    settingsTab.value = tab
+    if (tab === 'global') {
+      // 全局配置页等价于原来的公共配置面板，需置 showCommonPanel 才能渲染
+      showCommonPanel.value = true
+    } else {
+      showCommonPanel.value = false
+    }
   }
 
   // ===== Table CRUD =====
@@ -3512,6 +3530,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectedSchemaIdx,
     selectedTableIdx,
     showCommonPanel,
+    settingsTab,
     projectOpened,
     toastMsg,
     toastVisible,
@@ -3573,6 +3592,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectTable,
     selectCommonConfig,
     selectSchemaOnly,
+    selectSettingsTab,
 
     // Schema CRUD
     addSchema,

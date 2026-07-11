@@ -5,7 +5,6 @@ import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
-import BaselineMigrationModal from '@/components/modal/BaselineMigrationModal.vue'
 import { GITHUB_REPO_URL } from '@/utils/constants'
 
 const store = useEditorStore()
@@ -14,7 +13,6 @@ const { t, locale } = useI18n()
 const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '')
 
 const showAboutModal = ref(false)
-const showBaselineModal = ref(false)
 const openMenu = ref<string | null>(null)
 
 function toggleMenu(menu: string) {
@@ -57,8 +55,8 @@ function onKeydown(e: KeyboardEvent) {
     store.openProject()
     return
   }
-  // 关闭文件夹（Ctrl/Cmd+Shift+W，避免与 Ctrl+W 直接关闭标签页冲突）
-  if (mod && e.shiftKey && (e.key === 'w' || e.key === 'W')) {
+  // 关闭文件夹（Ctrl/Cmd+E，避开浏览器保留的 Ctrl+W / Ctrl+Shift+W）
+  if (mod && (e.key === 'e' || e.key === 'E')) {
     if (store.projectOpened) {
       e.preventDefault()
       store.closeProject()
@@ -113,7 +111,7 @@ onUnmounted(() => {
           @click="store.projectOpened && menuAction(() => store.closeProject())"
         >
           <span>{{ $t('toolbar.closeFolder') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘⇧W' : 'Ctrl+Shift+W' }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘E' : 'Ctrl+E' }}</span>
         </div>
         <div class="menu-separator"></div>
         <div
@@ -183,13 +181,6 @@ onUnmounted(() => {
         &#128190;&#xFE0E; {{ $t('toolbar.autoSaving') }}
       </span>
 
-      <button
-        class="toolbar-btn"
-        :disabled="!store.projectOpened"
-        :title="$t('baseline.title')"
-        @click="store.projectOpened && (showBaselineModal = true)"
-      >&#128202; {{ $t('baseline.title') }}</button>
-
       <select
         class="locale-select"
         :title="$t('toolbar.language')"
@@ -204,7 +195,6 @@ onUnmounted(() => {
   </div>
 
   <AboutModal :visible="showAboutModal" @close="showAboutModal = false" />
-  <BaselineMigrationModal :visible="showBaselineModal" @close="showBaselineModal = false" />
 </template>
 
 <style scoped>

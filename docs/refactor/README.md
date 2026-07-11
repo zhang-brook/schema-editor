@@ -38,16 +38,12 @@
 
 | 文档 | 范围 | 状态 |
 |------|------|------|
-| [`10-workspace-layout.md`](./10-workspace-layout.md) | 统一路径层 `src/core/workspace/` | 待落地 |
-| [`11-directory-restructure.md`](./11-directory-restructure.md) | 每表独立 JSON + current/baselines/migrations 目录 | 待落地 |
-| [`12-initial-data-inline.md`](./12-initial-data-inline.md) | initial-data 行内结构 + 升级器兼容（struct_version→2.0） | 待落地 |
-| [`13-upgrade-button.md`](./13-upgrade-button.md) | 手动「升级项目结构」按钮 | 待落地 |
-| [`14-undo-redo-commands.md`](./14-undo-redo-commands.md) | 命令模式 + 结构化 patch + 按需写文件 | 待落地 |
-| [`15-baseline-migrations-design.md`](./15-baseline-migrations-design.md) | 基线快照 / 迁移脚本 设计文档（实现待 field_id） | 设计待评审 |
+| 统一路径层 `src/core/workspace/` | 路径常量 + handle 原语 + 业务路径解析，收敛散落路径 | ✅ 已完成（代码已落地，方案文档已归档删除） |
+| initial-data 行内结构 | initial-data 行内结构 + 升级器兼容（并入 v0.4→v1.0 步骤） | ✅ 已完成（代码已落地，方案文档已归档删除） |
+| 手动「升级项目结构」 | 打开旧结构 → 弹窗确认 → 迁移 → 清理旧文件 → 加载新结构 | ✅ 已完成（代码已落地，方案文档已归档删除） |
+| 命令模式 undo/redo + 按需写文件 | 命令模式 + 结构化 patch + 按需写受影响 json + 工具栏 undo/redo | ✅ 已完成（代码已落地，方案文档已归档删除） |
+| 基线快照 / 迁移脚本 | 引入 field_id/table_id/schema_id（延迟生成）+ 基线快照 + 结构 diff 引擎 + 迁移脚本生成 MySQL/PostgreSQL 变更 DDL | ✅ 已完成（代码已落地，方案文档已归档删除） |
 
 ## 不在当前范围（仅记录，后续批次实现）
 
-- `field_id` 引入与 rename 跟踪（本次暂不引入，留到基线 diff 阶段）。
-- 自动生成数据库变更 DDL 的 diff 引擎（基于基线对比，依赖 field_id）。
 - initial-data 页面「导入 JSON 数据」入口（结构行内化后单列文档）。
-- 基线快照创建/列表与基于名称的初级 diff 的可运行实现（待 field_id 落地）。

@@ -10,6 +10,8 @@ import { GITHUB_REPO_URL } from '@/utils/constants'
 const store = useEditorStore()
 const { t, locale } = useI18n()
 
+const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '')
+
 const showAboutModal = ref(false)
 const openMenu = ref<string | null>(null)
 
@@ -42,8 +44,35 @@ function onDocumentClick(e: MouseEvent) {
 }
 
 function onKeydown(e: KeyboardEvent) {
+  const mod = e.ctrlKey || e.metaKey
   if (e.key === 'Escape' && openMenu.value) {
     closeMenu()
+  }
+
+  // 打开文件夹（通用约定 Ctrl/Cmd+O），调用目录选择器
+  if (mod && (e.key === 'o' || e.key === 'O')) {
+    e.preventDefault()
+    store.openProject()
+    return
+  }
+  // 关闭文件夹（Ctrl/Cmd+E，避开浏览器保留的 Ctrl+W / Ctrl+Shift+W）
+  if (mod && (e.key === 'e' || e.key === 'E')) {
+    if (store.projectOpened) {
+      e.preventDefault()
+      store.closeProject()
+    }
+    return
+  }
+  // Undo/Redo 快捷键（仅在项目打开时生效，避免与输入框原生撤销冲突由 store 接管）
+  if (store.projectOpened) {
+    if (mod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault()
+      if (e.shiftKey) store.redo()
+      else store.undo()
+    } else if (mod && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault()
+      store.redo()
+    }
   }
 }
 
@@ -73,14 +102,16 @@ onUnmounted(() => {
           :class="{ disabled: store.projectOpened }"
           @click="menuAction(() => store.openProject())"
         >
-          {{ $t('toolbar.openFolder') }}
+          <span>{{ $t('toolbar.openFolder') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘O' : 'Ctrl+O' }}</span>
         </div>
         <div
           class="menu-dropdown-item"
           :class="{ disabled: !store.projectOpened }"
           @click="store.projectOpened && menuAction(() => store.closeProject())"
         >
-          {{ $t('toolbar.closeFolder') }}
+          <span>{{ $t('toolbar.closeFolder') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘E' : 'Ctrl+E' }}</span>
         </div>
         <div class="menu-separator"></div>
         <div
@@ -97,6 +128,29 @@ onUnmounted(() => {
           @click="store.projectOpened && menuAction(() => store.reloadFromDisk())"
         >
           {{ $t('toolbar.reloadFromDisk') }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Menu -->
+    <div class="menu-item" :class="{ open: openMenu === 'edit' }" @click.stop="toggleMenu('edit')">
+      {{ $t('menu.edit') }}
+      <div v-if="openMenu === 'edit'" class="menu-dropdown" @click.stop>
+        <div
+          class="menu-dropdown-item"
+          :class="{ disabled: !store.canUndo }"
+          @click="store.canUndo && menuAction(() => store.undo())"
+        >
+          <span>{{ $t('history.undo') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘Z' : 'Ctrl+Z' }}</span>
+        </div>
+        <div
+          class="menu-dropdown-item"
+          :class="{ disabled: !store.canRedo }"
+          @click="store.canRedo && menuAction(() => store.redo())"
+        >
+          <span>{{ $t('history.redo') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘⇧Z' : 'Ctrl+Shift+Z / Ctrl+Y' }}</span>
         </div>
       </div>
     </div>
@@ -221,6 +275,18 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
+.menu-shortcut {
+  margin-left: 24px;
+  font-size: 11px;
+  color: #999;
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.menu-dropdown-item.disabled .menu-shortcut {
+  color: #ccc;
+}
+
 .menu-separator {
   height: 1px;
   background: #e0e0e0;
@@ -233,6 +299,28 @@ onUnmounted(() => {
   gap: 8px;
   margin-left: auto;
   padding-right: 8px;
+}
+
+.toolbar-btn {
+  padding: 3px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .sync-badge {

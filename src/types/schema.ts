@@ -58,6 +58,8 @@ export interface IndexColumn {
 
 export interface Field {
   field_name: string
+  /** 字段唯一 id（创建首个基线时延迟生成，用于跨版本变更识别 rename） */
+  field_id?: string
   use_common_used_fields?: boolean
   /** 指向 CommonConfig.unified_types 中的类型名，为空时回退到 field_type 自由文本 */
   unified_type?: string
@@ -99,6 +101,8 @@ export interface TableMysqlConfig {
 
 export interface Table {
   name: string
+  /** 表唯一 id（创建首个基线时延迟生成，用于跨版本变更识别 rename） */
+  table_id?: string
   comment: string
   comment_before_table?: string | (string | null)[]
   comment_before_fields?: Record<string, string | (string | null)[]>
@@ -114,6 +118,8 @@ export interface Table {
 
 export interface Schema {
   schema: string
+  /** schema 唯一 id（创建首个基线时延迟生成） */
+  schema_id?: string
   tables: Table[]
   /** 前置 SQL（按方言分别配置，生成在所有表之前） */
   pre_sql?: SqlStatements
@@ -160,7 +166,35 @@ export interface CommonConfig {
   type_case?: TypeCaseMode
 }
 
+/**
+ * 单行初始数据（行内结构）。
+ * 行数据与其注释/跳过标记内聚在同一对象，根除旧「平行数组靠索引对齐」的脆弱性。
+ */
+export interface InitialDataRow {
+  /** 行的字段数据 */
+  data: Record<string, any>
+  /** 该行的字段级注释（仅有注释的字段才出现） */
+  field_comments?: Record<string, string>
+  /** 是否跳过该行（true 时该行不生成 INSERT 语句，语义同旧 skip_rows[i]===true） */
+  is_skip?: boolean
+  /** 行级注释（可选） */
+  row_comment?: string
+}
+
 export interface InitialData {
+  /** 行内化的数据行；未初始化数据板块时为 undefined，空表为 [] */
+  rows?: InitialDataRow[]
+  /** 前置 SQL（按方言分别配置，生成在 INSERT 之前） */
+  pre_sql?: SqlStatements
+  /** 后置 SQL（按方言分别配置，生成在 INSERT 之后） */
+  post_sql?: SqlStatements
+}
+
+/**
+ * 旧版初始数据结构（四个平行数组，靠索引对齐）。
+ * 仅用于升级器读取旧磁盘格式，运行时内存态一律使用 {@link InitialData} 行内结构。
+ */
+export interface LegacyInitialData {
   rows?: Record<string, any>[]
   row_comments?: (string | null)[]
   field_comments?: (Record<string, string> | null)[]

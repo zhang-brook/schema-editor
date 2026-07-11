@@ -41,7 +41,7 @@
 
 ## 4. 目录与数据模型（核心重构目标态）
 
-> 详细方案见 [`11-directory-restructure.md`](./11-directory-restructure.md) 与 [`10-workspace-layout.md`](./10-workspace-layout.md)。
+> 目录结构重构（每表独立 JSON + current/ 布局）已随统一路径层 `src/core/workspace/` 与结构迁移链 `v0.4→v1.0` 一并落地（原方案文档 `11-directory-restructure.md` 已归档删除）。统一路径层已落地，目录/句柄解析均经此模块。
 
 新工作目录布局（工作目录可能被 git 管理，基线用普通文件以保留完整历史）：
 
@@ -56,11 +56,11 @@ your-schema-folder/
 │           └── <table_name>/         # 文件名友好的表名
 │               ├── table.json        # 表配置项（字段定义、索引、pre/post_sql 等）
 │               └── initial-data.json # 行内化的初始数据
-├── baselines/                        # 历史基线快照（结构同 current/）
-│   ├── 2026-07-09T16-32-v0.4.json
-│   └── 2026-08-01T10-00-v0.4.json
-└── migrations/                       # 用户维护的迁移脚本（自定义 SQL + 步骤）
-    └── <migration-id>.json
+├── baselines/                        # 历史基线快照（单文件完整 JSON：database+schemas+tables+initial-data）
+│   ├── b_abc123.json
+│   └── b_def456.json
+└── migrations/                       # 用户维护的迁移脚本（选两基线 + steps + 合并 DDL）
+    └── m_abc123.json
 ```
 
 - **initial-data 行内结构**：将 `rows / row_comments / field_comments / skip_rows` 四个平行数组合并为行内对象数组：
@@ -72,7 +72,7 @@ your-schema-folder/
     row_comment?: string                       // 可选
   }>
   ```
-- **版本**：核心重构时 `struct_version` 从 `'0.4'` 提升到 `'2.0'`（见 [`12-initial-data-inline.md`](./12-initial-data-inline.md)）。
+- **版本**：核心重构时 `struct_version` 从 `'0.4'` 提升到 `'1.0'`（见 [`12-initial-data-inline.md`](./12-initial-data-inline.md)）。
 
 ## 5. 方言解析约定
 
@@ -91,7 +91,7 @@ const x = obj.mysql?.attr ?? obj.attr ?? 'default'
 - 数据结构版本存于 `common.json` 的 `struct_version`。
 - 打开项目时 `version-upgrader.ts` 按版本逐步升级到 `CURRENT_STRUCT_VERSION`。
 - 历史兼容：`pgsql` → `postgresql` 字段重命名，旧字段访问已收敛到 `readLegacyField()`。
-- 核心重构新增「**手动升级项目结构**」按钮（见 [`13-upgrade-button.md`](./13-upgrade-button.md)）：旧目录结构不自动改盘，由用户显式触发迁移到新目录结构。
+- 核心重构新增「**手动升级项目结构**」流程：旧目录结构不自动改盘，打开旧结构项目时弹窗确认，由用户显式触发迁移到新目录结构（迁移链见 `src/utils/structure-migrations/`）。
 
 ## 7. 文档约定
 
@@ -101,7 +101,7 @@ const x = obj.mysql?.attr ?? obj.attr ?? 'default'
 ## 8. 核心重构关键决策（已与用户确认）
 
 1. **范围**：本次一次性产出核心重构全套文档（目录 / initial-data / 统一路径层 / 手动升级按钮 / undo-redo / 基线+migrations 设计），代码落地仍按原子提交分批。
-2. **field_id**：本次**暂不引入**，留到基线 diff 阶段再加（rename 跟踪待 field_id 落地后实现）。
+2. **field_id**：已随基线功能引入，采用「延迟生成」策略——平时不生成，保持无基线用户数据干净；用户创建首个基线时，才在 `current/` 补齐 `field_id`/`table_id`/`schema_id`，随后快照为基线；之后新增表/字段自动带 id。
 3. **undo/redo**：采用「命令模式 + 结构化 patch」，undo/redo 只改受影响文件，顺带解决全量保存问题。
 4. **统一路径层**：新增 `src/core/workspace/`（为后续基线/迁移预留独立模块）集中定义路径与句柄获取。
 5. **旧数据迁移**：提供显式「升级项目结构」按钮，用户手动触发迁移，不自动改盘。

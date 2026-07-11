@@ -210,17 +210,6 @@ function handleRenameSchema(sIdx: number) {
       </span>
     </div>
     <div class="sidebar-tree">
-      <!-- Common Config Entry -->
-      <div
-        v-if="store.projectOpened"
-        class="sidebar-item common-item"
-        :class="{ active: store.showCommonPanel }"
-        @click="store.selectCommonConfig()"
-      >
-        <span class="sidebar-icon">&#9881;</span>
-        {{ $t('sidebar.commonConfig') }}
-      </div>
-
       <!-- Schema Groups -->
       <template v-for="(schema, sIdx) in store.schemas" :key="schema.schema">
         <div
@@ -285,19 +274,6 @@ function handleRenameSchema(sIdx: number) {
         @dragleave="onDragLeave"
         @drop="onSchemaTailDrop"
       ></div>
-
-      <!-- Empty State -->
-      <div v-if="!store.projectOpened && store.schemas.length === 0 && !store.commonConfig" class="empty-hint">
-        {{ $t('sidebar.emptyHint') }}
-      </div>
-    </div>
-
-    <!-- Sidebar Footer -->
-    <div v-if="!store.projectOpened" class="sidebar-footer">
-      <button class="btn-footer btn-footer-primary" @click="store.openProject()">
-        <!-- &#128193; Open -->
-        &#128193;&#xFE0E; {{ $t('sidebar.open') }}
-      </button>
     </div>
   </div>
 </template>
@@ -432,53 +408,6 @@ function handleRenameSchema(sIdx: number) {
   border-radius: 3px;
   font-size: 11px;
   font-weight: 500;
-}
-
-.empty-hint {
-  padding: 20px;
-  text-align: center;
-  color: #aaa;
-  font-size: 12px;
-}
-
-/* ===== Sidebar Footer ===== */
-.sidebar-footer {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  border-top: 1px solid #eee;
-  background: #fafafa;
-  flex-shrink: 0;
-}
-
-.btn-footer {
-  padding: 4px 10px;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  background: #fff;
-  color: #555;
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all .15s;
-}
-
-.btn-footer:hover {
-  background: #e8e8e8;
-  border-color: #aaa;
-}
-
-.btn-footer-primary {
-  background: #4a90d9;
-  color: #fff;
-  border-color: #4a90d9;
-  font-weight: 500;
-}
-
-.btn-footer-primary:hover {
-  background: #3a7bc8;
-  border-color: #3a7bc8;
 }
 
 /* ===== Scrollbar ===== */

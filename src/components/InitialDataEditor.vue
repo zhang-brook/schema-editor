@@ -2,9 +2,9 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import { parseDefaultInput } from '@/utils/file-helpers'
+import { parseDefaultInput, normalizeInitialData } from '@/utils/file-helpers'
 import { getInitialDataPreSql, getInitialDataPostSql, type SqlDialect } from '@/utils/sql-generator/shared'
-import type { InitialData } from '@/types/schema'
+import type { InitialData, InitialDataRow } from '@/types/schema'
 import PrePostSqlEditor from './PrePostSqlEditor.vue'
 import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
@@ -26,9 +26,6 @@ const fieldNames = computed(() => {
 // 当前初始数据（wrapper）
 const initialData = computed(() => store.currentInitialData)
 const rows = computed(() => initialData.value?.rows)
-const rowComments = computed(() => initialData.value?.row_comments)
-const fieldComments = computed(() => initialData.value?.field_comments)
-const skipRows = computed(() => initialData.value?.skip_rows)
 
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
@@ -114,20 +111,8 @@ function clearPrePostSql() {
 
 function parseJsonInput(text: string): InitialData | null {
   const parsed = JSON.parse(text)
-  if (Array.isArray(parsed)) {
-    return { rows: parsed }
-  }
-  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-    const result: InitialData = {}
-    if (Array.isArray(parsed.rows)) result.rows = parsed.rows
-    if (Array.isArray(parsed.row_comments)) result.row_comments = parsed.row_comments
-    if (Array.isArray(parsed.field_comments)) result.field_comments = parsed.field_comments
-    if (Array.isArray(parsed.skip_rows)) result.skip_rows = parsed.skip_rows
-    if (parsed.pre_sql && typeof parsed.pre_sql === 'object') result.pre_sql = { ...parsed.pre_sql }
-    if (parsed.post_sql && typeof parsed.post_sql === 'object') result.post_sql = { ...parsed.post_sql }
-    return result
-  }
-  return null
+  // 统一归一化为行内结构（兼容纯数组、旧平行数组、行内三种输入）
+  return normalizeInitialData(parsed)
 }
 
 function onJsonInput(text: string) {
@@ -189,36 +174,15 @@ function addInitialData() {
 function addRow() {
   if (!store.currentSchema || !store.currentTable || !initialData.value) return
   if (!initialData.value.rows) initialData.value.rows = []
-  initialData.value.rows.push({})
-  if (initialData.value.row_comments) {
-    initialData.value.row_comments.push(null)
-  }
-  if (initialData.value.field_comments) {
-    initialData.value.field_comments.push(null)
-  }
-  if (initialData.value.skip_rows) {
-    initialData.value.skip_rows.push(null)
-  }
+  initialData.value.rows.push({ data: {} })
   syncJsonText()
 }
 
 function deleteRow(rowIdx: number) {
   if (!store.currentSchema || !store.currentTable || !initialData.value || !initialData.value.rows) return
   initialData.value.rows.splice(rowIdx, 1)
-  if (initialData.value.row_comments) {
-    initialData.value.row_comments.splice(rowIdx, 1)
-  }
-  if (initialData.value.field_comments) {
-    initialData.value.field_comments.splice(rowIdx, 1)
-  }
-  if (initialData.value.skip_rows) {
-    initialData.value.skip_rows.splice(rowIdx, 1)
-  }
   if (initialData.value.rows.length === 0) {
     delete initialData.value.rows
-    delete initialData.value.row_comments
-    delete initialData.value.field_comments
-    delete initialData.value.skip_rows
   }
 }
 
@@ -226,39 +190,18 @@ function moveRowUp(rowIdx: number) {
   const wrapper = initialData.value
   if (!wrapper?.rows || rowIdx <= 0) return
     ;[wrapper.rows[rowIdx - 1], wrapper.rows[rowIdx]] = [wrapper.rows[rowIdx]!, wrapper.rows[rowIdx - 1]!]
-  if (wrapper.row_comments) {
-    ;[wrapper.row_comments[rowIdx - 1], wrapper.row_comments[rowIdx]] = [wrapper.row_comments[rowIdx]!, wrapper.row_comments[rowIdx - 1]!]
-  }
-  if (wrapper.field_comments) {
-    ;[wrapper.field_comments[rowIdx - 1], wrapper.field_comments[rowIdx]] = [wrapper.field_comments[rowIdx]!, wrapper.field_comments[rowIdx - 1]!]
-  }
-  if (wrapper.skip_rows) {
-    ;[wrapper.skip_rows[rowIdx - 1], wrapper.skip_rows[rowIdx]] = [wrapper.skip_rows[rowIdx]!, wrapper.skip_rows[rowIdx - 1]!]
-  }
 }
 
 function moveRowDown(rowIdx: number) {
   const wrapper = initialData.value
   if (!wrapper?.rows || rowIdx >= wrapper.rows.length - 1) return
     ;[wrapper.rows[rowIdx], wrapper.rows[rowIdx + 1]] = [wrapper.rows[rowIdx + 1]!, wrapper.rows[rowIdx]!]
-  if (wrapper.row_comments) {
-    ;[wrapper.row_comments[rowIdx], wrapper.row_comments[rowIdx + 1]] = [wrapper.row_comments[rowIdx + 1]!, wrapper.row_comments[rowIdx]!]
-  }
-  if (wrapper.field_comments) {
-    ;[wrapper.field_comments[rowIdx], wrapper.field_comments[rowIdx + 1]] = [wrapper.field_comments[rowIdx + 1]!, wrapper.field_comments[rowIdx]!]
-  }
-  if (wrapper.skip_rows) {
-    ;[wrapper.skip_rows[rowIdx], wrapper.skip_rows[rowIdx + 1]] = [wrapper.skip_rows[rowIdx + 1]!, wrapper.skip_rows[rowIdx]!]
-  }
 }
 
 function clearRows() {
   if (!initialData.value) return
   if (!confirm(t('initialData.clearRowsConfirm'))) return
   delete initialData.value.rows
-  delete initialData.value.row_comments
-  delete initialData.value.field_comments
-  delete initialData.value.skip_rows
   syncJsonText()
 }
 
@@ -271,91 +214,52 @@ function clearAllData() {
   editorMode.value = 'table'
 }
 
-function getCellValue(row: Record<string, any>, fieldName: string): string {
-  const val = row[fieldName]
+function getCellValue(row: InitialDataRow, fieldName: string): string {
+  const val = row.data[fieldName]
   if (val === undefined || val === null) return ''
   return String(val)
 }
 
-function setCellValue(row: Record<string, any>, fieldName: string, val: string) {
-  if (val === '') {
-    delete row[fieldName]
-  } else {
-    row[fieldName] = parseDefaultInput(val)
-  }
+function setCellValue(row: InitialDataRow, fieldName: string, val: string) {
+  if (!store.currentSchema || !store.currentTable) return
+  const parsed = val === '' ? undefined : parseDefaultInput(val)
+  store.setInitialDataCell(
+    store.currentSchema.schema,
+    store.currentTable.name,
+    row,
+    fieldName,
+    parsed as string,
+  )
 }
 
 // ===== Row Comment =====
-function setRowComment(rowIdx: number, val: string) {
-  const wrapper = initialData.value
-  if (!wrapper) return
-  const trimmed = val.trim()
-  if (!trimmed) {
-    if (wrapper.row_comments) {
-      wrapper.row_comments[rowIdx] = null
-      // 清理全 null 数组
-      if (wrapper.row_comments.every(c => c === null)) {
-        delete wrapper.row_comments
-      }
-    }
-  } else {
-    if (!wrapper.row_comments) {
-      if (!wrapper.rows) return
-      wrapper.row_comments = Array(wrapper.rows.length).fill(null)
-    }
-    wrapper.row_comments[rowIdx] = trimmed
-  }
+function getRowComment(row: InitialDataRow): string {
+  return row.row_comment ?? ''
+}
+
+function setRowComment(row: InitialDataRow, val: string) {
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataRowComment(store.currentSchema.schema, store.currentTable.name, row, val)
 }
 
 // ===== Row Skip (不生成该行 INSERT) =====
-function setSkipRow(rowIdx: number, checked: boolean) {
-  const wrapper = initialData.value
-  if (!wrapper) return
-  if (!wrapper.skip_rows) {
-    if (wrapper.rows && wrapper.rows.length > 0) {
-      wrapper.skip_rows = Array(wrapper.rows.length).fill(null)
-    } else {
-      wrapper.skip_rows = []
-    }
-  }
-  // checked=true 表示勾选了「不生成」，即跳过该行；checked=false 表示生成
-  wrapper.skip_rows[rowIdx] = checked ? true : null
-  // 清理全 null 数组
-  if (wrapper.skip_rows.every(s => s === null || s === undefined)) {
-    delete wrapper.skip_rows
-  }
+function isSkipRow(row: InitialDataRow): boolean {
+  return row.is_skip === true
+}
+
+function setSkipRow(row: InitialDataRow, checked: boolean) {
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataRowSkip(store.currentSchema.schema, store.currentTable.name, row, checked)
 }
 
 // ===== Field Comment =====
-function getFieldComment(rowIdx: number, fieldName: string): string {
-  return fieldComments.value?.[rowIdx]?.[fieldName] ?? ''
+function getFieldComment(row: InitialDataRow, fieldName: string): string {
+  return row.field_comments?.[fieldName] ?? ''
 }
 
-function setFieldComment(rowIdx: number, fieldName: string, val: string) {
-  const wrapper = initialData.value
-  if (!wrapper) return
-  const trimmed = val.trim()
-  if (!trimmed) {
-    if (wrapper.field_comments?.[rowIdx]) {
-      delete wrapper.field_comments[rowIdx]![fieldName]
-      if (Object.keys(wrapper.field_comments[rowIdx]!).length === 0) {
-        wrapper.field_comments[rowIdx] = null
-      }
-      // 清理全 null 数组
-      if (wrapper.field_comments.every(c => c === null)) {
-        delete wrapper.field_comments
-      }
-    }
-  } else {
-    if (!wrapper.field_comments) {
-      if (!wrapper.rows) return
-      wrapper.field_comments = Array(wrapper.rows.length).fill(null)
-    }
-    if (!wrapper.field_comments[rowIdx] || wrapper.field_comments[rowIdx] === null) {
-      wrapper.field_comments[rowIdx] = {}
-    }
-    wrapper.field_comments[rowIdx]![fieldName] = trimmed
-  }
+function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataFieldComment(store.currentSchema.schema, store.currentTable.name, row, fieldName, val)
 }
 </script>
 
@@ -424,19 +328,19 @@ function setFieldComment(rowIdx: number, fieldName: string, val: string) {
                     <input class="table-input" :value="getCellValue(row, fname)"
                       @change="setCellValue(row, fname, ($event.target as HTMLInputElement).value)"
                       :placeholder="fname" />
-                    <input class="field-comment-input" :value="getFieldComment(rIdx, fname)"
-                      @change="setFieldComment(rIdx, fname, ($event.target as HTMLInputElement).value)"
+                    <input class="field-comment-input" :value="getFieldComment(row, fname)"
+                      @change="setFieldComment(row, fname, ($event.target as HTMLInputElement).value)"
                       placeholder="" />
                   </td>
                   <td>
-                    <input class="comment-input" :value="rowComments?.[rIdx] ?? ''"
-                      @change="setRowComment(rIdx, ($event.target as HTMLInputElement).value)"
+                    <input class="comment-input" :value="getRowComment(row)"
+                      @change="setRowComment(row, ($event.target as HTMLInputElement).value)"
                       :placeholder="$t('initialData.rowCommentPlaceholder')" />
                   </td>
                   <td class="row-skip">
                     <input type="checkbox" class="skip-checkbox"
-                      :checked="skipRows?.[rIdx] === true"
-                      @change="setSkipRow(rIdx, ($event.target as HTMLInputElement).checked)" />
+                      :checked="isSkipRow(row)"
+                      @change="setSkipRow(row, ($event.target as HTMLInputElement).checked)" />
                   </td>
                   <td>
                     <div class="move-btns" style="display:inline-flex; margin-right:2px;">

@@ -2,6 +2,22 @@
 import { useEditorStore } from '@/stores/editor'
 
 const store = useEditorStore()
+
+/** 表名失焦确认时触发改名：同步迁移初始数据 key 并清理旧目录 */
+async function onTableNameChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const newName = target.value
+  const table = store.currentTable
+  if (!table) return
+  // 未变化（含空白）直接还原显示
+  if (newName.trim() === table.name) {
+    target.value = table.name
+    return
+  }
+  const ok = await store.renameTable(store.selectedSchemaIdx, store.selectedTableIdx, newName)
+  // 校验失败（重名/空）则还原为原名
+  if (!ok) target.value = table.name
+}
 </script>
 
 <template>
@@ -15,7 +31,7 @@ const store = useEditorStore()
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">{{ $t('tableEditor.tableName') }}</label>
-          <input class="form-input" v-model="store.currentTable!.name">
+          <input class="form-input" :value="store.currentTable!.name" @change="onTableNameChange">
         </div>
         <div class="form-group">
           <label class="form-label">{{ $t('tableEditor.comment') }}</label>

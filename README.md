@@ -44,15 +44,18 @@ pnpm build
 
 ```
 your-schema-folder/
-├── common.json          # 公共字段引用和默认配置
-├── schemas/             # Schema JSON 文件目录
-│   ├── account.json
-│   ├── user.json
-│   └── ...
-└── initial-data/        # Table 初始数据目录 (可选)
-    └── <schema>/
-        └── <table>.json
+├── common.json          # 公共字段引用和默认配置（与基线版本无关）
+└── current/             # 当前正在编辑的基线（固定名）
+    ├── database.json    # schema 排序等当前基线相关配置
+    └── schemas/
+        └── <schema>/    # 文件名友好的模式名（处理掉特殊字符）
+            ├── schema.json  # schema 原始名称 + table 排序
+            └── <table>/     # 文件名友好的表名
+                ├── table.json        # 表配置项（字段定义、索引等）
+                └── initial-data.json # 行内化的初始数据 (可选)
 ```
+
+> 旧结构（`schemas/<schema>.json` + 平行 `initial-data/` 目录）仍可被识别，首次打开时会提示升级到上述新结构。
 
 ---
 

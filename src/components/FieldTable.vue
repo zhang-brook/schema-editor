@@ -7,13 +7,7 @@ import type { Field } from '@/types/schema'
 const store = useEditorStore()
 
 function handleFieldNameChange(field: Field, newName: string) {
-  const oldName = field.field_name
-  const trimmed = newName.trim()
-  if (!trimmed || oldName === trimmed) return
-  field.field_name = trimmed
-  if (store.currentTable) {
-    store.syncFieldNameInIndexes(store.currentTable, oldName, trimmed)
-  }
+  store.updateFieldName(store.currentTable!, field, newName)
 }
 
 // ===== Direct add field (no modal) =====
@@ -33,10 +27,9 @@ async function handleDirectAddField() {
 /** 切换字段是否有默认值 */
 function toggleHasDefault(field: Field) {
   if (field.default !== undefined) {
-    field.default = undefined
-    field.quote_default = undefined
+    store.updateFieldProps(store.currentTable!, field, { default: undefined, quote_default: undefined })
   } else {
-    field.default = ''
+    store.updateFieldProps(store.currentTable!, field, { default: '' })
   }
 }
 
@@ -88,12 +81,14 @@ function onDragEnd(e: DragEvent) {
 /** 选择统一类型时仅清除 field_type，长度和小数位由用户决定是否覆盖 */
 function handleUnifiedTypeChange(field: Field, value: string) {
   if (value) {
-    field.unified_type = value
-    field.field_type = ''
-    // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
-    field.quote_default = undefined
+    store.updateFieldProps(store.currentTable!, field, {
+      unified_type: value,
+      field_type: '',
+      // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
+      quote_default: undefined,
+    }, `unified-type:${field.field_name}`)
   } else {
-    field.unified_type = undefined
+    store.updateFieldProps(store.currentTable!, field, { unified_type: undefined }, `unified-type:${field.field_name}`)
   }
 }
 
@@ -223,7 +218,8 @@ function onDropTail(e: DragEvent) {
                   <input
                     v-if="!field.unified_type"
                     class="table-input type-free-input"
-                    v-model="field.field_type"
+                    :value="field.field_type"
+                    @input="store.updateFieldProp(store.currentTable!, field, 'field_type', ($event.target as HTMLInputElement).value)"
                     :placeholder="$t('fieldTable.typePlaceholder')"
                     style="min-width:60px;"
                   />
@@ -240,16 +236,16 @@ function onDropTail(e: DragEvent) {
                     class="table-input"
                     :value="displayFieldLength(field.field_length)"
                     :placeholder="getUnifiedTypePlaceholder(field, 'length')"
-                    @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                    @input="store.updateFieldProp(store.currentTable!, field, 'field_length', parseFieldLengthInput(($event.target as HTMLInputElement).value))"
                     style="width:38px;"
                   />
-                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="field.field_length_disabled = undefined">—</span>
+                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="store.updateFieldProp(store.currentTable!, field, 'field_length_disabled', undefined)">—</span>
                   <label class="mini-checkbox-label" title="不设置长度">
                     <input
                       type="checkbox"
                       class="mini-checkbox"
                       :checked="!!field.field_length_disabled"
-                      @change="field.field_length_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                      @change="store.updateFieldProp(store.currentTable!, field, 'field_length_disabled', ($event.target as HTMLInputElement).checked || undefined)"
                     />{{ $t('fieldTable.notSet') }}
                   </label>
                 </div>
@@ -264,16 +260,16 @@ function onDropTail(e: DragEvent) {
                     class="table-input"
                     :value="displayFieldScale(field.field_scale)"
                     :placeholder="getUnifiedTypePlaceholder(field, 'scale')"
-                    @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)"
+                    @input="store.updateFieldProp(store.currentTable!, field, 'field_scale', parseFieldScaleInput(($event.target as HTMLInputElement).value))"
                     style="width:38px;"
                   />
-                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="field.field_scale_disabled = undefined">—</span>
+                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="store.updateFieldProp(store.currentTable!, field, 'field_scale_disabled', undefined)">—</span>
                   <label class="mini-checkbox-label" title="不设置小数位">
                     <input
                       type="checkbox"
                       class="mini-checkbox"
                       :checked="!!field.field_scale_disabled"
-                      @change="field.field_scale_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                      @change="store.updateFieldProp(store.currentTable!, field, 'field_scale_disabled', ($event.target as HTMLInputElement).checked || undefined)"
                     />{{ $t('fieldTable.notSet') }}
                   </label>
                 </div>
@@ -282,13 +278,13 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).not_null ? '✓' : '' }}
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" v-model="field.not_null">
+                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.not_null" @change="store.updateFieldProp(store.currentTable!, field, 'not_null', ($event.target as HTMLInputElement).checked)">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).primary_key ? '✓' : '' }}
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" v-model="field.primary_key">
+                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.primary_key" @change="store.updateFieldProp(store.currentTable!, field, 'primary_key', ($event.target as HTMLInputElement).checked)">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
@@ -306,7 +302,7 @@ function onDropTail(e: DragEvent) {
                     v-if="field.default !== undefined && getDefaultInputType(field) === 'boolean'"
                     class="table-input"
                     :value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
-                    @change="field.default = ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined"
+                    @change="store.updateFieldProp(store.currentTable!, field, 'default', ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined)"
                     style="min-width:80px;"
                   >
                     <option value=""></option>
@@ -317,7 +313,7 @@ function onDropTail(e: DragEvent) {
                     v-else-if="field.default !== undefined"
                     class="table-input"
                     :value="displayDefault(field.default)"
-                    @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"
+                    @input="store.updateFieldProp(store.currentTable!, field, 'default', parseDefaultInput(($event.target as HTMLInputElement).value))"
                     style="min-width:60px;"
                   >
                 </div>
@@ -333,19 +329,19 @@ function onDropTail(e: DragEvent) {
                   <!-- unified type: quote determined by type definition, non-editable -->
                   <span v-if="store.quoteDefaultForField(field)" style="color:#4a90d9; font-size:11px;">✓</span>
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" v-model="field.quote_default">
+                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.quote_default" @change="store.updateFieldProp(store.currentTable!, field, 'quote_default', ($event.target as HTMLInputElement).checked || undefined)">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).comment || '' }}
                 </template>
-                <input v-else class="table-input" v-model="field.comment" style="min-width:100px;">
+                <input v-else class="table-input" :value="field.comment" @input="store.updateFieldProp(store.currentTable!, field, 'comment', ($event.target as HTMLInputElement).value, `field-comment:${field.field_name}`)" style="min-width:100px;">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).is_commented_out ? '✓' : '' }}
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" v-model="field.is_commented_out">
+                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.is_commented_out" @change="store.updateFieldProp(store.currentTable!, field, 'is_commented_out', ($event.target as HTMLInputElement).checked || undefined)">
               </td>
               <td style="min-width: 80px;">
                 <div class="move-btns" style="display:inline-flex; margin-right:2px;">

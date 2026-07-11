@@ -1,12 +1,72 @@
 {
   "app": {
     "title": "Schema Editor",
-    "emptyState": "Drop a folder here, or choose File → Open Folder from the menu to continue",
+    "notOpened": "Drop a folder here, or choose File → Open Folder (Ctrl+O) from the menu to continue",
+    "loadingOpenProject": "Opening project, please wait…",
     "dropHint": "Drop to open folder"
   },
   "menu": {
     "file": "File",
+    "edit": "Edit",
     "help": "Help"
+  },
+  "history": {
+    "undo": "Undo",
+    "redo": "Redo",
+    "undoTitle": "Undo: {label}",
+    "redoTitle": "Redo: {label}",
+    "addField": "Add Field",
+    "deleteField": "Delete Field",
+    "moveField": "Move Field",
+    "addTable": "Add Table",
+    "deleteTable": "Delete Table",
+    "renameTable": "Rename Table",
+    "moveTable": "Move Table",
+    "moveTableToSchema": "Move Table to Schema",
+    "addSchema": "Add Schema",
+    "deleteSchema": "Delete Schema",
+    "renameSchema": "Rename Schema",
+    "moveSchema": "Move Schema",
+    "editCommonFields": "Edit Common Field Refs",
+    "editField": "Edit Field",
+    "renameField": "Rename Field",
+    "editFieldOverride": "Edit Field Dialect Override",
+    "editCommentBeforeField": "Edit Comment Before Field",
+    "editCommentBeforeTable": "Edit Comment Before Table",
+    "toggleSkipRow": "Toggle Skip Row",
+    "editInitialDataComment": "Edit Initial Data Comment",
+    "editInitialDataCell": "Edit Initial Data",
+    "editInitialDataRowComment": "Edit Initial Data Row Comment",
+    "editGlobalPreSql": "Edit Global Pre SQL ({dialect})",
+    "editGlobalPostSql": "Edit Global Post SQL ({dialect})",
+    "editMysqlEngine": "Edit MySQL Engine",
+    "editMysqlCharset": "Edit MySQL Charset",
+    "editMysqlCollation": "Edit MySQL Collation",
+    "editPgQuoteIdentifiers": "Edit PG Quote Identifiers",
+    "editTableDdlMode": "Edit Table DDL Mode",
+    "editTypeCase": "Edit Type Case",
+    "addCommonField": "Add Common Field",
+    "deleteCommonField": "Delete Common Field",
+    "addIndex": "Add Index",
+    "deleteIndex": "Delete Index",
+    "editIndexColumns": "Edit Index Columns",
+    "editIndexOverride": "Edit Index Dialect Override",
+    "editTableMysqlEngine": "Edit Table MySQL Engine",
+    "editTableMysqlCharset": "Edit Table MySQL Charset",
+    "editTableMysqlCollation": "Edit Table MySQL Collation",
+    "editTablePreSql": "Edit Table Pre SQL ({dialect})",
+    "editTablePostSql": "Edit Table Post SQL ({dialect})",
+    "editSchemaPreSql": "Edit Schema Pre SQL ({dialect})",
+    "editSchemaPostSql": "Edit Schema Post SQL ({dialect})",
+    "editInitialDataPreSql": "Edit Initial Data Pre SQL ({dialect})",
+    "editInitialDataPostSql": "Edit Initial Data Post SQL ({dialect})",
+    "editInitialDataObject": "Edit Initial Data (JSON)",
+    "deleteInitialData": "Delete Initial Data",
+    "renameCommonField": "Rename Common Field",
+    "addUnifiedType": "Add Unified Type",
+    "deleteUnifiedType": "Delete Unified Type",
+    "renameUnifiedType": "Rename Unified Type",
+    "editUnifiedTypes": "Edit Unified Types"
   },
   "toolbar": {
     "openFolder": "Open Folder",
@@ -30,8 +90,6 @@
     "deleteSchema": "Delete schema",
     "addTable": "Add table",
     "deleteTable": "Delete table",
-    "emptyHint": "Click \"Open Folder\" to start",
-    "open": "Open",
     "prompt": {
       "schemaName": "Schema name:",
       "newName": "New name:"
@@ -39,6 +97,17 @@
   },
   "version": {
     "tooHigh": "The project structure version ({version}) is higher than the current editor supports. Please upgrade the editor."
+  },
+  "settings": {
+    "title": "Project Settings",
+    "tabs": {
+      "global": "Global Config",
+      "structure": "Schema Structure",
+      "version": "Version Management",
+      "project": "Project Settings"
+    },
+    "structureEmpty": "Add a Schema from the top, or click a table under a Schema on the left to edit",
+    "projectEmpty": "No settings yet. Some common config items will be moved here later."
   },
   "commonConfig": {
     "defaultMysqlConfig": "Default MySQL Table Config",
@@ -234,6 +303,49 @@
     },
     "formatJson": "Format"
   },
+  "baseline": {
+    "title": "Baseline",
+    "create": "Create baseline",
+    "createTitle": "Snapshot current structure as a read-only baseline version",
+    "nameLabel": "Baseline name",
+    "namePlaceholder": "e.g. v1.0",
+    "created": "Baseline created: {name}",
+    "delete": "Delete baseline",
+    "deleteConfirm": "Delete baseline \"{name}\"?",
+    "empty": "No baselines yet — field_id / table_id / schema_id are generated lazily on first baseline",
+    "list": "Baseline list",
+    "createdAt": "Created at",
+    "diffFrom": "From",
+    "diffTo": "To",
+    "current": "Current workspace",
+    "noChange": "No structural changes"
+  },
+  "migration": {
+    "title": "Migration",
+    "create": "Create migration",
+    "createTitle": "Pick two baselines to generate a migration script",
+    "name": "Name",
+    "from": "From baseline",
+    "to": "To baseline",
+    "created": "Migration created: {name}",
+    "delete": "Delete migration",
+    "deleteConfirm": "Delete migration \"{name}\"?",
+    "steps": "Steps",
+    "addStep": "Add step",
+    "stepType": "Type",
+    "stepAutoDiff": "Auto structure diff",
+    "stepClearColumn": "Clear column data",
+    "stepSqlTransform": "SQL transform",
+    "stepCustomSql": "Custom SQL",
+    "schema": "Schema",
+    "table": "Table",
+    "column": "Column",
+    "mysqlSql": "MySQL SQL",
+    "postgresqlSql": "PostgreSQL SQL",
+    "preview": "DDL preview",
+    "save": "Save",
+    "empty": "No migration scripts yet"
+  },
   "toast": {
     "skipping": "Skipping {name}: invalid format",
     "opened": "Opened {summary}",
@@ -246,6 +358,8 @@
     "schemaRenamed": "Schema renamed",
     "tableAdded": "Table added",
     "tableDeleted": "Table deleted",
+    "tableExists": "Table \"{name}\" already exists",
+    "tableRenamed": "Table renamed",
     "pleaseSelectCommonField": "Please select a common field",
     "pleaseEnterFieldName": "Please enter field name",
     "fieldExistsInTable": "Field \"{name}\" already exists in this table",
@@ -271,7 +385,17 @@
     "projectClosed": "Project closed",
     "dropNotSupported": "Drag-and-drop is unsupported in this browser. Please use Chrome or Edge",
     "dropFolderOnly": "Please drop a folder, not a file",
-    "diskFileChanged": "The disk file has changed. Reload?"
+    "diskFileChanged": "The disk file has changed. Reload?",
+    "upgradeFailed": "Project structure upgrade failed",
+    "undo": "Undone",
+    "redo": "Redone"
+  },
+  "upgrade": {
+    "title": "Project structure needs upgrade",
+    "message": "This project uses the old directory structure. To support the new \"per-table file + baseline management\" layout, it needs to be upgraded to the new structure.\n\nThe upgrade preserves all data (tables, fields, indexes, initial data, comments, pre/post SQL) and removes the corresponding old files. Rollback to the old structure is no longer supported after upgrading.",
+    "confirm": "Upgrade project structure",
+    "cancel": "Not now, close project",
+    "loading": "Upgrading project structure, please wait…"
   },
   "confirm": {
     "deleteSchema": "Delete schema \"{name}\" and ALL its tables? This cannot be undone.",
@@ -314,7 +438,7 @@
   },
   "github": "View GitHub Repository",
   "about": {
-    "title": "About Schema Editor",
+    "title": "About",
     "version": "Version",
     "github": "View on GitHub",
     "close": "OK"

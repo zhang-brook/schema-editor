@@ -1,12 +1,72 @@
 {
   "app": {
     "title": "Schema 編輯器",
-    "emptyState": "拖入資料夾，或從上方選單選擇「檔案 → 開啟資料夾」以繼續",
+    "notOpened": "拖入資料夾，或從上方選單選擇「檔案 → 開啟資料夾 (Ctrl+O)」以繼續",
+    "loadingOpenProject": "正在開啟專案，請稍候…",
     "dropHint": "釋放以開啟資料夾"
   },
   "menu": {
     "file": "檔案",
+    "edit": "編輯",
     "help": "說明"
+  },
+  "history": {
+    "undo": "撤銷",
+    "redo": "重做",
+    "undoTitle": "撤銷：{label}",
+    "redoTitle": "重做：{label}",
+    "addField": "新增欄位",
+    "deleteField": "刪除欄位",
+    "moveField": "移動欄位",
+    "addTable": "新增資料表",
+    "deleteTable": "刪除資料表",
+    "renameTable": "重新命名資料表",
+    "moveTable": "移動資料表",
+    "moveTableToSchema": "跨 Schema 移動資料表",
+    "addSchema": "新增 Schema",
+    "deleteSchema": "刪除 Schema",
+    "renameSchema": "重新命名 Schema",
+    "moveSchema": "移動 Schema",
+    "editCommonFields": "編輯公共欄位參照",
+    "editField": "編輯欄位",
+    "renameField": "重新命名欄位",
+    "editFieldOverride": "編輯欄位方言覆寫",
+    "editCommentBeforeField": "編輯欄位前註解",
+    "editCommentBeforeTable": "編輯資料表前註解",
+    "toggleSkipRow": "切換跳過列",
+    "editInitialDataComment": "編輯初始資料註解",
+    "editInitialDataCell": "編輯初始資料",
+    "editInitialDataRowComment": "編輯初始資料列註解",
+    "editGlobalPreSql": "編輯全域前置 SQL（{dialect}）",
+    "editGlobalPostSql": "編輯全域後置 SQL（{dialect}）",
+    "editMysqlEngine": "編輯 MySQL 引擎",
+    "editMysqlCharset": "編輯 MySQL 字元集",
+    "editMysqlCollation": "編輯 MySQL 排序規則",
+    "editPgQuoteIdentifiers": "編輯 PG 引號識別符",
+    "editTableDdlMode": "編輯建表 DDL 模式",
+    "editTypeCase": "編輯類型大小寫",
+    "addCommonField": "新增公共欄位",
+    "deleteCommonField": "刪除公共欄位",
+    "addIndex": "新增索引",
+    "deleteIndex": "刪除索引",
+    "editIndexColumns": "編輯索引欄位",
+    "editIndexOverride": "編輯索引方言覆蓋",
+    "editTableMysqlEngine": "編輯表 MySQL 引擎",
+    "editTableMysqlCharset": "編輯表 MySQL 字元集",
+    "editTableMysqlCollation": "編輯表 MySQL 排序規則",
+    "editTablePreSql": "編輯表前置 SQL（{dialect}）",
+    "editTablePostSql": "編輯表後置 SQL（{dialect}）",
+    "editSchemaPreSql": "編輯 Schema 前置 SQL（{dialect}）",
+    "editSchemaPostSql": "編輯 Schema 後置 SQL（{dialect}）",
+    "editInitialDataPreSql": "編輯初始資料前置 SQL（{dialect}）",
+    "editInitialDataPostSql": "編輯初始資料後置 SQL（{dialect}）",
+    "editInitialDataObject": "編輯初始資料（JSON）",
+    "deleteInitialData": "刪除初始資料",
+    "renameCommonField": "重新命名公共欄位",
+    "addUnifiedType": "新增統一類型",
+    "deleteUnifiedType": "刪除統一類型",
+    "renameUnifiedType": "重新命名統一類型",
+    "editUnifiedTypes": "編輯統一類型"
   },
   "toolbar": {
     "openFolder": "開啟資料夾",
@@ -30,8 +90,6 @@
     "deleteSchema": "刪除 Schema",
     "addTable": "新增表",
     "deleteTable": "刪除表",
-    "emptyHint": "點擊「開啟資料夾」開始",
-    "open": "開啟",
     "prompt": {
       "schemaName": "Schema 名稱：",
       "newName": "新名稱："
@@ -39,6 +97,17 @@
   },
   "version": {
     "tooHigh": "專案結構版本（{version}）高於目前編輯器支援的版本，請升級編輯器。"
+  },
+  "settings": {
+    "title": "專案設定",
+    "tabs": {
+      "global": "全域設定",
+      "structure": "庫結構設計",
+      "version": "版本管理",
+      "project": "專案設定"
+    },
+    "structureEmpty": "請從上方「新增 Schema」開始，或點擊左側 Schema 下的表進行編輯",
+    "projectEmpty": "暫無設定項，後續將遷移部分公共設定至此。"
   },
   "commonConfig": {
     "defaultMysqlConfig": "預設 MySQL 表設定",
@@ -234,6 +303,49 @@
     },
     "formatJson": "格式化"
   },
+  "baseline": {
+    "title": "基線",
+    "create": "建立基線",
+    "createTitle": "將目前結構快照為唯讀基線版本",
+    "nameLabel": "基線名稱",
+    "namePlaceholder": "如 v1.0",
+    "created": "基線已建立：{name}",
+    "delete": "刪除基線",
+    "deleteConfirm": "確認刪除基線「{name}」？",
+    "empty": "尚無基線 — 建立首個基線後才會延遲產生 field_id / table_id / schema_id",
+    "list": "基線清單",
+    "createdAt": "建立時間",
+    "diffFrom": "對比來源",
+    "diffTo": "對比目標",
+    "current": "目前工作區",
+    "noChange": "無結構變更"
+  },
+  "migration": {
+    "title": "遷移腳本",
+    "create": "建立遷移",
+    "createTitle": "選擇兩個基線產生遷移腳本",
+    "name": "名稱",
+    "from": "來源基線",
+    "to": "目標基線",
+    "created": "遷移已建立：{name}",
+    "delete": "刪除遷移",
+    "deleteConfirm": "確認刪除遷移「{name}」？",
+    "steps": "步驟",
+    "addStep": "新增步驟",
+    "stepType": "類型",
+    "stepAutoDiff": "自動結構 diff",
+    "stepClearColumn": "清空欄位資料",
+    "stepSqlTransform": "SQL 轉換",
+    "stepCustomSql": "自訂 SQL",
+    "schema": "Schema",
+    "table": "資料表",
+    "column": "欄位",
+    "mysqlSql": "MySQL SQL",
+    "postgresqlSql": "PostgreSQL SQL",
+    "preview": "DDL 預覽",
+    "save": "儲存",
+    "empty": "尚無遷移腳本"
+  },
   "toast": {
     "skipping": "跳過 {name}：格式無效",
     "opened": "已開啟 {summary}",
@@ -246,6 +358,8 @@
     "schemaRenamed": "Schema 已重新命名",
     "tableAdded": "表已新增",
     "tableDeleted": "表已刪除",
+    "tableExists": "表 \"{name}\" 已存在",
+    "tableRenamed": "表已重新命名",
     "pleaseSelectCommonField": "請選擇一個公共欄位",
     "pleaseEnterFieldName": "請輸入欄位名稱",
     "fieldExistsInTable": "欄位 \"{name}\" 在此表中已存在",
@@ -271,7 +385,17 @@
     "projectClosed": "專案已關閉",
     "dropNotSupported": "拖曳開啟不支援當前瀏覽器，請使用 Chrome / Edge",
     "dropFolderOnly": "請拖曳資料夾而非檔案",
-    "diskFileChanged": "磁碟檔案已變更，是否重新載入？"
+    "diskFileChanged": "磁碟檔案已變更，是否重新載入？",
+    "upgradeFailed": "專案結構升級失敗",
+    "undo": "已撤銷",
+    "redo": "已重做"
+  },
+  "upgrade": {
+    "title": "專案結構需要升級",
+    "message": "目前專案使用的是舊目錄結構。為支援新的「每表獨立檔案 + 基線管理」佈局，需要將其升級為新結構。\n\n升級會保留所有資料（表、欄位、索引、初始資料、註解、pre/post SQL），並清理對應的舊檔案，升級後不再支援回退舊結構。",
+    "confirm": "升級專案結構",
+    "cancel": "暫不升級，並關閉專案",
+    "loading": "正在升級專案結構，請稍候…"
   },
   "confirm": {
     "deleteSchema": "確認刪除 Schema \"{name}\" 及其所有表？此操作無法復原。",
@@ -314,7 +438,7 @@
   },
   "github": "查看 GitHub 倉庫",
   "about": {
-    "title": "關於 Schema 編輯器",
+    "title": "關於",
     "version": "版本",
     "github": "在 GitHub 上查看",
     "close": "確定"

@@ -318,7 +318,20 @@
     "diffFrom": "對比來源",
     "diffTo": "對比目標",
     "current": "目前工作區",
-    "noChange": "無結構變更"
+    "noChange": "無結構變更",
+    "preview": "預覽",
+    "previewTitle": "基線預覽",
+    "previewClose": "關閉預覽",
+    "previewSchemas": "{n} 個 Schema",
+    "previewTables": "{n} 張表",
+    "previewFields": "{n} 個欄位",
+    "previewIndexes": "{n} 個索引",
+    "previewSqlTitle": "SQL 預覽",
+    "previewEmpty": "點擊左側基線檢視快照內容",
+    "previewNoSchemas": "此基線不包含任何 Schema",
+    "previewStructVersion": "結構版本",
+    "previewSql": "SQL 生成",
+    "previewLoadFailed": "載入基線失敗"
   },
   "migration": {
     "title": "遷移腳本",

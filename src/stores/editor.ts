@@ -120,6 +120,10 @@ export const useEditorStore = defineStore('editor', () => {
   const hasBaselines = computed(() => baselines.value.length > 0)
   const migrations = ref<Migration[]>([])
 
+  // 基线预览状态
+  const selectedBaselineSnapshot = ref<BaselineSnapshot | null>(null)
+  const baselinePreviewLoading = ref(false)
+
   // Initial Data —— 独立存储在 initial-data/<schema>/<table>.json
   const initialDataMap = reactive(new Map<string, InitialData>())
   const initialDataDeletedKeys = reactive(new Set<string>())
@@ -455,6 +459,25 @@ export const useEditorStore = defineStore('editor', () => {
   async function getBaselineSnapshot(id: string): Promise<BaselineSnapshot | null> {
     if (!rootDirHandle.value) return null
     return readBaseline(rootDirHandle.value, id)
+  }
+
+  /** 预览基线：加载完整快照到预览面板 */
+  async function previewBaselineById(id: string): Promise<void> {
+    if (!rootDirHandle.value) return
+    baselinePreviewLoading.value = true
+    try {
+      selectedBaselineSnapshot.value = await readBaseline(rootDirHandle.value, id)
+    } catch (e) {
+      console.error('[previewBaselineById] failed:', e)
+      selectedBaselineSnapshot.value = null
+    } finally {
+      baselinePreviewLoading.value = false
+    }
+  }
+
+  /** 关闭基线预览 */
+  function clearBaselinePreview(): void {
+    selectedBaselineSnapshot.value = null
   }
 
   /**
@@ -3754,10 +3777,14 @@ export const useEditorStore = defineStore('editor', () => {
     baselines,
     hasBaselines,
     migrations,
+    selectedBaselineSnapshot,
+    baselinePreviewLoading,
     loadBaselinesAndMigrations,
     createBaseline,
     deleteBaselineById,
     getBaselineSnapshot,
+    previewBaselineById,
+    clearBaselinePreview,
     computeDiff,
     createMigration,
     updateMigration,

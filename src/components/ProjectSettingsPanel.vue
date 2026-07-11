@@ -7,6 +7,8 @@ import type {
   MigrationStep,
   MigrationDdlPreview,
 } from '@/core/baseline/types'
+import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
+import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 import CommonConfigPanel from '@/components/CommonConfigPanel.vue'
 import EditorSidebar from '@/components/EditorSidebar.vue'
 import SchemaConfigPanel from '@/components/SchemaConfigPanel.vue'
@@ -110,6 +112,66 @@ function previewText(): string {
   return previewDialect.value === 'mysql' ? preview.value.mysql : preview.value.postgresql
 }
 
+// ===== 基线预览 =====
+const previewBaselineId = ref<string | null>(null)
+const previewSqlDialect = ref<'mysql' | 'postgresql'>('mysql')
+
+async function onPreviewBaseline(id: string) {
+  previewBaselineId.value = id
+  await store.previewBaselineById(id)
+}
+
+function onCloseBaselinePreview() {
+  previewBaselineId.value = null
+  store.clearBaselinePreview()
+}
+
+/** 从基线快照生成 SQL */
+const baselineSqlPreview = computed(() => {
+  const snap = store.selectedBaselineSnapshot
+  if (!snap) return { mysql: '', postgresql: '' }
+  const common = snap.common
+  const schemas = snap.schemas
+  if (!schemas || schemas.length === 0) return { mysql: '', postgresql: '' }
+
+  let mysql = ''
+  let postgresql = ''
+  for (const schema of schemas) {
+    mysql += generateSchemaMySQL(schema, common)
+    mysql += '\n\n\n'
+    postgresql += generateSchemaPostgreSQL(schema, common)
+    postgresql += '\n\n'
+  }
+  return { mysql: mysql.trimEnd(), postgresql: postgresql.trimEnd() }
+})
+
+const baselineSqlText = computed(() => {
+  return previewSqlDialect.value === 'mysql'
+    ? baselineSqlPreview.value.mysql
+    : baselineSqlPreview.value.postgresql
+})
+
+/** 统计快照中的表/字段/索引总数 */
+const baselineSnapshotStats = computed(() => {
+  const snap = store.selectedBaselineSnapshot
+  if (!snap) return { schemas: 0, tables: 0, fields: 0, indexes: 0 }
+  let tables = 0, fields = 0, indexes = 0
+  for (const s of snap.schemas) {
+    tables += s.tables.length
+    for (const t of s.tables) {
+      fields += t.fields.length
+      indexes += t.indexes.length
+    }
+  }
+  return { schemas: snap.schemas.length, tables, fields, indexes }
+})
+
+/** 当前基线摘要（用于面板头标题） */
+const previewBaselineSummary = computed(() => {
+  if (!previewBaselineId.value) return null
+  return store.baselines.find(b => b.id === previewBaselineId.value) ?? null
+})
+
 // 进入版本管理 tab 时重置迁移草稿
 watch(
   () => store.settingsTab,
@@ -174,22 +236,128 @@ onUnmounted(() => {
         </div>
 
         <!-- 基线 -->
-        <div v-if="versionTab === 'baseline'" class="ps-version-body">
-          <div class="ps-create-row">
-            <input v-model="newBaselineName" class="ps-input" :placeholder="$t('baseline.namePlaceholder')" />
-            <button class="btn btn-primary" @click="onCreateBaseline">{{ $t('baseline.create') }}</button>
+        <div v-if="versionTab === 'baseline'" class="ps-version-body ps-baseline-root">
+          <!-- 左侧：基线列表 -->
+          <div class="ps-baseline-list">
+            <div class="ps-create-row">
+              <input v-model="newBaselineName" class="ps-input" :placeholder="$t('baseline.namePlaceholder')" />
+              <button class="btn btn-primary" @click="onCreateBaseline">{{ $t('baseline.create') }}</button>
+            </div>
+            <div v-if="store.baselines.length === 0" class="ps-empty-sm">{{ $t('baseline.empty') }}</div>
+            <ul v-else class="ps-list">
+              <li v-for="b in store.baselines" :key="b.id" class="ps-list-item"
+                :class="{ active: previewBaselineId === b.id }" @click="onPreviewBaseline(b.id)">
+                <div class="ps-list-info">
+                  <span class="ps-list-name">{{ b.name }}</span>
+                  <span class="ps-list-meta">{{ b.created_at }}</span>
+                </div>
+                <button class="btn btn-danger-sm" @click.stop="onDeleteBaseline(b.id, b.name)">{{ $t('baseline.delete')
+                  }}</button>
+              </li>
+            </ul>
           </div>
-          <div v-if="store.baselines.length === 0" class="ps-empty-sm">{{ $t('baseline.empty') }}</div>
-          <ul v-else class="ps-list">
-            <li v-for="b in store.baselines" :key="b.id" class="ps-list-item">
-              <div class="ps-list-info">
-                <span class="ps-list-name">{{ b.name }}</span>
-                <span class="ps-list-meta">{{ b.created_at }}</span>
+
+          <!-- 右侧：基线预览面板 -->
+          <div class="ps-baseline-preview">
+            <!-- 未选中基线 -->
+            <div v-if="!previewBaselineId" class="ps-baseline-empty">
+              {{ $t('baseline.previewEmpty') }}
+            </div>
+
+            <!-- 加载中 -->
+            <div v-else-if="store.baselinePreviewLoading" class="ps-baseline-empty">
+              {{ $t('app.loadingOpenProject') }}
+            </div>
+
+            <!-- 快照加载失败 -->
+            <div v-else-if="previewBaselineId && !store.selectedBaselineSnapshot" class="ps-baseline-empty">
+              {{ $t('baseline.previewLoadFailed') }}
+            </div>
+
+            <!-- 预览面板内容 -->
+            <template v-else-if="store.selectedBaselineSnapshot">
+              <div class="ps-bp-header">
+                <div>
+                  <span class="ps-bp-name">{{ previewBaselineSummary?.name ?? store.selectedBaselineSnapshot.name }}</span>
+                  <span class="ps-bp-meta">{{ previewBaselineSummary?.created_at ?? store.selectedBaselineSnapshot.created_at }}</span>
+                </div>
+                <button class="btn btn-sm" @click="onCloseBaselinePreview">{{ $t('baseline.previewClose') }}</button>
               </div>
-              <button class="btn btn-danger-sm" @click="onDeleteBaseline(b.id, b.name)">{{ $t('baseline.delete')
-                }}</button>
-            </li>
-          </ul>
+
+              <div class="ps-bp-stats">
+                <span>{{ $t('baseline.previewSchemas', { n: baselineSnapshotStats.schemas }) }}</span>
+                <span>·</span>
+                <span>{{ $t('baseline.previewTables', { n: baselineSnapshotStats.tables }) }}</span>
+                <span>·</span>
+                <span>{{ $t('baseline.previewFields', { n: baselineSnapshotStats.fields }) }}</span>
+                <span>·</span>
+                <span>{{ $t('baseline.previewIndexes', { n: baselineSnapshotStats.indexes }) }}</span>
+                <span>·</span>
+                <span>{{ $t('baseline.previewStructVersion') }}: {{ store.selectedBaselineSnapshot.struct_version }}</span>
+              </div>
+
+              <!-- 结构树 -->
+              <div class="ps-bp-tree">
+                <template v-if="store.selectedBaselineSnapshot.schemas.length === 0">
+                  <div class="ps-empty-sm">{{ $t('baseline.previewNoSchemas') }}</div>
+                </template>
+                <div v-for="(schema, si) in store.selectedBaselineSnapshot.schemas" :key="si" class="ps-bp-schema">
+                  <details open>
+                    <summary class="ps-bp-schema-name">{{ schema.schema }}</summary>
+                    <div v-for="(table, ti) in schema.tables" :key="ti" class="ps-bp-table">
+                      <details>
+                        <summary class="ps-bp-table-name">{{ table.name }} <span class="ps-bp-table-comment">{{ table.comment }}</span></summary>
+                        <!-- 字段 -->
+                        <div class="ps-bp-fields">
+                          <div class="ps-bp-field-head">
+                            <span class="ps-bp-col ps-bp-col-name">{{ $t('fieldTable.fieldName') }}</span>
+                            <span class="ps-bp-col ps-bp-col-type">{{ $t('fieldTable.type') }}</span>
+                            <span class="ps-bp-col ps-bp-col-len">{{ $t('fieldTable.length') }}/{{ $t('fieldTable.scale') }}</span>
+                            <span class="ps-bp-col ps-bp-col-nn">{{ $t('fieldTable.nn') }}</span>
+                            <span class="ps-bp-col ps-bp-col-pk">{{ $t('fieldTable.pk') }}</span>
+                            <span class="ps-bp-col ps-bp-col-def">{{ $t('fieldTable.default') }}</span>
+                            <span class="ps-bp-col ps-bp-col-comment">{{ $t('fieldTable.comment') }}</span>
+                          </div>
+                          <div v-for="(field, fi) in table.fields" :key="fi" class="ps-bp-field-row">
+                            <span class="ps-bp-col ps-bp-col-name">{{ field.field_name }}</span>
+                            <span class="ps-bp-col ps-bp-col-type">{{ field.field_type || '-' }}</span>
+                            <span class="ps-bp-col ps-bp-col-len">{{ field.field_length ?? '-' }}{{ field.field_scale != null ? ',' + field.field_scale : '' }}</span>
+                            <span class="ps-bp-col ps-bp-col-nn">{{ field.not_null ? '✓' : '' }}</span>
+                            <span class="ps-bp-col ps-bp-col-pk">{{ field.primary_key ? '✓' : '' }}</span>
+                            <span class="ps-bp-col ps-bp-col-def">{{ field.default ?? '-' }}</span>
+                            <span class="ps-bp-col ps-bp-col-comment">{{ field.comment || '-' }}</span>
+                          </div>
+                        </div>
+                        <!-- 索引 -->
+                        <div v-if="table.indexes.length > 0" class="ps-bp-indexes">
+                          <div class="ps-bp-index-title">{{ $t('indexTable.indexes') }} ({{ table.indexes.length }})</div>
+                          <div v-for="(idx, ii) in table.indexes" :key="ii" class="ps-bp-index-row">
+                            <span class="ps-bp-index-name">{{ idx.name || '-' }}</span>
+                            <span class="ps-bp-index-type">{{ idx.type }}</span>
+                            <span class="ps-bp-index-cols">({{ idx.columns.map(c => c.name).join(', ') }})</span>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  </details>
+                </div>
+              </div>
+
+              <!-- SQL 预览 -->
+              <div class="ps-bp-sql-section">
+                <div class="ps-bp-sql-header">
+                  <span>{{ $t('baseline.previewSqlTitle') }}</span>
+                  <div class="ps-dialect">
+                    <button :class="{ active: previewSqlDialect === 'mysql' }"
+                      @click="previewSqlDialect = 'mysql'">MySQL</button>
+                    <button :class="{ active: previewSqlDialect === 'postgresql' }"
+                      @click="previewSqlDialect = 'postgresql'">PostgreSQL</button>
+                  </div>
+                </div>
+                <pre class="ps-code">{{ baselineSqlText || $t('baseline.previewNoSchemas') }}</pre>
+              </div>
+            </template>
+          </div>
         </div>
 
         <!-- 迁移 -->
@@ -663,5 +831,222 @@ onUnmounted(() => {
 
 .ps-del {
   align-self: flex-start;
+}
+
+/* ===== 基线预览 双栏布局 ===== */
+.ps-baseline-root {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.ps-baseline-list {
+  width: 260px;
+  min-width: 260px;
+  flex-shrink: 0;
+  padding: 16px;
+  overflow-y: auto;
+  border-right: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.ps-baseline-list .ps-list-item {
+  cursor: pointer;
+}
+
+.ps-baseline-preview {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ps-baseline-empty {
+  color: #999;
+  font-size: 13px;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+/* 预览面板头 */
+.ps-bp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.ps-bp-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  display: block;
+}
+
+.ps-bp-meta {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+  display: block;
+}
+
+/* 统计栏 */
+.ps-bp-stats {
+  font-size: 11px;
+  color: #888;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* 结构树 */
+.ps-bp-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 5px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.ps-bp-schema {
+  margin-bottom: 8px;
+}
+
+.ps-bp-schema-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a90d9;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+
+.ps-bp-schema-name:hover {
+  background: #e8f0fe;
+}
+
+.ps-bp-table {
+  margin: 4px 0 4px 12px;
+}
+
+.ps-bp-table-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
+.ps-bp-table-name:hover {
+  background: #f0f0f0;
+}
+
+.ps-bp-table-comment {
+  font-weight: 400;
+  color: #999;
+  font-size: 11px;
+  margin-left: 8px;
+}
+
+/* 字段表格 */
+.ps-bp-fields {
+  margin: 4px 0 4px 12px;
+  font-size: 11px;
+}
+
+.ps-bp-field-head {
+  display: flex;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+  font-weight: 600;
+  color: #555;
+  border-radius: 3px 3px 0 0;
+}
+
+.ps-bp-field-row {
+  display: flex;
+  border-bottom: 1px solid #f0f0f0;
+  color: #666;
+}
+
+.ps-bp-field-row:last-child {
+  border-bottom: none;
+}
+
+.ps-bp-col {
+  padding: 3px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ps-bp-col-name { width: 120px; flex-shrink: 0; }
+.ps-bp-col-type { width: 90px; flex-shrink: 0; }
+.ps-bp-col-len  { width: 60px; flex-shrink: 0; text-align: right; }
+.ps-bp-col-nn   { width: 30px; flex-shrink: 0; text-align: center; }
+.ps-bp-col-pk   { width: 30px; flex-shrink: 0; text-align: center; }
+.ps-bp-col-def  { width: 90px; flex-shrink: 0; }
+.ps-bp-col-comment { flex: 1; min-width: 0; }
+
+/* 索引 */
+.ps-bp-indexes {
+  margin: 2px 0 6px 12px;
+}
+
+.ps-bp-index-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  padding: 2px 6px;
+}
+
+.ps-bp-index-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: #888;
+  padding: 2px 12px;
+}
+
+.ps-bp-index-name {
+  font-weight: 500;
+  color: #666;
+  min-width: 80px;
+}
+
+.ps-bp-index-type {
+  color: #999;
+  min-width: 50px;
+}
+
+.ps-bp-index-cols {
+  color: #999;
+}
+
+/* SQL 预览区 */
+.ps-bp-sql-section {
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.ps-bp-sql-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
 }
 </style>

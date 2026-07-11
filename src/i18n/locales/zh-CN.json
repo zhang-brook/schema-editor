@@ -318,7 +318,20 @@
     "diffFrom": "对比来源",
     "diffTo": "对比目标",
     "current": "当前工作区",
-    "noChange": "无结构变更"
+    "noChange": "无结构变更",
+    "preview": "预览",
+    "previewTitle": "基线预览",
+    "previewClose": "关闭预览",
+    "previewSchemas": "{n} 个 Schema",
+    "previewTables": "{n} 张表",
+    "previewFields": "{n} 个字段",
+    "previewIndexes": "{n} 个索引",
+    "previewSqlTitle": "SQL 预览",
+    "previewEmpty": "点击左侧基线查看快照内容",
+    "previewNoSchemas": "该基线不包含任何 Schema",
+    "previewStructVersion": "结构版本",
+    "previewSql": "SQL 生成",
+    "previewLoadFailed": "加载基线失败"
   },
   "migration": {
     "title": "迁移脚本",

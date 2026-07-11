@@ -318,7 +318,20 @@
     "diffFrom": "From",
     "diffTo": "To",
     "current": "Current workspace",
-    "noChange": "No structural changes"
+    "noChange": "No structural changes",
+    "preview": "Preview",
+    "previewTitle": "Baseline Preview",
+    "previewClose": "Close Preview",
+    "previewSchemas": "{n} schema(s)",
+    "previewTables": "{n} table(s)",
+    "previewFields": "{n} field(s)",
+    "previewIndexes": "{n} index(es)",
+    "previewSqlTitle": "SQL Preview",
+    "previewEmpty": "Click a baseline on the left to view snapshot contents",
+    "previewNoSchemas": "This baseline contains no schemas",
+    "previewStructVersion": "Structure Version",
+    "previewSql": "SQL Generation",
+    "previewLoadFailed": "Failed to load baseline"
   },
   "migration": {
     "title": "Migration",

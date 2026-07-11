@@ -29,18 +29,16 @@ export function readLegacyField<T = any>(
 }
 
 /**
- * 简单语义版本比较：按 "." 分割后逐段比较数字
- * 返回 >0 表示 a > b，<0 表示 a < b，0 表示相等
+ * 语义化版本比较
+ * a >= b 返回 >= 0，a < b 返回 < 0（仅比较数字段，忽略非数字后缀）
  */
-export function compareVersions(a: string, b: string): number {
-  const aParts = a.split('.').map(Number)
-  const bParts = b.split('.').map(Number)
+export function compareStructVersion(a: string, b: string): number {
+  const aParts = a.split('.').map((n) => parseInt(n, 10) || 0)
+  const bParts = b.split('.').map((n) => parseInt(n, 10) || 0)
   const len = Math.max(aParts.length, bParts.length)
   for (let i = 0; i < len; i++) {
-    const av = aParts[i] ?? 0
-    const bv = bParts[i] ?? 0
-    if (av > bv) return 1
-    if (av < bv) return -1
+    const diff = (aParts[i] || 0) - (bParts[i] || 0)
+    if (diff !== 0) return diff
   }
   return 0
 }
@@ -52,7 +50,7 @@ export function compareVersions(a: string, b: string): number {
 export function checkVersion(commonConfig: CommonConfig | null): VersionCheckResult {
   const version = commonConfig?.struct_version || '0.0'
 
-  const cmp = compareVersions(version, CURRENT_STRUCT_VERSION)
+  const cmp = compareStructVersion(version, CURRENT_STRUCT_VERSION)
   if (cmp > 0) {
     return {
       ok: false,

@@ -28,13 +28,12 @@ import {
 } from '@/core/workspace/handles'
 import {
   SCHEMAS_DIR,
-  CURRENT_DIR,
   DATABASE_FILE,
   SCHEMA_FILE,
-  TABLE_FILE,
   INITIAL_DATA_FILE,
   sanitizeName,
 } from '@/core/workspace/layout'
+import { compareStructVersion } from './structure-migrations/version-utils'
 
 const jsonFileIndent = 4
 
@@ -158,18 +157,6 @@ export async function isNewStructure(rootHandle: FileSystemDirectoryHandle): Pro
     // 无根 common.json：视为旧结构，需走升级流程
     return false
   }
-}
-
-/** 语义化版本比较：a >= b 返回 >= 0，a < b 返回 < 0（仅比较数字段，忽略非数字后缀） */
-function compareStructVersion(a: string, b: string): number {
-  const aParts = a.split('.').map((n) => parseInt(n, 10) || 0)
-  const bParts = b.split('.').map((n) => parseInt(n, 10) || 0)
-  const len = Math.max(aParts.length, bParts.length)
-  for (let i = 0; i < len; i++) {
-    const diff = (aParts[i] || 0) - (bParts[i] || 0)
-    if (diff !== 0) return diff
-  }
-  return 0
 }
 
 /**

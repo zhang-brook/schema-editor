@@ -28,7 +28,7 @@
 
 import type { StructureMigrationDeps } from './v0_4-to-v1_0'
 import { STRUCTURE_MIGRATION_STEPS } from './migration-steps'
-import { compareVersions } from './version-utils'
+import { compareStructVersion } from './version-utils'
 
 export type { StructureMigrationStep } from './migration-steps'
 export { STRUCTURE_MIGRATION_STEPS } from './migration-steps'
@@ -48,15 +48,15 @@ export async function runStructureMigrations(
   deps: StructureMigrationDeps,
   targetVersion: string,
 ): Promise<void> {
-  const steps = [...STRUCTURE_MIGRATION_STEPS].sort((a, b) => compareVersions(a.from, b.from))
+  const steps = [...STRUCTURE_MIGRATION_STEPS].sort((a, b) => compareStructVersion(a.from, b.from))
 
   let current = fromVersion
   // 循环查找从 current 出发的下一步，直到达到目标版本
   // 用循环而非 forEach，以支持链式多步（每步执行后 current 推进）
   for (;;) {
-    if (compareVersions(current, targetVersion) >= 0) break
+    if (compareStructVersion(current, targetVersion) >= 0) break
 
-    const next = steps.find((s) => compareVersions(s.from, current) === 0)
+    const next = steps.find((s) => compareStructVersion(s.from, current) === 0)
     if (!next) {
       throw new Error(
         `未找到从版本 ${current} 出发的结构迁移步骤（目标 ${targetVersion}）。请在 structure-migrations 注册表补充对应迁移脚本。`,

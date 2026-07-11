@@ -13,7 +13,7 @@ import {
 } from '@/core/workspace/paths'
 import { readJsonFile, writeJsonFile } from '@/core/workspace/handles'
 import { sanitizeName } from '@/core/workspace/layout'
-import { normalizeInitialData, buildInitialDataExport } from '@/utils/file-helpers'
+import { normalizeInitialData, buildInitialDataExport } from '@/utils/initial-data-io'
 
 /**
  * 结构迁移的公共磁盘 IO 层。

@@ -18,10 +18,10 @@
 
 import {
   readOldSchemasFromHandle,
-  readInitialDataFromHandle,
   migrateOldToNewStructure,
   cleanupOldStructure,
 } from '@/utils/file-helpers'
+import { readInitialDataFromHandle } from '@/utils/initial-data-io'
 import { readProject } from './structure-io'
 
 /** 本步骤的终点版本（引入 current/ 新布局后的第一个结构版本） */

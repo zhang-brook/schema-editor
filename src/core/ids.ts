@@ -1,11 +1,11 @@
 /**
  * 唯一 id 生成工具（nanoid 封装）。
  *
- * 设计要点（见 docs/refactor/15）：
- * - field_id / table_id / schema_id 为「延迟生成」——平时不生成，保持无基线用户数据干净。
- * - 仅当用户创建首个基线时，才在当前内存态/磁盘补齐所有缺失的 id。
- * - 之后用户处于「有基线」状态，新增表/字段自动带 id。
- * - 带语义前缀（f_/t_/s_）便于阅读与排错，纯随机部分使用 nanoid 避免依赖全局计数（改名后不歧义）。
+ * 设计要点：
+ * - field_id / table_id / schema_id / index_id / initial_data_id（行级）在「创建对象时即生成」——
+ *   无论是否已创建基线，新增的 schema/table/field/index/initial-data 行都自动带 id，
+ *   加载已有项目时也会补齐磁盘上缺失的 id，保证可跨版本识别 rename。
+ * - 带语义前缀（f_/t_/s_/i_/d_）便于阅读与排错，纯随机部分使用 nanoid 避免依赖全局计数（改名后不歧义）。
  */
 import { customAlphabet } from 'nanoid'
 
@@ -31,6 +31,16 @@ export function newSchemaId(): string {
 
 export function newBaselineId(): string {
   return makeId('b')
+}
+
+/** 初始数据行（initial-data row）唯一 id，前缀 d_ */
+export function newInitialDataId(): string {
+  return makeId('d')
+}
+
+/** 索引（index）唯一 id，前缀 i_ */
+export function newIndexId(): string {
+  return makeId('i')
 }
 
 export function newMigrationId(): string {

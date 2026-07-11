@@ -63,7 +63,7 @@ import type { SqlDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
 import { parseCreateTableStatements, detectDialect, convertColumnToField } from '@/utils/sql-parser'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
-import { newFieldId, newTableId, newSchemaId, newBaselineId, newMigrationId } from '@/core/ids'
+import { newFieldId, newTableId, newSchemaId, newBaselineId, newInitialDataId, newIndexId, newMigrationId } from '@/core/ids'
 import {
   listBaselines,
   readBaseline,
@@ -357,8 +357,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 为当前内存态补齐缺失的唯一 id（field_id / table_id / schema_id）。
-   * 仅在创建首个基线时调用；补齐后的内存态会经 syncAllToDisk 写回 current/。
+   * 为当前内存态补齐缺失的唯一 id（field_id / table_id / schema_id / index_id / initial_data_id）。
+   * 无论是否已创建基线都会在加载或创建基线时调用，保证所有对象都带 id 以跨版本识别 rename。
    * 返回是否发生了补齐（用于决定是否需写盘）。
    */
   function ensureIdsForCurrent(): boolean {
@@ -376,6 +376,22 @@ export const useEditorStore = defineStore('editor', () => {
         for (const field of table.fields) {
           if (!field.field_id) {
             field.field_id = newFieldId()
+            changed = true
+          }
+        }
+        for (const index of table.indexes) {
+          if (!index.index_id) {
+            index.index_id = newIndexId()
+            changed = true
+          }
+        }
+      }
+    }
+    for (const data of initialDataMap.values()) {
+      if (data.rows) {
+        for (const row of data.rows) {
+          if (!row.initial_data_id) {
+            row.initial_data_id = newInitialDataId()
             changed = true
           }
         }
@@ -629,6 +645,11 @@ export const useEditorStore = defineStore('editor', () => {
     // 加载 initial-data（行内化在各 table 目录）
     for (const { key, data } of newProj.initialData) {
       initialDataMap.set(key, data)
+    }
+
+    // 补齐磁盘上已有对象缺失的 id（无论是否已创建基线，保证全部带 id 以跨版本识别）
+    if (ensureIdsForCurrent()) {
+      await syncAllToDisk()
     }
 
     // 自动选中第一个 schema
@@ -1116,6 +1137,12 @@ export const useEditorStore = defineStore('editor', () => {
           initialDataMap.delete(key)
           initialDataDeletedKeys.add(key)
         } else {
+          // 新建初始数据时，为每一行分配 id（无论是否已创建基线）
+          if (data.rows) {
+            for (const row of data.rows) {
+              if (!row.initial_data_id) row.initial_data_id = newInitialDataId()
+            }
+          }
           initialDataMap.set(key, data)
           initialDataDeletedKeys.delete(key)
         }
@@ -1422,8 +1449,8 @@ export const useEditorStore = defineStore('editor', () => {
       schema: name,
       tables: []
     }
-    // 已存在基线时，新增 schema 自动带 id（保证后续可跨版本识别）
-    if (hasBaselines.value) newSchema.schema_id = newSchemaId()
+    // 新增 schema 自动带 id（无论是否已创建基线，保证可跨版本识别）
+    newSchema.schema_id = newSchemaId()
     executeCommand({
       label: t('history.addSchema'),
       coalesceKey: `add-schema:${name}`,
@@ -1608,7 +1635,8 @@ export const useEditorStore = defineStore('editor', () => {
       fields: [],
       indexes: []
     }
-    if (hasBaselines.value) newTable.table_id = newTableId()
+    // 新增 table 自动带 id（无论是否已创建基线，保证可跨版本识别）
+    newTable.table_id = newTableId()
     executeCommand({
       label: t('history.addTable'),
       coalesceKey: `add-table:${schema.schema}`,
@@ -2089,6 +2117,8 @@ export const useEditorStore = defineStore('editor', () => {
       const ut = newFieldUnifiedType.value || undefined
       const newField: Field = {
         field_name: name,
+        // 新增 field 自动带 id（无论是否已创建基线，保证可跨版本识别）
+        field_id: newFieldId(),
         unified_type: ut,
         // 仅当未选择 unified_type 时才预设 field_type/field_length
         field_type: ut ? undefined : 'varchar',
@@ -2130,7 +2160,8 @@ export const useEditorStore = defineStore('editor', () => {
       primary_key: false,
       comment: ''
     }
-    if (hasBaselines.value) newField.field_id = newFieldId()
+    // 新增 field 自动带 id（无论是否已创建基线，保证可跨版本识别）
+    newField.field_id = newFieldId()
     executeCommand({
       label: t('history.addField'),
       coalesceKey: `add-field:${table.name}`,
@@ -2327,6 +2358,8 @@ export const useEditorStore = defineStore('editor', () => {
   function addIndex(table: Table) {
     const newIndex: Index = {
       type: 'index',
+      // 新增 index 自动带 id（无论是否已创建基线，保证可跨版本识别）
+      index_id: newIndexId(),
       columns: [{ name: '' }],
       using: ''
     }
@@ -2837,6 +2870,7 @@ export const useEditorStore = defineStore('editor', () => {
       if (index.name) idx.name = index.name
       if (index.type) idx.type = index.type
       if (index.using) idx.using = index.using
+      if (index.index_id) idx.index_id = index.index_id
       idx.columns = index.columns.map(c => {
         const col: any = { name: c.name }
         if (c.sort_order) col.sort_order = c.sort_order

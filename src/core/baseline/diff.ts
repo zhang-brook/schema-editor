@@ -126,30 +126,35 @@ function diffFields(oldFields: Field[], newFields: Field[]): FieldDiff[] {
 
 function diffIndexes(oldIndexes: Index[], newIndexes: Index[]): IndexDiff[] {
   const result: IndexDiff[] = []
+  const oldById = new Map<string, Index>()
+  for (const i of oldIndexes) {
+    if (i.index_id) oldById.set(i.index_id, i)
+  }
   const oldByName = new Map<string, Index>()
   for (const i of oldIndexes) {
     const key = i.name || indexColumnSignature(i)
-    oldByName.set(key, i)
+    if (!oldById.has(i.index_id ?? '')) oldByName.set(key, i)
   }
   const matchedOld = new Set<Index>()
 
   for (const ni of newIndexes) {
-    const key = ni.name || indexColumnSignature(ni)
-    const oi = oldByName.get(key)
+    // 优先用 index_id 稳定匹配，否则回退到 name / 列签名
+    const oi = (ni.index_id && oldById.get(ni.index_id)) ||
+      oldByName.get(ni.name || indexColumnSignature(ni))
     if (oi) {
       matchedOld.add(oi)
       const changes = compareIndexSemantics(oi, ni)
       if (Object.keys(changes).length > 0) {
-        result.push({ type: 'index_modified', old_name: oi.name, new_name: ni.name, changes })
+        result.push({ type: 'index_modified', index_id: ni.index_id ?? oi.index_id, old_name: oi.name, new_name: ni.name, changes })
       }
     } else {
-      result.push({ type: 'index_added', new_name: ni.name })
+      result.push({ type: 'index_added', index_id: ni.index_id, new_name: ni.name })
     }
   }
 
   for (const oi of oldIndexes) {
     if (matchedOld.has(oi)) continue
-    result.push({ type: 'index_removed', old_name: oi.name })
+    result.push({ type: 'index_removed', index_id: oi.index_id, old_name: oi.name })
   }
 
   return result
@@ -168,7 +173,7 @@ function diffTable(oldTable: Table | null, newTable: Table | null): TableDiff | 
       table_id: newTable.table_id,
       new_name: newTable.name,
       fields: newTable.fields.map(f => ({ type: 'field_added' as const, field_id: f.field_id, new_name: f.field_name })),
-      indexes: newTable.indexes.map(i => ({ type: 'index_added' as const, new_name: i.name })),
+      indexes: newTable.indexes.map(i => ({ type: 'index_added' as const, index_id: i.index_id, new_name: i.name })),
     }
   }
   if (oldTable && !newTable) {
@@ -177,7 +182,7 @@ function diffTable(oldTable: Table | null, newTable: Table | null): TableDiff | 
       table_id: oldTable.table_id,
       old_name: oldTable.name,
       fields: oldTable.fields.map(f => ({ type: 'field_removed' as const, field_id: f.field_id, old_name: f.field_name })),
-      indexes: oldTable.indexes.map(i => ({ type: 'index_removed' as const, old_name: i.name })),
+      indexes: oldTable.indexes.map(i => ({ type: 'index_removed' as const, index_id: i.index_id, old_name: i.name })),
     }
   }
 

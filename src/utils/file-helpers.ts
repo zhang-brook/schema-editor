@@ -724,6 +724,7 @@ function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
     const row: InitialDataRow = isInline
       ? {
           data: (raw.data ?? {}) as Record<string, any>,
+          ...(raw.initial_data_id ? { initial_data_id: raw.initial_data_id } : {}),
           ...(raw.field_comments ? { field_comments: raw.field_comments } : {}),
           ...(raw.is_skip === true ? { is_skip: true } : {}),
           ...(raw.row_comment ? { row_comment: raw.row_comment } : {}),
@@ -754,6 +755,7 @@ export function buildInitialDataExport(data: InitialData): Record<string, any> {
   if (data.rows) {
     exportData.rows = toRaw(data.rows).map(row => {
       const out: Record<string, any> = { data: toRaw(row.data) }
+      if (row.initial_data_id) out.initial_data_id = row.initial_data_id
       if (row.field_comments && Object.keys(row.field_comments).length > 0) {
         out.field_comments = toRaw(row.field_comments)
       }

@@ -62,6 +62,8 @@ export interface FieldDiff {
 
 export interface IndexDiff {
   type: DiffChangeType
+  /** index_id（若存在），用于稳定匹配 */
+  index_id?: string
   /** 旧索引标识（name 或 列签名） */
   old_name?: string
   new_name?: string

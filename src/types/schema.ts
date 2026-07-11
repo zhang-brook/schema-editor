@@ -84,6 +84,8 @@ export interface Field {
 export interface Index {
   // name is optional
   name?: string
+  /** 索引唯一 id（创建时即生成，用于跨版本变更识别） */
+  index_id?: string
   type: string
   using?: string
   columns: IndexColumn[]
@@ -173,6 +175,8 @@ export interface CommonConfig {
 export interface InitialDataRow {
   /** 行的字段数据 */
   data: Record<string, any>
+  /** 初始数据行唯一 id（创建时即生成，用于跨版本变更识别） */
+  initial_data_id?: string
   /** 该行的字段级注释（仅有注释的字段才出现） */
   field_comments?: Record<string, string>
   /** 是否跳过该行（true 时该行不生成 INSERT 语句，语义同旧 skip_rows[i]===true） */

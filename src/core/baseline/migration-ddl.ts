@@ -310,7 +310,8 @@ function buildIndexDdl(
   const targetTable = findTargetTable(targetSchemas, schemaName, tableName)
   if (!targetTable) return []
   if (id.type === 'index_added' || id.type === 'index_modified') {
-    const idx = targetTable.indexes.find(x => x.name === id.new_name)
+    const idx = (id.index_id && targetTable.indexes.find(x => x.index_id === id.index_id)) ||
+      targetTable.indexes.find(x => x.name === id.new_name)
     if (idx) return [buildIndexDefinition(dialect, idx as any, null)]
     return []
   }

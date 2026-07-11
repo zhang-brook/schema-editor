@@ -196,20 +196,15 @@ watch(
         <div class="bm-mig-editor" v-if="editingMigration">
           <div class="bm-mig-pick">
             <label>{{ $t('migration.from') }}
-              <select v-model="draftFrom" @change="editingMigration.from_baseline = draftFrom">
+              <select v-model="editingMigration.from_baseline" @change="draftFrom = editingMigration!.from_baseline; refreshPreview()">
                 <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
               </select>
             </label>
             <label>{{ $t('migration.to') }}
-              <select v-model="draftTo" @change="editingMigration.to_baseline = draftTo">
+              <select v-model="editingMigration.to_baseline" @change="draftTo = editingMigration!.to_baseline; refreshPreview()">
                 <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
               </select>
             </label>
-            <button
-              class="btn btn-sm"
-              :disabled="!canCreateMigration || !!selectedMigrationId"
-              @click="onCreateMigration"
-            >{{ $t('migration.create') }}</button>
           </div>
 
           <div class="bm-steps">
@@ -262,8 +257,27 @@ watch(
           </button>
         </div>
 
-        <div v-else class="bm-empty bm-empty-sm">
-          {{ $t('migration.empty') }}
+        <div v-else class="bm-mig-editor">
+          <div class="bm-mig-pick">
+            <label>{{ $t('migration.from') }}
+              <select v-model="draftFrom">
+                <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
+              </select>
+            </label>
+            <label>{{ $t('migration.to') }}
+              <select v-model="draftTo">
+                <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
+              </select>
+            </label>
+            <button
+              class="btn btn-sm"
+              :disabled="!canCreateMigration"
+              @click="onCreateMigration"
+            >{{ $t('migration.create') }}</button>
+          </div>
+          <div class="bm-empty bm-empty-sm">
+            {{ $t('migration.empty') }}
+          </div>
         </div>
       </div>
     </div>

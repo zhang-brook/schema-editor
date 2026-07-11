@@ -7,6 +7,7 @@
   },
   "menu": {
     "file": "檔案",
+    "edit": "編輯",
     "help": "說明"
   },
   "history": {
@@ -428,7 +429,7 @@
   },
   "github": "查看 GitHub 倉庫",
   "about": {
-    "title": "關於 Schema 編輯器",
+    "title": "關於",
     "version": "版本",
     "github": "在 GitHub 上查看",
     "close": "確定"

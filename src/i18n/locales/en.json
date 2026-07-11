@@ -7,6 +7,7 @@
   },
   "menu": {
     "file": "File",
+    "edit": "Edit",
     "help": "Help"
   },
   "history": {
@@ -428,7 +429,7 @@
   },
   "github": "View GitHub Repository",
   "about": {
-    "title": "About Schema Editor",
+    "title": "About",
     "version": "Version",
     "github": "View on GitHub",
     "close": "OK"

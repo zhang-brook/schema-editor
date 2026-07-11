@@ -107,7 +107,9 @@
       "project": "專案設定"
     },
     "structureEmpty": "請從上方「新增 Schema」開始，或點擊左側 Schema 下的表進行編輯",
-    "projectEmpty": "暫無設定項，後續將遷移部分公共設定至此。"
+    "projectEmpty": "暫無設定項，後續將遷移部分公共設定至此。",
+    "aiGuide": "產生 AI JSON 結構指南",
+    "aiGuideHint": "開啟後，會在開啟的資料夾中寫入一份描述 JSON 結構的 markdown 檔案，協助 AI 工具正確修改這些 JSON。"
   },
   "commonConfig": {
     "defaultMysqlConfig": "預設 MySQL 表設定",

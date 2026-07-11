@@ -107,7 +107,9 @@
       "project": "Project Settings"
     },
     "structureEmpty": "Add a Schema from the top, or click a table under a Schema on the left to edit",
-    "projectEmpty": "No settings yet. Some common config items will be moved here later."
+    "projectEmpty": "No settings yet. Some common config items will be moved here later.",
+    "aiGuide": "Generate AI JSON structure guide",
+    "aiGuideHint": "When enabled, a markdown file describing the JSON structure is written to the opened folder, helping AI tools edit these JSON files correctly."
   },
   "commonConfig": {
     "defaultMysqlConfig": "Default MySQL Table Config",

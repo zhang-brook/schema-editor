@@ -45,6 +45,13 @@ import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
 import { getCommonFileHandle, getCurrentDir } from '@/core/workspace/paths'
 import { readJsonFile } from '@/core/workspace/handles'
 import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION, sanitizeName } from '@/core/workspace/layout'
+import {
+  AI_GUIDE_FILE,
+  loadGenerateAiGuide,
+  saveGenerateAiGuide,
+  generateAiGuideMarkdown,
+} from '@/utils/ai-guide'
+import { writeTextFile, removeEntry, getFileHandleSafe } from '@/core/workspace/handles'
 import { fmtPrePostSql, getGlobalPostSql, getGlobalPreSql } from '@/utils/sql-generator/shared'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
@@ -88,6 +95,10 @@ export const useEditorStore = defineStore('editor', () => {
   const rootDirHandle = ref<any>(null)
   const currentDirHandle = ref<any>(null)
   const projectOpened = ref(false)
+
+  // ===== 项目设置：是否在用户打开的文件夹中生成/更新 AI JSON 结构指南 =====
+  // 该设置随项目保存到 common.json（commonConfig.generate_ai_guide），缺省为 false
+  const generateAiGuide = ref<boolean>(false)
 
   // ===== Baselines / Migrations =====
   const baselines = ref<BaselineSummary[]>([])
@@ -268,6 +279,7 @@ export const useEditorStore = defineStore('editor', () => {
     currentDirHandle.value = null
     projectOpened.value = false
     commonConfig.value = null
+    generateAiGuide.value = false
     schemas.length = 0
     initialDataMap.clear()
     initialDataDeletedKeys.clear()
@@ -338,6 +350,7 @@ export const useEditorStore = defineStore('editor', () => {
       },
       common_used_fields: {},
       type_case: 'keep',
+      generate_ai_guide: false,
     }
   }
 
@@ -377,6 +390,8 @@ export const useEditorStore = defineStore('editor', () => {
     }
     if (!common) common = _createDefaultCommonConfig()
     commonConfig.value = common
+    // 从 common.json 恢复 AI 指南开关（缺省 true）
+    generateAiGuide.value = loadGenerateAiGuide(commonConfig.value)
 
     // commonConfig.value 已确定非 null，使用本地常量避免 TS 窄化失败
     const cc = commonConfig.value!
@@ -420,6 +435,8 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     projectOpened.value = true
+    // 打开项目后确保 AI 指南按需生成（空文件夹未触发任何写盘时也要生成）
+    await syncAiGuideToDisk()
     // 打开项目后默认选中「库结构设计」tab
     settingsTab.value = 'structure'
     showCommonPanel.value = false
@@ -775,11 +792,47 @@ export const useEditorStore = defineStore('editor', () => {
       await syncSqlToOutput()
       // 同步 initial-data 文件
       await syncInitialDataToDisk()
+      // 同步 AI JSON 结构指南（生成/更新或删除，取决于全局开关）
+      await syncAiGuideToDisk()
     } catch (e) {
       console.error('Auto-sync failed:', e)
       showToast(t('toast.failedSaveChanges'))
     } finally {
       _leaveWriteScope()
+    }
+  }
+
+  /**
+   * 同步 AI JSON 结构指南到用户打开的文件夹根目录：
+   * - 开关开启 → 写入/更新 AI_JSON_STRUCTURE_GUIDE.md
+   * - 开关关闭 → 删除该文件（若存在）
+   * 失败（如权限不足）静默忽略，不影响正常保存。
+   */
+  async function syncAiGuideToDisk() {
+    if (!rootDirHandle.value) return
+    if (generateAiGuide.value) {
+      try {
+        const handle = await getFileHandleSafe(rootDirHandle.value, AI_GUIDE_FILE)
+        await writeTextFile(handle, generateAiGuideMarkdown())
+      } catch (e) {
+        console.warn('[syncAiGuideToDisk] failed to write guide:', e)
+      }
+    } else {
+      try {
+        await removeEntry(rootDirHandle.value, AI_GUIDE_FILE)
+      } catch {
+        // 文件不存在，静默忽略
+      }
+    }
+  }
+
+  /** 切换「是否生成 AI 指南」开关，写入 common.json 并立即同步文件状态 */
+  async function setGenerateAiGuide(enabled: boolean) {
+    generateAiGuide.value = enabled
+    saveGenerateAiGuide(commonConfig.value, enabled)
+    if (projectOpened.value) {
+      // 立即写盘（common.json 含该开关），随后同步指南文件
+      await syncAllToDisk()
     }
   }
 
@@ -1064,6 +1117,8 @@ export const useEditorStore = defineStore('editor', () => {
     showCommonPanel,
     settingsTab,
     projectOpened,
+    generateAiGuide,
+    setGenerateAiGuide,
     toastMsg,
     toastVisible,
     showAddFieldModal,

@@ -45,9 +45,19 @@ const store = useEditorStore()
 
       <VersionManagementPanel />
 
-      <!-- 项目设置（先空占位） -->
-      <div v-if="store.settingsTab === 'project'" class="ps-empty">
-        <p>{{ $t('settings.projectEmpty') }}</p>
+      <!-- 项目设置 -->
+      <div v-if="store.settingsTab === 'project'" class="ps-project">
+        <div class="ps-setting-row">
+          <label class="ps-switch">
+            <input
+              type="checkbox"
+              :checked="store.generateAiGuide"
+              @change="store.setGenerateAiGuide(($event.target as HTMLInputElement).checked)"
+            />
+            <span class="ps-switch-label">{{ $t('settings.aiGuide') }}</span>
+          </label>
+          <p class="ps-setting-hint">{{ $t('settings.aiGuideHint') }}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -148,6 +158,45 @@ const store = useEditorStore()
   justify-content: center;
   color: #aaa;
   font-size: 13px;
+}
+
+/* 项目设置页 */
+.ps-project {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.ps-setting-row {
+  padding: 12px 16px;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  background: #fafafa;
+  max-width: 560px;
+}
+
+.ps-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.ps-switch input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.ps-setting-hint {
+  margin: 8px 0 0 24px;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
 }
 
 </style>

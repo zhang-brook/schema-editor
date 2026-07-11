@@ -5,12 +5,14 @@ import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
+import BaselineMigrationModal from '@/components/modal/BaselineMigrationModal.vue'
 import { GITHUB_REPO_URL } from '@/utils/constants'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
 
 const showAboutModal = ref(false)
+const showBaselineModal = ref(false)
 const openMenu = ref<string | null>(null)
 
 function toggleMenu(menu: string) {
@@ -152,6 +154,13 @@ onUnmounted(() => {
         &#128190;&#xFE0E; {{ $t('toolbar.autoSaving') }}
       </span>
 
+      <button
+        class="toolbar-btn"
+        :disabled="!store.projectOpened"
+        :title="$t('baseline.title')"
+        @click="store.projectOpened && (showBaselineModal = true)"
+      >&#128202; {{ $t('baseline.title') }}</button>
+
       <select
         class="locale-select"
         :title="$t('toolbar.language')"
@@ -166,6 +175,7 @@ onUnmounted(() => {
   </div>
 
   <AboutModal :visible="showAboutModal" @close="showAboutModal = false" />
+  <BaselineMigrationModal :visible="showBaselineModal" @close="showBaselineModal = false" />
 </template>
 
 <style scoped>

@@ -42,11 +42,8 @@
 | initial-data 行内结构 | initial-data 行内结构 + 升级器兼容（并入 v0.4→v1.0 步骤） | ✅ 已完成（代码已落地，方案文档已归档删除） |
 | 手动「升级项目结构」 | 打开旧结构 → 弹窗确认 → 迁移 → 清理旧文件 → 加载新结构 | ✅ 已完成（代码已落地，方案文档已归档删除） |
 | 命令模式 undo/redo + 按需写文件 | 命令模式 + 结构化 patch + 按需写受影响 json + 工具栏 undo/redo | ✅ 已完成（代码已落地，方案文档已归档删除） |
-| [`15-baseline-migrations-design.md`](./15-baseline-migrations-design.md) | 基线快照 / 迁移脚本 设计文档（实现待 field_id） | 设计待评审 |
+| 基线快照 / 迁移脚本 | 引入 field_id/table_id/schema_id（延迟生成）+ 基线快照 + 结构 diff 引擎 + 迁移脚本生成 MySQL/PostgreSQL 变更 DDL | ✅ 已完成（代码已落地，方案文档已归档删除） |
 
 ## 不在当前范围（仅记录，后续批次实现）
 
-- `field_id` 引入与 rename 跟踪（本次暂不引入，留到基线 diff 阶段）。
-- 自动生成数据库变更 DDL 的 diff 引擎（基于基线对比，依赖 field_id）。
 - initial-data 页面「导入 JSON 数据」入口（结构行内化后单列文档）。
-- 基线快照创建/列表与基于名称的初级 diff 的可运行实现（待 field_id 落地）。

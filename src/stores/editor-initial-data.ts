@@ -8,8 +8,8 @@ export interface InitialDataDeps {
   initialDataMap: Map<string, InitialData>
   initialDataDeletedKeys: Set<string>
   schemas: Schema[]
-  currentSchema: ComputedRef<Schema | null>
-  currentTable: ComputedRef<Table | null>
+  currentSchema: ComputedRef<Schema | null | undefined>
+  currentTable: ComputedRef<Table | null | undefined>
   executeCommand: (cmd: Command) => void
   t: (key: string, options?: any) => string
 }

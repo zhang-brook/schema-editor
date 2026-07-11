@@ -1,8 +1,8 @@
 /**
- * 结构迁移注册表与调度器。
+ * 结构迁移调度器。
  *
  * 设计目标：无论数据内容、字段属性，还是目录布局如何调整，新增一个版本只需要在本目录
- * 新增一个 `<from>-to-<to>.ts` 迁移脚本文件，并在下方的 STRUCTURE_MIGRATION_STEPS 注册表中
+ * 新增一个 `<from>-to-<to>.ts` 迁移脚本文件，并在 migration-steps.ts 的 STRUCTURE_MIGRATION_STEPS 注册表中
  * 追加一行即可。旧代码无需改动，天然支持「用户落后多个版本时逐个版本升级」。
  *
  * 每条 step 都是「自包含」的磁盘迁移：从当前磁盘读取 from 版本、写出 to 版本，
@@ -26,73 +26,12 @@
  *   }
  */
 
-import { migrate as migrateV0_0ToV0_1 } from './v0_0-to-v0_1'
-import { migrate as migrateV0_1ToV0_2 } from './v0_1-to-v0_2'
-import { migrate as migrateV0_2ToV0_3 } from './v0_2-to-v0_3'
-import { migrate as migrateV0_3ToV0_4 } from './v0_3-to-v0_4'
 import type { StructureMigrationDeps } from './v0_4-to-v1_0'
-import { migrate as migrateV0_4ToV1_0 } from './v0_4-to-v1_0'
+import { STRUCTURE_MIGRATION_STEPS } from './migration-steps'
+import { compareVersions } from './version-utils'
 
-/** 单条结构迁移步骤 */
-export interface StructureMigrationStep {
-  /** 起点版本 */
-  from: string
-  /** 终点版本 */
-  to: string
-  /**
-   * 执行迁移（自包含：读 from 磁盘 → 写 to 磁盘）。
-   * 数据级步骤（0.0→0.4）不需要 deps；结构级步骤（0.4→1.0）需要 deps 注入序列化函数。
-   */
-  migrate: (
-    rootHandle: FileSystemDirectoryHandle,
-    deps?: StructureMigrationDeps,
-  ) => Promise<void>
-}
-
-/**
- * 结构迁移步骤注册表。
- * 每个步骤的 from 必须等于上一个步骤的 to，形成连续链条（0.0 → 0.1 → 0.2 → 0.3 → 0.4 → 1.0）。
- * 未来新增版本只需在此追加新步骤（并新建对应脚本文件）。
- */
-export const STRUCTURE_MIGRATION_STEPS: StructureMigrationStep[] = [
-  {
-    from: '0.0',
-    to: '0.1',
-    migrate: migrateV0_0ToV0_1,
-  },
-  {
-    from: '0.1',
-    to: '0.2',
-    migrate: migrateV0_1ToV0_2,
-  },
-  {
-    from: '0.2',
-    to: '0.3',
-    migrate: migrateV0_2ToV0_3,
-  },
-  {
-    from: '0.3',
-    to: '0.4',
-    migrate: migrateV0_3ToV0_4,
-  },
-  {
-    from: '0.4',
-    to: '1.0',
-    migrate: migrateV0_4ToV1_0,
-  },
-]
-
-/** 语义化版本比较：a < b 返回 < 0，a === b 返回 0，a > b 返回 > 0 */
-function compareVersion(a: string, b: string): number {
-  const aParts = a.split('.').map((n) => parseInt(n, 10) || 0)
-  const bParts = b.split('.').map((n) => parseInt(n, 10) || 0)
-  const len = Math.max(aParts.length, bParts.length)
-  for (let i = 0; i < len; i++) {
-    const diff = (aParts[i] || 0) - (bParts[i] || 0)
-    if (diff !== 0) return diff
-  }
-  return 0
-}
+export type { StructureMigrationStep } from './migration-steps'
+export { STRUCTURE_MIGRATION_STEPS } from './migration-steps'
 
 /**
  * 从 fromVersion 开始，按注册表顺序逐个执行结构迁移，直到达到目标版本 targetVersion。
@@ -109,15 +48,15 @@ export async function runStructureMigrations(
   deps: StructureMigrationDeps,
   targetVersion: string,
 ): Promise<void> {
-  const steps = [...STRUCTURE_MIGRATION_STEPS].sort((a, b) => compareVersion(a.from, b.from))
+  const steps = [...STRUCTURE_MIGRATION_STEPS].sort((a, b) => compareVersions(a.from, b.from))
 
   let current = fromVersion
   // 循环查找从 current 出发的下一步，直到达到目标版本
   // 用循环而非 forEach，以支持链式多步（每步执行后 current 推进）
   for (;;) {
-    if (compareVersion(current, targetVersion) >= 0) break
+    if (compareVersions(current, targetVersion) >= 0) break
 
-    const next = steps.find((s) => compareVersion(s.from, current) === 0)
+    const next = steps.find((s) => compareVersions(s.from, current) === 0)
     if (!next) {
       throw new Error(
         `未找到从版本 ${current} 出发的结构迁移步骤（目标 ${targetVersion}）。请在 structure-migrations 注册表补充对应迁移脚本。`,

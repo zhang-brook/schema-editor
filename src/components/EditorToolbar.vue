@@ -43,6 +43,16 @@ function onDocumentClick(e: MouseEvent) {
   }
 }
 
+/** 判断事件目标是否处于可编辑元素（输入框/文本域/contenteditable），这类场景应使用原生撤销/重做 */
+function isEditableTarget(e: KeyboardEvent): boolean {
+  const el = e.target as HTMLElement | null
+  if (!el) return false
+  const tag = el.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (el.isContentEditable) return true
+  return false
+}
+
 function onKeydown(e: KeyboardEvent) {
   const mod = e.ctrlKey || e.metaKey
   if (e.key === 'Escape' && openMenu.value) {
@@ -63,8 +73,10 @@ function onKeydown(e: KeyboardEvent) {
     }
     return
   }
-  // Undo/Redo 快捷键（仅在项目打开时生效，避免与输入框原生撤销冲突由 store 接管）
-  if (store.projectOpened) {
+  // Undo/Redo 快捷键（仅在项目打开时生效）。
+  // 当焦点位于输入框/文本域等可编辑元素时，交由浏览器原生撤销/重做处理，
+  // 避免拦截导致导入 SQL 弹窗等场景无法正确撤消重做。
+  if (store.projectOpened && !isEditableTarget(e)) {
     if (mod && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault()
       if (e.shiftKey) store.redo()

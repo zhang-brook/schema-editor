@@ -131,7 +131,7 @@ export function createCrudActions(deps: CrudDeps) {
       schema: name,
       tables: []
     }
-    // 新增 schema 自动带 id（无论是否已创建基线，保证可跨版本识别）
+    // 新增 schema 自动带 id（无论是否已创建版本，保证可跨版本识别）
     newSchema.schema_id = newSchemaId()
     executeCommand({
       label: t('history.addSchema'),
@@ -317,7 +317,7 @@ export function createCrudActions(deps: CrudDeps) {
       fields: [],
       indexes: []
     }
-    // 新增 table 自动带 id（无论是否已创建基线，保证可跨版本识别）
+    // 新增 table 自动带 id（无论是否已创建版本，保证可跨版本识别）
     newTable.table_id = newTableId()
     executeCommand({
       label: t('history.addTable'),
@@ -799,7 +799,7 @@ export function createCrudActions(deps: CrudDeps) {
       const ut = newFieldUnifiedType.value || undefined
       const newField: Field = {
         field_name: name,
-        // 新增 field 自动带 id（无论是否已创建基线，保证可跨版本识别）
+        // 新增 field 自动带 id（无论是否已创建版本，保证可跨版本识别）
         field_id: newFieldId(),
         unified_type: ut,
         // 仅当未选择 unified_type 时才预设 field_type/field_length
@@ -842,7 +842,7 @@ export function createCrudActions(deps: CrudDeps) {
       primary_key: false,
       comment: ''
     }
-    // 新增 field 自动带 id（无论是否已创建基线，保证可跨版本识别）
+    // 新增 field 自动带 id（无论是否已创建版本，保证可跨版本识别）
     newField.field_id = newFieldId()
     executeCommand({
       label: t('history.addField'),
@@ -1040,7 +1040,7 @@ export function createCrudActions(deps: CrudDeps) {
   function addIndex(table: Table) {
     const newIndex: Index = {
       type: 'index',
-      // 新增 index 自动带 id（无论是否已创建基线，保证可跨版本识别）
+      // 新增 index 自动带 id（无论是否已创建版本，保证可跨版本识别）
       index_id: newIndexId(),
       columns: [{ name: '' }],
       using: ''
@@ -1468,7 +1468,7 @@ export function createCrudActions(deps: CrudDeps) {
       name: table.name,
       comment: table.comment,
     }
-    // 表唯一 id（创建基线后存在；无基线时为 undefined 不写出）
+    // 表唯一 id（创建版本后存在；无版本时为 undefined 不写出）
     if (table.table_id) tableData.table_id = table.table_id
 
     // comment_before_table
@@ -1520,7 +1520,7 @@ export function createCrudActions(deps: CrudDeps) {
     // fields
     tableData.fields = table.fields.map(field => {
       const f: Field = { field_name: field.field_name }
-      // 字段唯一 id（创建基线后存在；无基线时为 undefined 不写出）
+      // 字段唯一 id（创建版本后存在；无版本时为 undefined 不写出）
       if (field.field_id) f.field_id = field.field_id
       if (field.use_common_used_fields) {
         f.use_common_used_fields = true

@@ -6,25 +6,25 @@ import type {
   Migration,
   MigrationStep,
   MigrationDdlPreview,
-} from '@/core/baseline/types'
+} from '@/core/version/types'
 import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
 import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 
 const store = useEditorStore()
 const { t } = useI18n()
 
-// ===== 版本管理（迁入自 BaselineMigrationModal 的逻辑，去掉 modal 外壳） =====
-const versionTab = ref<'baseline' | 'migration'>('baseline')
-const newBaselineName = ref('')
+// ===== 版本管理（迁入自 VersionMigrationModal 的逻辑，去掉 modal 外壳） =====
+const versionTab = ref<'version' | 'migration'>('version')
+const newVersionName = ref('')
 
-async function onCreateBaseline() {
-  await store.createBaseline(newBaselineName.value)
-  newBaselineName.value = ''
+async function onCreateVersion() {
+  await store.createVersion(newVersionName.value)
+  newVersionName.value = ''
 }
 
-async function onDeleteBaseline(id: string, name: string) {
-  if (!confirm(t('baseline.deleteConfirm', { name }))) return
-  await store.deleteBaselineById(id)
+async function onDeleteVersion(id: string, name: string) {
+  if (!confirm(t('version.deleteConfirm', { name }))) return
+  await store.deleteVersionById(id)
 }
 
 const selectedMigrationId = ref<string | null>(null)
@@ -41,30 +41,30 @@ const canCreateMigration = computed(
     draftFrom.value &&
     draftTo.value &&
     draftFrom.value !== draftTo.value &&
-    store.baselines.length >= 2,
+    store.versions.length >= 2,
 )
 
-/** 根据基线 id 取名称（用于列表项副标题） */
-function baselineName(id: string): string {
-  return store.baselines.find(b => b.id === id)?.name ?? id
+/** 根据版本 id 取名称（用于列表项副标题） */
+function versionName(id: string): string {
+  return store.versions.find(b => b.id === id)?.name ?? id
 }
 
 async function selectMigration(m: Migration) {
   isDrafting.value = false
   editingMigration.value = JSON.parse(JSON.stringify(m))
   selectedMigrationId.value = m.id
-  draftFrom.value = m.from_baseline
-  draftTo.value = m.to_baseline
+  draftFrom.value = m.from_version
+  draftTo.value = m.to_version
   await refreshPreview()
 }
 
-/** 进入「新建迁移草稿」模式：清空选中态，默认选首尾两条基线作为 from/to */
+/** 进入「新建迁移草稿」模式：清空选中态，默认选首尾两个版本作为 from/to */
 function startNewMigration() {
   isDrafting.value = true
   editingMigration.value = null
   selectedMigrationId.value = null
-  draftFrom.value = store.baselines[0]?.id ?? ''
-  draftTo.value = store.baselines[store.baselines.length - 1]?.id ?? ''
+  draftFrom.value = store.versions[0]?.id ?? ''
+  draftTo.value = store.versions[store.versions.length - 1]?.id ?? ''
   preview.value = null
 }
 
@@ -130,23 +130,23 @@ function previewText(): string {
   return previewDialect.value === 'mysql' ? preview.value.mysql : preview.value.postgresql
 }
 
-// ===== 基线预览 =====
-const previewBaselineId = ref<string | null>(null)
+// ===== 版本预览 =====
+const previewVersionId = ref<string | null>(null)
 const previewSqlDialect = ref<'mysql' | 'postgresql'>('mysql')
 
-async function onPreviewBaseline(id: string) {
-  previewBaselineId.value = id
-  await store.previewBaselineById(id)
+async function onPreviewVersion(id: string) {
+  previewVersionId.value = id
+  await store.previewVersionById(id)
 }
 
-function onCloseBaselinePreview() {
-  previewBaselineId.value = null
-  store.clearBaselinePreview()
+function onCloseVersionPreview() {
+  previewVersionId.value = null
+  store.clearVersionPreview()
 }
 
-/** 从基线快照生成 SQL */
-const baselineSqlPreview = computed(() => {
-  const snap = store.selectedBaselineSnapshot
+/** 从版本快照生成 SQL */
+const versionSqlPreview = computed(() => {
+  const snap = store.selectedVersionSnapshot
   if (!snap) return { mysql: '', postgresql: '' }
   const common = snap.common
   const schemas = snap.schemas
@@ -163,15 +163,15 @@ const baselineSqlPreview = computed(() => {
   return { mysql: mysql.trimEnd(), postgresql: postgresql.trimEnd() }
 })
 
-const baselineSqlText = computed(() => {
+const versionSqlText = computed(() => {
   return previewSqlDialect.value === 'mysql'
-    ? baselineSqlPreview.value.mysql
-    : baselineSqlPreview.value.postgresql
+    ? versionSqlPreview.value.mysql
+    : versionSqlPreview.value.postgresql
 })
 
 /** 统计快照中的表/字段/索引总数 */
-const baselineSnapshotStats = computed(() => {
-  const snap = store.selectedBaselineSnapshot
+const versionSnapshotStats = computed(() => {
+  const snap = store.selectedVersionSnapshot
   if (!snap) return { schemas: 0, tables: 0, fields: 0, indexes: 0 }
   let tables = 0, fields = 0, indexes = 0
   for (const s of snap.schemas) {
@@ -184,10 +184,10 @@ const baselineSnapshotStats = computed(() => {
   return { schemas: snap.schemas.length, tables, fields, indexes }
 })
 
-/** 当前基线摘要（用于面板头标题） */
-const previewBaselineSummary = computed(() => {
-  if (!previewBaselineId.value) return null
-  return store.baselines.find(b => b.id === previewBaselineId.value) ?? null
+/** 当前版本摘要（用于面板头标题） */
+const previewVersionSummary = computed(() => {
+  if (!previewVersionId.value) return null
+  return store.versions.find(b => b.id === previewVersionId.value) ?? null
 })
 
 // 进入版本管理 tab 时重置迁移编辑状态（保持未选中空白态，避免误以为在新建）
@@ -195,7 +195,7 @@ watch(
   () => store.settingsTab,
   (tab) => {
     if (tab === 'version') {
-      versionTab.value = 'baseline'
+      versionTab.value = 'version'
       cancelDraft()
     }
   },
@@ -214,79 +214,79 @@ onUnmounted(() => {
       <!-- 版本管理 -->
       <div v-if="store.settingsTab === 'version'" class="ps-version">
         <div class="ps-version-tabs">
-          <button :class="{ active: versionTab === 'baseline' }" @click="versionTab = 'baseline'">{{
-            $t('baseline.title') }}</button>
+          <button :class="{ active: versionTab === 'version' }" @click="versionTab = 'version'">{{
+            $t('version.title') }}</button>
           <button :class="{ active: versionTab === 'migration' }" @click="versionTab = 'migration'">{{
             $t('migration.title') }}</button>
         </div>
 
-        <!-- 基线 -->
-        <div v-if="versionTab === 'baseline'" class="ps-version-body ps-baseline-root">
-          <!-- 左侧：基线列表 -->
-          <div class="ps-baseline-list">
+        <!-- 版本 -->
+        <div v-if="versionTab === 'version'" class="ps-version-body ps-version-root">
+          <!-- 左侧：版本列表 -->
+          <div class="ps-version-list">
             <div class="ps-create-row">
-              <input v-model="newBaselineName" class="ps-input" :placeholder="$t('baseline.namePlaceholder')" />
-              <button class="btn btn-primary" @click="onCreateBaseline">{{ $t('baseline.create') }}</button>
+              <input v-model="newVersionName" class="ps-input" :placeholder="$t('version.namePlaceholder')" />
+              <button class="btn btn-primary" @click="onCreateVersion">{{ $t('version.create') }}</button>
             </div>
-            <div v-if="store.baselines.length === 0" class="ps-empty-sm">{{ $t('baseline.empty') }}</div>
+            <div v-if="store.versions.length === 0" class="ps-empty-sm">{{ $t('version.empty') }}</div>
             <ul v-else class="ps-list">
-              <li v-for="b in store.baselines" :key="b.id" class="ps-list-item"
-                :class="{ active: previewBaselineId === b.id }" @click="onPreviewBaseline(b.id)">
+              <li v-for="b in store.versions" :key="b.id" class="ps-list-item"
+                :class="{ active: previewVersionId === b.id }" @click="onPreviewVersion(b.id)">
                 <div class="ps-list-info">
                   <span class="ps-list-name">{{ b.name }}</span>
                   <span class="ps-list-meta">{{ b.created_at }}</span>
                 </div>
-                <button class="btn btn-danger-sm" @click.stop="onDeleteBaseline(b.id, b.name)">{{ $t('baseline.delete')
+                <button class="btn btn-danger-sm" @click.stop="onDeleteVersion(b.id, b.name)">{{ $t('version.delete')
                   }}</button>
               </li>
             </ul>
           </div>
 
-          <!-- 右侧：基线预览面板 -->
-          <div class="ps-baseline-preview">
-            <!-- 未选中基线 -->
-            <div v-if="!previewBaselineId" class="ps-baseline-empty">
-              {{ $t('baseline.previewEmpty') }}
+          <!-- 右侧：版本预览面板 -->
+          <div class="ps-version-preview">
+            <!-- 未选中版本 -->
+            <div v-if="!previewVersionId" class="ps-version-empty">
+              {{ $t('version.previewEmpty') }}
             </div>
 
             <!-- 加载中 -->
-            <div v-else-if="store.baselinePreviewLoading" class="ps-baseline-empty">
+            <div v-else-if="store.versionPreviewLoading" class="ps-version-empty">
               {{ $t('app.loadingOpenProject') }}
             </div>
 
             <!-- 快照加载失败 -->
-            <div v-else-if="previewBaselineId && !store.selectedBaselineSnapshot" class="ps-baseline-empty">
-              {{ $t('baseline.previewLoadFailed') }}
+            <div v-else-if="previewVersionId && !store.selectedVersionSnapshot" class="ps-version-empty">
+              {{ $t('version.previewLoadFailed') }}
             </div>
 
             <!-- 预览面板内容 -->
-            <template v-else-if="store.selectedBaselineSnapshot">
+            <template v-else-if="store.selectedVersionSnapshot">
               <div class="ps-bp-header">
                 <div>
-                  <span class="ps-bp-name">{{ previewBaselineSummary?.name ?? store.selectedBaselineSnapshot.name }}</span>
-                  <span class="ps-bp-meta">{{ previewBaselineSummary?.created_at ?? store.selectedBaselineSnapshot.created_at }}</span>
+                  <span class="ps-bp-name">{{ previewVersionSummary?.name ?? store.selectedVersionSnapshot.name }}</span>
+                  <span class="ps-bp-meta">{{ previewVersionSummary?.created_at ?? store.selectedVersionSnapshot.created_at }}</span>
                 </div>
-                <button class="btn btn-sm" @click="onCloseBaselinePreview">{{ $t('baseline.previewClose') }}</button>
+                <button class="btn btn-sm" @click="onCloseVersionPreview">{{ $t('version.previewClose') }}</button>
               </div>
 
               <div class="ps-bp-stats">
-                <span>{{ $t('baseline.previewSchemas', { n: baselineSnapshotStats.schemas }) }}</span>
+                <span>{{ $t('version.previewSchemas', { n: versionSnapshotStats.schemas }) }}</span>
                 <span>·</span>
-                <span>{{ $t('baseline.previewTables', { n: baselineSnapshotStats.tables }) }}</span>
+                <span>{{ $t('version.previewTables', { n: versionSnapshotStats.tables }) }}</span>
                 <span>·</span>
-                <span>{{ $t('baseline.previewFields', { n: baselineSnapshotStats.fields }) }}</span>
+                <span>{{ $t('version.previewFields', { n: versionSnapshotStats.fields }) }}</span>
                 <span>·</span>
-                <span>{{ $t('baseline.previewIndexes', { n: baselineSnapshotStats.indexes }) }}</span>
+                <span>{{ $t('version.previewIndexes', { n: versionSnapshotStats.indexes }) }}</span>
                 <span>·</span>
-                <span>{{ $t('baseline.previewStructVersion') }}: {{ store.selectedBaselineSnapshot.struct_version }}</span>
+                <span>{{ $t('version.previewStructVersion') }}: {{ store.selectedVersionSnapshot.struct_version }}</span>
               </div>
 
               <!-- 结构树 -->
               <div class="ps-bp-tree">
-                <template v-if="store.selectedBaselineSnapshot.schemas.length === 0">
-                  <div class="ps-empty-sm">{{ $t('baseline.previewNoSchemas') }}</div>
+                <template v-if="store.selectedVersionSnapshot.schemas.length === 0">
+                  <div class="ps-empty-sm">{{ $t('version.previewNoSchemas') }}</div>
                 </template>
-                <div v-for="(schema, si) in store.selectedBaselineSnapshot.schemas" :key="si" class="ps-bp-schema">
+                <div v-for="(schema, si) in store.selectedVersionSnapshot.schemas" :key="si" class="ps-bp-schema">
                   <details open>
                     <summary class="ps-bp-schema-name">{{ schema.schema }}</summary>
                     <div v-for="(table, ti) in schema.tables" :key="ti" class="ps-bp-table">
@@ -331,7 +331,7 @@ onUnmounted(() => {
               <!-- SQL 预览 -->
               <div class="ps-bp-sql-section">
                 <div class="ps-bp-sql-header">
-                  <span>{{ $t('baseline.previewSqlTitle') }}</span>
+                  <span>{{ $t('version.previewSqlTitle') }}</span>
                   <div class="ps-dialect">
                     <button :class="{ active: previewSqlDialect === 'mysql' }"
                       @click="previewSqlDialect = 'mysql'">MySQL</button>
@@ -339,7 +339,7 @@ onUnmounted(() => {
                       @click="previewSqlDialect = 'postgresql'">PostgreSQL</button>
                   </div>
                 </div>
-                <pre class="ps-code">{{ baselineSqlText || $t('baseline.previewNoSchemas') }}</pre>
+                <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
               </div>
             </template>
           </div>
@@ -355,7 +355,7 @@ onUnmounted(() => {
                 :class="{ active: selectedMigrationId === m.id }" @click="selectMigration(m)">
                 <div class="ps-list-info">
                   <span class="ps-list-name">{{ m.name }}</span>
-                  <span class="ps-list-meta">{{ $t('migration.from') }}: {{ baselineName(m.from_baseline) }} → {{ $t('migration.to') }}: {{ baselineName(m.to_baseline) }}</span>
+                  <span class="ps-list-meta">{{ $t('migration.from') }}: {{ versionName(m.from_version) }} → {{ $t('migration.to') }}: {{ versionName(m.to_version) }}</span>
                 </div>
               </li>
             </ul>
@@ -387,14 +387,14 @@ onUnmounted(() => {
               <div class="ps-pick-field">
                 <span class="ps-pick-label">{{ $t('migration.from') }}</span>
                 <select v-model="draftFrom">
-                  <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
+                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
               </div>
               <span class="ps-pick-arrow">→</span>
               <div class="ps-pick-field">
                 <span class="ps-pick-label">{{ $t('migration.to') }}</span>
                 <select v-model="draftTo">
-                  <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
+                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
               </div>
               <button class="btn btn-primary ps-pick-create"
@@ -402,7 +402,7 @@ onUnmounted(() => {
                 $t('migration.create') }}</button>
             </div>
 
-            <div v-if="store.baselines.length < 2" class="ps-mig-warn">
+            <div v-if="store.versions.length < 2" class="ps-mig-warn">
               {{ $t('migration.needTwoBaselines') }}
             </div>
             <div v-else-if="draftFrom === draftTo" class="ps-mig-warn">
@@ -419,17 +419,17 @@ onUnmounted(() => {
             <div class="ps-mig-pick ps-mig-pick-form">
               <div class="ps-pick-field">
                 <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-                <select v-model="editingMigration.from_baseline"
-                  @change="draftFrom = editingMigration!.from_baseline; refreshPreview()">
-                  <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
+                <select v-model="editingMigration.from_version"
+                  @change="draftFrom = editingMigration!.from_version; refreshPreview()">
+                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
               </div>
               <span class="ps-pick-arrow">→</span>
               <div class="ps-pick-field">
                 <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-                <select v-model="editingMigration.to_baseline"
-                  @change="draftTo = editingMigration!.to_baseline; refreshPreview()">
-                  <option v-for="b in store.baselines" :key="b.id" :value="b.id">{{ b.name }}</option>
+                <select v-model="editingMigration.to_version"
+                  @change="draftTo = editingMigration!.to_version; refreshPreview()">
+                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
                 </select>
               </div>
             </div>
@@ -468,8 +468,8 @@ onUnmounted(() => {
                   <textarea v-model="step.postgresql" :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
                 </template>
                 <template v-else>
-                  <div class="ps-step-hint">auto diff ({{ editingMigration.from_baseline }} → {{
-                    editingMigration.to_baseline }})</div>
+                  <div class="ps-step-hint">auto diff ({{ editingMigration.from_version }} → {{
+                    editingMigration.to_version }})</div>
                 </template>
               </div>
             </div>
@@ -485,7 +485,7 @@ onUnmounted(() => {
                 </div>
                 <button class="btn btn-sm" @click="onSaveMigration">{{ $t('migration.save') }}</button>
               </div>
-              <pre class="ps-code">{{ previewText() || $t('baseline.noChange') }}</pre>
+              <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>
             </div>
 
             <button class="btn btn-danger-sm ps-del"
@@ -677,7 +677,7 @@ onUnmounted(() => {
   color: #333;
 }
 
-/* 选基线表单（新建 / 编辑共用） */
+/* 选版本表单（新建 / 编辑共用） */
 .ps-mig-pick-form {
   background: #f7f9fc;
   border: 1px solid #e3e9f2;
@@ -864,8 +864,8 @@ onUnmounted(() => {
   align-self: flex-start;
 }
 
-/* ===== 基线预览 双栏布局 ===== */
-.ps-baseline-root {
+/* ===== 版本预览 双栏布局 ===== */
+.ps-version-root {
   display: flex;
   flex: 1;
   min-height: 0;
@@ -874,7 +874,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.ps-baseline-list {
+.ps-version-list {
   width: 280px;
   min-width: 260px;
   flex-shrink: 0;
@@ -884,11 +884,11 @@ onUnmounted(() => {
   background: #fafafa;
 }
 
-.ps-baseline-list .ps-list-item {
+.ps-version-list .ps-list-item {
   cursor: pointer;
 }
 
-.ps-baseline-preview {
+.ps-version-preview {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
@@ -898,7 +898,7 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.ps-baseline-empty {
+.ps-version-empty {
   color: #999;
   font-size: 13px;
   padding: 40px 16px;

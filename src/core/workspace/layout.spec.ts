@@ -6,7 +6,7 @@ import {
   INITIAL_DATA_DIR,
   OUTPUT_DIR,
   CURRENT_DIR,
-  BASELINES_DIR,
+  VERSIONS_DIR,
   MIGRATIONS_DIR,
   DATABASE_FILE,
   SCHEMA_FILE,
@@ -21,7 +21,7 @@ describe('layout 路径常量', () => {
     expect(INITIAL_DATA_DIR).toBe('initial-data')
     expect(OUTPUT_DIR).toBe('output')
     expect(CURRENT_DIR).toBe('current')
-    expect(BASELINES_DIR).toBe('baselines')
+    expect(VERSIONS_DIR).toBe('versions')
     expect(MIGRATIONS_DIR).toBe('migrations')
     expect(DATABASE_FILE).toBe('database.json')
     expect(SCHEMA_FILE).toBe('schema.json')

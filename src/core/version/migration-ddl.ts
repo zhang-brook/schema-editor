@@ -327,7 +327,7 @@ function buildIndexDdl(
 /**
  * 根据迁移脚本（steps）与目标结构生成最终合并 DDL。
  * @param migration 迁移脚本定义
- * @param diff 已计算的两个基线的结构 diff（供 auto_diff 步骤使用）
+ * @param diff 已计算的两个版本的结构 diff（供 auto_diff 步骤使用）
  * @param targetSchemas 目标结构完整 schema 定义
  * @param commonConfig 公共配置（用于类型解析、标识符引用）
  */
@@ -347,7 +347,7 @@ export function generateMigrationDdl(
           const lines = dialect === 'mysql' ? acc.mysql : acc.postgresql
           const ddl = dialect === 'mysql' ? diffDdl.mysql : diffDdl.postgresql
           if (lines.length > 0) lines.push('')
-          lines.push(`-- ===== auto diff (${migration.from_baseline} → ${migration.to_baseline}) =====`)
+          lines.push(`-- ===== auto diff (${migration.from_version} → ${migration.to_version}) =====`)
           lines.push(...ddl)
         }
         break

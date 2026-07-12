@@ -28,18 +28,18 @@ export const INITIAL_DATA_DIR = 'initial-data'
 /** 旧结构：SQL 输出目录（根下） */
 export const OUTPUT_DIR = 'output'
 
-// ===== 新结构（current/baselines/migrations）路径片段 =====
+// ===== 新结构（current/versions/migrations）路径片段 =====
 
-/** 当前正在编辑的基线目录（固定名） */
+/** 当前正在编辑的版本目录（固定名） */
 export const CURRENT_DIR = 'current'
 
-/** 历史基线快照目录 */
-export const BASELINES_DIR = 'baselines'
+/** 历史版本快照目录 */
+export const VERSIONS_DIR = 'versions'
 
 /** 用户维护的迁移脚本目录 */
 export const MIGRATIONS_DIR = 'migrations'
 
-/** 当前基线下的 database.json（schema order + 与基线相关配置） */
+/** 当前版本下的 database.json（schema order + 与版本相关配置） */
 export const DATABASE_FILE = 'database.json'
 
 /** schema 目录下的 schema.json（schema 原始名称 + table 排序） */

@@ -58,15 +58,15 @@ import type { SqlDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
 import { createInitialDataActions } from './editor-initial-data'
-import { createBaselineActions } from './editor-baseline'
+import { createVersionActions } from './editor-version'
 import { createImportSqlActions } from './editor-import-sql'
 import { createCommonConfigActions } from './editor-common-config'
 import { createCrudActions } from './editor-crud'
 import type {
-  BaselineSummary,
-  BaselineSnapshot,
+  VersionSummary,
+  VersionSnapshot,
   Migration,
-} from '@/core/baseline/types'
+} from '@/core/version/types'
 
 export const useEditorStore = defineStore('editor', () => {
   const { t } = useI18n()
@@ -101,14 +101,14 @@ export const useEditorStore = defineStore('editor', () => {
   // 该设置随项目保存到 common.json（commonConfig.generate_ai_guide），缺省为 false
   const generateAiGuide = ref<boolean>(false)
 
-  // ===== Baselines / Migrations =====
-  const baselines = ref<BaselineSummary[]>([])
-  const hasBaselines = computed(() => baselines.value.length > 0)
+  // ===== Versions / Migrations =====
+  const versions = ref<VersionSummary[]>([])
+  const hasVersions = computed(() => versions.value.length > 0)
   const migrations = ref<Migration[]>([])
 
-  // 基线预览状态
-  const selectedBaselineSnapshot = ref<BaselineSnapshot | null>(null)
-  const baselinePreviewLoading = ref(false)
+  // 版本预览状态
+  const selectedVersionSnapshot = ref<VersionSnapshot | null>(null)
+  const versionPreviewLoading = ref(false)
 
   // Initial Data —— 独立存储在 initial-data/<schema>/<table>.json
   const initialDataMap = reactive(new Map<string, InitialData>())
@@ -292,7 +292,7 @@ export const useEditorStore = defineStore('editor', () => {
     schemas.length = 0
     initialDataMap.clear()
     initialDataDeletedKeys.clear()
-    baselines.value = []
+    versions.value = []
     migrations.value = []
     selectedSchemaIdx.value = -1
     selectedTableIdx.value = -1
@@ -310,26 +310,26 @@ export const useEditorStore = defineStore('editor', () => {
     if (!silent) showToast(t('toast.projectClosed'))
   }
 
-  // ===== Baselines / Migrations (extracted) =====
+  // ===== Versions / Migrations (extracted) =====
   const {
-    loadBaselinesAndMigrations,
+    loadVersionsAndMigrations,
     ensureIdsForCurrent,
-    createBaseline,
-    deleteBaselineById,
-    getBaselineSnapshot,
-    previewBaselineById,
-    clearBaselinePreview,
+    createVersion,
+    deleteVersionById,
+    getVersionSnapshot,
+    previewVersionById,
+    clearVersionPreview,
     computeDiff,
     createMigration,
     updateMigration,
     deleteMigrationById,
     previewMigrationDdl,
-  } = createBaselineActions({
+  } = createVersionActions({
     rootDirHandle,
-    baselines,
+    versions,
     migrations,
-    baselinePreviewLoading,
-    selectedBaselineSnapshot,
+    versionPreviewLoading,
+    selectedVersionSnapshot,
     commonConfig,
     schemas,
     initialDataMap,
@@ -383,7 +383,7 @@ export const useEditorStore = defineStore('editor', () => {
     expandedFields.clear()
     expandedIndexes.clear()
 
-    // 加载根 common.json（与基线无关的配置）
+    // 加载根 common.json（与版本无关的配置）
     let common: any = null
     try {
       const commonHandle = await getCommonFileHandle(rootHandle, false)
@@ -432,7 +432,7 @@ export const useEditorStore = defineStore('editor', () => {
       initialDataMap.set(key, data)
     }
 
-    // 补齐磁盘上已有对象缺失的 id（无论是否已创建基线，保证全部带 id 以跨版本识别）
+    // 补齐磁盘上已有对象缺失的 id（无论是否已创建版本，保证全部带 id 以跨版本识别）
     if (ensureIdsForCurrent()) {
       await syncAllToDisk()
     }
@@ -449,8 +449,8 @@ export const useEditorStore = defineStore('editor', () => {
     // 打开项目后默认选中「库结构设计」tab
     settingsTab.value = 'structure'
     showCommonPanel.value = false
-    // 加载基线/迁移列表（只读元数据，不加载完整快照）
-    await loadBaselinesAndMigrations()
+    // 加载版本/迁移列表（只读元数据，不加载完整快照）
+    await loadVersionsAndMigrations()
     const parts: string[] = []
     if (schemas.length > 0) parts.push(`${schemas.length} schema(s)`)
     if (commonConfig.value) parts.push('common.json')
@@ -1318,18 +1318,18 @@ export const useEditorStore = defineStore('editor', () => {
     // Toast
     showToast,
 
-    // Baselines / Migrations
-    baselines,
-    hasBaselines,
+    // Versions / Migrations
+    versions,
+    hasVersions,
     migrations,
-    selectedBaselineSnapshot,
-    baselinePreviewLoading,
-    loadBaselinesAndMigrations,
-    createBaseline,
-    deleteBaselineById,
-    getBaselineSnapshot,
-    previewBaselineById,
-    clearBaselinePreview,
+    selectedVersionSnapshot,
+    versionPreviewLoading,
+    loadVersionsAndMigrations,
+    createVersion,
+    deleteVersionById,
+    getVersionSnapshot,
+    previewVersionById,
+    clearVersionPreview,
     computeDiff,
     createMigration,
     updateMigration,

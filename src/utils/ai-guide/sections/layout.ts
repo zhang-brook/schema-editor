@@ -4,7 +4,7 @@ export const layoutBody = `### 目录布局（用户打开的文件夹）
 \`\`\`
 your-schema-folder/
 ├── common.json            # 根配置：默认配置 / 统一类型 / 公共字段
-└── current/              # 当前正在编辑的基线（固定名）
+└── current/              # 当前正在编辑的版本（固定名）
     ├── database.json     # { schema_order?: string[] }
     └── schemas/
         └── <schema>/    # 文件名友好的 schema 名（经 sanitizeName）

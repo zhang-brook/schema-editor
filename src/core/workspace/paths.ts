@@ -2,7 +2,7 @@
  * 业务路径解析：组合 `layout.ts`（路径常量）与 `handles.ts`（句柄原语），
  * 对 `editor.ts` / `file-helpers.ts` 暴露语义化的目录/文件句柄获取。
  *
- * 同时覆盖「旧结构（重构前）」与「新结构（current/baselines/migrations）」两种布局，
+ * 同时覆盖「旧结构（重构前）」与「新结构（current/versions/migrations）」两种布局，
  * 旧结构兼容读取经本模块解析，便于后续「升级项目结构」按钮（docs/refactor/13）做一次性迁移。
  */
 
@@ -12,7 +12,7 @@ import {
   INITIAL_DATA_DIR,
   OUTPUT_DIR,
   CURRENT_DIR,
-  BASELINES_DIR,
+  VERSIONS_DIR,
   MIGRATIONS_DIR,
   DATABASE_FILE,
   TABLE_FILE,
@@ -116,7 +116,7 @@ export function removeOutputSqlFile(
   return removeEntry(dialectDir, filename)
 }
 
-// ===== 新结构（current/baselines/migrations）路径解析 =====
+// ===== 新结构（current/versions/migrations）路径解析 =====
 
 /** current/ 目录句柄 */
 export function getCurrentDir(
@@ -176,21 +176,21 @@ export function getInitialDataFileHandle(
   return getFileHandleSafe(tableDir, INITIAL_DATA_FILE, create)
 }
 
-/** baselines/ 目录句柄 */
-export function getBaselinesDir(
+/** versions/ 目录句柄 */
+export function getVersionsDir(
   root: FileSystemDirectoryHandle,
   create = true,
 ): Promise<FileSystemDirectoryHandle> {
-  return getOrCreateDir(root, BASELINES_DIR, create)
+  return getOrCreateDir(root, VERSIONS_DIR, create)
 }
 
-/** baselines/<id>.json 文件句柄 */
-export function getBaselineFileHandle(
-  baselinesDir: FileSystemDirectoryHandle,
+/** versions/<id>.json 文件句柄 */
+export function getVersionFileHandle(
+  versionsDir: FileSystemDirectoryHandle,
   id: string,
   create = true,
 ): Promise<FileSystemFileHandle> {
-  return getFileHandleSafe(baselinesDir, `${id}.json`, create)
+  return getFileHandleSafe(versionsDir, `${id}.json`, create)
 }
 
 /** migrations/ 目录句柄 */

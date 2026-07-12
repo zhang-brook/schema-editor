@@ -28,7 +28,6 @@ import {
 } from '@/core/workspace/handles'
 import {
   SCHEMAS_DIR,
-  DATABASE_FILE,
   SCHEMA_FILE,
   sanitizeName,
 } from '@/core/workspace/layout'
@@ -116,7 +115,7 @@ export async function openProjectFolder(rootHandle?: FileSystemDirectoryHandle):
 // 目录布局：
 //   common.json                      根配置（default_config / unified_types / common_used_fields）
 //   current/
-//     database.json                  schema_order（按基线可能不同的项）
+//     database.json                  schema_order（按版本可能不同的项）
 //     schemas/
 //       <schema>/                   文件名友好的模式名（sanitizeName）
 //         schema.json               { schema: 原始名, table_order: string[] }
@@ -243,7 +242,7 @@ export async function openProjectFolderNew(rootHandle?: FileSystemDirectoryHandl
       }
 
       // 批量并行读取每个 table 的 table.json 与 initial-data.json（两者无依赖，可同时读）
-      const tableResults = await Promise.all(
+      await Promise.all(
         tableDirs.map(async (tableDir) => {
           // 读 table.json
           let tableData: Table | null = null
@@ -253,7 +252,7 @@ export async function openProjectFolderNew(rootHandle?: FileSystemDirectoryHandl
           } catch {
             tableData = null
           }
-          if (!tableData || !tableData.name) return null
+          if (!tableData || !tableData.name) return
 
           // 补全缺省字段（与旧加载逻辑一致）
           if (!tableData.indexes) tableData.indexes = []
@@ -274,7 +273,6 @@ export async function openProjectFolderNew(rootHandle?: FileSystemDirectoryHandl
           } catch {
             // 无 initial-data.json，跳过
           }
-          return tableData
         }),
       )
 
@@ -429,7 +427,7 @@ export async function deleteSchemaDirFromHandle(
  * 将已准备好的内存态（旧结构经升级器处理后的结果）写入新结构磁盘布局。
  * 旧文件保留不删除（便于回退）。写盘后该项目即成为新结构。
  *
- * @param commonConfig  保留在根 common.json 的部分（与基线无关的配置）
+ * @param commonConfig  保留在根 common.json 的部分（与版本无关的配置）
  * @param databaseData  current/database.json 内容（schema_order 等）
  * @param schemas       升级后的完整内存态（含 tables）
  * @param transformTable 将内存态中的单表转换为可写出的 table.json 对象
@@ -445,7 +443,7 @@ export async function migrateOldToNewStructure(
     initialData: { key: string; data: InitialData }[]
   },
 ): Promise<void> {
-  // 1. 根 common.json（仅保留与基线无关的配置）
+  // 1. 根 common.json（仅保留与版本无关的配置）
   await writeCommonToHandle(rootHandle, data.commonConfig)
 
   // 2. current/database.json

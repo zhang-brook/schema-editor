@@ -43,23 +43,23 @@
 
 > 目录结构重构（每表独立 JSON + current/ 布局）已随统一路径层 `src/core/workspace/` 与结构迁移链 `v0.4→v1.0` 一并落地（原方案文档 `11-directory-restructure.md` 已归档删除）。统一路径层已落地，目录/句柄解析均经此模块。
 
-新工作目录布局（工作目录可能被 git 管理，基线用普通文件以保留完整历史）：
+新工作目录布局（工作目录可能被 git 管理，版本用普通文件以保留完整历史）：
 
 ```
 your-schema-folder/
-├── common.json                       # 与基线版本无关的配置（default_config / unified_types / common_used_fields 等）
-├── current/                          # 当前正在编辑的基线（固定名）
-│   ├── database.json                 # schema order 排序 + 原 common_config 中与基线相关的配置
+├── common.json                       # 与版本无关的配置（default_config / unified_types / common_used_fields 等）
+├── current/                          # 当前正在编辑的版本（固定名）
+│   ├── database.json                 # schema order 排序 + 原 common_config 中与版本相关的配置
 │   └── schemas/
 │       └── <schema_name>/            # 文件名友好的模式名
 │           ├── schema.json           # schema 原始名称（及 table 排序）
 │           └── <table_name>/         # 文件名友好的表名
 │               ├── table.json        # 表配置项（字段定义、索引、pre/post_sql 等）
 │               └── initial-data.json # 行内化的初始数据
-├── baselines/                        # 历史基线快照（单文件完整 JSON：database+schemas+tables+initial-data）
-│   ├── b_abc123.json
-│   └── b_def456.json
-└── migrations/                       # 用户维护的迁移脚本（选两基线 + steps + 合并 DDL）
+├── versions/                         # 历史版本快照（单文件完整 JSON：database+schemas+tables+initial-data）
+│   ├── v_abc123.json
+│   └── v_def456.json
+└── migrations/                       # 用户维护的迁移脚本（选两版本 + steps + 合并 DDL）
     └── m_abc123.json
 ```
 
@@ -100,10 +100,10 @@ const x = obj.mysql?.attr ?? obj.attr ?? 'default'
 
 ## 8. 核心重构关键决策（已与用户确认）
 
-1. **范围**：本次一次性产出核心重构全套文档（目录 / initial-data / 统一路径层 / 手动升级按钮 / undo-redo / 基线+migrations 设计），代码落地仍按原子提交分批。
-2. **field_id**：已随基线功能引入，采用「延迟生成」策略——平时不生成，保持无基线用户数据干净；用户创建首个基线时，才在 `current/` 补齐 `field_id`/`table_id`/`schema_id`，随后快照为基线；之后新增表/字段自动带 id。
+1. **范围**：本次一次性产出核心重构全套文档（目录 / initial-data / 统一路径层 / 手动升级按钮 / undo-redo / 版本+migrations 设计），代码落地仍按原子提交分批。
+2. **field_id**：已随版本功能引入，采用「延迟生成」策略——平时不生成，保持无版本用户数据干净；用户创建首个版本时，才在 `current/` 补齐 `field_id`/`table_id`/`schema_id`，随后快照为版本；之后新增表/字段自动带 id。
 3. **undo/redo**：采用「命令模式 + 结构化 patch」，undo/redo 只改受影响文件，顺带解决全量保存问题。
-4. **统一路径层**：新增 `src/core/workspace/`（为后续基线/迁移预留独立模块）集中定义路径与句柄获取。
+4. **统一路径层**：新增 `src/core/workspace/`（为后续版本/迁移预留独立模块）集中定义路径与句柄获取。
 5. **旧数据迁移**：提供显式「升级项目结构」按钮，用户手动触发迁移，不自动改盘。
 6. **initial-data 页面导入 JSON**：本次只做结构行内化 + 升级器兼容，页面导入入口单列后续文档。
-7. **基线 / migrations**：本次只出设计文档，实现待 field_id 落地后。
+7. **版本 / migrations**：本次只出设计文档，实现待 field_id 落地后。

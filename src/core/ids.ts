@@ -3,7 +3,7 @@
  *
  * 设计要点：
  * - field_id / table_id / schema_id / index_id / initial_data_id（行级）在「创建对象时即生成」——
- *   无论是否已创建基线，新增的 schema/table/field/index/initial-data 行都自动带 id，
+ *   无论是否已创建版本，新增的 schema/table/field/index/initial-data 行都自动带 id，
  *   加载已有项目时也会补齐磁盘上缺失的 id，保证可跨版本识别 rename。
  * - 带语义前缀（f_/t_/s_/i_/d_）便于阅读与排错，纯随机部分使用 nanoid 避免依赖全局计数（改名后不歧义）。
  */
@@ -29,8 +29,8 @@ export function newSchemaId(): string {
   return makeId('s')
 }
 
-export function newBaselineId(): string {
-  return makeId('b')
+export function newVersionId(): string {
+  return makeId('v')
 }
 
 /** 初始数据行（initial-data row）唯一 id，前缀 d_ */

@@ -58,7 +58,7 @@ export interface IndexColumn {
 
 export interface Field {
   field_name: string
-  /** 字段唯一 id（创建首个基线时延迟生成，用于跨版本变更识别 rename） */
+  /** 字段唯一 id（创建首个版本时延迟生成，用于跨版本变更识别 rename） */
   field_id?: string
   use_common_used_fields?: boolean
   /** 指向 CommonConfig.unified_types 中的类型名，为空时回退到 field_type 自由文本 */
@@ -125,7 +125,7 @@ export interface TablePartitionConfig {
 
 export interface Table {
   name: string
-  /** 表唯一 id（创建首个基线时延迟生成，用于跨版本变更识别 rename） */
+  /** 表唯一 id（创建首个版本时延迟生成，用于跨版本变更识别 rename） */
   table_id?: string
   comment: string
   comment_before_table?: string | (string | null)[]
@@ -144,7 +144,7 @@ export interface Table {
 
 export interface Schema {
   schema: string
-  /** schema 唯一 id（创建首个基线时延迟生成） */
+  /** schema 唯一 id（创建首个版本时延迟生成） */
   schema_id?: string
   tables: Table[]
   /** 前置 SQL（按方言分别配置，生成在所有表之前） */

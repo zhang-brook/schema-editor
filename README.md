@@ -44,9 +44,9 @@ pnpm build
 
 ```
 your-schema-folder/
-├── common.json          # 公共字段引用和默认配置（与基线版本无关）
-└── current/             # 当前正在编辑的基线（固定名）
-    ├── database.json    # schema 排序等当前基线相关配置
+├── common.json          # 公共字段引用和默认配置（与版本无关）
+└── current/             # 当前正在编辑的版本（固定名）
+    ├── database.json    # schema 排序等当前版本相关配置
     └── schemas/
         └── <schema>/    # 文件名友好的模式名（处理掉特殊字符）
             ├── schema.json  # schema 原始名称 + table 排序

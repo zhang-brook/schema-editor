@@ -209,7 +209,7 @@ function diffTable(oldTable: Table | null, newTable: Table | null): TableDiff | 
 
 /**
  * 对比两组 schema 结构。
- * @param oldSchemas 源结构（如旧基线）
+ * @param oldSchemas 源结构（如旧版本）
  * @param newSchemas 目标结构（如当前工作区）
  */
 export function diffSchemas(

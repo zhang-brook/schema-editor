@@ -1,15 +1,15 @@
 /**
- * 基线(baseline)与迁移脚本(migration)的核心类型定义。
+ * 版本(version)与迁移脚本(migration)的核心类型定义。
  *
  * 存储布局（见 docs/refactor/15）：
- *   baselines/<id>.json   单个大 JSON，含完整 database + schemas + tables + initial-data（只读历史快照）
- *   migrations/<id>.json  迁移脚本（选两基线 → steps → 合并 DDL）
+ *   versions/<id>.json   单个大 JSON，含完整 database + schemas + tables + initial-data（只读历史快照）
+ *   migrations/<id>.json  迁移脚本（选两版本 → steps → 合并 DDL）
  */
 import type { CommonConfig, InitialData, Schema } from '@/types/schema'
 
-/** 基线快照的完整内容（current/ 某个时刻的深拷贝） */
-export interface BaselineSnapshot {
-  /** 基线 id（b_xxx） */
+/** 版本快照的完整内容（current/ 某个时刻的深拷贝） */
+export interface VersionSnapshot {
+  /** 版本 id（v_xxx） */
   id: string
   /** 人类可读名称，如 "v1.0" */
   name: string
@@ -27,8 +27,8 @@ export interface BaselineSnapshot {
   schemas: Schema[]
 }
 
-/** 基线列表项（轻量，用于 UI 展示，不加载完整快照） */
-export interface BaselineSummary {
+/** 版本列表项（轻量，用于 UI 展示，不加载完整快照） */
+export interface VersionSummary {
   id: string
   name: string
   created_at: string
@@ -87,16 +87,16 @@ export interface SchemaDiff {
 }
 
 export interface StructureDiff {
-  from: BaselineRef | null
-  to: BaselineRef | CurrentRef
+  from: VersionRef | null
+  to: VersionRef | CurrentRef
   schemas: SchemaDiff[]
   /** 是否存在任何变更 */
   hasChanges: boolean
 }
 
-/** 基线引用（用于 diff 的 from 端） */
-export interface BaselineRef {
-  kind: 'baseline'
+/** 版本引用（用于 diff 的 from 端） */
+export interface VersionRef {
+  kind: 'version'
   id: string
   name: string
 }
@@ -114,7 +114,7 @@ export type MigrationStepType =
   | 'sql_transform'
   | 'custom_sql'
 
-/** auto_diff：自动基于两基线（from→to）结构差异生成 DDL；可选仅针对特定表 */
+/** auto_diff：自动基于两版本（from→to）结构差异生成 DDL；可选仅针对特定表 */
 export interface AutoDiffStep {
   type: 'auto_diff'
   /** 限制生成范围到指定表（table_id 列表），省略则全量 */
@@ -153,10 +153,10 @@ export type MigrationStep =
 export interface Migration {
   id: string
   name: string
-  /** 源基线 id（from） */
-  from_baseline: string
-  /** 目标基线 id（to） */
-  to_baseline: string
+  /** 源版本 id（from） */
+  from_version: string
+  /** 目标版本 id（to） */
+  to_version: string
   /** 步骤有序列表 */
   steps: MigrationStep[]
   created_at: string

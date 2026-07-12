@@ -1022,6 +1022,8 @@ export const useEditorStore = defineStore('editor', () => {
     setTableMysqlEngine,
     setTableMysqlCharset,
     setTableMysqlCollation,
+    getTablePartition,
+    setTablePartition,
     setTablePreSql,
     setTablePostSql,
     setSchemaPreSql,
@@ -1256,6 +1258,10 @@ export const useEditorStore = defineStore('editor', () => {
     setTableMysqlEngine,
     setTableMysqlCharset,
     setTableMysqlCollation,
+
+    // Table Partition（按方言）
+    getTablePartition,
+    setTablePartition,
 
     // Table Pre/Post SQL
     setTablePreSql,

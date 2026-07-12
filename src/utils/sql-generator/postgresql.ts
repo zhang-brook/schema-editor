@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
 
@@ -136,7 +136,13 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     sql += ',\n\n  -- 主键与索引\n'
     sql += indexDefinitions.join(',\n')
   }
-  sql += '\n);\n\n'
+  sql += '\n)'
+  // PARTITION BY 生成在右括号之后、分号之前
+  const partitionClause = getTablePartitionClause(table, 'postgresql', commonConfig)
+  if (partitionClause) {
+    sql += ` ${partitionClause}`
+  }
+  sql += ';\n\n'
 
   // 普通索引在建表语句下方定义
   let hasCreateIndexSql = false

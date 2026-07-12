@@ -263,3 +263,46 @@ export function filterInitialDataRows(
     hasRows: result.length > 0,
   }
 }
+
+// ===== 分区表（PARTITION BY） =====
+
+/**
+ * 根据表的方言分区配置生成 `PARTITION BY ...` 裸子句（**不含**前导空格 / 逗号）。
+ * 未配置或配置无效时返回空字符串。
+ *
+ * 注意：分区是表级子句，必须与主键 / 索引**并列**（用逗号分隔，缩进一致），
+ * 调用方需自行处理逗号与前导缩进（`  `），例如拼成 `,\n  PARTITION BY ...`。
+ *
+ * 支持两种模式：
+ * - 结构化：设置 `strategy` + `columns` → `PARTITION BY <strategy> (col1, col2)`
+ * - 原始：仅设置 `expression` → `PARTITION BY <expression>`
+ *
+ * 分区列名按对应方言的标识符引用规则加引号（MySQL 用反引号，PostgreSQL 用双引号）。
+ */
+export function getTablePartitionClause(
+  table: Table,
+  dialect: SqlDialect,
+  commonConfig: CommonConfig | null,
+): string {
+  const cfg = table.partition?.[dialect]
+  if (!cfg) return ''
+
+  const quote = (name: string): string => {
+    if (dialect === 'mysql') return `\`${name}\``
+    const shouldQuote = commonConfig?.default_config?.postgresql?.quote_identifiers ?? true
+    return shouldQuote ? `"${name}"` : name
+  }
+
+  // 结构化模式：strategy + columns
+  if (cfg.strategy && cfg.columns && cfg.columns.length > 0) {
+    const cols = cfg.columns.map(c => c.trim()).filter(Boolean).map(quote).join(', ')
+    if (cols) return `PARTITION BY ${cfg.strategy} (${cols})`
+  }
+
+  // 原始表达式兜底模式
+  if (cfg.expression && cfg.expression.trim()) {
+    return `PARTITION BY ${cfg.expression.trim()}`
+  }
+
+  return ''
+}

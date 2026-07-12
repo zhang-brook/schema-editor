@@ -101,6 +101,28 @@ export interface TableMysqlConfig {
   mysql_collation?: string
 }
 
+/**
+ * 单方言的分区表配置（PARTITION BY）。
+ * 采用「结构化策略 + 列」为主、原始表达式兜底的设计：
+ * - 设置 `strategy` + `columns` → 生成 `PARTITION BY <strategy> (col1, col2)`
+ * - 仅设置 `expression` → 直接生成 `PARTITION BY <expression>`（覆盖所有方言差异，
+ *   例如 MySQL 的 `RANGE COLUMNS` / `KEY (...)` 或 PostgreSQL 的 `RANGE (to_days(...))` 等）
+ */
+export interface PartitionByConfig {
+  /** 分区策略，如 RANGE / LIST / HASH / KEY（MySQL）/ RANGE COLUMNS（MySQL）等 */
+  strategy?: string
+  /** 分区键列名（结构化模式时使用） */
+  columns?: string[]
+  /** 原始分区表达式（兜底模式，生成 `PARTITION BY <expression>`） */
+  expression?: string
+}
+
+/** 表级分区配置，按方言分别配置（与 Field/Index 的 mysql?/postgresql? 覆盖模式一致） */
+export interface TablePartitionConfig {
+  mysql?: PartitionByConfig
+  postgresql?: PartitionByConfig
+}
+
 export interface Table {
   name: string
   /** 表唯一 id（创建首个基线时延迟生成，用于跨版本变更识别 rename） */
@@ -110,6 +132,8 @@ export interface Table {
   comment_before_fields?: Record<string, string | (string | null)[]>
   // ↓ optional, use default_config.mysql.table if not provided
   mysql?: TableMysqlConfig
+  /** 分区表配置（按方言分别配置 PARTITION BY），为空时不生成分区子句 */
+  partition?: TablePartitionConfig
   fields: Field[]
   indexes: Index[]
   /** 前置 SQL（按方言分别配置，生成在 CREATE TABLE 和 INSERT 之前） */

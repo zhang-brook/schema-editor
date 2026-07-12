@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
 
@@ -201,6 +201,12 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   }
   if (mysqlConfig?.mysql_collation) {
     sql += ` COLLATE = ${mysqlConfig.mysql_collation}`
+  }
+
+  // PARTITION BY 生成在右括号之后（MySQL 要求位于所有表选项之后）
+  const partitionClause = getTablePartitionClause(table, 'mysql', commonConfig)
+  if (partitionClause) {
+    sql += ` ${partitionClause}`
   }
   sql += ` COMMENT = '${table.comment}'`
   sql += ' ROW_FORMAT = Dynamic;\n'

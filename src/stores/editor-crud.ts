@@ -1,5 +1,5 @@
 import type { Ref, ComputedRef } from 'vue'
-import type { CommonConfig, Schema, Table, Field, Index, TableMysqlConfig, InitialData } from '@/types/schema'
+import type { CommonConfig, Schema, Table, Field, Index, TableMysqlConfig, TablePartitionConfig, PartitionByConfig, InitialData } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import {
   affectedDatabase,
@@ -1203,6 +1203,51 @@ export function createCrudActions(deps: CrudDeps) {
     }
   }
 
+  // ===== Table Partition（按方言） =====
+  function getTablePartition(table: Table, dialect: SqlDialect): PartitionByConfig {
+    const cfg = table.partition?.[dialect]
+    return {
+      strategy: cfg?.strategy || '',
+      columns: cfg?.columns ? [...cfg.columns] : [],
+      expression: cfg?.expression || '',
+    }
+  }
+  function setTablePartition(table: Table, dialect: SqlDialect, val: PartitionByConfig) {
+    const oldPartition = table.partition ? { ...table.partition } : undefined
+    executeCommand({
+      label: t('history.editTablePartition', { dialect }),
+      coalesceKey: `table-partition:${table.name}:${dialect}`,
+      apply() {
+        if (!table.partition) table.partition = {}
+        const next: PartitionByConfig = {
+          strategy: val.strategy || undefined,
+          columns: val.columns && val.columns.length > 0 ? [...val.columns] : undefined,
+          expression: val.expression || undefined,
+        }
+        // 无任何有效配置时，移除该方言分区配置
+        const hasValue = next.strategy || (next.columns && next.columns.length > 0) || next.expression
+        if (!hasValue) {
+          delete table.partition![dialect]
+          if (table.partition && Object.keys(table.partition).length === 0) {
+            delete table.partition
+          }
+        } else {
+          table.partition![dialect] = next
+        }
+      },
+      revert() {
+        if (oldPartition) {
+          table.partition = { ...oldPartition }
+        } else {
+          delete table.partition
+        }
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+  }
+
   // ===== Table Pre/Post SQL =====
 
   function setTablePreSql(table: Table, dialect: SqlDialect, val: string) {
@@ -1456,6 +1501,22 @@ export function createCrudActions(deps: CrudDeps) {
       if (Object.keys(mysqlData).length > 0) tableData.mysql = mysqlData
     }
 
+    // partition（按方言配置，空时不写出）
+    if (table.partition && Object.keys(table.partition).length > 0) {
+      const resolved: TablePartitionConfig = {}
+      for (const dialect of ['mysql', 'postgresql'] as const) {
+        const cfg = table.partition[dialect]
+        if (cfg && Object.keys(cfg).length > 0) {
+          const next: PartitionByConfig = {}
+          if (cfg.strategy) next.strategy = cfg.strategy
+          if (cfg.columns && cfg.columns.length > 0) next.columns = [...cfg.columns]
+          if (cfg.expression) next.expression = cfg.expression
+          if (Object.keys(next).length > 0) resolved[dialect] = next
+        }
+      }
+      if (Object.keys(resolved).length > 0) tableData.partition = resolved
+    }
+
     // fields
     tableData.fields = table.fields.map(field => {
       const f: Field = { field_name: field.field_name }
@@ -1584,6 +1645,8 @@ export function createCrudActions(deps: CrudDeps) {
     setTableMysqlEngine,
     setTableMysqlCharset,
     setTableMysqlCollation,
+    getTablePartition,
+    setTablePartition,
     setTablePreSql,
     setTablePostSql,
     setSchemaPreSql,

@@ -92,7 +92,9 @@ function getMySQLIndexDefinition(index: Index): string {
     indexUsing = index.mysql.using || indexUsing
   }
 
+  // 未填写名称（name 缺失）时回退「前缀 + 列名拼接」
   indexName = indexName?.replace('{pre}', indexType === 'unique' ? 'uk_' : 'idx_').replace('{post}', '')
+    || `${indexType === 'unique' ? 'uk_' : 'idx_'}${index.columns.map(c => c.name).join('_')}`
 
   // 如果没有指定 type，默认使用 BTREE（MySQL 默认索引类型）
   const finalIndexUsing = indexUsing ? ' USING ' + indexUsing.toUpperCase() : ''

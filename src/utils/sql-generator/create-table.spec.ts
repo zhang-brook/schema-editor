@@ -151,3 +151,37 @@ describe('MySQL / PostgreSQL 方言差异', () => {
     expect(raw).not.toContain('"users"')
   })
 })
+
+describe('索引未填写名称时自动回退生成', () => {
+  // 对应 UI 新建索引不填名字 / SQL 导入无名字约束的真实状态
+  const table: Table = {
+    name: 'user_wallet',
+    comment: '用户钱包表',
+    fields: [
+      { field_name: 'id', field_type: 'bigint', primary_key: true, not_null: true },
+      { field_name: 'tenant_code', field_type: 'varchar', field_length: 100 },
+      { field_name: 'user_code', field_type: 'varchar', field_length: 100 },
+      { field_name: 'balance', field_type: 'bigint' },
+    ],
+    indexes: [
+      // name 缺失：复合唯一索引（MySQL 多列走 UNIQUE INDEX，名称参与输出）
+      { type: 'unique', columns: [{ name: 'tenant_code' }, { name: 'user_code' }] },
+      // name 缺失：普通索引
+      { type: 'index', columns: [{ name: 'balance' }] },
+    ],
+  }
+
+  it('MySQL：回退为「前缀 + 列名拼接」，不输出 undefined', () => {
+    const sql = generateTableMySQL(table, commonConfig)
+    expect(sql).toContain('UNIQUE INDEX `uk_tenant_code_user_code` (`tenant_code`, `user_code`)')
+    expect(sql).toContain('INDEX `idx_balance` (`balance`)')
+    expect(sql).not.toContain('undefined')
+  })
+
+  it('PostgreSQL：回退为「前缀 + 表名 + 列名拼接」', () => {
+    const sql = generateTablePostgreSQL(table, 'public', commonConfig)
+    expect(sql).toContain('CONSTRAINT "uk__user_wallet__tenant_code_user_code" UNIQUE ("tenant_code", "user_code")')
+    expect(sql).toContain('CREATE INDEX "idx__user_wallet__balance" ON "public"."user_wallet" ("balance");')
+    expect(sql).not.toContain('undefined')
+  })
+})

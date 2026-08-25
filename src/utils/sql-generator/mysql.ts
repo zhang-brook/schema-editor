@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
 
@@ -67,8 +67,9 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
   }
 
   // COMMENT
-  if (field.comment) {
-    fieldDef += ` COMMENT '${field.comment.replace(/'/g, "''")}'`
+  const finalComment = buildFieldComment(field, 'mysql')
+  if (finalComment) {
+    fieldDef += ` COMMENT '${finalComment.replace(/'/g, "''")}'`
   }
 
   if (field.is_commented_out) {
@@ -82,19 +83,16 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
 
 function getMySQLIndexDefinition(index: Index): string {
   // 获取数据库特定的索引名称
-  let indexName = index.name
   let indexType = index.type
   let indexUsing = index.using
 
   if (index.mysql) {
-    indexName = index.mysql.name || indexName
     indexType = index.mysql.type || indexType
     indexUsing = index.mysql.using || indexUsing
   }
 
   // 未填写名称（name 缺失）时回退「前缀 + 列名拼接」
-  indexName = indexName?.replace('{pre}', indexType === 'unique' ? 'uk_' : 'idx_').replace('{post}', '')
-    || `${indexType === 'unique' ? 'uk_' : 'idx_'}${index.columns.map(c => c.name).join('_')}`
+  const indexName = resolveIndexName(index, 'mysql', '')
 
   // 如果没有指定 type，默认使用 BTREE（MySQL 默认索引类型）
   const finalIndexUsing = indexUsing ? ' USING ' + indexUsing.toUpperCase() : ''

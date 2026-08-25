@@ -1010,6 +1010,7 @@ export const useEditorStore = defineStore('editor', () => {
     isCommonField,
     getResolvedField,
     getResolvedFieldTypeForDb,
+    getResolvedIndexNameForDb,
     fieldTypeDisplay,
     hasFieldOverrides,
     quoteDefaultForField,
@@ -1051,6 +1052,10 @@ export const useEditorStore = defineStore('editor', () => {
     setSchemaPostSql,
     getFieldOverrideValue,
     setFieldOverrideValue,
+    setFieldCommentOptionsEnabled,
+    addFieldCommentOption,
+    updateFieldCommentOption,
+    removeFieldCommentOption,
     getIndexOverrideValue,
     setIndexOverrideValue,
     buildTableExportData,
@@ -1231,6 +1236,7 @@ export const useEditorStore = defineStore('editor', () => {
     isCommonField,
     getResolvedField,
     getResolvedFieldTypeForDb,
+    getResolvedIndexNameForDb,
     fieldTypeDisplay,
     hasFieldOverrides,
     quoteDefaultForField,
@@ -1296,6 +1302,10 @@ export const useEditorStore = defineStore('editor', () => {
     // Field overrides
     getFieldOverrideValue,
     setFieldOverrideValue,
+    setFieldCommentOptionsEnabled,
+    addFieldCommentOption,
+    updateFieldCommentOption,
+    removeFieldCommentOption,
 
     // Index overrides
     getIndexOverrideValue,

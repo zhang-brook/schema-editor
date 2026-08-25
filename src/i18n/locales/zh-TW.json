@@ -33,6 +33,7 @@
     "editField": "編輯欄位",
     "renameField": "重新命名欄位",
     "editFieldOverride": "編輯欄位方言覆寫",
+    "editFieldCommentOptions": "編輯欄位註釋選項",
     "editCommentBeforeField": "編輯欄位前註解",
     "editCommentBeforeTable": "編輯資料表前註解",
     "toggleSkipRow": "切換跳過列",
@@ -265,7 +266,13 @@
     "quoteDefaultHint": "當預設值需要使用引號包裹時，請勾選此項",
     "hasDefault": "有預設值",
     "notSet": "不設定",
-    "hasOverrides": "此欄位包含資料庫方言覆寫"
+    "hasOverrides": "此欄位包含資料庫方言覆寫",
+    "commentOptions": "在註釋後自動拼接選項含義",
+    "commentOptionLabel": "含義",
+    "commentOptionValue": "值",
+    "commentOptionLabelPlaceholder": "如：啟用",
+    "commentOptionValuePlaceholder": "通用值",
+    "commentOptionAdd": "新增選項"
   },
   "indexTable": {
     "indexes": "索引",
@@ -279,7 +286,10 @@
     "comment": "備註",
     "preComment": "前置註解",
     "typeSelect": "-- 類型 --",
-    "namePlaceholder": "{pre}...{post}",
+    "namePlaceholder": "如 user_email",
+    "resolvedName": "解析後名稱預覽",
+    "preAffixTip": "點擊切換是否自動加入前綴（生成 SQL 時依方言與索引類型展開，如 idx_ / uk_）",
+    "postAffixTip": "點擊切換是否自動加入後綴",
     "commentPlaceholder": "索引備註",
     "preCommentPlaceholder": "索引前註解",
     "empty": "暫無索引"

@@ -2,13 +2,40 @@ export type SqlDialect = 'mysql' | 'postgresql'
 
 // ===== 解析公共字段 =====
 
-import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, TypeCaseMode } from "@/types/schema"
+import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, TypeCaseMode, CommentOption, Index } from "@/types/schema"
+import { resolveDialectOverride } from "@/utils/dialect-resolver"
 
 export function resolveField(field: Field, commonConfig: CommonConfig | null): Field {
   if (field.use_common_used_fields && commonConfig) {
     return commonConfig.common_used_fields[field.field_name] || field
   }
   return field
+}
+
+// ===== 索引名称解析 =====
+
+/**
+ * 解析索引名称中的 {pre} / {post} 占位符，返回最终索引名。
+ * 前缀规则按方言与索引类型区分（与 mysql.ts / postgresql.ts 的建表、索引 DDL 生成保持一致）：
+ * - mysql:      {pre} → uk_ / idx_，                     {post} → ''，无回退
+ * - postgresql: {pre} → uk__<table>__ / idx__<table>__，{post} → ''，为空时回退「前缀 + 列名拼接」
+ *
+ * @param index     索引配置
+ * @param dialect   目标方言
+ * @param tableName 所属表名（仅 postgresql 前缀需要）
+ */
+export function resolveIndexName(index: Index, dialect: SqlDialect, tableName: string): string | undefined {
+  const indexType = resolveDialectOverride(index, dialect, 'type', index.type)
+  const indexName = resolveDialectOverride(index, dialect, 'name', index.name)
+
+  if (dialect === 'mysql') {
+    const prefix = indexType === 'unique' ? 'uk_' : 'idx_'
+    return indexName?.replace('{pre}', prefix).replace('{post}', '')
+  }
+
+  const prefix = indexType === 'unique' ? `uk__${tableName}__` : `idx__${tableName}__`
+  return indexName?.replace('{pre}', prefix).replace('{post}', '')
+    || `${prefix}${index.columns.map(c => c.name).join('_')}`
 }
 
 // ===== 统一类型解析 =====
@@ -139,6 +166,55 @@ export function formatSqlDefault(value: any, quote: boolean): string {
     return `'${str.replace(/'/g, "''")}'`
   }
   return str
+}
+
+// ===== 字段注释（含选项含义自动拼接） =====
+
+/** 获取选项在指定方言下的值（方言覆盖优先，否则回退通用值） */
+function resolveOptionValue(opt: CommentOption, dialect: SqlDialect): string {
+  const raw = dialect === 'mysql' ? (opt.mysql ?? opt.value) : (opt.postgresql ?? opt.value)
+  return (raw ?? '').trim()
+}
+
+/** 将字段 default 值按方言渲染为展示文本（布尔：mysql→1/0，pg→TRUE/FALSE） */
+function formatDefaultForCommentDialect(value: unknown, dialect: SqlDialect): string {
+  if (typeof value === 'boolean') {
+    if (dialect === 'mysql') return value ? '1' : '0'
+    return value ? 'TRUE' : 'FALSE'
+  }
+  return String(value)
+}
+
+/**
+ * 构建字段在指定方言下的最终注释文本。
+ * - 未启用选项含义或无选项：直接返回原始 comment。
+ * - 启用时：`原注释：值-含义，值-含义，默认X`（全角冒号/逗号）。
+ *   默认部分复用字段已有 default（带方言覆盖），为空时不输出。
+ */
+export function buildFieldComment(field: Field, dialect: SqlDialect): string {
+  const base = field.comment ?? ''
+  if (!field.comment_options_enabled || !field.comment_options || field.comment_options.length === 0) {
+    return base
+  }
+
+  const parts: string[] = []
+  for (const opt of field.comment_options) {
+    const val = resolveOptionValue(opt, dialect)
+    const label = (opt.label ?? '').trim()
+    if (val === '' && label === '') continue
+    parts.push(`${val}-${label}`)
+  }
+  if (parts.length === 0) return base
+
+  let optionsText = parts.join('，')
+
+  // 默认值：复用字段 default（方言覆盖优先），按方言渲染
+  const defaultValue = field[dialect]?.default ?? field.default
+  if (defaultValue !== undefined && defaultValue !== '') {
+    optionsText += `，默认${formatDefaultForCommentDialect(defaultValue, dialect)}`
+  }
+
+  return base ? `${base}：${optionsText}` : optionsText
 }
 
 // ===== comment_before_table 输出 =====

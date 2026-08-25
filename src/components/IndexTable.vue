@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { Index } from '@/types/schema'
 import { useEditorStore } from '@/stores/editor'
 import IndexColumnsEditor from './IndexColumnsEditor.vue'
 
@@ -9,6 +10,51 @@ const availableFieldNames = computed(() => {
   if (!store.currentTable) return []
   return store.currentTable.fields.map(f => f.field_name)
 })
+
+// 索引名称采用「{pre} + 核心名 + {post}」三段式：用户只需填写中间核心部分，
+// 前后缀占位符在生成 SQL 时按方言与索引类型自动展开；且前后缀均可点击徽标自由开关。
+const PRE = '{pre}'
+const POST = '{post}'
+
+// 新建（未设置名称）时默认开启前后缀；已有名称则依据是否包含占位符判断
+function hasPre(index: Index): boolean {
+  const name = index.name
+  if (name == null) return true
+  return name.startsWith(PRE)
+}
+
+function hasPost(index: Index): boolean {
+  const name = index.name
+  if (name == null) return true
+  return name.endsWith(POST)
+}
+
+// 从存储的完整名称中剥离首尾占位符，得到中间可编辑的核心名
+function getIndexCore(index: Index): string {
+  let name = index.name ?? ''
+  if (name.startsWith(PRE)) name = name.slice(PRE.length)
+  if (name.endsWith(POST)) name = name.slice(0, name.length - POST.length)
+  return name
+}
+
+// 按前后缀开关状态重建完整名称
+function composeIndexName(core: string, pre: boolean, post: boolean): string {
+  return `${pre ? PRE : ''}${core}${post ? POST : ''}`
+}
+
+// 回写核心名时保留当前前后缀开关状态
+function setIndexCore(index: Index, core: string) {
+  index.name = composeIndexName(core, hasPre(index), hasPost(index))
+}
+
+// 点击徽标：切换是否自动添加前缀 / 后缀
+function togglePre(index: Index) {
+  index.name = composeIndexName(getIndexCore(index), !hasPre(index), hasPost(index))
+}
+
+function togglePost(index: Index) {
+  index.name = composeIndexName(getIndexCore(index), hasPre(index), !hasPost(index))
+}
 </script>
 
 <template>
@@ -40,7 +86,28 @@ const availableFieldNames = computed(() => {
                 </span>
               </td>
               <td>
-                <input class="table-input" v-model="index.name" :placeholder="$t('indexTable.namePlaceholder', { pre: '{pre}', post: '{post}' })" style="min-width:120px;">
+                <div class="index-name-group">
+                  <button
+                    type="button"
+                    class="index-name-affix"
+                    :class="{ 'is-active': hasPre(index) }"
+                    :title="$t('indexTable.preAffixTip')"
+                    @click="togglePre(index)"
+                  >{pre}</button>
+                  <input
+                    class="table-input index-name-core"
+                    :value="getIndexCore(index)"
+                    @input="setIndexCore(index, ($event.target as HTMLInputElement).value)"
+                    :placeholder="$t('indexTable.namePlaceholder')"
+                  >
+                  <button
+                    type="button"
+                    class="index-name-affix"
+                    :class="{ 'is-active': hasPost(index) }"
+                    :title="$t('indexTable.postAffixTip')"
+                    @click="togglePost(index)"
+                  >{post}</button>
+                </div>
               </td>
               <td>
                 <select class="form-input" v-model="index.type" style="width:80px;">
@@ -65,6 +132,16 @@ const availableFieldNames = computed(() => {
             <tr v-if="store.expandedIndexes.has(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx))">
               <td colspan="7">
                 <div class="field-expand-content">
+                  <!-- 解析后名称预览 -->
+                  <div class="expand-section">
+                    <div class="expand-section-title">{{ $t('indexTable.resolvedName') }}</div>
+                    <div class="resolved-type-row">
+                      <span class="db-label">MySQL:</span>
+                      <code>{{ store.getResolvedIndexNameForDb(index, store.currentTable!, 'mysql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
+                      <code>{{ store.getResolvedIndexNameForDb(index, store.currentTable!, 'postgresql') }}</code>
+                    </div>
+                  </div>
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('indexTable.indexOverrides') }}</div>
                     <div class="db-override-grid">
@@ -151,6 +228,66 @@ const availableFieldNames = computed(() => {
 .table-input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* 三段式索引名输入：{pre} 徽标 + 核心名 + {post} 徽标 */
+.index-name-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 200px;
+}
+
+.index-name-affix {
+  flex: none;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--fg-subtle);
+  border: 1px dashed var(--border);
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  opacity: 0.6;
+}
+
+.index-name-affix:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  opacity: 1;
+}
+
+/* 启用态（蓝色实线）：会自动添加对应前/后缀；关闭态为灰色虚线 */
+.index-name-affix.is-active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-style: solid;
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+.index-name-core {
+  min-width: 90px;
+}
+
+/* 解析后名称预览（与 FieldTable 的解析类型预览保持一致） */
+.resolved-type-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.resolved-type-row code {
+  background: var(--accent-subtle);
+  color: var(--fg);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .btn {

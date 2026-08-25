@@ -185,3 +185,35 @@ describe('索引未填写名称时自动回退生成', () => {
     expect(sql).not.toContain('undefined')
   })
 })
+
+describe('索引名 {pre}/{post} 占位符解析', () => {
+  function makeTokenTable(): Table {
+    return {
+      name: 'orders',
+      comment: '订单表',
+      fields: [
+        { field_name: 'id', field_type: 'int', primary_key: true, not_null: true },
+        { field_name: 'code', field_type: 'varchar', field_length: 32 },
+        { field_name: 'user_id', field_type: 'int' },
+      ],
+      indexes: [
+        // 多列唯一索引（MySQL 多列走 UNIQUE INDEX，名称参与输出）
+        { name: '{pre}code_user{post}', type: 'unique', columns: [{ name: 'code' }, { name: 'user_id' }] },
+        // 普通索引
+        { name: '{pre}user{post}', type: 'index', columns: [{ name: 'user_id' }] },
+      ],
+    }
+  }
+
+  it('MySQL：{pre} → uk_/idx_，{post} → 空', () => {
+    const sql = generateTableMySQL(makeTokenTable(), commonConfig)
+    expect(sql).toContain('UNIQUE INDEX `uk_code_user` (`code`, `user_id`)')
+    expect(sql).toContain('INDEX `idx_user` (`user_id`)')
+  })
+
+  it('PostgreSQL：{pre} → uk__<table>__/idx__<table>__，{post} → 空', () => {
+    const sql = generateTablePostgreSQL(makeTokenTable(), 'public', commonConfig)
+    expect(sql).toContain('CONSTRAINT "uk__orders__code_user" UNIQUE ("code", "user_id")')
+    expect(sql).toContain('CREATE INDEX "idx__orders__user" ON "public"."orders" ("user_id");')
+  })
+})

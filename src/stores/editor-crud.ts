@@ -1,5 +1,5 @@
 import type { Ref, ComputedRef } from 'vue'
-import type { CommonConfig, Schema, Table, Field, Index, TableMysqlConfig, TablePartitionConfig, PartitionByConfig, InitialData } from '@/types/schema'
+import type { CommonConfig, Schema, Table, Field, Index, TableMysqlConfig, TablePartitionConfig, PartitionByConfig, InitialData, CommentOption } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import {
   affectedDatabase,
@@ -14,7 +14,7 @@ import {
 import { newFieldId, newTableId, newSchemaId, newIndexId, newInitialDataId } from '@/core/ids'
 import { sanitizeName } from '@/core/workspace/layout'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
-import { resolveFieldTypeForDialect } from '@/utils/sql-generator/shared'
+import { resolveFieldTypeForDialect, resolveIndexName } from '@/utils/sql-generator/shared'
 import { formatIndexColumn } from '@/utils/index-column-utils'
 import { parseFieldLengthInput } from '@/utils/file-helpers'
 import { confirmDialog } from '@/composables/useConfirm'
@@ -737,6 +737,11 @@ export function createCrudActions(deps: CrudDeps) {
       return `${typeInfo.type}(${typeInfo.length})`
     }
     return typeInfo.type
+  }
+
+  /** 获取索引在指定方言中解析 {pre}/{post} 占位符后的最终名称（用于编辑器预览） */
+  function getResolvedIndexNameForDb(index: Index, table: Table, dialect: SqlDialect): string {
+    return resolveIndexName(index, dialect, table.name) || '-'
   }
 
   /** 返回字段在 FieldTable type 列的显示文本 */
@@ -1573,6 +1578,70 @@ export function createCrudActions(deps: CrudDeps) {
     })
   }
 
+  // ===== Field comment options（注释选项含义）helpers =====
+
+  /** 内部：以整数组替换方式提交 comment_options 变更，支持 undo/redo */
+  function applyCommentOptions(field: Field, newArr: CommentOption[] | undefined, coalesceKey: string) {
+    const oldArr = field.comment_options ? field.comment_options.map(o => ({ ...o })) : undefined
+    executeCommand({
+      label: t('history.editFieldCommentOptions'),
+      coalesceKey,
+      apply() {
+        if (newArr && newArr.length > 0) {
+          field.comment_options = newArr.map(o => ({ ...o }))
+        } else {
+          delete field.comment_options
+        }
+      },
+      revert() {
+        if (oldArr) {
+          field.comment_options = oldArr.map(o => ({ ...o }))
+        } else {
+          delete field.comment_options
+        }
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaNameOfField(field), field.field_name), affectedSql()]
+      },
+    })
+  }
+
+  /** 切换字段是否启用注释选项含义拼接；启用且无选项时预置一行空选项 */
+  function setFieldCommentOptionsEnabled(table: Table, field: Field, enabled: boolean) {
+    updateFieldProp(table, field, 'comment_options_enabled', enabled || undefined, `field-comment-options-enabled:${table.name}:${field.field_name}`)
+    if (enabled && (!field.comment_options || field.comment_options.length === 0)) {
+      applyCommentOptions(field, [{ label: '', value: '' }], `field-comment-options-init:${table.name}:${field.field_name}`)
+    }
+  }
+
+  /** 追加一个空的注释选项 */
+  function addFieldCommentOption(_table: Table, field: Field) {
+    const newArr = [...(field.comment_options ?? []), { label: '', value: '' } as CommentOption]
+    applyCommentOptions(field, newArr, `field-comment-options-add:${field.field_name}:${newArr.length}`)
+  }
+
+  /** 编辑某个注释选项的字段（label/value/mysql/postgresql） */
+  function updateFieldCommentOption(_table: Table, field: Field, idx: number, key: keyof CommentOption, value: string) {
+    if (!field.comment_options || idx < 0 || idx >= field.comment_options.length) return
+    const newArr = field.comment_options.map(o => ({ ...o }))
+    const target = newArr[idx]!
+    if (key === 'mysql' || key === 'postgresql') {
+      // 方言覆盖为空时省略，保持 JSON 精简
+      if (value === '') delete target[key]
+      else target[key] = value
+    } else {
+      target[key] = value
+    }
+    applyCommentOptions(field, newArr, `field-comment-option:${field.field_name}:${idx}:${key}`)
+  }
+
+  /** 删除某个注释选项 */
+  function removeFieldCommentOption(_table: Table, field: Field, idx: number) {
+    if (!field.comment_options) return
+    const newArr = field.comment_options.filter((_, i) => i !== idx)
+    applyCommentOptions(field, newArr, `field-comment-option-remove:${field.field_name}:${idx}`)
+  }
+
   // ===== Index mysql/postgresql override helpers =====
   function getIndexOverrideValue(index: Index, db: SqlDialect, key: string) {
     return (index[db] as any)?.[key] ?? ''
@@ -1697,6 +1766,15 @@ export function createCrudActions(deps: CrudDeps) {
         // 仅自定义类型字段导出 quote_default（统一类型字段从类型定义中获取）
         if (!field.unified_type && field.quote_default !== undefined) f.quote_default = field.quote_default
         if (field.comment !== undefined) f.comment = field.comment
+        if (field.comment_options_enabled) f.comment_options_enabled = true
+        if (field.comment_options && field.comment_options.length > 0) {
+          f.comment_options = field.comment_options.map(o => {
+            const co: CommentOption = { label: o.label ?? '', value: o.value ?? '' }
+            if (o.mysql !== undefined && o.mysql !== '') co.mysql = o.mysql
+            if (o.postgresql !== undefined && o.postgresql !== '') co.postgresql = o.postgresql
+            return co
+          })
+        }
         if (field.is_commented_out) f.is_commented_out = true
         if (field.field_length_disabled) f.field_length_disabled = true
         if (field.field_scale_disabled) f.field_scale_disabled = true
@@ -1768,6 +1846,7 @@ export function createCrudActions(deps: CrudDeps) {
     isCommonField,
     getResolvedField,
     getResolvedFieldTypeForDb,
+    getResolvedIndexNameForDb,
     fieldTypeDisplay,
     hasFieldOverrides,
     quoteDefaultForField,
@@ -1809,6 +1888,10 @@ export function createCrudActions(deps: CrudDeps) {
     setSchemaPostSql,
     getFieldOverrideValue,
     setFieldOverrideValue,
+    setFieldCommentOptionsEnabled,
+    addFieldCommentOption,
+    updateFieldCommentOption,
+    removeFieldCommentOption,
     getIndexOverrideValue,
     setIndexOverrideValue,
     buildTableExportData,

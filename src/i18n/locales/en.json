@@ -33,6 +33,7 @@
     "editField": "Edit Field",
     "renameField": "Rename Field",
     "editFieldOverride": "Edit Field Dialect Override",
+    "editFieldCommentOptions": "Edit Field Comment Options",
     "editCommentBeforeField": "Edit Comment Before Field",
     "editCommentBeforeTable": "Edit Comment Before Table",
     "toggleSkipRow": "Toggle Skip Row",
@@ -265,7 +266,13 @@
     "quoteDefaultHint": "Check this when the default value needs to be wrapped in quotes",
     "hasDefault": "Has Default",
     "notSet": "Not set",
-    "hasOverrides": "This field has database dialect overrides"
+    "hasOverrides": "This field has database dialect overrides",
+    "commentOptions": "Auto-generate option meanings in comment",
+    "commentOptionLabel": "Meaning",
+    "commentOptionValue": "Value",
+    "commentOptionLabelPlaceholder": "e.g. Enabled",
+    "commentOptionValuePlaceholder": "common value",
+    "commentOptionAdd": "Add Option"
   },
   "indexTable": {
     "indexes": "Indexes",
@@ -279,7 +286,10 @@
     "comment": "Comment",
     "preComment": "Pre Comment",
     "typeSelect": "-- type --",
-    "namePlaceholder": "{pre}...{post}",
+    "namePlaceholder": "e.g. user_email",
+    "resolvedName": "Resolved Name Preview",
+    "preAffixTip": "Click to toggle auto prefix (expanded by dialect & index type when generating SQL, e.g. idx_ / uk_)",
+    "postAffixTip": "Click to toggle auto suffix",
     "commentPlaceholder": "Index comment",
     "preCommentPlaceholder": "Comment before index",
     "empty": "No indexes defined"

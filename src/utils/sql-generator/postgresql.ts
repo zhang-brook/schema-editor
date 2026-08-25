@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause } from './shared'
+import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
 
@@ -123,8 +123,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
     if (indexType === 'unique') {
-      let indexName = resolveDialectOverride(index, 'postgresql', 'name', index.name)
-      indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
+      const indexName = resolveIndexName(index, 'postgresql', table.name)!
       indexDefinitions.push(`  CONSTRAINT ${quoteIdent(indexName, commonConfig)} UNIQUE (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'postgresql')
         return quoteIdent(name, commonConfig) + sortPart
@@ -154,8 +153,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
       if (index.pre_comment) {
         sql += `-- ${index.pre_comment}\n`
       }
-      let indexName = resolveDialectOverride(index, 'postgresql', 'name', index.name)
-      indexName = indexName?.replace('{pre}', `idx__${table.name}__`).replace('{post}', '') || `idx__${table.name}__${index.columns.map(c => c.name).join('_')}`
+      const indexName = resolveIndexName(index, 'postgresql', table.name)!
       sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'postgresql')
         return quoteIdent(name, commonConfig) + sortPart
@@ -181,8 +179,9 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     .filter(field => !field.is_commented_out)
     .forEach(field => {
       const fieldConfig = resolveField(field, commonConfig)
-      if (fieldConfig.comment) {
-        sql += `COMMENT ON COLUMN ${qSchemaName}.${qTableName}.${quoteIdent(fieldConfig.field_name, commonConfig)} IS '${fieldConfig.comment.replace(/'/g, "''")}';\n`
+      const finalComment = buildFieldComment(fieldConfig, 'postgresql')
+      if (finalComment) {
+        sql += `COMMENT ON COLUMN ${qSchemaName}.${qTableName}.${quoteIdent(fieldConfig.field_name, commonConfig)} IS '${finalComment.replace(/'/g, "''")}';\n`
       }
     })
 
@@ -191,8 +190,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     if (!index.comment) return
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
     if (indexType === 'unique') {
-      let indexName = resolveDialectOverride(index, 'postgresql', 'name', index.name)
-      indexName = indexName?.replace('{pre}', `uk__${table.name}__`).replace('{post}', '') || `uk__${table.name}__${index.columns.map(c => c.name).join('_')}`
+      const indexName = resolveIndexName(index, 'postgresql', table.name)!
       sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
     }
   })

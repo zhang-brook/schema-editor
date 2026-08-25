@@ -33,6 +33,7 @@
     "editField": "编辑字段",
     "renameField": "重命名字段",
     "editFieldOverride": "编辑字段方言覆盖",
+    "editFieldCommentOptions": "编辑字段注释选项",
     "editCommentBeforeField": "编辑字段前注释",
     "editCommentBeforeTable": "编辑表前注释",
     "toggleSkipRow": "切换跳过行",
@@ -265,7 +266,13 @@
     "quoteDefaultHint": "当默认值需要使用引号包裹时，请勾选此项",
     "hasDefault": "有默认值",
     "notSet": "不设置",
-    "hasOverrides": "此字段包含数据库方言覆盖"
+    "hasOverrides": "此字段包含数据库方言覆盖",
+    "commentOptions": "在注释后自动拼接选项含义",
+    "commentOptionLabel": "含义",
+    "commentOptionValue": "值",
+    "commentOptionLabelPlaceholder": "如：启用",
+    "commentOptionValuePlaceholder": "通用值",
+    "commentOptionAdd": "添加选项"
   },
   "indexTable": {
     "indexes": "索引",
@@ -279,7 +286,10 @@
     "comment": "备注",
     "preComment": "前置注释",
     "typeSelect": "-- 类型 --",
-    "namePlaceholder": "{pre}...{post}",
+    "namePlaceholder": "如 user_email",
+    "resolvedName": "解析后名称预览",
+    "preAffixTip": "点击切换是否自动添加前缀（生成 SQL 时按方言与索引类型展开，如 idx_ / uk_）",
+    "postAffixTip": "点击切换是否自动添加后缀",
     "commentPlaceholder": "索引备注",
     "preCommentPlaceholder": "索引前注释",
     "empty": "暂无索引"

@@ -28,6 +28,22 @@ export interface UnifiedTypeDefinition {
   postgresql: UnifiedTypeDbMapping
 }
 
+/**
+ * 字段注释选项含义配置项。
+ * 用于在字段注释后自动拼接「值-含义」枚举（如 0-不启用，1-启用，默认1）。
+ * value 为通用值；mysql/postgresql 为可选的方言覆盖值（省略时回退 value）。
+ */
+export interface CommentOption {
+  /** 选项含义标签（如「启用」） */
+  label: string
+  /** 通用值（各方言默认取此值） */
+  value: string
+  /** MySQL 方言覆盖值（省略则用 value） */
+  mysql?: string
+  /** PostgreSQL 方言覆盖值（省略则用 value） */
+  postgresql?: string
+}
+
 // 字段的数据库特定覆盖
 export interface FieldOverride {
   field_type?: string
@@ -76,6 +92,10 @@ export interface Field {
   quote_default?: boolean
   default?: any
   comment?: string
+  /** 勾选后在注释后自动拼接选项含义（依据 comment_options 生成，随方言变化） */
+  comment_options_enabled?: boolean
+  /** 注释选项含义配置项列表 */
+  comment_options?: CommentOption[]
   is_commented_out?: boolean
   mysql?: FieldOverride
   postgresql?: FieldOverride

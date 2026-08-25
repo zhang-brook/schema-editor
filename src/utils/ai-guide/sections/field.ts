@@ -17,6 +17,11 @@ export const fieldBody = `### Field（字段）详解
   "quote_default": false,           // ⚠️ 见下
   "default": 0,
   "comment": "价格",
+  "comment_options_enabled": false, // true → 在 comment 后自动拼接选项含义（随方言变化）
+  "comment_options": [            // 选项含义列表；仅 comment_options_enabled=true 时生效
+    { "label": "不启用", "value": "0", "mysql": "0", "postgresql": "FALSE" },
+    { "label": "启用", "value": "1", "mysql": "1", "postgresql": "TRUE" }
+  ],
   "is_commented_out": false,       // true → 该字段在 SQL 中被注释掉（不生成）
   "mysql":      { "field_type": "...", "field_length": 1, "field_scale": 0, "default": "..." },
   "postgresql": { "field_type": "...", "field_length": 1, "field_scale": 0, "default": "..." }
@@ -72,4 +77,13 @@ SQL 长度输出：同时有 length+scale → \`TYPE(length,scale)\`；仅 lengt
 - \`default\` 类型为 \`any\`，按 JSON 原生类型写（字符串写字符串，数字写数字，布尔写布尔）。
 - \`default_input: "boolean"\` 时 UI 用 TRUE/FALSE 下拉，底层存 \`true\`/\`false\`。
 - \`default\` 经方言覆盖解析：方言 \`default\` 优先于顶层 \`default\`。
-- 字段对象中无 \`default\` key → 不生成 \`DEFAULT\` 子句。`
+- 字段对象中无 \`default\` key → 不生成 \`DEFAULT\` 子句。
+
+#### comment_options（注释选项含义自动拼接）
+
+勾选 \`comment_options_enabled\` 后，生成 SQL 时会将 \`comment_options\` 渲染为选项含义，拼接到原 \`comment\` 之后（仅影响输出注释，不修改 \`comment\` 本身）。
+
+- 每个选项：\`label\`（含义）+ \`value\`（通用值）+ 可选 \`mysql\` / \`postgresql\` 方言覆盖值（省略则用 \`value\`）。
+- 拼接格式（全角冒号与逗号）：\`注释：值-含义，值-含义，默认X\`。
+- 末尾默认值取自字段 \`default\`（方言 \`default\` 优先），布尔值按方言渲染（MySQL→\`1\`/\`0\`，PostgreSQL→\`TRUE\`/\`FALSE\`）；无 \`default\` 则不拼默认后缀。
+- 示例：注释\`是否启用\` + default \`true\` → MySQL \`是否启用：0-不启用，1-启用，默认1\`；PostgreSQL \`是否启用：FALSE-不启用，TRUE-启用，默认TRUE\`。`

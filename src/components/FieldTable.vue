@@ -2,7 +2,8 @@
 import { ref, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
-import type { Field } from '@/types/schema'
+import { buildFieldComment } from '@/utils/sql-generator/shared'
+import type { Field, CommentOption } from '@/types/schema'
 
 const store = useEditorStore()
 
@@ -106,6 +107,16 @@ function getDefaultInputType(field: Field): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
   const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
   return def?.default_input || ''
+}
+
+/** 注释选项含义在指定方言下的实时预览 */
+function commentOptionsPreview(field: Field, dialect: 'mysql' | 'postgresql'): string {
+  return buildFieldComment(field, dialect)
+}
+
+/** 编辑注释选项某一列（label/value/mysql/postgresql） */
+function onCommentOptionInput(field: Field, idx: number, key: keyof CommentOption, value: string) {
+  store.updateFieldCommentOption(store.currentTable!, field, idx, key, value)
 }
 
 function onDropTailOver(e: DragEvent) {
@@ -382,6 +393,52 @@ function onDropTail(e: DragEvent) {
                         <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_length')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_length', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_scale', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'postgresql', 'default')" @input="store.setFieldOverrideValue(field, 'postgresql', 'default', ($event.target as HTMLInputElement).value)">
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Comment Options（注释选项含义） -->
+                  <div class="expand-section" v-if="!store.isCommonField(field)">
+                    <div class="expand-section-title">
+                      <label class="comment-options-toggle">
+                        <input
+                          type="checkbox"
+                          :checked="!!field.comment_options_enabled"
+                          @change="store.setFieldCommentOptionsEnabled(store.currentTable!, field, ($event.target as HTMLInputElement).checked)"
+                        />
+                        {{ $t('fieldTable.commentOptions') }}
+                      </label>
+                    </div>
+                    <div v-if="field.comment_options_enabled" class="comment-options-body">
+                      <table class="comment-options-table">
+                        <thead>
+                          <tr>
+                            <th>{{ $t('fieldTable.commentOptionLabel') }}</th>
+                            <th>{{ $t('fieldTable.commentOptionValue') }}</th>
+                            <th>{{ $t('fieldTable.mysql') }}</th>
+                            <th>{{ $t('fieldTable.postgresql') }}</th>
+                            <th style="width:32px;"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="(opt, oIdx) in field.comment_options" :key="oIdx">
+                            <td><input class="form-input" :value="opt.label" @input="onCommentOptionInput(field, oIdx, 'label', ($event.target as HTMLInputElement).value)" :placeholder="$t('fieldTable.commentOptionLabelPlaceholder')"></td>
+                            <td><input class="form-input" :value="opt.value" @input="onCommentOptionInput(field, oIdx, 'value', ($event.target as HTMLInputElement).value)" :placeholder="$t('fieldTable.commentOptionValuePlaceholder')"></td>
+                            <td><input class="form-input" :value="opt.mysql ?? ''" @input="onCommentOptionInput(field, oIdx, 'mysql', ($event.target as HTMLInputElement).value)" placeholder="0"></td>
+                            <td><input class="form-input" :value="opt.postgresql ?? ''" @input="onCommentOptionInput(field, oIdx, 'postgresql', ($event.target as HTMLInputElement).value)" placeholder="FALSE"></td>
+                            <td><button class="btn btn-sm btn-danger" @click="store.removeFieldCommentOption(store.currentTable!, field, oIdx)">×</button></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <button class="btn btn-sm" @click="store.addFieldCommentOption(store.currentTable!, field)">{{ $t('fieldTable.commentOptionAdd') }}</button>
+                      <div class="comment-options-preview">
+                        <div class="resolved-type-row">
+                          <span class="db-label">MySQL:</span>
+                          <code>{{ commentOptionsPreview(field, 'mysql') || '-' }}</code>
+                        </div>
+                        <div class="resolved-type-row">
+                          <span class="db-label">PostgreSQL:</span>
+                          <code>{{ commentOptionsPreview(field, 'postgresql') || '-' }}</code>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -679,5 +736,46 @@ function onDropTail(e: DragEvent) {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Comment options（注释选项含义） */
+.comment-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.comment-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.comment-options-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.comment-options-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--code-thumb);
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+.comment-options-table td {
+  padding: 2px 4px;
+}
+
+.comment-options-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
 }
 </style>

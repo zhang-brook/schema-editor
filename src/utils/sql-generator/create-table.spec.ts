@@ -2,14 +2,15 @@ import { describe, it, expect } from 'vitest'
 import type { Table, CommonConfig } from '@/types/schema'
 import { generateTableMySQL } from './mysql'
 import { generateTablePostgreSQL } from './postgresql'
+import { generateTableSQLite } from './sqlite'
 
 /**
  * 建表语句生成回归测试：
  * 覆盖字段类型映射（含 unified_types）、主键、唯一键、COMMENT、索引，
- * 并针对 MySQL 与 PostgreSQL 的方言差异分别断言。
+ * 并针对 MySQL、PostgreSQL 与 SQLite 的方言差异分别断言。
  */
 
-// 统一类型：同一顶层类型在两方言映射到不同 SQL 类型（用于方言差异断言）
+// 统一类型：同一顶层类型在三方言映射到不同 SQL 类型（用于方言差异断言）
 const commonConfig: CommonConfig = {
   default_config: {
     table_ddl_mode: 'create',
@@ -22,10 +23,11 @@ const commonConfig: CommonConfig = {
       },
     },
     postgresql: { quote_identifiers: true },
+    sqlite: { quote_identifiers: true },
   },
   common_used_fields: {},
   unified_types: [
-    { name: 'ts', mysql: { type: 'datetime' }, postgresql: { type: 'timestamp' } },
+    { name: 'ts', mysql: { type: 'datetime' }, postgresql: { type: 'timestamp' }, sqlite: { type: 'TEXT' } },
   ],
 }
 
@@ -119,7 +121,50 @@ describe('generateTablePostgreSQL', () => {
   })
 })
 
-describe('MySQL / PostgreSQL 方言差异', () => {
+describe('generateTableSQLite', () => {
+  const sql = generateTableSQLite(makeUsersTable(), commonConfig)
+
+  it('字段使用双引号标识符，且表名不带 schema 前缀', () => {
+    expect(sql).toContain('"id" int')
+    expect(sql).toContain('"name" varchar(100)')
+    expect(sql).toContain('"price" decimal(10,2)')
+    expect(sql).toContain('CREATE TABLE "users"')
+    expect(sql).not.toContain('public')
+  })
+
+  it('统一类型解析为 SQLite 方言类型 TEXT', () => {
+    expect(sql).toContain('"created_at" TEXT')
+    expect(sql).not.toContain('datetime')
+    expect(sql).not.toContain('timestamp')
+  })
+
+  it('主键：PRIMARY KEY（无 USING BTREE）', () => {
+    expect(sql).toContain('PRIMARY KEY ("id")')
+    expect(sql).not.toContain('USING BTREE')
+  })
+
+  it('唯一索引使用 CONSTRAINT ... UNIQUE', () => {
+    expect(sql).toContain('CONSTRAINT "uk_name" UNIQUE ("name")')
+  })
+
+  it('普通索引使用独立 CREATE INDEX 语句（不带 schema 前缀、无 USING）', () => {
+    expect(sql).toContain('CREATE INDEX "idx_price_created" ON "users" ("price", "created_at");')
+  })
+
+  it('无 COMMENT 语法：表注释落在表头注释块，字段注释以 -- 行输出', () => {
+    expect(sql).toContain('-- 用户表')
+    expect(sql).toContain('-- 主键')
+    expect(sql).toContain('-- 用户名')
+    expect(sql).not.toContain('COMMENT ON')
+    expect(sql).not.toContain("COMMENT '")
+  })
+
+  it('ddl mode=create 时不生成 DROP TABLE', () => {
+    expect(sql).not.toContain('DROP TABLE')
+  })
+})
+
+describe('MySQL / PostgreSQL / SQLite 方言差异', () => {
   const table = makeUsersTable()
   const mysql = generateTableMySQL(table, commonConfig)
   const pg = generateTablePostgreSQL(table, 'public', commonConfig)
@@ -148,6 +193,19 @@ describe('MySQL / PostgreSQL 方言差异', () => {
     }
     const raw = generateTablePostgreSQL(table, 'public', cfg)
     expect(raw).toContain('CREATE TABLE public.users (')
+    expect(raw).not.toContain('"users"')
+  })
+
+  it('quote_identifiers=false 时 SQLite 不加双引号', () => {
+    const cfg: CommonConfig = {
+      ...commonConfig,
+      default_config: {
+        ...commonConfig.default_config,
+        sqlite: { quote_identifiers: false },
+      },
+    }
+    const raw = generateTableSQLite(table, cfg)
+    expect(raw).toContain('CREATE TABLE users (')
     expect(raw).not.toContain('"users"')
   })
 })
@@ -184,6 +242,13 @@ describe('索引未填写名称时自动回退生成', () => {
     expect(sql).toContain('CREATE INDEX "idx__user_wallet__balance" ON "public"."user_wallet" ("balance");')
     expect(sql).not.toContain('undefined')
   })
+
+  it('SQLite：回退为「前缀 + 列名拼接」，不输出 undefined', () => {
+    const sql = generateTableSQLite(table, commonConfig)
+    expect(sql).toContain('CONSTRAINT "uk_tenant_code_user_code" UNIQUE ("tenant_code", "user_code")')
+    expect(sql).toContain('CREATE INDEX "idx_balance" ON "user_wallet" ("balance");')
+    expect(sql).not.toContain('undefined')
+  })
 })
 
 describe('索引名 {pre}/{post} 占位符解析', () => {
@@ -215,5 +280,11 @@ describe('索引名 {pre}/{post} 占位符解析', () => {
     const sql = generateTablePostgreSQL(makeTokenTable(), 'public', commonConfig)
     expect(sql).toContain('CONSTRAINT "uk__orders__code_user" UNIQUE ("code", "user_id")')
     expect(sql).toContain('CREATE INDEX "idx__orders__user" ON "public"."orders" ("user_id");')
+  })
+
+  it('SQLite：{pre} → uk_/idx_，{post} → 空', () => {
+    const sql = generateTableSQLite(makeTokenTable(), commonConfig)
+    expect(sql).toContain('CONSTRAINT "uk_code_user" UNIQUE ("code", "user_id")')
+    expect(sql).toContain('CREATE INDEX "idx_user" ON "orders" ("user_id");')
   })
 })

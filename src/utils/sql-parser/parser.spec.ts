@@ -6,6 +6,7 @@ import { detectDialect } from './dialect-detector'
 import { mapSqlTypeToField } from './type-mapper'
 import { generateTableMySQL } from '@/utils/sql-generator/mysql'
 import { generateTablePostgreSQL } from '@/utils/sql-generator/postgresql'
+import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
 
 /**
  * SQL 解析回归测试：
@@ -123,13 +124,23 @@ describe('detectDialect — MySQL / PostgreSQL 方言差异分别断言', () => 
   it('无明显特征时返回 unknown', () => {
     expect(detectDialect('CREATE TABLE t (id int, PRIMARY KEY (id));')).toBe('unknown')
   })
+
+  it('AUTOINCREMENT + 双引号判定为 sqlite（而非 postgresql）', () => {
+    const sqlite = 'CREATE TABLE "t" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT);'
+    expect(detectDialect(sqlite)).toBe('sqlite')
+  })
+
+  it('WITHOUT ROWID 判定为 sqlite', () => {
+    const sqlite = 'CREATE TABLE "t" ("id" INTEGER PRIMARY KEY, "v" TEXT) WITHOUT ROWID;'
+    expect(detectDialect(sqlite)).toBe('sqlite')
+  })
 })
 
 // ===== 类型映射（三级回退 + 方言差异）=====
 
 describe('mapSqlTypeToField — 统一类型与回退', () => {
   const unifiedTypes: UnifiedTypeDefinition[] = [
-    { name: 'ts', mysql: { type: 'datetime' }, postgresql: { type: 'timestamp' } },
+    { name: 'ts', mysql: { type: 'datetime' }, postgresql: { type: 'timestamp' }, sqlite: { type: 'TEXT' } },
   ]
 
   function col(rawType: string, length: number | null = null, scale: number | null = null): ParsedColumn {
@@ -162,6 +173,22 @@ describe('mapSqlTypeToField — 统一类型与回退', () => {
   it('Level 3 回退保留原始类型名（大写化）', () => {
     const r = mapSqlTypeToField(col('int4'), 'postgresql', unifiedTypes)
     expect(r.field_type).toBe('INT4')
+  })
+
+  it('SQLite：按类型亲和规则归一化（VARCHAR → TEXT）后命中统一类型', () => {
+    const ut: UnifiedTypeDefinition[] = [
+      { name: 'str', mysql: { type: 'varchar' }, postgresql: { type: 'varchar' }, sqlite: { type: 'TEXT' } },
+    ]
+    const r = mapSqlTypeToField(col('varchar', 255), 'sqlite', ut)
+    expect(r.unified_type).toBe('str')
+    expect(r.field_length).toBe(255)
+  })
+
+  it('SQLite：无匹配时回退到原始类型，INTEGER 视为无参数类型', () => {
+    const r = mapSqlTypeToField(col('integer'), 'sqlite', [])
+    expect(r.unified_type).toBeUndefined()
+    expect(r.field_type).toBe('INTEGER')
+    expect(r.field_length_disabled).toBe(true)
   })
 })
 
@@ -206,6 +233,14 @@ describe('往返一致性：generate → parse', () => {
     const parsed = parseCreateTableStatements(sql).tables[0]!
     expect(parsed.name).toBe('users')
     expect(parsed.schema).toBe('public')
+    expect(parsed.columns.map(c => c.name)).toEqual(['id', 'name'])
+  })
+
+  it('SQLite 生成结果可被检测为 sqlite 并解析出原表（无 schema 前缀）', () => {
+    const sql = generateSchemaSQLite({ schema: 'public', tables: [table] }, commonConfig)
+    expect(detectDialect(sql)).toBe('sqlite')
+    const parsed = parseCreateTableStatements(sql).tables[0]!
+    expect(parsed.name).toBe('users')
     expect(parsed.columns.map(c => c.name)).toEqual(['id', 'name'])
   })
 })

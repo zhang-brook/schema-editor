@@ -132,9 +132,10 @@ export interface ClearColumnStep {
 /** sql_transform：对初始数据做 SQL 变换（如 UPDATE/DELETE，作用于迁移后的数据） */
 export interface SqlTransformStep {
   type: 'sql_transform'
-  /** 方言特定的 SQL，缺省方言时回退到 both */
+  /** 方言特定的 SQL；某方言留空则该方言不输出此步骤 */
   mysql?: string
   postgresql?: string
+  sqlite?: string
 }
 
 /** custom_sql：完全自定义的 DDL/DML 片段 */
@@ -142,6 +143,7 @@ export interface CustomSqlStep {
   type: 'custom_sql'
   mysql?: string
   postgresql?: string
+  sqlite?: string
 }
 
 export type MigrationStep =
@@ -167,4 +169,5 @@ export interface Migration {
 export interface MigrationDdlPreview {
   mysql: string
   postgresql: string
+  sqlite: string
 }

@@ -1,11 +1,14 @@
 /**
- * 迁移脚本 → 变更 DDL 生成器（MySQL + PostgreSQL 双方言）。
+ * 迁移脚本 → 变更 DDL 生成器（MySQL + PostgreSQL + SQLite 三方言）。
  *
  * 输入：结构 diff（auto_diff 步骤） + clear_column / sql_transform / custom_sql 步骤。
  * 输出：合并后的最终变更 SQL（按方言）。
  *
  * 复用 sql-generator/shared 的字段解析原语，仅新增 ALTER TABLE 片段构造逻辑，
  * 不改动现有全量 DDL 生成器。
+ *
+ * SQLite 的 ALTER 能力有限（仅 ADD COLUMN / DROP COLUMN / RENAME COLUMN / RENAME TO，
+ * 且无 schema 前缀、无 USING 子句），修改列属性需重建表，故此处输出提示性注释。
  */
 import type { CommonConfig, Field } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
@@ -26,13 +29,47 @@ import type {
   TableDiff,
 } from './types'
 
-const DIALECTS: SqlDialect[] = ['mysql', 'postgresql']
+const DIALECTS: SqlDialect[] = ['mysql', 'postgresql', 'sqlite']
 
 /** 标识符引用（按方言） */
 function quoteIdent(dialect: SqlDialect, name: string, commonConfig: CommonConfig | null): string {
-  if (dialect === 'mysql') return `\`${name}\``
-  const shouldQuote = commonConfig?.default_config?.postgresql?.quote_identifiers ?? true
-  return shouldQuote ? `"${name}"` : name
+  if (dialect === 'mysql') {
+    return `\`${name}\``
+  }
+  else if (dialect === 'postgresql') {
+    const shouldQuote = commonConfig?.default_config?.postgresql?.quote_identifiers ?? true
+    return shouldQuote ? `"${name}"` : name
+  }
+  else if (dialect === 'sqlite') {
+    const shouldQuote = commonConfig?.default_config?.sqlite?.quote_identifiers ?? true
+    return shouldQuote ? `"${name}"` : name
+  }
+  return ''
+}
+
+/**
+ * 表名限定（按方言）。
+ * SQLite 无 schema 概念（schema 对应数据库文件），不加 schema 前缀。
+ */
+function qualifyTable(
+  dialect: SqlDialect,
+  schemaName: string,
+  tableName: string,
+  commonConfig: CommonConfig | null,
+): string {
+  if (dialect === 'sqlite') return quoteIdent(dialect, tableName, commonConfig)
+  return `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, tableName, commonConfig)}`
+}
+
+/** 按方言累积 DDL 片段的容器 */
+type DialectLines = Record<SqlDialect, string[]>
+
+function emptyDialectLines(): DialectLines {
+  return {
+    mysql: [],
+    postgresql: [],
+    sqlite: [],
+  }
 }
 
 /** 生成单字段定义片段（用于 ADD COLUMN），返回不含前缀的片段，如 `name VARCHAR(255) NOT NULL` */
@@ -85,7 +122,7 @@ function buildAddColumn(
   field: Field,
   commonConfig: CommonConfig | null,
 ): string {
-  const qTable = `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, tableName, commonConfig)}`
+  const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
   const lines: string[] = []
   lines.push(`ALTER TABLE ${qTable} ADD COLUMN ${getFieldDefinition(dialect, field, commonConfig, tableName)};`)
   if (dialect === 'postgresql' && field.comment) {
@@ -101,7 +138,7 @@ function buildDropColumn(
   columnName: string,
   commonConfig: CommonConfig | null,
 ): string {
-  const qTable = `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, tableName, commonConfig)}`
+  const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
   return `ALTER TABLE ${qTable} DROP COLUMN ${quoteIdent(dialect, columnName, commonConfig)};`
 }
 
@@ -113,13 +150,10 @@ function buildRenameColumn(
   newName: string,
   commonConfig: CommonConfig | null,
 ): string {
-  const qTable = `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, tableName, commonConfig)}`
+  const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
   const qOld = quoteIdent(dialect, oldName, commonConfig)
   const qNew = quoteIdent(dialect, newName, commonConfig)
-  if (dialect === 'mysql') {
-    // MySQL 8 使用 RENAME COLUMN
-    return `ALTER TABLE ${qTable} RENAME COLUMN ${qOld} TO ${qNew};`
-  }
+  // MySQL 8 / PostgreSQL / SQLite(3.25+) 统一使用 RENAME COLUMN
   return `ALTER TABLE ${qTable} RENAME COLUMN ${qOld} TO ${qNew};`
 }
 
@@ -131,11 +165,16 @@ function buildModifyColumn(
   field: Field,
   commonConfig: CommonConfig | null,
 ): string {
-  const qTable = `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, tableName, commonConfig)}`
+  const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
+  const qColumn = quoteIdent(dialect, field.field_name, commonConfig)
   const lines: string[] = []
+
   if (dialect === 'mysql') {
     lines.push(`ALTER TABLE ${qTable} MODIFY COLUMN ${getFieldDefinition(dialect, field, commonConfig, tableName)};`)
-  } else {
+    return lines.join('\n')
+  }
+
+  if (dialect === 'postgresql') {
     // PostgreSQL：类型与约束分开
     const resolved = resolveFieldTypeForDialect(field, dialect, commonConfig)
     if (resolved.type) {
@@ -145,76 +184,99 @@ function buildModifyColumn(
       } else if (typeof resolved.length === 'number') {
         typeStr += `(${resolved.length})`
       }
-      lines.push(`ALTER TABLE ${qTable} ALTER COLUMN ${quoteIdent(dialect, field.field_name, commonConfig)} TYPE ${typeStr};`)
+      lines.push(`ALTER TABLE ${qTable} ALTER COLUMN ${qColumn} TYPE ${typeStr};`)
     }
-    lines.push(`ALTER TABLE ${qTable} ALTER COLUMN ${quoteIdent(dialect, field.field_name, commonConfig)} ${field.not_null ? 'SET NOT NULL' : 'DROP NOT NULL'};`)
-    if (dialect === 'postgresql' && field.comment !== undefined) {
-      lines.push(`COMMENT ON COLUMN ${qTable}.${quoteIdent(dialect, field.field_name, commonConfig)} IS '${String(field.comment ?? '').replace(/'/g, "''")}';`)
+    lines.push(`ALTER TABLE ${qTable} ALTER COLUMN ${qColumn} ${field.not_null ? 'SET NOT NULL' : 'DROP NOT NULL'};`)
+    if (field.comment !== undefined) {
+      lines.push(`COMMENT ON COLUMN ${qTable}.${qColumn} IS '${String(field.comment ?? '').replace(/'/g, "''")}';`)
     }
+    return lines.join('\n')
   }
-  return lines.join('\n')
+
+  if (dialect === 'sqlite') {
+    // SQLite 的 ALTER TABLE 不支持修改列属性，只能「建新表 → 搬数据 → 换名 → 删旧表」
+    const resolved = resolveFieldTypeForDialect(field, dialect, commonConfig)
+    let typeStr = resolved.type
+    if (typeof resolved.scale === 'number' && typeof resolved.length === 'number') {
+      typeStr += `(${resolved.length},${resolved.scale})`
+    } else if (typeof resolved.length === 'number') {
+      typeStr += `(${resolved.length})`
+    }
+    lines.push(`-- [SQLite] 修改列属性需重建表：ALTER TABLE 仅支持 RENAME / ADD COLUMN / DROP COLUMN`)
+    lines.push(`-- 目标列定义：${qColumn} ${typeStr}${field.not_null ? ' NOT NULL' : ''}`)
+    lines.push(`-- 推荐步骤（请按实际表结构补全列清单与 INSERT ... SELECT 的列映射）：`)
+    lines.push(`--   1. ALTER TABLE ${qTable} RENAME TO ${quoteIdent(dialect, `${tableName}_old`, commonConfig)};`)
+    lines.push(`--   2. 用建表生成器重新生成 ${quoteIdent(dialect, tableName, commonConfig)} 的 CREATE TABLE 并执行`)
+    lines.push(`--   3. INSERT INTO ${qTable} SELECT ... FROM ${quoteIdent(dialect, `${tableName}_old`, commonConfig)};`)
+    lines.push(`--   4. DROP TABLE ${quoteIdent(dialect, `${tableName}_old`, commonConfig)};`)
+    return lines.join('\n')
+  }
+
+  return ''
 }
 
 /** 索引定义片段（按方言） */
 function buildIndexDefinition(
   dialect: SqlDialect,
-  index: { name?: string; type: string; using?: string; columns: { name: string; sort_order?: 'ASC' | 'DESC'; mysql?: any; postgresql?: any }[] },
+  schemaName: string,
+  tableName: string,
+  index: { name?: string; type: string; using?: string; columns: { name: string; sort_order?: 'ASC' | 'DESC'; mysql?: any; postgresql?: any; sqlite?: any }[] },
   commonConfig: CommonConfig | null,
 ): string {
   let indexName = index.name
   let indexType = index.type
   let indexUsing = index.using
-  if (dialect === 'mysql' && (index as any).mysql) {
-    indexName = (index as any).mysql.name || indexName
-    indexType = (index as any).mysql.type || indexType
-    indexUsing = (index as any).mysql.using || indexUsing
-  }
-  if (dialect === 'postgresql' && (index as any).postgresql) {
-    indexName = (index as any).postgresql.name || indexName
-    indexType = (index as any).postgresql.type || indexType
-    indexUsing = (index as any).postgresql.using || indexUsing
+  const override = (index as any)[dialect]
+  if (override) {
+    indexName = override.name || indexName
+    indexType = override.type || indexType
+    indexUsing = override.using || indexUsing
   }
   indexName = (indexName ?? '').replace('{pre}', indexType === 'unique' ? 'uk_' : 'idx_').replace('{post}', '') || (indexType === 'unique' ? 'uk_col' : 'idx_col')
 
-  const finalIndexUsing = indexUsing ? ` USING ${indexUsing.toUpperCase()}` : ''
   const colList = index.columns.map(c => {
     const { name, sortPart } = splitColumnForSql(c as any, dialect)
     return quoteIdent(dialect, name, commonConfig) + sortPart
   }).join(', ')
 
-  if (indexType === 'unique') {
-    return `CREATE UNIQUE INDEX ${quoteIdent(dialect, indexName, commonConfig)} ON ${colList}${finalIndexUsing};`
+  const qIndexName = quoteIdent(dialect, indexName, commonConfig)
+  const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
+  const keyword = indexType === 'unique' ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
+
+
+  // MySQL：USING 作为索引选项位于列列表之后
+  if(dialect === 'mysql') {
+    const finalIndexUsing = indexUsing ? ` USING ${indexUsing.toUpperCase()}` : ''
+    return `${keyword} ${qIndexName} ON ${qTable} (${colList})${finalIndexUsing};`
   }
-  return `CREATE INDEX ${quoteIdent(dialect, indexName, commonConfig)} ON ${colList}${finalIndexUsing};`
+  // PostgreSQL：USING 子句位于列列表之前
+  if (dialect === 'postgresql') {
+    const using = indexUsing ? ` USING ${indexUsing.toLowerCase()}` : ''
+    return `${keyword} ${qIndexName} ON ${qTable}${using} (${colList});`
+  }
+  // SQLite 不支持 USING 子句，索引方法由 SQLite 自行决定
+  if (dialect === 'sqlite') {
+    return `${keyword} ${qIndexName} ON ${qTable} (${colList});`
+  }
 }
 
 // ===== diff → DDL =====
 
-/** 查找某 schema 下某表的完整 Table 定义（来自目标结构） */
-function findTable(
-  schemas: StructureDiff['schemas'],
-  schemaName: string,
-  tableName: string,
-): TableDiff | undefined {
-  const sd = schemas.find(s => s.schema === schemaName)
-  return sd?.tables.find(t => t.new_name === tableName || t.old_name === tableName)
-}
-
 /**
- * 根据结构 diff 生成两方言的变更 DDL（auto_diff 部分）。
+ * 根据结构 diff 生成三方言的变更 DDL（auto_diff 部分）。
  * 需要传入「目标结构完整 schema 定义」以拿到字段/索引的完整属性。
  */
 function generateDiffDdl(
   diff: StructureDiff,
   targetSchemas: import('@/types/schema').Schema[],
   commonConfig: CommonConfig | null,
-): { mysql: string[]; postgresql: string[] } {
-  const out: { mysql: string[]; postgresql: string[] } = { mysql: [], postgresql: [] }
+): DialectLines {
+  const out = emptyDialectLines()
 
   for (const sd of diff.schemas) {
     for (const td of sd.tables) {
       for (const dialect of DIALECTS) {
-        const lines = dialect === 'mysql' ? out.mysql : out.postgresql
+        const lines = out[dialect]
         if (td.type === 'table_added' || td.type === 'table_renamed') {
           // 新增表的完整 CREATE（复用现有生成器更稳妥，但这里仅做 ALTER 体系，新增表用简化 CREATE）
           const targetTable = findTargetTable(targetSchemas, sd.schema, td.new_name!)
@@ -223,7 +285,7 @@ function generateDiffDdl(
           }
           // rename 表名
           if (td.type === 'table_renamed' && td.old_name && td.new_name) {
-            const qOld = `${quoteIdent(dialect, sd.schema, commonConfig)}.${quoteIdent(dialect, td.old_name, commonConfig)}`
+            const qOld = qualifyTable(dialect, sd.schema, td.old_name, commonConfig)
             const qNew = quoteIdent(dialect, td.new_name, commonConfig)
             lines.push(`ALTER TABLE ${qOld} RENAME TO ${qNew};`)
           }
@@ -231,7 +293,7 @@ function generateDiffDdl(
           for (const fd of td.fields) lines.push(...buildFieldDdl(dialect, sd.schema, td.new_name!, fd, targetSchemas))
           for (const id of td.indexes) lines.push(...buildIndexDdl(dialect, sd.schema, td.new_name!, id, targetSchemas))
         } else if (td.type === 'table_removed') {
-          const qTable = `${quoteIdent(dialect, sd.schema, commonConfig)}.${quoteIdent(dialect, td.old_name!, commonConfig)}`
+          const qTable = qualifyTable(dialect, sd.schema, td.old_name!, commonConfig)
           lines.push(`DROP TABLE ${qTable};`)
         }
       }
@@ -255,7 +317,7 @@ function buildCreateTable(
   table: import('@/types/schema').Table,
   commonConfig: CommonConfig | null,
 ): string[] {
-  const qTable = `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, table.name, commonConfig)}`
+  const qTable = qualifyTable(dialect, schemaName, table.name, commonConfig)
   const lines: string[] = []
   lines.push(`-- Create table ${schemaName}.${table.name}`)
   let stmt = `CREATE TABLE ${qTable} (\n`
@@ -266,7 +328,7 @@ function buildCreateTable(
   stmt += '\n);'
   lines.push(stmt)
   for (const idx of table.indexes) {
-    lines.push(buildIndexDefinition(dialect, idx as any, commonConfig))
+    lines.push(buildIndexDefinition(dialect, schemaName, table.name, idx as any, commonConfig))
   }
   return lines
 }
@@ -312,12 +374,22 @@ function buildIndexDdl(
   if (id.type === 'index_added' || id.type === 'index_modified') {
     const idx = (id.index_id && targetTable.indexes.find(x => x.index_id === id.index_id)) ||
       targetTable.indexes.find(x => x.name === id.new_name)
-    if (idx) return [buildIndexDefinition(dialect, idx as any, null)]
+    if (idx) return [buildIndexDefinition(dialect, schemaName, tableName, idx as any, null)]
     return []
   }
   if (id.type === 'index_removed') {
     const idxName = id.old_name || 'idx_col'
-    return [`DROP INDEX ${quoteIdent(dialect, idxName, null)};`]
+    const qIndexName = quoteIdent(dialect, idxName, null)
+    // MySQL 要求 DROP INDEX ... ON <table>
+    if (dialect === 'mysql') {
+      const qTable = qualifyTable(dialect, schemaName, tableName, null)
+      return [`DROP INDEX ${qIndexName} ON ${qTable};`]
+    }
+    // SQLite 的索引名在整个数据库内唯一，DROP INDEX 不带 schema 限定
+    if (dialect === 'sqlite') {
+      return [`DROP INDEX ${qIndexName};`]
+    }
+    return [`DROP INDEX ${qualifyTable(dialect, schemaName, idxName, null)};`]
   }
   return []
 }
@@ -337,25 +409,24 @@ export function generateMigrationDdl(
   targetSchemas: import('@/types/schema').Schema[],
   commonConfig: CommonConfig | null,
 ): MigrationDdlPreview {
-  const acc: { mysql: string[]; postgresql: string[] } = { mysql: [], postgresql: [] }
+  const acc = emptyDialectLines()
 
   for (const step of migration.steps) {
     switch (step.type) {
       case 'auto_diff': {
         const diffDdl = generateDiffDdl(diff, targetSchemas, commonConfig)
         for (const dialect of DIALECTS) {
-          const lines = dialect === 'mysql' ? acc.mysql : acc.postgresql
-          const ddl = dialect === 'mysql' ? diffDdl.mysql : diffDdl.postgresql
+          const lines = acc[dialect]
           if (lines.length > 0) lines.push('')
           lines.push(`-- ===== auto diff (${migration.from_version} → ${migration.to_version}) =====`)
-          lines.push(...ddl)
+          lines.push(...diffDdl[dialect])
         }
         break
       }
       case 'clear_column': {
         for (const dialect of DIALECTS) {
-          const qTable = `${quoteIdent(dialect, step.schema, commonConfig)}.${quoteIdent(dialect, step.table, commonConfig)}`
-          const lines = dialect === 'mysql' ? acc.mysql : acc.postgresql
+          const qTable = qualifyTable(dialect, step.schema, step.table, commonConfig)
+          const lines = acc[dialect]
           lines.push(`-- clear column ${step.schema}.${step.table}.${step.column}`)
           lines.push(`UPDATE ${qTable} SET ${quoteIdent(dialect, step.column, commonConfig)} = NULL;`)
         }
@@ -364,18 +435,13 @@ export function generateMigrationDdl(
       case 'sql_transform': {
         if (step.mysql) acc.mysql.push(fmtPrePostSql(step.mysql).trimEnd())
         if (step.postgresql) acc.postgresql.push(fmtPrePostSql(step.postgresql).trimEnd())
-        // 若仅提供通用片段（无方言键），两方言复用
-        if (!step.mysql && !step.postgresql) {
-          // 无内容
-        }
+        if (step.sqlite) acc.sqlite.push(fmtPrePostSql(step.sqlite).trimEnd())
         break
       }
       case 'custom_sql': {
         if (step.mysql) acc.mysql.push(step.mysql)
         if (step.postgresql) acc.postgresql.push(step.postgresql)
-        if (!step.mysql && !step.postgresql) {
-          // 空步骤跳过
-        }
+        if (step.sqlite) acc.sqlite.push(step.sqlite)
         break
       }
     }
@@ -384,5 +450,6 @@ export function generateMigrationDdl(
   return {
     mysql: acc.mysql.join('\n').trimEnd() + '\n',
     postgresql: acc.postgresql.join('\n').trimEnd() + '\n',
+    sqlite: acc.sqlite.join('\n').trimEnd() + '\n',
   }
 }

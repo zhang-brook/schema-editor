@@ -29,14 +29,21 @@ export const commonBody = `### common.json
     "postgresql": {
       "quote_identifiers": true, // true → 标识符加双引号 "name"
       "pre_sql": "", "post_sql": ""
+    },
+    "sqlite": {
+      "quote_identifiers": true, // true → 标识符加双引号 "name"
+      "pre_sql": "", "post_sql": ""
     }
   }
 }
 \`\`\`
 
+> \`default_config.sqlite\` 为后加配置（旧 common.json 无此键），缺省时按「加双引号、无全局前后置 SQL」处理。
+
 #### unified_types（统一类型）
 
-每个条目映射到各方言的具体类型，避免重复填写。结构：\`{ name, description?, quote_default?, default_input?, mysql: {type,length?,scale?}, postgresql: {type,length?,scale?} }\`。
+每个条目映射到各方言的具体类型，避免重复填写。结构：\`{ name, description?, quote_default?, default_input?, mysql: {type,length?,scale?}, postgresql: {type,length?,scale?}, sqlite?: {type,length?,scale?} }\`。
 
 - 内置默认集（\`src/utils/unified-types.ts\`）：String/Integer/BigInt/Boolean/Text/LongText/Decimal/Float/Double/Date/DateTime/Timestamp/JSON/UUID。
-- 字段引用：在 Field 上写 \`"unified_type": "Decimal"\`，继承其 \`type/length/scale\` 与 \`quote_default\`。`
+- 字段引用：在 Field 上写 \`"unified_type": "Decimal"\`，继承其 \`type/length/scale\` 与 \`quote_default\`。
+- \`sqlite\` 映射可省略（旧数据兼容）：缺失时该方言回退到字段级 \`field_type\`。内置集按 SQLite 类型亲和规则映射：整数→\`INTEGER\`、浮点→\`REAL\`、精确小数→\`NUMERIC\`、文本/日期/JSON/UUID→\`TEXT\`。`

@@ -5,6 +5,7 @@ import { useEditorStore } from '@/stores/editor'
 import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from '@/utils/sql-generator/shared'
 import { generateInitialDataMySQL } from '@/utils/sql-generator/mysql'
 import { generateInitialDataPostgreSQL } from '@/utils/sql-generator/postgresql'
+import { generateInitialDataSQLite } from '@/utils/sql-generator/sqlite'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
@@ -18,9 +19,8 @@ const previewSql = computed(() => {
   const data = store.currentInitialData
   if (!table || !data) return ''
 
-  const dbDialect = dialect.value === 'postgresql' ? 'postgresql' : 'mysql'
-  const preSql = getInitialDataPreSql(data, dbDialect)
-  const postSql = getInitialDataPostSql(data, dbDialect)
+  const preSql = getInitialDataPreSql(data, dialect.value)
+  const postSql = getInitialDataPostSql(data, dialect.value)
 
   // 先过滤掉「不生成」的行，得到有效数据行
   const filtered = filterInitialDataRows(data.rows)
@@ -30,9 +30,11 @@ const previewSql = computed(() => {
   if (filtered.hasRows) {
     if (dialect.value === 'mysql') {
       sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments)
-    } else {
+    } else if (dialect.value === 'postgresql') {
       const schemaName = schema?.schema || 'public'
       sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig)
+    } else if (dialect.value === 'sqlite') {
+      sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, store.commonConfig)
     }
   }
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)
@@ -57,11 +59,14 @@ function copyToClipboard() {
         </div>
         <div class="tab-group">
           <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">MySQL</button>
-          <button class="tab-btn" :class="{ active: dialect === 'postgresql' }" @click="dialect = 'postgresql'">PostgreSQL</button>
+          <button class="tab-btn" :class="{ active: dialect === 'postgresql' }"
+            @click="dialect = 'postgresql'">PostgreSQL</button>
+          <button class="tab-btn" :class="{ active: dialect === 'sqlite' }" @click="dialect = 'sqlite'">SQLite</button>
         </div>
       </div>
       <div class="header-right">
-        <button class="btn btn-sm" @click="copyToClipboard" :disabled="!previewSql" :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>
+        <button class="btn btn-sm" @click="copyToClipboard" :disabled="!previewSql"
+          :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>
       </div>
     </div>
     <div class="section-body">
@@ -117,7 +122,7 @@ function copyToClipboard() {
   border-color: var(--accent);
 }
 
-.tab-btn.active + .tab-btn {
+.tab-btn.active+.tab-btn {
   border-left-color: var(--accent);
 }
 

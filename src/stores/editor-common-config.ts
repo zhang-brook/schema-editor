@@ -33,11 +33,16 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
       apply() {
         if (dialect === 'mysql') {
           commonConfig.value!.default_config.mysql.pre_sql = trimmed || undefined
-        } else {
+        } else if (dialect === 'postgresql') {
           if (!commonConfig.value!.default_config.postgresql) {
             commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
           }
           commonConfig.value!.default_config.postgresql.pre_sql = trimmed || undefined
+        } else if (dialect === 'sqlite') {
+          if (!commonConfig.value!.default_config.sqlite) {
+            commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
+          }
+          commonConfig.value!.default_config.sqlite.pre_sql = trimmed || undefined
         }
       },
       revert() {
@@ -59,6 +64,11 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
       apply() {
         if (dialect === 'mysql') {
           commonConfig.value!.default_config.mysql.post_sql = trimmed || undefined
+        } else if (dialect === 'sqlite') {
+          if (!commonConfig.value!.default_config.sqlite) {
+            commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
+          }
+          commonConfig.value!.default_config.sqlite.post_sql = trimmed || undefined
         } else {
           if (!commonConfig.value!.default_config.postgresql) {
             commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
@@ -156,6 +166,32 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
           commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
         }
         commonConfig.value!.default_config.postgresql.quote_identifiers = old
+      },
+      affectedFiles() {
+        return [affectedCommon(), affectedSql()]
+      },
+    })
+  }
+
+  function getCommonSqliteQuoteIdentifiers(): boolean {
+    return commonConfig.value?.default_config?.sqlite?.quote_identifiers ?? true
+  }
+  function setCommonSqliteQuoteIdentifiers(val: boolean) {
+    if (!commonConfig.value) return
+    const old = getCommonSqliteQuoteIdentifiers()
+    executeCommand({
+      label: t('history.editSqliteQuoteIdentifiers'),
+      apply() {
+        if (!commonConfig.value!.default_config.sqlite) {
+          commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
+        }
+        commonConfig.value!.default_config.sqlite.quote_identifiers = val
+      },
+      revert() {
+        if (!commonConfig.value!.default_config.sqlite) {
+          commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
+        }
+        commonConfig.value!.default_config.sqlite.quote_identifiers = old
       },
       affectedFiles() {
         return [affectedCommon(), affectedSql()]
@@ -393,6 +429,7 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
           quote_default: false,
           mysql: { type: 'VARCHAR', length: 255 },
           postgresql: { type: 'VARCHAR', length: 255 },
+          sqlite: { type: 'VARCHAR', length: 255 },
         })
       },
       revert() {
@@ -500,6 +537,8 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     setCommonMysqlCollation,
     getCommonPostgresqlQuoteIdentifiers,
     setCommonPostgresqlQuoteIdentifiers,
+    getCommonSqliteQuoteIdentifiers,
+    setCommonSqliteQuoteIdentifiers,
     getTableDdlMode,
     setTableDdlMode,
     getCommonTypeCase,

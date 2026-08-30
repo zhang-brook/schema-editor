@@ -19,12 +19,13 @@ export const fieldBody = `### Field（字段）详解
   "comment": "价格",
   "comment_options_enabled": false, // true → 在 comment 后自动拼接选项含义（随方言变化）
   "comment_options": [            // 选项含义列表；仅 comment_options_enabled=true 时生效
-    { "label": "不启用", "value": "0", "mysql": "0", "postgresql": "FALSE" },
-    { "label": "启用", "value": "1", "mysql": "1", "postgresql": "TRUE" }
+    { "label": "不启用", "value": "0", "mysql": "0", "postgresql": "FALSE", "sqlite": "0" },
+    { "label": "启用", "value": "1", "mysql": "1", "postgresql": "TRUE", "sqlite": "1" }
   ],
   "is_commented_out": false,       // true → 该字段在 SQL 中被注释掉（不生成）
   "mysql":      { "field_type": "...", "field_length": 1, "field_scale": 0, "default": "..." },
-  "postgresql": { "field_type": "...", "field_length": 1, "field_scale": 0, "default": "..." }
+  "postgresql": { "field_type": "...", "field_length": 1, "field_scale": 0, "default": "..." },
+  "sqlite":     { "field_type": "...", "field_length": 1, "field_scale": 0, "default": "..." }
 }
 \`\`\`
 
@@ -34,7 +35,7 @@ export const fieldBody = `### Field（字段）详解
 
 1. **unified_type 映射**（查 \`common.unified_types\` 得到方言 \`type/length/scale\`）
 2. **字段级 bare 属性** \`field_type\` / \`field_length\` / \`field_scale\`
-3. **方言覆盖** \`field.mysql.*\` / \`field.postgresql.*\`
+3. **方言覆盖** \`field.mysql.*\` / \`field.postgresql.*\` / \`field.sqlite.*\`
 4. **最终裁决**：\`field_length_disabled === true\` → \`length = null\`；\`field_scale_disabled === true\` → \`scale = null\`
 
 SQL 长度输出：同时有 length+scale → \`TYPE(length,scale)\`；仅 length → \`TYPE(length)\`；都没有 → \`TYPE\`。
@@ -83,7 +84,7 @@ SQL 长度输出：同时有 length+scale → \`TYPE(length,scale)\`；仅 lengt
 
 勾选 \`comment_options_enabled\` 后，生成 SQL 时会将 \`comment_options\` 渲染为选项含义，拼接到原 \`comment\` 之后（仅影响输出注释，不修改 \`comment\` 本身）。
 
-- 每个选项：\`label\`（含义）+ \`value\`（通用值）+ 可选 \`mysql\` / \`postgresql\` 方言覆盖值（省略则用 \`value\`）。
+- 每个选项：\`label\`（含义）+ \`value\`（通用值）+ 可选 \`mysql\` / \`postgresql\` / \`sqlite\` 方言覆盖值（省略则用 \`value\`）。
 - 拼接格式（全角冒号与逗号）：\`注释：值-含义，值-含义，默认X\`。
-- 末尾默认值取自字段 \`default\`（方言 \`default\` 优先），布尔值按方言渲染（MySQL→\`1\`/\`0\`，PostgreSQL→\`TRUE\`/\`FALSE\`）；无 \`default\` 则不拼默认后缀。
-- 示例：注释\`是否启用\` + default \`true\` → MySQL \`是否启用：0-不启用，1-启用，默认1\`；PostgreSQL \`是否启用：FALSE-不启用，TRUE-启用，默认TRUE\`。`
+- 末尾默认值取自字段 \`default\`（方言 \`default\` 优先），布尔值按方言渲染（MySQL/SQLite→\`1\`/\`0\`，PostgreSQL→\`TRUE\`/\`FALSE\`）；无 \`default\` 则不拼默认后缀。
+- 示例：注释\`是否启用\` + default \`true\` → MySQL/SQLite \`是否启用：0-不启用，1-启用，默认1\`；PostgreSQL \`是否启用：FALSE-不启用，TRUE-启用，默认TRUE\`。`

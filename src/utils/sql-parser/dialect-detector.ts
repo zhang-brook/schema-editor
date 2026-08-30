@@ -4,6 +4,9 @@
  * 正分 → PostgreSQL 特征
  * 负分 → MySQL 特征
  * 零分 → Unknown
+ *
+ * SQLite 与 PostgreSQL 语法高度重叠（同为双引号标识符），无法单靠 Token 流区分，
+ * 故单独按「SQLite 特有语法」在原始文本上计分（见 {@link detectSqliteSignals}）。
  */
 
 import { lex, type Token, TokenType } from './tokenizer'
@@ -12,17 +15,39 @@ import type { SqlDialect } from '@/utils/sql-generator/shared'
 export type DetectedDialect = SqlDialect | 'unknown'
 
 /**
+ * SQLite 特有语法信号计分。
+ *
+ * 这些语法未收录进分词器关键字表（避免影响既有 MySQL/PostgreSQL 解析），
+ * 因此直接在原始文本上做大小写不敏感的匹配。
+ *
+ * - `PRAGMA` / `AUTOINCREMENT` / `WITHOUT ROWID` 为 SQLite 独有，权重最高
+ * - `STRICT` 表选项、`INTEGER PRIMARY KEY`（rowid 别名写法）作为弱信号
+ */
+function detectSqliteSignals(sql: string): number {
+  let sqlite = 0
+  if (/\bPRAGMA\b/i.test(sql)) sqlite += 3
+  if (/\bAUTOINCREMENT\b/i.test(sql)) sqlite += 3
+  if (/\bWITHOUT\s+ROWID\b/i.test(sql)) sqlite += 3
+  if (/\bSTRICT\b/i.test(sql)) sqlite += 1
+  if (/\bINTEGER\s+PRIMARY\s+KEY\b/i.test(sql)) sqlite += 1
+  return sqlite
+}
+
+/**
  * 从原始 SQL 文本检测方言
  */
 export function detectDialect(sql: string): DetectedDialect {
+  const sqliteScore = detectSqliteSignals(sql)
   const tokens = lex(sql)
-  return detectDialectFromTokens(tokens)
+  return detectDialectFromTokens(tokens, sqliteScore)
 }
 
 /**
  * 从 Token 流检测方言
+ * @param tokens Token 流
+ * @param sqliteScore SQLite 特有语法得分（由 {@link detectSqliteSignals} 计算；省略时视为 0）
  */
-export function detectDialectFromTokens(tokens: Token[]): DetectedDialect {
+export function detectDialectFromTokens(tokens: Token[], sqliteScore = 0): DetectedDialect {
   let score = 0
 
   // 提取所有 KEYWORD token 的值（用于批量检测）
@@ -175,6 +200,8 @@ export function detectDialectFromTokens(tokens: Token[]): DetectedDialect {
   }
 
   // ===== 判定 =====
+  // SQLite 与 PostgreSQL 的通用语法重叠度高，仅当 SQLite 特有信号足够强且压过 PG/MySQL 信号时才判定为 SQLite
+  if (sqliteScore >= 3 && sqliteScore >= Math.abs(score)) return 'sqlite'
   if (score >= 3) return 'postgresql'
   if (score <= -3) return 'mysql'
 

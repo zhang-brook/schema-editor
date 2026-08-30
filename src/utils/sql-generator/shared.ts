@@ -1,4 +1,7 @@
-export type SqlDialect = 'mysql' | 'postgresql'
+export type SqlDialect = 'mysql' | 'postgresql' | 'sqlite'
+
+/** 全部受支持的方言（顺序即 SQL 输出、UI 方言切换页签的展示顺序） */
+export const ALL_SQL_DIALECTS: SqlDialect[] = ['mysql', 'postgresql', 'sqlite']
 
 // ===== 解析公共字段 =====
 
@@ -16,9 +19,12 @@ export function resolveField(field: Field, commonConfig: CommonConfig | null): F
 
 /**
  * 解析索引名称中的 {pre} / {post} 占位符，返回最终索引名。
- * 前缀规则按方言与索引类型区分（与 mysql.ts / postgresql.ts 的建表、索引 DDL 生成保持一致）：
- * - mysql:      {pre} → uk_ / idx_，                     {post} → ''，无回退
- * - postgresql: {pre} → uk__<table>__ / idx__<table>__，{post} → ''，为空时回退「前缀 + 列名拼接」
+ * 前缀规则按方言与索引类型区分（与 mysql.ts / postgresql.ts / sqlite.ts 的建表、索引 DDL 生成保持一致）：
+ * - mysql:      {pre} → uk_ / idx_
+ * - sqlite:     {pre} → uk_ / idx_
+ * - postgresql: {pre} → uk__<table>__ / idx__<table>__（同库内索引名全局唯一，故带表名）
+ *
+ * {post} 三种方言均展开为空串；名称为空时统一回退「前缀 + 列名拼接」。
  *
  * @param index     索引配置
  * @param dialect   目标方言
@@ -31,6 +37,7 @@ export function resolveIndexName(index: Index, dialect: SqlDialect, tableName: s
   let prefix, resolved
   switch (dialect) {
     default:
+    case 'sqlite':
     case 'mysql':
       prefix = indexType === 'unique' ? 'uk_' : 'idx_'
       resolved = indexName?.replace('{pre}', prefix).replace('{post}', '')
@@ -65,8 +72,9 @@ export function resolveFieldTypeForDialect(
   // 第 1 层：unified_type 映射
   if (field.unified_type && commonConfig?.unified_types) {
     const def = commonConfig.unified_types.find(ut => ut.name === field.unified_type)
-    if (def) {
-      const mapping = def[dialect]
+    // 方言映射可能缺失（如旧 common.json 的 unified_types 无 sqlite 键），此时跳过该层
+    const mapping = def?.[dialect]
+    if (mapping) {
       type = mapping.type
       length = mapping.length ?? null
       scale = mapping.scale ?? null
@@ -176,15 +184,22 @@ export function formatSqlDefault(value: any, quote: boolean): string {
 
 /** 获取选项在指定方言下的值（方言覆盖优先，否则回退通用值） */
 function resolveOptionValue(opt: CommentOption, dialect: SqlDialect): string {
-  const raw = dialect === 'mysql' ? (opt.mysql ?? opt.value) : (opt.postgresql ?? opt.value)
-  return (raw ?? '').trim()
+  if (dialect === 'mysql') return (opt.mysql ?? opt.value ?? '').trim()
+  if (dialect === 'postgresql') return (opt.postgresql ?? opt.value ?? '').trim()
+  if (dialect === 'sqlite') return (opt.sqlite ?? opt.value ?? '').trim()
+  return ''
 }
 
-/** 将字段 default 值按方言渲染为展示文本（布尔：mysql→1/0，pg→TRUE/FALSE） */
+/** 将字段 default 值按方言渲染为展示文本（布尔：mysql/sqlite→1/0，pg→TRUE/FALSE） */
 function formatDefaultForCommentDialect(value: unknown, dialect: SqlDialect): string {
   if (typeof value === 'boolean') {
-    if (dialect === 'mysql') return value ? '1' : '0'
-    return value ? 'TRUE' : 'FALSE'
+    switch (dialect) {
+      case 'mysql':
+      case 'sqlite':  // SQLite 无原生布尔类型，惯例以 1/0 存储
+        return value ? '1' : '0'
+      case 'postgresql':
+        return value ? 'TRUE' : 'FALSE'
+    }
   }
   return String(value)
 }
@@ -290,13 +305,17 @@ export function getSchemaPostSql(schema: Schema, dialect: SqlDialect): string {
 export function getGlobalPreSql(commonConfig: CommonConfig | null, dialect: SqlDialect): string {
   if (!commonConfig) return ''
   if (dialect === 'mysql') return commonConfig.default_config.mysql.pre_sql || ''
-  return commonConfig.default_config.postgresql.pre_sql || ''
+  if (dialect === 'postgresql') return commonConfig.default_config.postgresql.pre_sql || ''
+  if (dialect === 'sqlite') return commonConfig.default_config.sqlite?.pre_sql || ''
+  return ''
 }
 
 export function getGlobalPostSql(commonConfig: CommonConfig | null, dialect: SqlDialect): string {
   if (!commonConfig) return ''
   if (dialect === 'mysql') return commonConfig.default_config.mysql.post_sql || ''
-  return commonConfig.default_config.postgresql.post_sql || ''
+  if (dialect === 'postgresql') return commonConfig.default_config.postgresql.post_sql || ''
+  if (dialect === 'sqlite') return commonConfig.default_config.sqlite?.post_sql || ''
+  return ''
 }
 
 export function fmtPrePostSql(sql: string): string {
@@ -357,7 +376,9 @@ export function filterInitialDataRows(
  * - 结构化：设置 `strategy` + `columns` → `PARTITION BY <strategy> (col1, col2)`
  * - 原始：仅设置 `expression` → `PARTITION BY <expression>`
  *
- * 分区列名按对应方言的标识符引用规则加引号（MySQL 用反引号，PostgreSQL 用双引号）。
+ * 分区列名按对应方言的标识符引用规则加引号（MySQL 用反引号，PostgreSQL / SQLite 用双引号）。
+ *
+ * 注意：SQLite 不支持 `PARTITION BY`，其分区配置仅保留结构占位，不会生成子句。
  */
 export function getTablePartitionClause(
   table: Table,
@@ -366,6 +387,8 @@ export function getTablePartitionClause(
 ): string {
   const cfg = table.partition?.[dialect]
   if (!cfg) return ''
+  // SQLite 无分区表语法
+  if (dialect === 'sqlite') return ''
 
   const quote = (name: string): string => {
     if (dialect === 'mysql') return `\`${name}\``

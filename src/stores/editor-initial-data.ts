@@ -265,7 +265,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
         } else {
           delete initialData.pre_sql[dialect]
         }
-        if (initialData.pre_sql && !initialData.pre_sql.mysql && !initialData.pre_sql.postgresql) {
+        if (initialData.pre_sql && Object.keys(initialData.pre_sql).length === 0) {
           delete initialData.pre_sql
         }
       },
@@ -299,7 +299,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
         } else {
           delete initialData.post_sql[dialect]
         }
-        if (initialData.post_sql && !initialData.post_sql.mysql && !initialData.post_sql.postgresql) {
+        if (initialData.post_sql && Object.keys(initialData.post_sql).length === 0) {
           delete initialData.post_sql
         }
       },

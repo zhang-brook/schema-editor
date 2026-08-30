@@ -120,6 +120,27 @@ function normalizePgSqlType(rawType: string): { type: string; length?: number | 
   return { type: upper }
 }
 
+// ===== SQLite 类型别名规范化 =====
+
+/**
+ * 按 SQLite 的「类型亲和（type affinity）」规则把声明类型归到五大存储类。
+ * 规则顺序与官方文档一致：INT → INTEGER；CHAR/CLOB/TEXT → TEXT；BLOB → BLOB；
+ * REAL/FLOA/DOUB → REAL；其余 → NUMERIC。
+ */
+function normalizeSqliteType(rawType: string): { type: string; length?: number | null; scale?: number | null } {
+  const upper = rawType.toUpperCase()
+
+  // BOOLEAN / BOOL 无原生类型，惯例以 0/1 存储
+  if (upper === 'BOOLEAN' || upper === 'BOOL') return { type: 'INTEGER', length: 1 }
+
+  if (upper.includes('INT')) return { type: 'INTEGER' }
+  if (upper.includes('CHAR') || upper.includes('CLOB') || upper.includes('TEXT')) return { type: 'TEXT' }
+  if (upper === '' || upper.includes('BLOB')) return { type: 'BLOB' }
+  if (upper.includes('REAL') || upper.includes('FLOA') || upper.includes('DOUB')) return { type: 'REAL' }
+
+  return { type: 'NUMERIC' }
+}
+
 // ===== 主映射函数 =====
 
 /**
@@ -139,8 +160,12 @@ export function mapSqlTypeToField(
   let normalized: { type: string; length?: number | null; scale?: number | null }
   if (dialect === 'mysql') {
     normalized = normalizeMySqlType(column.rawType)
-  } else {
+  } else if (dialect === 'postgresql') {
     normalized = normalizePgSqlType(column.rawType)
+  } else if (dialect === 'sqlite') {
+    normalized = normalizeSqliteType(column.rawType)
+  } else {
+    throw new Error(`Unsupported SQL dialect: ${dialect}`)
   }
 
   const normType = normalized.type
@@ -241,7 +266,7 @@ export function mapSqlTypeToField(
 
   // 无参数类型默认禁用长度/scale
   if (sqlLength == null && sqlScale == null) {
-    // 检查是否是典型的无参数类型
+    // 检查是否是典型的无参数类型（含 SQLite 的五大存储类）
     const noParamTypes = new Set([
       'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
       'DATE', 'DATETIME', 'TIME', 'TIMESTAMP', 'TIMESTAMPTZ', 'YEAR',
@@ -249,6 +274,8 @@ export function mapSqlTypeToField(
       'BLOB', 'LONGBLOB', 'MEDIUMBLOB', 'TINYBLOB',
       'BYTEA', 'UUID', 'INTERVAL', 'INET', 'CIDR',
       'SERIAL', 'BIGSERIAL', 'SMALLSERIAL',
+      // SQLite 存储类（INTEGER / REAL / NUMERIC / TEXT / BLOB）
+      'INTEGER', 'REAL', 'NUMERIC', 'CLOB',
     ])
     if (noParamTypes.has(normType)) {
       result.field_length_disabled = true

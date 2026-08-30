@@ -374,6 +374,8 @@ function onDropTail(e: DragEvent) {
                       <code>{{ store.getResolvedFieldTypeForDb(field, 'mysql') }}</code>
                       <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
                       <code>{{ store.getResolvedFieldTypeForDb(field, 'postgresql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">SQLite:</span>
+                      <code>{{ store.getResolvedFieldTypeForDb(field, 'sqlite') }}</code>
                     </div>
                   </div>
                   <!-- MySQL/PGSQL Override -->
@@ -393,6 +395,13 @@ function onDropTail(e: DragEvent) {
                         <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_length')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_length', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_scale', ($event.target as HTMLInputElement).value)">
                         <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'postgresql', 'default')" @input="store.setFieldOverrideValue(field, 'postgresql', 'default', ($event.target as HTMLInputElement).value)">
+                      </div>
+                      <div class="db-override-group">
+                        <div class="db-label">{{ $t('fieldTable.sqlite') }}</div>
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'sqlite', 'field_type')" @input="store.setFieldOverrideValue(field, 'sqlite', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'sqlite', 'field_length')" @input="store.setFieldOverrideValue(field, 'sqlite', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'sqlite', 'field_scale')" @input="store.setFieldOverrideValue(field, 'sqlite', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'sqlite', 'default')" @input="store.setFieldOverrideValue(field, 'sqlite', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
                   </div>
@@ -416,6 +425,7 @@ function onDropTail(e: DragEvent) {
                             <th>{{ $t('fieldTable.commentOptionValue') }}</th>
                             <th>{{ $t('fieldTable.mysql') }}</th>
                             <th>{{ $t('fieldTable.postgresql') }}</th>
+                            <th>{{ $t('fieldTable.sqlite') }}</th>
                             <th style="width:32px;"></th>
                           </tr>
                         </thead>
@@ -425,6 +435,7 @@ function onDropTail(e: DragEvent) {
                             <td><input class="form-input" :value="opt.value" @input="onCommentOptionInput(field, oIdx, 'value', ($event.target as HTMLInputElement).value)" :placeholder="$t('fieldTable.commentOptionValuePlaceholder')"></td>
                             <td><input class="form-input" :value="opt.mysql ?? ''" @input="onCommentOptionInput(field, oIdx, 'mysql', ($event.target as HTMLInputElement).value)" placeholder="0"></td>
                             <td><input class="form-input" :value="opt.postgresql ?? ''" @input="onCommentOptionInput(field, oIdx, 'postgresql', ($event.target as HTMLInputElement).value)" placeholder="FALSE"></td>
+                            <td><input class="form-input" :value="opt.sqlite ?? ''" @input="onCommentOptionInput(field, oIdx, 'sqlite', ($event.target as HTMLInputElement).value)" placeholder="0"></td>
                             <td><button class="btn btn-sm btn-danger" @click="store.removeFieldCommentOption(store.currentTable!, field, oIdx)">×</button></td>
                           </tr>
                         </tbody>
@@ -438,6 +449,10 @@ function onDropTail(e: DragEvent) {
                         <div class="resolved-type-row">
                           <span class="db-label">PostgreSQL:</span>
                           <code>{{ commentOptionsPreview(field, 'postgresql') || '-' }}</code>
+                        </div>
+                        <div class="resolved-type-row">
+                          <span class="db-label">SQLite:</span>
+                          <code>{{ commentOptionsPreview(field, 'sqlite') || '-' }}</code>
                         </div>
                       </div>
                     </div>

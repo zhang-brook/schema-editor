@@ -22,6 +22,7 @@ function toggleOverride(idx: number) {
     if (col) {
       if (col.mysql && Object.keys(col.mysql).length === 0) delete col.mysql
       if (col.postgresql && Object.keys(col.postgresql).length === 0) delete col.postgresql
+      if (col.sqlite && Object.keys(col.sqlite).length === 0) delete col.sqlite
     }
     expandedOverrides.delete(idx)
   } else {
@@ -30,6 +31,7 @@ function toggleOverride(idx: number) {
     if (col) {
       if (!col.mysql) col.mysql = {}
       if (!col.postgresql) col.postgresql = {}
+      if (!col.sqlite) col.sqlite = {}
     }
     expandedOverrides.add(idx)
   }
@@ -139,6 +141,18 @@ watch(() => props.modelValue, () => {
               class="form-input"
               :value="col.postgresql?.sort_order ?? ''"
               @change="setDbSortOrder(col, 'postgresql', ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
+              <option value="ASC">ASC</option>
+              <option value="DESC">DESC</option>
+            </select>
+          </div>
+          <div class="db-override-group">
+            <div class="db-label">SQLite</div>
+            <select
+              class="form-input"
+              :value="col.sqlite?.sort_order ?? ''"
+              @change="setDbSortOrder(col, 'sqlite', ($event.target as HTMLSelectElement).value)"
             >
               <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
               <option value="ASC">ASC</option>

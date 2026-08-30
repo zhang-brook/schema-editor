@@ -14,7 +14,7 @@ import {
 import { newFieldId, newTableId, newSchemaId, newIndexId, newInitialDataId } from '@/core/ids'
 import { sanitizeName } from '@/core/workspace/layout'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
-import { resolveFieldTypeForDialect, resolveIndexName } from '@/utils/sql-generator/shared'
+import { resolveFieldTypeForDialect, resolveIndexName, ALL_SQL_DIALECTS } from '@/utils/sql-generator/shared'
 import { formatIndexColumn } from '@/utils/index-column-utils'
 import { parseFieldLengthInput } from '@/utils/file-helpers'
 import { confirmDialog } from '@/composables/useConfirm'
@@ -756,7 +756,10 @@ export function createCrudActions(deps: CrudDeps) {
     const resolved = getResolvedField(field)
     const m = resolved.mysql
     const p = resolved.postgresql
-    return (!!m && Object.keys(m).length > 0) || (!!p && Object.keys(p).length > 0)
+    const s = resolved.sqlite
+    return (!!m && Object.keys(m).length > 0)
+      || (!!p && Object.keys(p).length > 0)
+      || (!!s && Object.keys(s).length > 0)
   }
 
   /** 解析字段默认值是否需要引号包裹 */
@@ -1422,7 +1425,8 @@ export function createCrudActions(deps: CrudDeps) {
         } else {
           delete table.pre_sql[dialect]
         }
-        if (table.pre_sql && !table.pre_sql.mysql && !table.pre_sql.postgresql) {
+        // 各方言均已清空时移除整个 pre_sql 对象（不逐个方言列举，便于后续扩展方言）
+        if (table.pre_sql && Object.keys(table.pre_sql).length === 0) {
           delete table.pre_sql
         }
       },
@@ -1453,7 +1457,7 @@ export function createCrudActions(deps: CrudDeps) {
         } else {
           delete table.post_sql[dialect]
         }
-        if (table.post_sql && !table.post_sql.mysql && !table.post_sql.postgresql) {
+        if (table.post_sql && Object.keys(table.post_sql).length === 0) {
           delete table.post_sql
         }
       },
@@ -1486,7 +1490,7 @@ export function createCrudActions(deps: CrudDeps) {
         } else {
           delete schema.pre_sql[dialect]
         }
-        if (schema.pre_sql && !schema.pre_sql.mysql && !schema.pre_sql.postgresql) {
+        if (schema.pre_sql && Object.keys(schema.pre_sql).length === 0) {
           delete schema.pre_sql
         }
       },
@@ -1517,7 +1521,7 @@ export function createCrudActions(deps: CrudDeps) {
         } else {
           delete schema.post_sql[dialect]
         }
-        if (schema.post_sql && !schema.post_sql.mysql && !schema.post_sql.postgresql) {
+        if (schema.post_sql && Object.keys(schema.post_sql).length === 0) {
           delete schema.post_sql
         }
       },
@@ -1620,12 +1624,12 @@ export function createCrudActions(deps: CrudDeps) {
     applyCommentOptions(field, newArr, `field-comment-options-add:${field.field_name}:${newArr.length}`)
   }
 
-  /** 编辑某个注释选项的字段（label/value/mysql/postgresql） */
+  /** 编辑某个注释选项的字段（label/value/mysql/postgresql/sqlite） */
   function updateFieldCommentOption(_table: Table, field: Field, idx: number, key: keyof CommentOption, value: string) {
     if (!field.comment_options || idx < 0 || idx >= field.comment_options.length) return
     const newArr = field.comment_options.map(o => ({ ...o }))
     const target = newArr[idx]!
-    if (key === 'mysql' || key === 'postgresql') {
+    if (key === 'mysql' || key === 'postgresql' || key === 'sqlite') {
       // 方言覆盖为空时省略，保持 JSON 精简
       if (value === '') delete target[key]
       else target[key] = value
@@ -1707,10 +1711,10 @@ export function createCrudActions(deps: CrudDeps) {
     }
 
     // pre_sql / post_sql
-    if (table.pre_sql && (table.pre_sql.mysql || table.pre_sql.postgresql)) {
+    if (table.pre_sql && Object.keys(table.pre_sql).length > 0) {
       tableData.pre_sql = { ...table.pre_sql }
     }
-    if (table.post_sql && (table.post_sql.mysql || table.post_sql.postgresql)) {
+    if (table.post_sql && Object.keys(table.post_sql).length > 0) {
       tableData.post_sql = { ...table.post_sql }
     }
 
@@ -1726,7 +1730,7 @@ export function createCrudActions(deps: CrudDeps) {
     // partition（按方言配置，空时不写出）
     if (table.partition && Object.keys(table.partition).length > 0) {
       const resolved: TablePartitionConfig = {}
-      for (const dialect of ['mysql', 'postgresql'] as const) {
+      for (const dialect of ALL_SQL_DIALECTS) {
         const cfg = table.partition[dialect]
         if (cfg && Object.keys(cfg).length > 0) {
           const next: PartitionByConfig = {}
@@ -1772,6 +1776,7 @@ export function createCrudActions(deps: CrudDeps) {
             const co: CommentOption = { label: o.label ?? '', value: o.value ?? '' }
             if (o.mysql !== undefined && o.mysql !== '') co.mysql = o.mysql
             if (o.postgresql !== undefined && o.postgresql !== '') co.postgresql = o.postgresql
+            if (o.sqlite !== undefined && o.sqlite !== '') co.sqlite = o.sqlite
             return co
           })
         }
@@ -1781,6 +1786,7 @@ export function createCrudActions(deps: CrudDeps) {
         // db overrides
         if (field.mysql && Object.keys(field.mysql).length > 0) f.mysql = { ...field.mysql }
         if (field.postgresql && Object.keys(field.postgresql).length > 0) f.postgresql = { ...field.postgresql }
+        if (field.sqlite && Object.keys(field.sqlite).length > 0) f.sqlite = { ...field.sqlite }
       }
       return f
     })
@@ -1797,12 +1803,14 @@ export function createCrudActions(deps: CrudDeps) {
         if (c.sort_order) col.sort_order = c.sort_order
         if (c.mysql && Object.keys(c.mysql).length > 0) col.mysql = { ...c.mysql }
         if (c.postgresql && Object.keys(c.postgresql).length > 0) col.postgresql = { ...c.postgresql }
+        if (c.sqlite && Object.keys(c.sqlite).length > 0) col.sqlite = { ...c.sqlite }
         return col
       })
       if (index.comment) idx.comment = index.comment
       if (index.pre_comment) idx.pre_comment = index.pre_comment
       if (index.mysql && Object.keys(index.mysql).length > 0) idx.mysql = { ...index.mysql }
       if (index.postgresql && Object.keys(index.postgresql).length > 0) idx.postgresql = { ...index.postgresql }
+      if (index.sqlite && Object.keys(index.sqlite).length > 0) idx.sqlite = { ...index.sqlite }
       return idx as Index
     })
 
@@ -1816,10 +1824,10 @@ export function createCrudActions(deps: CrudDeps) {
     }
     if (schema.schema_id) data.schema_id = schema.schema_id
     // schema 级别 pre_sql / post_sql
-    if (schema.pre_sql && (schema.pre_sql.mysql || schema.pre_sql.postgresql)) {
+    if (schema.pre_sql && Object.keys(schema.pre_sql).length > 0) {
       data.pre_sql = { ...schema.pre_sql }
     }
-    if (schema.post_sql && (schema.post_sql.mysql || schema.post_sql.postgresql)) {
+    if (schema.post_sql && Object.keys(schema.post_sql).length > 0) {
       data.post_sql = { ...schema.post_sql }
     }
     return data

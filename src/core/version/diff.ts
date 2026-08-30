@@ -40,12 +40,13 @@ const FIELD_COMPARE_KEYS: (keyof Field)[] = [
   'use_common_used_fields',
   'mysql',
   'postgresql',
+  'sqlite',
 ]
 
 /** 对单索引的「语义属性」做对比（排除 name，name 作为匹配/标识） */
 function compareIndexSemantics(a: Index, b: Index): Record<string, [any, any]> {
   const changes: Record<string, [any, any]> = {}
-  const keys: (keyof Index)[] = ['type', 'using', 'columns', 'comment', 'pre_comment', 'mysql', 'postgresql']
+  const keys: (keyof Index)[] = ['type', 'using', 'columns', 'comment', 'pre_comment', 'mysql', 'postgresql', 'sqlite']
   for (const k of keys) {
     const av = (a as any)[k]
     const bv = (b as any)[k]

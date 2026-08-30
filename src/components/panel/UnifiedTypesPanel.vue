@@ -107,6 +107,9 @@ function readUnifiedTypes(): UnifiedTypeDefinition[] {
     default_input: ut.default_input,
     mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
     postgresql: { type: ut.postgresql.type, length: ut.postgresql.length, scale: ut.postgresql.scale },
+    sqlite: ut.sqlite
+      ? { type: ut.sqlite.type, length: ut.sqlite.length, scale: ut.sqlite.scale }
+      : undefined,
   }))
 }
 
@@ -146,6 +149,36 @@ function handleDeleteUnifiedType(idx: number) {
   store.deleteUnifiedType(idx)
   localUnifiedTypes.value = readUnifiedTypes()
 }
+
+// ===== SQLite 映射编辑（sqlite 可选，未配置时才惰性创建） =====
+
+/** 读取 SQLite 映射值（未配置时返回空串） */
+function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'): string {
+  const v = ut.sqlite?.[key]
+  return v === undefined || v === null ? '' : String(v)
+}
+
+/** 写入 SQLite 映射值；全部清空时移除整个 sqlite 对象，避免写出空对象 */
+function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale', raw: string) {
+  if (!ut.sqlite) {
+    if (raw === '') return
+    ut.sqlite = { type: '' }
+  }
+  if (key === 'type') {
+    ut.sqlite.type = raw
+  } else {
+    const parsed = key === 'length' ? parseFieldLengthInput(raw) : parseFieldScaleInput(raw)
+    if (parsed === null || parsed === undefined) {
+      delete ut.sqlite[key]
+    } else {
+      ut.sqlite[key] = parsed
+    }
+  }
+  if (!ut.sqlite.type && ut.sqlite.length == null && ut.sqlite.scale == null) {
+    delete ut.sqlite
+  }
+  syncUnifiedTypes()
+}
 </script>
 
 <template>
@@ -179,6 +212,9 @@ function handleDeleteUnifiedType(idx: number) {
               <th>{{ $t('commonConfig.unifiedTypes.postgresqlType') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.postgresqlLength') }}</th>
               <th>{{ $t('commonConfig.unifiedTypes.postgresqlScale') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.sqliteType') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.sqliteLength') }}</th>
+              <th>{{ $t('commonConfig.unifiedTypes.sqliteScale') }}</th>
               <th style="width:60px;">{{ $t('commonConfig.unifiedTypes.quoteDefault') }}</th>
               <th style="width:100px;">{{ $t('commonConfig.unifiedTypes.defaultInput') }}</th>
               <th style="width:90px;"></th>
@@ -266,6 +302,30 @@ function handleDeleteUnifiedType(idx: number) {
                   style="width:50px;"
                 />
               </td>
+              <td>
+                <input
+                  class="table-input"
+                  :value="sqliteValue(ut, 'type')"
+                  @change="setSqliteValue(ut, 'type', ($event.target as HTMLInputElement).value)"
+                  style="min-width:80px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  :value="sqliteValue(ut, 'length')"
+                  @input="setSqliteValue(ut, 'length', ($event.target as HTMLInputElement).value)"
+                  style="width:60px;"
+                />
+              </td>
+              <td>
+                <input
+                  class="table-input"
+                  :value="sqliteValue(ut, 'scale')"
+                  @input="setSqliteValue(ut, 'scale', ($event.target as HTMLInputElement).value)"
+                  style="width:50px;"
+                />
+              </td>
               <td style="text-align:center;">
                 <input type="checkbox" class="table-checkbox" v-model="ut.quote_default" @change="syncUnifiedTypes()" />
               </td>
@@ -295,10 +355,10 @@ function handleDeleteUnifiedType(idx: number) {
               @dragleave="onUnifiedTypeDropTailLeave"
               @drop="onUnifiedTypeDropTail"
             >
-              <td :colspan="12"></td>
+              <td :colspan="15"></td>
             </tr>
             <tr v-if="localUnifiedTypes.length === 0">
-              <td colspan="12" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="15" style="text-align:center; color:#aaa; padding:16px;">
                 {{ $t('commonConfig.emptyTypes') }}
               </td>
             </tr>

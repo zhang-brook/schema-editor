@@ -74,11 +74,15 @@ function setTablePostSql(dialect: SqlDialect, val: string) {
         :mysql-post="tablePostSql('mysql')"
         :postgresql-pre="tablePreSql('postgresql')"
         :postgresql-post="tablePostSql('postgresql')"
+        :sqlite-pre="tablePreSql('sqlite')"
+        :sqlite-post="tablePostSql('sqlite')"
         :rows="3"
         @update:mysql-pre="setTablePreSql('mysql', $event)"
         @update:mysql-post="setTablePostSql('mysql', $event)"
         @update:postgresql-pre="setTablePreSql('postgresql', $event)"
         @update:postgresql-post="setTablePostSql('postgresql', $event)"
+        @update:sqlite-pre="setTablePreSql('sqlite', $event)"
+        @update:sqlite-post="setTablePostSql('sqlite', $event)"
       />
 
       <!-- SQL Preview -->

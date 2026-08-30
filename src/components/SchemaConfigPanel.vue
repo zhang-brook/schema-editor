@@ -44,10 +44,14 @@ function setPostSql(dialect: SqlDialect, val: string) {
       :mysql-post="schemaPostSql('mysql')"
       :postgresql-pre="schemaPreSql('postgresql')"
       :postgresql-post="schemaPostSql('postgresql')"
+      :sqlite-pre="schemaPreSql('sqlite')"
+      :sqlite-post="schemaPostSql('sqlite')"
       @update:mysql-pre="setPreSql('mysql', $event)"
       @update:mysql-post="setPostSql('mysql', $event)"
       @update:postgresql-pre="setPreSql('postgresql', $event)"
       @update:postgresql-post="setPostSql('postgresql', $event)"
+      @update:sqlite-pre="setPreSql('sqlite', $event)"
+      @update:sqlite-post="setPostSql('sqlite', $event)"
     />
   </template>
 </template>

@@ -200,9 +200,9 @@ export function buildInitialDataExport(data: InitialData): Record<string, any> {
     })
   }
 
-  const hasPreSql = !!(data.pre_sql && (data.pre_sql.mysql || data.pre_sql.postgresql))
+  const hasPreSql = !!(data.pre_sql && Object.keys(data.pre_sql).length > 0)
   if (hasPreSql) exportData.pre_sql = toRaw(data.pre_sql)
-  const hasPostSql = !!(data.post_sql && (data.post_sql.mysql || data.post_sql.postgresql))
+  const hasPostSql = !!(data.post_sql && Object.keys(data.post_sql).length > 0)
   if (hasPostSql) exportData.post_sql = toRaw(data.post_sql)
 
   return exportData

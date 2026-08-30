@@ -11,6 +11,8 @@ defineProps<{
   mysqlPost: string
   postgresqlPre: string
   postgresqlPost: string
+  sqlitePre: string
+  sqlitePost: string
 }>()
 
 const emit = defineEmits<{
@@ -18,6 +20,8 @@ const emit = defineEmits<{
   'update:mysqlPost': [value: string]
   'update:postgresqlPre': [value: string]
   'update:postgresqlPost': [value: string]
+  'update:sqlitePre': [value: string]
+  'update:sqlitePost': [value: string]
 }>()
 
 const dialect = ref<SqlDialect>('mysql')
@@ -33,6 +37,7 @@ const dialect = ref<SqlDialect>('mysql')
         <div class="tab-group">
           <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">MySQL</button>
           <button class="tab-btn" :class="{ active: dialect === 'postgresql' }" @click="dialect = 'postgresql'">PostgreSQL</button>
+          <button class="tab-btn" :class="{ active: dialect === 'sqlite' }" @click="dialect = 'sqlite'">SQLite</button>
         </div>
       </div>
       <div class="header-right">
@@ -60,6 +65,14 @@ const dialect = ref<SqlDialect>('mysql')
             :placeholder="prePlaceholder"
             :rows="rows ?? 4"
           ></textarea>
+          <textarea
+            v-else-if="dialect === 'sqlite'"
+            class="sql-textarea"
+            :value="sqlitePre"
+            @input="emit('update:sqlitePre', ($event.target as HTMLTextAreaElement).value)"
+            :placeholder="prePlaceholder"
+            :rows="rows ?? 4"
+          ></textarea>
         </div>
         <!-- 后置 SQL -->
         <div class="sql-group">
@@ -77,6 +90,14 @@ const dialect = ref<SqlDialect>('mysql')
             class="sql-textarea"
             :value="postgresqlPost"
             @input="emit('update:postgresqlPost', ($event.target as HTMLTextAreaElement).value)"
+            :placeholder="postPlaceholder"
+            :rows="rows ?? 4"
+          ></textarea>
+          <textarea
+            v-else-if="dialect === 'sqlite'"
+            class="sql-textarea"
+            :value="sqlitePost"
+            @input="emit('update:sqlitePost', ($event.target as HTMLTextAreaElement).value)"
             :placeholder="postPlaceholder"
             :rows="rows ?? 4"
           ></textarea>

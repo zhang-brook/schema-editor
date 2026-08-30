@@ -26,14 +26,7 @@ import {
   writeInitialDataToNewStructure,
   deleteInitialDataFromNewStructure,
 } from '@/utils/initial-data-io'
-import {
-  generateSchemaMySQL,
-  generateInitialDataAllMySQL,
-} from '@/utils/sql-generator/mysql'
-import {
-  generateSchemaPostgreSQL,
-  generateInitialDataAllPostgreSQL,
-} from '@/utils/sql-generator/postgresql'
+import { DIALECT_GENERATORS } from '@/utils/sql-generator'
 import { checkVersion } from '@/utils/structure-migrations/version-utils'
 import { runStructureMigrations } from '@/utils/structure-migrations'
 import {
@@ -54,7 +47,7 @@ import {
 } from '@/utils/ai-guide'
 import { writeTextFile, removeEntry, getFileHandleSafe } from '@/core/workspace/handles'
 import { fmtPrePostSql, getGlobalPostSql, getGlobalPreSql } from '@/utils/sql-generator/shared'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { ALL_SQL_DIALECTS, type SqlDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
 import { createInitialDataActions } from './editor-initial-data'
@@ -363,6 +356,9 @@ export const useEditorStore = defineStore('editor', () => {
         },
         postgresql: {
           quote_identifiers: true,
+        },
+        sqlite: {
+          quote_identifiers: true,
         }
       },
       common_used_fields: {},
@@ -399,6 +395,10 @@ export const useEditorStore = defineStore('editor', () => {
       if (data?.default_config && data?.common_used_fields) {
         if (!data.default_config.postgresql) {
           data.default_config.postgresql = { quote_identifiers: true }
+        }
+        // sqlite 为后加方言，旧 common.json 无此键时补齐默认配置
+        if (!data.default_config.sqlite) {
+          data.default_config.sqlite = { quote_identifiers: true }
         }
         common = data
       }
@@ -699,12 +699,11 @@ export const useEditorStore = defineStore('editor', () => {
               initialDataDeletedKeys.delete(key)
             }
           }
-          try {
-            await deleteSqlFromOutput(rootDirHandle.value, 'mysql', `${f.schema}.sql`)
-          } catch { /* 忽略 */ }
-          try {
-            await deleteSqlFromOutput(rootDirHandle.value, 'postgresql', `${f.schema}.sql`)
-          } catch { /* 忽略 */ }
+          for (const dialect of ALL_SQL_DIALECTS) {
+            try {
+              await deleteSqlFromOutput(rootDirHandle.value, dialect, `${f.schema}.sql`)
+            } catch { /* 忽略 */ }
+          }
         }
       }
 
@@ -718,12 +717,11 @@ export const useEditorStore = defineStore('editor', () => {
           // 表已从内存移除（删除命令生效）：清理磁盘对应目录 + initial-data + SQL output
           await deleteTableDirFromHandle(rootDirHandle.value, f.schema, f.table)
           await deleteInitialDataFromNewStructure(rootDirHandle.value, f.schema, f.table)
-          try {
-            await deleteSqlFromOutput(rootDirHandle.value, 'mysql', `${f.schema}.sql`)
-          } catch { /* 忽略 */ }
-          try {
-            await deleteSqlFromOutput(rootDirHandle.value, 'postgresql', `${f.schema}.sql`)
-          } catch { /* 忽略 */ }
+          for (const dialect of ALL_SQL_DIALECTS) {
+            try {
+              await deleteSqlFromOutput(rootDirHandle.value, dialect, `${f.schema}.sql`)
+            } catch { /* 忽略 */ }
+          }
         }
       }
 
@@ -864,58 +862,40 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 生成 MySQL/PostgreSQL SQL 并写入 output/<dialect>/<schema>.sql */
+  /** 生成各数据库方言的 SQL 并写入 output/<dialect>/<schema>.sql */
   async function syncSqlToOutput() {
     if (!rootDirHandle.value) return
     try {
-      const allMysql: { name: string; sql: string }[] = []
-      const allPostgresql: { name: string; sql: string }[] = []
+      for (const dialect of ALL_SQL_DIALECTS) {
+        const generators = DIALECT_GENERATORS[dialect]
+        const allSchemaSql: { name: string; sql: string }[] = []
 
-      // 生成每个 Schema 的建表 SQL
-      for (const schema of schemas) {
-        const mysqlSql = generateSchemaMySQL(schema, commonConfig.value)
-        await writeSqlToOutput(rootDirHandle.value, 'mysql', `${schema.schema}.sql`, mysqlSql)
-        allMysql.push({ name: schema.schema, sql: mysqlSql })
+        // 生成每个 Schema 的建表 SQL
+        for (const schema of schemas) {
+          const sql = generators.schema(schema, commonConfig.value)
+          await writeSqlToOutput(rootDirHandle.value, dialect, `${schema.schema}.sql`, sql)
+          allSchemaSql.push({ name: schema.schema, sql })
+        }
 
-        const postgresqlSql = generateSchemaPostgreSQL(schema, commonConfig.value)
-        await writeSqlToOutput(rootDirHandle.value, 'postgresql', `${schema.schema}.sql`, postgresqlSql)
-        allPostgresql.push({ name: schema.schema, sql: postgresqlSql })
-      }
+        // 生成包含所有 schema 的汇总文件（按 schema_order 顺序排列）
+        if (allSchemaSql.length > 0) {
+          // 全局前/后置 SQL
+          const globalPreSql = getGlobalPreSql(commonConfig.value, dialect)
+          const globalPostSql = getGlobalPostSql(commonConfig.value, dialect)
 
-      // 生成包含所有 schema 的汇总文件（按 schema_order 顺序排列）
-      if (allMysql.length > 0) {
-        // 全局前/后置 SQL
-        const globalPreSql = getGlobalPreSql(commonConfig.value, 'mysql')
-        const globalPostSql = getGlobalPostSql(commonConfig.value, 'mysql')
+          const finalAllSchemaSql = [
+            globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
+            allSchemaSql.map(s => s.sql).join('\n\n'),
+            globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
+          ].join('')
+          await writeSqlToOutput(rootDirHandle.value, dialect, '__all_schemas__.sql', finalAllSchemaSql)
+        }
 
-        const finalAllSchemaMySQL = [
-          globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
-          allMysql.map(s => s.sql).join('\n\n'),
-          globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
-        ].join('')
-        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__all_schemas__.sql', finalAllSchemaMySQL)
-      }
-      if (allPostgresql.length > 0) {
-        // 全局前/后置 SQL
-        const globalPreSql = getGlobalPreSql(commonConfig.value, 'postgresql')
-        const globalPostSql = getGlobalPostSql(commonConfig.value, 'postgresql')
-
-        const finalAllSchemaPostgreSQL = [
-          globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
-          allPostgresql.map(s => s.sql).join('\n\n'),
-          globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
-        ].join('')
-        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__all_schemas__.sql', finalAllSchemaPostgreSQL)
-      }
-
-      // 生成 Initial Data 的 INSERT 语句汇总文件
-      const initialDataMysql = generateInitialDataAllMySQL(schemas, initialDataMap, commonConfig.value)
-      if (initialDataMysql.trim()) {
-        await writeSqlToOutput(rootDirHandle.value, 'mysql', '__initial_data__.sql', initialDataMysql)
-      }
-      const initialDataPostgresql = generateInitialDataAllPostgreSQL(schemas, initialDataMap, commonConfig.value)
-      if (initialDataPostgresql.trim()) {
-        await writeSqlToOutput(rootDirHandle.value, 'postgresql', '__initial_data__.sql', initialDataPostgresql)
+        // 生成 Initial Data 的 INSERT 语句汇总文件
+        const initialDataSql = generators.initialData(schemas, initialDataMap, commonConfig.value)
+        if (initialDataSql.trim()) {
+          await writeSqlToOutput(rootDirHandle.value, dialect, '__initial_data__.sql', initialDataSql)
+        }
       }
     } catch (e) {
       console.error('SQL output sync failed:', e)
@@ -1098,6 +1078,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonMysqlCollation,
     getCommonPostgresqlQuoteIdentifiers,
     setCommonPostgresqlQuoteIdentifiers,
+    getCommonSqliteQuoteIdentifiers,
+    setCommonSqliteQuoteIdentifiers,
     getTableDdlMode,
     setTableDdlMode,
     getCommonTypeCase,
@@ -1320,6 +1302,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonMysqlCollation,
     getCommonPostgresqlQuoteIdentifiers,
     setCommonPostgresqlQuoteIdentifiers,
+    getCommonSqliteQuoteIdentifiers,
+    setCommonSqliteQuoteIdentifiers,
     getTableDdlMode,
     setTableDdlMode,
     getCommonTypeCase,

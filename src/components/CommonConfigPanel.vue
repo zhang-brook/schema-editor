@@ -69,6 +69,29 @@ const store = useEditorStore()
       </div>
     </div>
 
+    <!-- Default SQLite Config -->
+    <div class="section-card">
+      <div class="section-header">{{ $t('commonConfig.defaultSqliteConfig') }}</div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">{{ $t('commonConfig.quoteIdentifiers') }}</label>
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="store.getCommonSqliteQuoteIdentifiers()"
+                  @change="store.setCommonSqliteQuoteIdentifiers(($event.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-hint">{{ $t('commonConfig.quoteIdentifiersHint') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- DDL 生成选项 -->
     <div class="section-card">
       <div class="section-header">{{ $t('commonConfig.ddlOptionsTitle') }}</div>
@@ -106,10 +129,14 @@ const store = useEditorStore()
       :mysql-post="getGlobalPostSql(store.commonConfig, 'mysql')"
       :postgresql-pre="getGlobalPreSql(store.commonConfig, 'postgresql')"
       :postgresql-post="getGlobalPostSql(store.commonConfig, 'postgresql')"
+      :sqlite-pre="getGlobalPreSql(store.commonConfig, 'sqlite')"
+      :sqlite-post="getGlobalPostSql(store.commonConfig, 'sqlite')"
       @update:mysql-pre="store.setGlobalPreSql('mysql', $event)"
       @update:mysql-post="store.setGlobalPostSql('mysql', $event)"
       @update:postgresql-pre="store.setGlobalPreSql('postgresql', $event)"
       @update:postgresql-post="store.setGlobalPostSql('postgresql', $event)"
+      @update:sqlite-pre="store.setGlobalPreSql('sqlite', $event)"
+      @update:sqlite-post="store.setGlobalPostSql('sqlite', $event)"
     />
 
     <!-- Field Type Case -->

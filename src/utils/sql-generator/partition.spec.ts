@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { Table, CommonConfig } from '@/types/schema'
 import { generateTableMySQL } from './mysql'
 import { generateTablePostgreSQL } from './postgresql'
+import { generateTableSQLite } from './sqlite'
 
 function makeTable(partition?: Table['partition']): Table {
   return {
@@ -86,6 +87,15 @@ describe('partition by clause', () => {
   it('no partition config → no PARTITION BY', () => {
     expect(generateTableMySQL(makeTable(), commonConfig)).not.toContain('PARTITION BY')
     expect(generateTablePostgreSQL(makeTable(), 'public', commonConfig)).not.toContain('PARTITION BY')
+    expect(generateTableSQLite(makeTable(), commonConfig)).not.toContain('PARTITION BY')
+  })
+
+  it('sqlite: partition 配置被忽略（SQLite 不支持 PARTITION BY）', () => {
+    const sql = generateTableSQLite(
+      makeTable({ sqlite: { strategy: 'RANGE', columns: ['created_at'] } }),
+      commonConfig,
+    )
+    expect(sql).not.toContain('PARTITION BY')
   })
 
   it('empty strategy with empty columns → no PARTITION BY', () => {

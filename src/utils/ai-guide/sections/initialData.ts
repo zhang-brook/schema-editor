@@ -14,8 +14,8 @@ export const initialDataBody = `### initial-data.json（初始数据）
       "row_comment": "示例行"          // 可选：行级注释
     }
   ],
-  "pre_sql":  { "mysql": "", "postgresql": "" },
-  "post_sql": { "mysql": "", "postgresql": "" }
+  "pre_sql":  { "mysql": "", "postgresql": "", "sqlite": "" },
+  "post_sql": { "mysql": "", "postgresql": "", "sqlite": "" }
 }
 \`\`\`
 

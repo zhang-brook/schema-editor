@@ -107,8 +107,10 @@ function clearPrePostSql() {
   if (!data) return
   store.setInitialDataPreSql(data, 'mysql', '')
   store.setInitialDataPreSql(data, 'postgresql', '')
+  store.setInitialDataPreSql(data, 'sqlite', '')
   store.setInitialDataPostSql(data, 'mysql', '')
   store.setInitialDataPostSql(data, 'postgresql', '')
+  store.setInitialDataPostSql(data, 'sqlite', '')
 }
 
 function parseJsonInput(text: string): InitialData | null {
@@ -369,8 +371,10 @@ function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
       :pre-placeholder="$t('initialData.preSqlPlaceholder')" :post-placeholder="$t('initialData.postSqlPlaceholder')"
       :mysql-pre="getInitialDataPreSql(initialData, 'mysql')" :mysql-post="getInitialDataPostSql(initialData, 'mysql')"
       :postgresql-pre="getInitialDataPreSql(initialData, 'postgresql')" :postgresql-post="getInitialDataPostSql(initialData, 'postgresql')"
+      :sqlite-pre="getInitialDataPreSql(initialData, 'sqlite')" :sqlite-post="getInitialDataPostSql(initialData, 'sqlite')"
       :rows="3" @update:mysql-pre="handlePreSql('mysql', $event)" @update:mysql-post="handlePostSql('mysql', $event)"
-      @update:postgresql-pre="handlePreSql('postgresql', $event)" @update:postgresql-post="handlePostSql('postgresql', $event)">
+      @update:postgresql-pre="handlePreSql('postgresql', $event)" @update:postgresql-post="handlePostSql('postgresql', $event)"
+      @update:sqlite-pre="handlePreSql('sqlite', $event)" @update:sqlite-post="handlePostSql('sqlite', $event)">
       <template #header-actions>
         <button class="btn btn-sm btn-danger" @click="clearPrePostSql">{{ $t('initialData.clear') }}</button>
       </template>

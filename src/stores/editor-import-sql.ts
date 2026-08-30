@@ -72,6 +72,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
         columns: pkColumns.map(c => ({ name: c.name })),
         mysql: { type: 'primary' },
         postgresql: { type: 'primary' },
+        sqlite: { type: 'primary' },
       })
     }
 
@@ -124,6 +125,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
         }
         index.mysql = { type: 'primary' }
         index.postgresql = { type: 'primary' }
+        index.sqlite = { type: 'primary' }
       } else if (constraint.type === 'UNIQUE') {
         index.type = 'unique'
       } else if (constraint.type === 'FULLTEXT') {

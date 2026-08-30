@@ -9,6 +9,7 @@ import type {
 } from '@/core/version/types'
 import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
 import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
+import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
 import { confirmDialog } from '@/composables/useConfirm'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
@@ -97,9 +98,9 @@ function buildEmptyStep(type: MigrationStep['type']): MigrationStep {
     case 'clear_column':
       return { type: 'clear_column', schema: '', table: '', column: '' }
     case 'sql_transform':
-      return { type: 'sql_transform', mysql: '', postgresql: '' }
+      return { type: 'sql_transform', mysql: '', postgresql: '', sqlite: '' }
     case 'custom_sql':
-      return { type: 'custom_sql', mysql: '', postgresql: '' }
+      return { type: 'custom_sql', mysql: '', postgresql: '', sqlite: '' }
   }
 }
 
@@ -129,7 +130,7 @@ async function onDeleteMigration(id: string, name: string) {
 
 function previewText(): string {
   if (!preview.value) return ''
-  return previewDialect.value === 'mysql' ? preview.value.mysql : preview.value.postgresql
+  return preview.value[previewDialect.value]
 }
 
 // ===== 版本预览 =====
@@ -149,26 +150,27 @@ function onCloseVersionPreview() {
 /** 从版本快照生成 SQL */
 const versionSqlPreview = computed(() => {
   const snap = store.selectedVersionSnapshot
-  if (!snap) return { mysql: '', postgresql: '' }
+  if (!snap) return { mysql: '', postgresql: '', sqlite: '' }
   const common = snap.common
   const schemas = snap.schemas
-  if (!schemas || schemas.length === 0) return { mysql: '', postgresql: '' }
+  if (!schemas || schemas.length === 0) return { mysql: '', postgresql: '', sqlite: '' }
 
   let mysql = ''
   let postgresql = ''
+  let sqlite = ''
   for (const schema of schemas) {
     mysql += generateSchemaMySQL(schema, common)
     mysql += '\n\n\n'
     postgresql += generateSchemaPostgreSQL(schema, common)
     postgresql += '\n\n'
+    sqlite += generateSchemaSQLite(schema, common)
+    sqlite += '\n\n'
   }
-  return { mysql: mysql.trimEnd(), postgresql: postgresql.trimEnd() }
+  return { mysql: mysql.trimEnd(), postgresql: postgresql.trimEnd(), sqlite: sqlite.trimEnd() }
 })
 
 const versionSqlText = computed(() => {
-  return previewSqlDialect.value === 'mysql'
-    ? versionSqlPreview.value.mysql
-    : versionSqlPreview.value.postgresql
+  return versionSqlPreview.value[previewSqlDialect.value]
 })
 
 /** 统计快照中的表/字段/索引总数 */
@@ -339,6 +341,8 @@ onUnmounted(() => {
                       @click="previewSqlDialect = 'mysql'">MySQL</button>
                     <button :class="{ active: previewSqlDialect === 'postgresql' }"
                       @click="previewSqlDialect = 'postgresql'">PostgreSQL</button>
+                    <button :class="{ active: previewSqlDialect === 'sqlite' }"
+                      @click="previewSqlDialect = 'sqlite'">SQLite</button>
                   </div>
                 </div>
                 <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
@@ -468,6 +472,7 @@ onUnmounted(() => {
                 <template v-else-if="step.type === 'sql_transform' || step.type === 'custom_sql'">
                   <textarea v-model="step.mysql" :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
                   <textarea v-model="step.postgresql" :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
+                  <textarea v-model="step.sqlite" :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
                 </template>
                 <template v-else>
                   <div class="ps-step-hint">auto diff ({{ editingMigration.from_version }} → {{
@@ -484,7 +489,9 @@ onUnmounted(() => {
                     @click="previewDialect = 'mysql'">MySQL</button>
                   <button :class="{ active: previewDialect === 'postgresql' }"
                     @click="previewDialect = 'postgresql'">PostgreSQL</button>
-                </div>
+                  <button :class="{ active: previewDialect === 'sqlite' }"
+                    @click="previewDialect = 'sqlite'">SQLite</button>
+                  </div>
                 <button class="btn btn-sm" @click="onSaveMigration">{{ $t('migration.save') }}</button>
               </div>
               <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>

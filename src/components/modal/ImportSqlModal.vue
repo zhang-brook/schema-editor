@@ -62,6 +62,7 @@ const dialectOptions = [
   { value: 'auto' as const, label: 'auto' },
   { value: 'mysql' as const, label: 'MySQL' },
   { value: 'postgresql' as const, label: 'PostgreSQL' },
+  { value: 'sqlite' as const, label: 'SQLite' },
 ]
 
 // 格式化列类型显示

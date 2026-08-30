@@ -2,6 +2,7 @@
 export interface SqlStatements {
   mysql?: string
   postgresql?: string
+  sqlite?: string
 }
 
 /** 字段类型大小写转换模式 */
@@ -26,12 +27,18 @@ export interface UnifiedTypeDefinition {
   default_input?: DefaultInputType
   mysql: UnifiedTypeDbMapping
   postgresql: UnifiedTypeDbMapping
+  /**
+   * SQLite 方言映射。
+   * 可选：旧版本 common.json 中的 unified_types 不含该键，缺失时按「不限制类型」处理
+   * （回退到字段级 field_type），故解析链必须容忍 undefined。
+   */
+  sqlite?: UnifiedTypeDbMapping
 }
 
 /**
  * 字段注释选项含义配置项。
  * 用于在字段注释后自动拼接「值-含义」枚举（如 0-不启用，1-启用，默认1）。
- * value 为通用值；mysql/postgresql 为可选的方言覆盖值（省略时回退 value）。
+ * value 为通用值；mysql/postgresql/sqlite 为可选的方言覆盖值（省略时回退 value）。
  */
 export interface CommentOption {
   /** 选项含义标签（如「启用」） */
@@ -42,6 +49,8 @@ export interface CommentOption {
   mysql?: string
   /** PostgreSQL 方言覆盖值（省略则用 value） */
   postgresql?: string
+  /** SQLite 方言覆盖值（省略则用 value） */
+  sqlite?: string
 }
 
 // 字段的数据库特定覆盖
@@ -70,6 +79,7 @@ export interface IndexColumn {
   sort_order?: 'ASC' | 'DESC'
   mysql?: IndexColumnDbOverride
   postgresql?: IndexColumnDbOverride
+  sqlite?: IndexColumnDbOverride
 }
 
 export interface Field {
@@ -99,6 +109,7 @@ export interface Field {
   is_commented_out?: boolean
   mysql?: FieldOverride
   postgresql?: FieldOverride
+  sqlite?: FieldOverride
 }
 
 export interface Index {
@@ -112,6 +123,7 @@ export interface Index {
   comment?: string
   mysql?: IndexOverride
   postgresql?: Omit<IndexOverride, 'using'>
+  sqlite?: Omit<IndexOverride, 'using'>
   pre_comment?: string
 }
 
@@ -137,10 +149,16 @@ export interface PartitionByConfig {
   expression?: string
 }
 
-/** 表级分区配置，按方言分别配置（与 Field/Index 的 mysql?/postgresql? 覆盖模式一致） */
+/**
+ * 表级分区配置，按方言分别配置（与 Field/Index 的 mysql?/postgresql?/sqlite? 覆盖模式一致）。
+ *
+ * 注意：SQLite 不支持 `PARTITION BY`，此处的 `sqlite` 仅为「按方言索引配置」的结构完整性而保留，
+ * SQLite 生成器不会输出分区子句，UI 也不提供该方言的分区编辑入口。
+ */
 export interface TablePartitionConfig {
   mysql?: PartitionByConfig
   postgresql?: PartitionByConfig
+  sqlite?: PartitionByConfig
 }
 
 export interface Table {
@@ -195,6 +213,19 @@ export interface DefaultConfig {
     /** 全局前置 SQL（PostgreSQL 方言） */
     pre_sql?: string
     /** 全局后置 SQL（PostgreSQL 方言） */
+    post_sql?: string
+  }
+  /**
+   * SQLite 方言配置。
+   * 可选：旧版本 common.json 不含该键，缺失时按默认行为处理
+   * （quote_identifiers 视为 true、无全局前后置 SQL），读取处需用可选链容错。
+   */
+  sqlite?: {
+    /** 生成 SQL 时是否用双引号包裹表名/列名（SQLite 兼容单引号与反引号，双引号为标准写法） */
+    quote_identifiers?: boolean
+    /** 全局前置 SQL（SQLite 方言） */
+    pre_sql?: string
+    /** 全局后置 SQL（SQLite 方言） */
     post_sql?: string
   }
 }

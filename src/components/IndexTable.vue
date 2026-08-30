@@ -140,6 +140,8 @@ function togglePost(index: Index) {
                       <code>{{ store.getResolvedIndexNameForDb(index, store.currentTable!, 'mysql') }}</code>
                       <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
                       <code>{{ store.getResolvedIndexNameForDb(index, store.currentTable!, 'postgresql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">SQLite:</span>
+                      <code>{{ store.getResolvedIndexNameForDb(index, store.currentTable!, 'sqlite') }}</code>
                     </div>
                   </div>
                   <div class="expand-section">
@@ -163,6 +165,15 @@ function togglePost(index: Index) {
                           <option value="unique">unique</option>
                         </select>
                         <input class="form-input" placeholder="name" :value="store.getIndexOverrideValue(index, 'postgresql', 'name')" @input="store.setIndexOverrideValue(index, 'postgresql', 'name', ($event.target as HTMLInputElement).value)">
+                      </div>
+                      <div class="db-override-group">
+                        <div class="db-label">SQLite</div>
+                        <select class="form-input" :value="store.getIndexOverrideValue(index, 'sqlite', 'type')" @input="store.setIndexOverrideValue(index, 'sqlite', 'type', ($event.target as HTMLSelectElement).value)">
+                          <option value="">{{ $t('indexTable.typeSelect') }}</option>
+                          <option value="index">index</option>
+                          <option value="unique">unique</option>
+                        </select>
+                        <input class="form-input" placeholder="name" :value="store.getIndexOverrideValue(index, 'sqlite', 'name')" @input="store.setIndexOverrideValue(index, 'sqlite', 'name', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
                   </div>

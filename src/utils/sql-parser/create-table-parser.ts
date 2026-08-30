@@ -2,7 +2,8 @@
  * CREATE TABLE 递归下降解析器
  *
  * 将 Token 流解析为 ParsedTable 中间表示。
- * 支持 MySQL 和 PostgreSQL 两种方言的 CREATE TABLE 语法。
+ * 支持 MySQL、PostgreSQL 与 SQLite 三种方言的 CREATE TABLE 语法
+ * （SQLite 的 PRAGMA / AUTOINCREMENT / WITHOUT ROWID 等特有语法仅用于方言检测，不参与结构解析）。
  */
 
 import { lex, type Token, TokenType } from './tokenizer'

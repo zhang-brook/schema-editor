@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { generateTableMySQL } from '@/utils/sql-generator/mysql'
 import { generateTablePostgreSQL } from '@/utils/sql-generator/postgresql'
+import { generateTableSQLite } from '@/utils/sql-generator/sqlite'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
@@ -17,10 +18,15 @@ const previewSql = computed(() => {
 
   if (dialect.value === 'mysql') {
     return generateTableMySQL(table, store.commonConfig)
-  } else {
+  }
+  else if (dialect.value === 'postgresql') {
     const schemaName = schema?.schema || 'public'
     return generateTablePostgreSQL(table, schemaName, store.commonConfig)
   }
+  else if (dialect.value === 'sqlite') {
+    return generateTableSQLite(table, store.commonConfig)
+  }
+  return ''
 })
 
 function copyToClipboard() {
@@ -40,6 +46,8 @@ function copyToClipboard() {
         <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">{{ $t('sqlPreview.mysql') }}</button>
         <button class="tab-btn" :class="{ active: dialect === 'postgresql' }"
           @click="dialect = 'postgresql'">{{ $t('sqlPreview.postgresql') }}</button>
+        <button class="tab-btn" :class="{ active: dialect === 'sqlite' }"
+          @click="dialect = 'sqlite'">{{ $t('sqlPreview.sqlite') }}</button>
       </div>
       <div class="header-actions">
         <button class="btn-copy" @click="copyToClipboard" :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>

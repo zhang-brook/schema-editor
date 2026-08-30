@@ -14,12 +14,14 @@ export const indexBody = `### Index（索引）
   "comment": "邮箱唯一索引",
   "pre_comment": "-- 索引前注释",
   "mysql":      { "type": "unique", "name": "uk_xxx", "using": "BTREE" },
-  "postgresql": { "type": "unique", "name": "uk_xxx" }  // postgresql 无 using
+  "postgresql": { "type": "unique", "name": "uk_xxx" },  // postgresql 无 using
+  "sqlite":     { "type": "unique", "name": "uk_xxx" }   // sqlite 无 using
 }
 \`\`\`
 
 - \`type\` 合法值只有 \`"index"\`（普通）/ \`"unique"\`（唯一）。如需 FULLTEXT 等请用 \`pre_sql\`/\`post_sql\` 自定义。
 - \`columns\`：每个含 \`name\`（必填）、\`sort_order\`（可选 \`ASC\`/\`DESC\`）、方言级 \`sort_order\` 覆盖。
 - **主键**：不要写成 Index，直接在 Field 上设 \`"primary_key": true\`。
-- 索引名占位符：\`{pre}\` 替换为 \`idx_\`（普通）或 \`uk_\`（唯一），\`{post}\` 替换为空。
-- PostgreSQL：唯一索引生成 \`CONSTRAINT ... UNIQUE (...)\`，普通索引生成 \`CREATE INDEX ...\`；覆盖中的 \`using\` 被忽略。`
+- 索引名占位符：\`{pre}\` 替换为 \`idx_\`（普通）或 \`uk_\`（唯一），\`{post}\` 替换为空；名称为空时回退「前缀 + 列名拼接」。
+  PostgreSQL 的前缀额外带表名（\`idx__<table>__\`），因其索引名在 schema 内全局唯一。
+- PostgreSQL / SQLite：唯一索引生成 \`CONSTRAINT ... UNIQUE (...)\`，普通索引生成 \`CREATE INDEX ...\`；覆盖中的 \`using\` 被忽略（SQLite 无 USING 子句）。`

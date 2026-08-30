@@ -1,3 +1,8 @@
+dedupePeers: true
+
+allowBuilds:
+  esbuild: true
+
 overrides:
   'vue': 'beta'
   '@vue/compiler-core': 'beta'

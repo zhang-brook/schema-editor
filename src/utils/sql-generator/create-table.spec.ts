@@ -171,10 +171,10 @@ describe('索引未填写名称时自动回退生成', () => {
     ],
   }
 
-  it('MySQL：回退为「前缀 + 列名拼接」，不输出 undefined', () => {
+  it('MySQL：name 缺失时省略索引名，不输出 undefined', () => {
     const sql = generateTableMySQL(table, commonConfig)
-    expect(sql).toContain('UNIQUE INDEX `uk_tenant_code_user_code` (`tenant_code`, `user_code`)')
-    expect(sql).toContain('INDEX `idx_balance` (`balance`)')
+    expect(sql).toContain('UNIQUE INDEX (`tenant_code`, `user_code`)')
+    expect(sql).toContain('INDEX (`balance`)')
     expect(sql).not.toContain('undefined')
   })
 

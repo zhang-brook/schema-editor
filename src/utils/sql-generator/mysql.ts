@@ -91,7 +91,7 @@ function getMySQLIndexDefinition(index: Index): string {
     indexUsing = index.mysql.using || indexUsing
   }
 
-  // 未填写名称（name 缺失）时回退「前缀 + 列名拼接」
+  // resolveIndexName 返回 undefined（name 缺失）时不输出索引名，交由 MySQL 自动命名
   const indexName = resolveIndexName(index, 'mysql', '')
 
   // 如果没有指定 type，默认使用 BTREE（MySQL 默认索引类型）
@@ -109,14 +109,21 @@ function getMySQLIndexDefinition(index: Index): string {
     commentPart = ` COMMENT '${idxComment.replace(/'/g, "''")}'`
   }
 
+  // name 缺失时省略索引名（MySQL 语法允许省略，自动按首列命名）
+  const indexNameSql = indexName ? ` \`${indexName}\`` : ''
+
   if (indexType === 'unique') {
-    // 也可以写作 UNIQUE INDEX `indexName` (`column1`, `column2`) USING BTREE
+    // 多列唯一索引必须用 UNIQUE INDEX 显式定义；单列可省略为 UNIQUE KEY
     if (index.columns.length > 1) {
-      return `UNIQUE INDEX \`${indexName}\` (${colList})${finalIndexUsing}${commentPart}`
+      // UNIQUE INDEX `indexName` (`column1`, `column2`) USING BTREE
+      // UNIQUE INDEX (`column1`, `column2`) USING BTREE
+      return `UNIQUE INDEX${indexNameSql} (${colList})${finalIndexUsing}${commentPart}`
     }
+    // UNIQUE KEY (`column1`) USING BTREE
     return `UNIQUE KEY (${colList})${commentPart}`
   } else {
-    return `INDEX \`${indexName}\` (${colList})${finalIndexUsing}${commentPart}`
+    // INDEX `indexName` (`column1`, `column2`) USING BTREE
+    return `INDEX${indexNameSql} (${colList})${finalIndexUsing}${commentPart}`
   }
 }
 

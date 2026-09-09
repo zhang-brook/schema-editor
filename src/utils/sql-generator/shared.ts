@@ -28,14 +28,18 @@ export function resolveIndexName(index: Index, dialect: SqlDialect, tableName: s
   const indexType = resolveDialectOverride(index, dialect, 'type', index.type)
   const indexName = resolveDialectOverride(index, dialect, 'name', index.name)
 
-  if (dialect === 'mysql') {
-    const prefix = indexType === 'unique' ? 'uk_' : 'idx_'
-    return indexName?.replace('{pre}', prefix).replace('{post}', '')
+  let prefix, resolved
+  switch (dialect) {
+    default:
+    case 'mysql':
+      prefix = indexType === 'unique' ? 'uk_' : 'idx_'
+      resolved = indexName?.replace('{pre}', prefix).replace('{post}', '')
+      return resolved
+    case 'postgresql':
+      prefix = indexType === 'unique' ? `uk__${tableName}__` : `idx__${tableName}__`
+      resolved = indexName?.replace('{pre}', prefix).replace('{post}', '')
+      return resolved || `${prefix}${index.columns.map(c => c.name).join('_')}`
   }
-
-  const prefix = indexType === 'unique' ? `uk__${tableName}__` : `idx__${tableName}__`
-  return indexName?.replace('{pre}', prefix).replace('{post}', '')
-    || `${prefix}${index.columns.map(c => c.name).join('_')}`
 }
 
 // ===== 统一类型解析 =====

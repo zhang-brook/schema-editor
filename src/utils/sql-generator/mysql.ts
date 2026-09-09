@@ -8,6 +8,15 @@ import { resolveDialectOverride } from '@/utils/dialect-resolver'
   纯函数，不依赖 Node.js fs，可在浏览器端运行
 */
 
+/** MySQL 字符串字面量转义：反斜杠、单引号（''）、回车/换行（\r/\n） */
+function escapeMySqlStringLiteral(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "''")
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+}
+
 // ===== 表字段定义 =====
 
 function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null): string {
@@ -69,7 +78,7 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
   // COMMENT
   const finalComment = buildFieldComment(field, 'mysql')
   if (finalComment) {
-    fieldDef += ` COMMENT '${finalComment.replace(/'/g, "''")}'`
+    fieldDef += ` COMMENT '${escapeMySqlStringLiteral(finalComment)}'`
   }
 
   if (field.is_commented_out) {
@@ -106,7 +115,7 @@ function getMySQLIndexDefinition(index: Index): string {
   let commentPart = ''
   const idxComment = index.comment
   if (idxComment) {
-    commentPart = ` COMMENT '${idxComment.replace(/'/g, "''")}'`
+    commentPart = ` COMMENT '${escapeMySqlStringLiteral(idxComment)}'`
   }
 
   // name 缺失时省略索引名（MySQL 语法允许省略，自动按首列命名）
@@ -228,7 +237,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   if (partitionClause) {
     sql += ` ${partitionClause}`
   }
-  sql += ` COMMENT = '${table.comment}'`
+  sql += ` COMMENT = '${escapeMySqlStringLiteral(table.comment)}'`
   sql += ' ROW_FORMAT = Dynamic;\n'
 
   // 表后置 SQL

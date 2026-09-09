@@ -4,6 +4,7 @@ import { useEditorStore } from '@/stores/editor'
 import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
 import { buildFieldComment, type SqlDialect } from '@/utils/sql-generator/shared'
 import type { Field, CommentOption } from '@/types/schema'
+import FieldCommentInput from './FieldCommentInput.vue'
 
 const store = useEditorStore()
 
@@ -346,7 +347,11 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).comment || '' }}
                 </template>
-                <input v-else class="table-input" :value="field.comment" @input="store.updateFieldProp(store.currentTable!, field, 'comment', ($event.target as HTMLInputElement).value, `field-comment:${field.field_name}`)" style="min-width:100px;">
+                <FieldCommentInput
+                  v-else
+                  :model-value="field.comment"
+                  @update:model-value="store.updateFieldProp(store.currentTable!, field, 'comment', $event, `field-comment:${field.field_name}`)"
+                />
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">

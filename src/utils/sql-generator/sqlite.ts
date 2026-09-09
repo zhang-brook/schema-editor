@@ -122,7 +122,9 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
     // 字段注释以独立注释行输出（SQLite 无 COMMENT 语法）
     const finalComment = buildFieldComment(fieldConfig, 'sqlite')
     if (finalComment) {
-      fieldDef = `  -- ${finalComment}\n${fieldDef}`
+      // 注释含换行时逐行加注释前缀，避免破坏后续 SQL
+      const commentLines = finalComment.split(/\r?\n/).map(l => (l ? `  -- ${l}` : '  --')).join('\n')
+      fieldDef = `${commentLines}\n${fieldDef}`
     }
 
     // 检查是否需要在字段前添加注释

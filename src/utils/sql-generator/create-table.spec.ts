@@ -288,3 +288,37 @@ describe('索引名 {pre}/{post} 占位符解析', () => {
     expect(sql).toContain('CREATE INDEX "idx_user" ON "orders" ("user_id");')
   })
 })
+
+describe('字段注释包含换行 / 特殊字符', () => {
+  function makeMultilineCommentTable(): Table {
+    return {
+      name: 'notes',
+      comment: '备注表',
+      fields: [
+        {
+          field_name: 'content',
+          field_type: 'text',
+          not_null: true,
+          comment: '第一行内容\n第二行：含 \' 引号\n含 \\ 反斜杠',
+        },
+      ],
+      indexes: [],
+    }
+  }
+
+  it('MySQL：换行/回车转义为 \\n，引号加倍，反斜杠转义', () => {
+    const sql = generateTableMySQL(makeMultilineCommentTable(), commonConfig)
+    // 生成的 COMMENT 字符串内不含原始换行
+    expect(sql).toContain("COMMENT '第一行内容\\n第二行：含 '' 引号\\n含 \\\\ 反斜杠'")
+  })
+
+  it('SQLite：换行注释逐行加 -- 前缀', () => {
+    const sql = generateTableSQLite(makeMultilineCommentTable(), commonConfig)
+    expect(sql).toContain('  -- 第一行内容\n  -- 第二行：含 \' 引号\n  -- 含 \\ 反斜杠\n  "content" text NOT NULL')
+  })
+
+  it('PostgreSQL：COMMENT ON 保留原文换行（字符串字面量合法）', () => {
+    const sql = generateTablePostgreSQL(makeMultilineCommentTable(), 'public', commonConfig)
+    expect(sql).toContain("COMMENT ON COLUMN \"public\".\"notes\".\"content\" IS '第一行内容\n第二行：含 '' 引号\n含 \\ 反斜杠';")
+  })
+})

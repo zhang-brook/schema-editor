@@ -10,6 +10,7 @@ import type {
 import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
 import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 import { confirmDialog } from '@/composables/useConfirm'
+import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -35,7 +36,7 @@ const draftFrom = ref('')
 const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
 const preview = ref<MigrationDdlPreview | null>(null)
-const previewDialect = ref<'mysql' | 'postgresql'>('mysql')
+const previewDialect = ref<SqlDialect>('mysql')
 
 const canCreateMigration = computed(
   () =>
@@ -133,7 +134,7 @@ function previewText(): string {
 
 // ===== 版本预览 =====
 const previewVersionId = ref<string | null>(null)
-const previewSqlDialect = ref<'mysql' | 'postgresql'>('mysql')
+const previewSqlDialect = ref<SqlDialect>('mysql')
 
 async function onPreviewVersion(id: string) {
   previewVersionId.value = id

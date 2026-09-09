@@ -2,7 +2,7 @@
 import { ref, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
-import { buildFieldComment } from '@/utils/sql-generator/shared'
+import { buildFieldComment, type SqlDialect } from '@/utils/sql-generator/shared'
 import type { Field, CommentOption } from '@/types/schema'
 
 const store = useEditorStore()
@@ -110,7 +110,7 @@ function getDefaultInputType(field: Field): string {
 }
 
 /** 注释选项含义在指定方言下的实时预览 */
-function commentOptionsPreview(field: Field, dialect: 'mysql' | 'postgresql'): string {
+function commentOptionsPreview(field: Field, dialect: SqlDialect): string {
   return buildFieldComment(field, dialect)
 }
 

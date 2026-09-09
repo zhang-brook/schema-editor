@@ -145,12 +145,24 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
 
   // DDL 生成策略：drop_and_create | create_if_not_exists | create
   const ddlMode = commonConfig?.default_config?.table_ddl_mode ?? 'drop_and_create'
+  if (ddlMode === 'drop_and_create') {
+    sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
+  }
+
+  // 判断是否有实际字段（MySQL 不允许创建没有列的表）
+  const hasRealColumn = table.fields.some(field => {
+    const fieldConfig = resolveField(field, commonConfig)
+    return !fieldConfig.is_commented_out
+  })
+  if (!hasRealColumn) {
+    sql += '/*\n'
+  }
+
   if (ddlMode === 'create_if_not_exists') {
     sql += `CREATE TABLE IF NOT EXISTS \`${table.name}\` (\n`
   } else if (ddlMode === 'create') {
     sql += `CREATE TABLE \`${table.name}\` (\n`
-  } else {
-    sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
+  } else if (ddlMode === 'drop_and_create') {
     sql += `CREATE TABLE \`${table.name}\` (\n`
   }
 
@@ -222,6 +234,10 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   // 表后置 SQL
   const postSql = getTablePostSql(table, 'mysql')
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)
+
+  if (!hasRealColumn) {
+    sql += '*/\n'
+  }
 
   return sql
 }

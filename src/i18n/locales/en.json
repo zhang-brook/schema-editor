@@ -238,6 +238,7 @@
     "table": "Table:",
     "tableName": "Table Name",
     "comment": "Comment",
+    "moreSettings": "More Settings",
     "commentBeforeTable": "Comment Before Table (one line per comment, empty line = blank)",
     "commentHint": "Each line becomes a SQL comment. Blank lines represent empty lines (null).",
     "mysqlEngine": "MySQL Engine",

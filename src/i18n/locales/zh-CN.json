@@ -238,6 +238,7 @@
     "table": "表：",
     "tableName": "表名",
     "comment": "注释",
+    "moreSettings": "更多设置",
     "commentBeforeTable": "表前注释（每行一条注释，空行 = 空白）",
     "commentHint": "每行会生成为一条 SQL 注释。空行代表空行（null）。",
     "mysqlEngine": "MySQL 引擎",

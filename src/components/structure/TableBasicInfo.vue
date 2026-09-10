@@ -7,6 +7,9 @@ import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
 
+/** 更多设置（表前注释 / MySQL 引擎等）默认折叠 */
+const showMore = ref(false)
+
 /** 表名失焦确认时触发改名：同步迁移初始数据 key 并清理旧目录 */
 async function onTableNameChange(event: Event) {
   const target = event.target as HTMLInputElement
@@ -105,7 +108,7 @@ const partitionExpression = computed({
       <span class="badge" v-if="store.currentSchema">{{ store.currentSchema.schema }}</span>
     </div>
     <div class="section-body">
-      <div class="form-row">
+      <div class="form-row name-row">
         <div class="form-group">
           <label class="form-label">{{ $t('tableEditor.tableName') }}</label>
           <input class="form-input" :value="store.currentTable!.name" @change="onTableNameChange">
@@ -115,66 +118,76 @@ const partitionExpression = computed({
           <input class="form-input" v-model="store.currentTable!.comment">
         </div>
       </div>
-      <!-- Comment Before Table -->
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">{{ $t('tableEditor.commentBeforeTable') }}</label>
-          <textarea class="comment-editor"
-                    :value="store.commentBeforeTableText(store.currentTable!)"
-                    @input="store.setCommentBeforeTable(store.currentTable!, ($event.target as HTMLTextAreaElement).value)"
-                    rows="3"></textarea>
-          <span class="comment-hint">{{ $t('tableEditor.commentHint') }}</span>
-        </div>
-      </div>
-      <!-- MySQL Table Config Override -->
-      <div class="form-row">
-        <div class="form-group narrow">
-          <label class="form-label">{{ $t('tableEditor.mysqlEngine') }}</label>
-          <input class="form-input" :value="store.getTableMysqlEngine(store.currentTable!)" @input="store.setTableMysqlEngine(store.currentTable!, ($event.target as HTMLInputElement).value)" placeholder="InnoDB">
-        </div>
-        <div class="form-group narrow">
-          <label class="form-label">{{ $t('tableEditor.mysqlCharset') }}</label>
-          <input class="form-input" :value="store.getTableMysqlCharset(store.currentTable!)" @input="store.setTableMysqlCharset(store.currentTable!, ($event.target as HTMLInputElement).value)" placeholder="utf8mb4">
-        </div>
-        <div class="form-group narrow">
-          <label class="form-label">{{ $t('tableEditor.mysqlCollation') }}</label>
-          <input class="form-input" :value="store.getTableMysqlCollation(store.currentTable!)" @input="store.setTableMysqlCollation(store.currentTable!, ($event.target as HTMLInputElement).value)" placeholder="utf8mb4_0900_ai_ci">
-        </div>
-      </div>
-
-      <!-- Partition By（按方言） -->
-      <div v-if="partitionDialects.length > 0" class="form-row partition-block">
-        <div class="partition-header">
-          <label class="form-label">{{ $t('tableEditor.partition') }}</label>
-          <div class="header-tabs">
-            <SegmentedSwitch v-model="partitionDialect" :options="partitionDialectOptions" />
+      <div v-show="showMore" class="more-settings">
+        <!-- Comment Before Table -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">{{ $t('tableEditor.commentBeforeTable') }}</label>
+            <textarea class="comment-editor"
+                      :value="store.commentBeforeTableText(store.currentTable!)"
+                      @input="store.setCommentBeforeTable(store.currentTable!, ($event.target as HTMLTextAreaElement).value)"
+                      rows="3"></textarea>
+            <span class="comment-hint">{{ $t('tableEditor.commentHint') }}</span>
           </div>
         </div>
+        <!-- MySQL Table Config Override -->
         <div class="form-row">
           <div class="form-group narrow">
-            <label class="form-label">{{ $t('tableEditor.partitionStrategy') }}</label>
-            <select class="form-input" v-model="partitionStrategy">
-              <option value="">{{ $t('tableEditor.partitionRaw') }}</option>
-              <option value="RANGE">RANGE</option>
-              <option value="LIST">LIST</option>
-              <option value="HASH">HASH</option>
-              <option value="KEY">KEY</option>
-              <option value="RANGE COLUMNS">RANGE COLUMNS</option>
-              <option value="LIST COLUMNS">LIST COLUMNS</option>
-            </select>
+            <label class="form-label">{{ $t('tableEditor.mysqlEngine') }}</label>
+            <input class="form-input" :value="store.getTableMysqlEngine(store.currentTable!)" @input="store.setTableMysqlEngine(store.currentTable!, ($event.target as HTMLInputElement).value)" placeholder="InnoDB">
           </div>
-          <div class="form-group">
-            <label class="form-label">{{ $t('tableEditor.partitionColumns') }}</label>
-            <input class="form-input" v-model="partitionColumnsText" :disabled="!partitionStrategy" :placeholder="$t('tableEditor.partitionColumnsPlaceholder')">
+          <div class="form-group narrow">
+            <label class="form-label">{{ $t('tableEditor.mysqlCharset') }}</label>
+            <input class="form-input" :value="store.getTableMysqlCharset(store.currentTable!)" @input="store.setTableMysqlCharset(store.currentTable!, ($event.target as HTMLInputElement).value)" placeholder="utf8mb4">
+          </div>
+          <div class="form-group narrow">
+            <label class="form-label">{{ $t('tableEditor.mysqlCollation') }}</label>
+            <input class="form-input" :value="store.getTableMysqlCollation(store.currentTable!)" @input="store.setTableMysqlCollation(store.currentTable!, ($event.target as HTMLInputElement).value)" placeholder="utf8mb4_0900_ai_ci">
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">{{ $t('tableEditor.partitionExpression') }}</label>
-            <input class="form-input" v-model="partitionExpression" :placeholder="$t('tableEditor.partitionExpressionPlaceholder')">
-            <span class="comment-hint">{{ $t('tableEditor.partitionHint') }}</span>
+
+        <!-- Partition By（按方言） -->
+        <div v-if="partitionDialects.length > 0" class="form-row partition-block">
+          <div class="partition-header">
+            <label class="form-label">{{ $t('tableEditor.partition') }}</label>
+            <div class="header-tabs">
+              <SegmentedSwitch v-model="partitionDialect" :options="partitionDialectOptions" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group narrow">
+              <label class="form-label">{{ $t('tableEditor.partitionStrategy') }}</label>
+              <select class="form-input" v-model="partitionStrategy">
+                <option value="">{{ $t('tableEditor.partitionRaw') }}</option>
+                <option value="RANGE">RANGE</option>
+                <option value="LIST">LIST</option>
+                <option value="HASH">HASH</option>
+                <option value="KEY">KEY</option>
+                <option value="RANGE COLUMNS">RANGE COLUMNS</option>
+                <option value="LIST COLUMNS">LIST COLUMNS</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">{{ $t('tableEditor.partitionColumns') }}</label>
+              <input class="form-input" v-model="partitionColumnsText" :disabled="!partitionStrategy" :placeholder="$t('tableEditor.partitionColumnsPlaceholder')">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">{{ $t('tableEditor.partitionExpression') }}</label>
+              <input class="form-input" v-model="partitionExpression" :placeholder="$t('tableEditor.partitionExpressionPlaceholder')">
+              <span class="comment-hint">{{ $t('tableEditor.partitionHint') }}</span>
+            </div>
           </div>
         </div>
+      </div>
+      <div class="more-toggle-wrap">
+        <button type="button" class="more-toggle" :aria-expanded="showMore" @click="showMore = !showMore">
+          {{ $t('tableEditor.moreSettings') }}
+          <svg class="chevron" :class="{ open: showMore }" width="10" height="10" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -184,6 +197,49 @@ const partitionExpression = computed({
 <style scoped src="@/assets/style/form.css"></style>
 <style scoped src="@/assets/style/comment.css"></style>
 <style scoped>
+.more-settings {
+  border-top: 1px dashed var(--border);
+  padding-top: 14px;
+}
+
+.more-toggle-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.more-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.more-toggle:hover {
+  background: var(--surface-3);
+  color: var(--fg);
+}
+
+.more-toggle:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.chevron {
+  transition: transform 0.15s ease;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
+
 .partition-block {
   flex-direction: column;
   align-items: stretch;

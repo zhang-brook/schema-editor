@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
+import { useEnabledDialect } from '@/composables/useEnabledDialect'
+import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
 import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from '@/utils/sql-generator/shared'
 import { generateInitialDataMySQL } from '@/utils/sql-generator/mysql'
 import { generateInitialDataPostgreSQL } from '@/utils/sql-generator/postgresql'
@@ -10,7 +11,7 @@ import { generateInitialDataSQLite } from '@/utils/sql-generator/sqlite'
 
 const store = useEditorStore()
 const { t } = useI18n()
-const { enabledDialects, activeDialect } = useEnabledDialect()
+const { dialectOptions, activeDialect } = useEnabledDialect()
 
 const previewSql = computed(() => {
   const table = store.currentTable
@@ -56,15 +57,7 @@ function copyToClipboard() {
         <div style="margin-right: 15px;">
           <span>{{ $t('initialData.sqlPreview') }}</span>
         </div>
-        <div class="tab-group">
-          <button
-            v-for="d in enabledDialects"
-            :key="d"
-            class="tab-btn"
-            :class="{ active: activeDialect === d }"
-            @click="activeDialect = d"
-          >{{ DIALECT_LABELS[d] }}</button>
-        </div>
+        <SegmentedSwitch v-model="activeDialect" :options="dialectOptions" />
       </div>
       <div class="header-right">
         <button class="btn btn-sm" @click="copyToClipboard" :disabled="!previewSql"
@@ -83,6 +76,7 @@ function copyToClipboard() {
 <style scoped>
 .header-tabs {
   display: flex;
+  align-items: center;
   gap: 0;
 }
 
@@ -90,47 +84,6 @@ function copyToClipboard() {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.tab-group {
-  display: flex;
-  gap: 0;
-}
-
-.tab-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--fg-muted);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
-  font-family: inherit;
-}
-
-.tab-btn:first-child {
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-}
-
-.tab-btn:last-child {
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  border-left: none;
-}
-
-.tab-btn.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-.tab-btn.active+.tab-btn {
-  border-left-color: var(--accent);
-}
-
-.tab-btn:not(.active):hover {
-  background: var(--surface-3);
-  color: var(--fg);
 }
 
 .btn {

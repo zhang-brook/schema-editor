@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { DIALECT_LABELS } from '@/composables/useEnabledDialect'
+import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
+import { toDialectOptions } from '@/composables/useEnabledDialect'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
@@ -30,6 +31,7 @@ const PARTITION_DIALECTS: SqlDialect[] = ['mysql', 'postgresql']
 const partitionDialects = computed(() =>
   store.enabledDialects.filter(d => PARTITION_DIALECTS.includes(d)),
 )
+const partitionDialectOptions = computed(() => toDialectOptions(partitionDialects.value))
 
 // 当前分区方言被禁用时自动回落到第一个可用方言
 watch(partitionDialects, (list) => {
@@ -145,13 +147,7 @@ const partitionExpression = computed({
         <div class="partition-header">
           <label class="form-label">{{ $t('tableEditor.partition') }}</label>
           <div class="header-tabs">
-            <button
-              v-for="d in partitionDialects"
-              :key="d"
-              class="tab-btn"
-              :class="{ active: partitionDialect === d }"
-              @click="partitionDialect = d"
-            >{{ DIALECT_LABELS[d] }}</button>
+            <SegmentedSwitch v-model="partitionDialect" :options="partitionDialectOptions" />
           </div>
         </div>
         <div class="form-row">
@@ -201,25 +197,5 @@ const partitionExpression = computed({
 .header-tabs {
   display: flex;
   gap: 6px;
-}
-.tab-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--fg-muted);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
-}
-.tab-btn:hover:not(.active) {
-  background: var(--surface-3);
-  color: var(--fg);
-}
-.tab-btn.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
 }
 </style>

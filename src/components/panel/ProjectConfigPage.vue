@@ -4,9 +4,7 @@ import { useEditorStore } from '@/stores/editor'
 import CommonUsedFieldsPanel from './CommonUsedFieldsPanel.vue'
 import UnifiedTypesPanel from './UnifiedTypesPanel.vue'
 import DialectConfigPanel from './DialectConfigPanel.vue'
-import DefaultMysqlConfigPanel from './DefaultMysqlConfigPanel.vue'
-import DefaultPostgresqlConfigPanel from './DefaultPostgresqlConfigPanel.vue'
-import DefaultSqliteConfigPanel from './DefaultSqliteConfigPanel.vue'
+import DatabaseDefaultsPanel from './DatabaseDefaultsPanel.vue'
 import DdlOptionsPanel from './DdlOptionsPanel.vue'
 import TypeCasePanel from './TypeCasePanel.vue'
 import GlobalPrePostSqlPanel from './GlobalPrePostSqlPanel.vue'
@@ -50,9 +48,7 @@ const activeSubTab = ref<SubTab>('general')
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.dialect') }}</div>
         <DialectConfigPanel />
-        <DefaultMysqlConfigPanel />
-        <DefaultPostgresqlConfigPanel />
-        <DefaultSqliteConfigPanel />
+        <DatabaseDefaultsPanel />
       </div>
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.generatePrefs') }}</div>

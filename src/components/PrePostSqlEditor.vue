@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
+import { useEnabledDialect } from '@/composables/useEnabledDialect'
+import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
 
 const props = defineProps<{
   title: string
@@ -25,7 +26,7 @@ const emit = defineEmits<{
 }>()
 
 // 只展示已启用的方言；当前方言被禁用时自动回落
-const { enabledDialects, activeDialect } = useEnabledDialect()
+const { dialectOptions, activeDialect } = useEnabledDialect()
 
 const preValue = computed(() =>
   activeDialect.value === 'mysql' ? props.mysqlPre
@@ -59,15 +60,7 @@ function updatePost(val: string) {
         <div style="margin-right: 15px;">
           <span>{{ title }}</span>
         </div>
-        <div class="tab-group">
-          <button
-            v-for="d in enabledDialects"
-            :key="d"
-            class="tab-btn"
-            :class="{ active: activeDialect === d }"
-            @click="activeDialect = d"
-          >{{ DIALECT_LABELS[d] }}</button>
-        </div>
+        <SegmentedSwitch v-model="activeDialect" :options="dialectOptions" />
       </div>
       <div class="header-right">
         <slot name="header-actions"></slot>
@@ -107,6 +100,7 @@ function updatePost(val: string) {
 <style scoped>
 .header-tabs {
   display: flex;
+  align-items: center;
   gap: 0;
 }
 
@@ -114,47 +108,6 @@ function updatePost(val: string) {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.tab-group {
-  display: flex;
-  gap: 0;
-}
-
-.tab-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--fg-muted);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
-  font-family: inherit;
-}
-
-.tab-btn:first-child {
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-}
-
-.tab-btn:last-child {
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  border-left: none;
-}
-
-.tab-btn.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-.tab-btn.active + .tab-btn {
-  border-left-color: var(--accent);
-}
-
-.tab-btn:not(.active):hover {
-  background: var(--surface-3);
-  color: var(--fg);
 }
 
 .sql-grid {

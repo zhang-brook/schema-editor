@@ -11,7 +11,8 @@ import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
 import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
 import { confirmDialog } from '@/composables/useConfirm'
-import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
+import { useEnabledDialect } from '@/composables/useEnabledDialect'
+import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -38,7 +39,7 @@ const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
 const preview = ref<MigrationDdlPreview | null>(null)
 // 迁移预览：只展示已启用的方言
-const { enabledDialects, activeDialect: previewDialect } = useEnabledDialect()
+const { dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
 
 const canCreateMigration = computed(
   () =>
@@ -337,11 +338,7 @@ onUnmounted(() => {
               <div class="ps-bp-sql-section">
                 <div class="ps-bp-sql-header">
                   <span>{{ $t('version.previewSqlTitle') }}</span>
-                  <div class="ps-dialect">
-                    <button v-for="d in enabledDialects" :key="d"
-                      :class="{ active: previewSqlDialect === d }"
-                      @click="previewSqlDialect = d">{{ DIALECT_LABELS[d] }}</button>
-                  </div>
+                  <SegmentedSwitch v-model="previewSqlDialect" :options="dialectOptions" />
                 </div>
                 <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
               </div>
@@ -482,11 +479,7 @@ onUnmounted(() => {
             <div class="ps-preview">
               <div class="ps-preview-head">
                 <span>{{ $t('migration.preview') }}</span>
-                <div class="ps-dialect">
-                  <button v-for="d in enabledDialects" :key="d"
-                    :class="{ active: previewDialect === d }"
-                    @click="previewDialect = d">{{ DIALECT_LABELS[d] }}</button>
-                  </div>
+                <SegmentedSwitch v-model="previewDialect" :options="dialectOptions" />
                 <button class="btn btn-sm" @click="onSaveMigration">{{ $t('migration.save') }}</button>
               </div>
               <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>
@@ -827,29 +820,6 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 600;
   color: #444;
-}
-
-.ps-dialect {
-  display: flex;
-  gap: 4px;
-}
-
-.ps-dialect button {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  cursor: pointer;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
-}
-
-.ps-dialect button.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
 }
 
 .ps-preview-head .btn {

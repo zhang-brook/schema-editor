@@ -163,7 +163,7 @@
     "aiGuideHint": "開啟後，會在開啟的資料夾中寫入一份描述 JSON 結構的 markdown 檔案，協助 AI 工具正確修改這些 JSON。"
   },
   "commonConfig": {
-    "defaultMysqlConfig": "MySQL 預設設定",
+    "databaseDefaults": "資料庫預設設定",
     "commonUsedFields": "公共欄位",
     "unifiedTypesTitle": "統一類型定義",
     "newTypePlaceholder": "新類型名稱...",
@@ -191,8 +191,6 @@
     "deleteField": "刪除公共欄位",
     "dragToSort": "拖曳排序",
     "badge": "{n} 個欄位",
-    "defaultPostgresqlConfig": "PostgreSQL 預設設定",
-    "defaultSqliteConfig": "SQLite 預設設定",
     "quoteIdentifiers": "識別碼加雙引號",
     "quoteIdentifiersHint": "產生 SQL 時用雙引號包裹表名和欄位名",
     "unifiedTypes": {

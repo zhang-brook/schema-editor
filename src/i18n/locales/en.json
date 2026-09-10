@@ -163,7 +163,7 @@
     "aiGuideHint": "When enabled, a markdown file describing the JSON structure is written to the opened folder, helping AI tools edit these JSON files correctly."
   },
   "commonConfig": {
-    "defaultMysqlConfig": "MySQL Default Configuration",
+    "databaseDefaults": "Database Default Configuration",
     "commonUsedFields": "Common Used Fields",
     "unifiedTypesTitle": "Unified Types",
     "newTypePlaceholder": "New type name...",
@@ -191,8 +191,6 @@
     "deleteField": "Delete common field",
     "dragToSort": "Drag to sort",
     "badge": "{n} fields",
-    "defaultPostgresqlConfig": "PostgreSQL Default Configuration",
-    "defaultSqliteConfig": "SQLite Default Configuration",
     "quoteIdentifiers": "Quote Identifiers",
     "quoteIdentifiersHint": "Wrap table and column names in double quotes in generated SQL",
     "unifiedTypes": {

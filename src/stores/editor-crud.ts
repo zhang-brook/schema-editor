@@ -26,8 +26,7 @@ export interface CrudDeps {
   selectedTableIdx: Ref<number>
   expandedFields: Set<string>
   expandedIndexes: Set<string>
-  showCommonPanel: Ref<boolean>
-  settingsTab: Ref<'global' | 'structure' | 'version' | 'project'>
+  settingsTab: Ref<'project' | 'structure' | 'version'>
   addFieldSchemaIdx: Ref<number>
   addFieldTableIdx: Ref<number>
   addFieldMode: Ref<'normal' | 'common'>
@@ -53,7 +52,6 @@ export function createCrudActions(deps: CrudDeps) {
     selectedTableIdx,
     expandedFields,
     expandedIndexes,
-    showCommonPanel,
     settingsTab,
     addFieldSchemaIdx,
     addFieldTableIdx,
@@ -275,21 +273,13 @@ export function createCrudActions(deps: CrudDeps) {
   function selectTable(schemaIdx: number, tableIdx: number) {
     selectedSchemaIdx.value = schemaIdx
     selectedTableIdx.value = tableIdx
-    showCommonPanel.value = false
     // Clear expanded states
     expandedFields.clear()
     expandedIndexes.clear()
   }
 
-  function selectCommonConfig() {
-    showCommonPanel.value = true
-    selectedSchemaIdx.value = -1
-    selectedTableIdx.value = -1
-  }
-
   /** 选中 Schema（不选表），用于显示 SchemaConfigPanel */
   function selectSchemaOnly(schemaIdx: number) {
-    showCommonPanel.value = false
     selectedSchemaIdx.value = schemaIdx
     selectedTableIdx.value = -1
     expandedFields.clear()
@@ -298,14 +288,8 @@ export function createCrudActions(deps: CrudDeps) {
 
   // ===== 项目设置 =====
   /** 切换到指定设置 tab */
-  function selectSettingsTab(tab: 'global' | 'structure' | 'version' | 'project') {
+  function selectSettingsTab(tab: 'project' | 'structure' | 'version') {
     settingsTab.value = tab
-    if (tab === 'global') {
-      // 全局配置页等价于原来的公共配置面板，需置 showCommonPanel 才能渲染
-      showCommonPanel.value = true
-    } else {
-      showCommonPanel.value = false
-    }
   }
 
   // ===== Table CRUD =====
@@ -1842,7 +1826,6 @@ export function createCrudActions(deps: CrudDeps) {
     copySchema,
     renameSchema,
     selectTable,
-    selectCommonConfig,
     selectSchemaOnly,
     selectSettingsTab,
     addTable,

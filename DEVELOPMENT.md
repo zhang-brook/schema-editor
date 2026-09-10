@@ -22,7 +22,7 @@ src/
 ├── components/
 │   ├── EditorToolbar.vue        # 顶部工具栏：Open Folder / Reload from Disk
 │   ├── EditorSidebar.vue        # 左侧树形导航：Schema > Table，支持折叠/展开/拖拽
-│   ├── CommonConfigPanel.vue    # Common 配置编辑面板（common_used_fields、排序、default_config）
+│   ├── ProjectSettingsPanel.vue # 设置页框架：左侧 rail（项目设置 / 库结构设计 / 版本管理）
 │   ├── SchemaConfigPanel.vue    # Schema 配置编辑面板
 │   ├── TableEditor.vue          # 表编辑主面板，组合以下子组件
 │   ├── TableBasicInfo.vue       # 表基础信息编辑
@@ -34,6 +34,7 @@ src/
 │   ├── InitialDataSqlPreview.vue# 初始数据 INSERT 语句预览
 │   ├── PrePostSqlEditor.vue     # 前置 / 后置 SQL 编辑
 │   ├── icon/                    # 图标组件
+│   ├── panel/                   # 独立配置板块（ProjectConfigPage 按三个子 tab 组合各方言 / 生成偏好 / AI 面板）
 │   └── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal）
 ├── composables/
 │   ├── useDropFolder.ts         # 拖拽文件夹打开的组合式函数

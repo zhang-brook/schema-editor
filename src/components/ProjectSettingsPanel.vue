@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import CommonConfigPanel from '@/components/CommonConfigPanel.vue'
 import EditorSidebar from '@/components/EditorSidebar.vue'
 import SchemaConfigPanel from '@/components/SchemaConfigPanel.vue'
 import TableEditor from '@/components/TableEditor.vue'
+import ProjectConfigPage from '@/components/panel/ProjectConfigPage.vue'
 import VersionManagementPanel from '@/components/panel/VersionManagementPanel.vue'
 
 const store = useEditorStore()
@@ -51,8 +51,6 @@ onBeforeUnmount(stopResize)
     <!-- 最左侧：VSCode 风格的页面切换列 -->
     <div class="ps-rail">
       <!-- <div class="ps-rail-title">{{ $t('settings.title') }}</div> -->
-      <button class="ps-rail-item" :class="{ active: store.settingsTab === 'global' }"
-        @click="store.selectSettingsTab('global')">{{ $t('settings.tabs.global') }}</button>
       <button class="ps-rail-item" :class="{ active: store.settingsTab === 'structure' }"
         @click="store.selectSettingsTab('structure')">{{ $t('settings.tabs.structure') }}</button>
       <button class="ps-rail-item" :class="{ active: store.settingsTab === 'version' }"
@@ -63,14 +61,12 @@ onBeforeUnmount(stopResize)
 
     <!-- 右侧内容区（每个页面自己布局自己） -->
     <div class="ps-content">
-      <!-- 全局配置：无 schema 侧边树 -->
-      <div v-if="store.settingsTab === 'global' && store.commonConfig" class="ps-global">
-        <CommonConfigPanel />
-      </div>
+      <!-- 项目设置：全局配置 / 方言配置 / 大模型 三个子 tab -->
+      <ProjectConfigPage />
 
       <!-- 库结构设计：沿用原布局 = EditorSidebar + SchemaConfigPanel/TableEditor -->
       <div
-        v-else-if="store.settingsTab === 'structure'"
+        v-if="store.settingsTab === 'structure'"
         class="ps-structure"
         :style="{ '--sidebar-width': sidebarWidth + 'px' }"
       >
@@ -91,21 +87,6 @@ onBeforeUnmount(stopResize)
       </div>
 
       <VersionManagementPanel />
-
-      <!-- 项目设置 -->
-      <div v-if="store.settingsTab === 'project'" class="ps-project">
-        <div class="ps-setting-row">
-          <label class="ps-switch">
-            <input
-              type="checkbox"
-              :checked="store.generateAiGuide"
-              @change="store.setGenerateAiGuide(($event.target as HTMLInputElement).checked)"
-            />
-            <span class="ps-switch-label">{{ $t('settings.aiGuide') }}</span>
-          </label>
-          <p class="ps-setting-hint">{{ $t('settings.aiGuideHint') }}</p>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -177,14 +158,6 @@ onBeforeUnmount(stopResize)
   align-items: stretch;
 }
 
-/* 全局配置页容器：独立内边距与滚动，不影响库结构设计页 */
-.ps-global {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  padding: 20px 24px;
-}
-
 /* 库结构设计：保留 EditorSidebar + 右侧内容（原布局不变） */
 .ps-structure {
   display: flex;
@@ -242,44 +215,4 @@ onBeforeUnmount(stopResize)
   color: #aaa;
   font-size: 13px;
 }
-
-/* 项目设置页 */
-.ps-project {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  padding: 20px 24px;
-}
-
-.ps-setting-row {
-  padding: 12px 16px;
-  border: 1px solid var(--surface-3);
-  border-radius: 8px;
-  background: var(--surface-2);
-  max-width: 560px;
-}
-
-.ps-switch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--fg);
-}
-
-.ps-switch input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.ps-setting-hint {
-  margin: 8px 0 0 24px;
-  font-size: 12px;
-  color: #888;
-  line-height: 1.5;
-}
-
 </style>

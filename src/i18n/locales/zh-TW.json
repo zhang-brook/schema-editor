@@ -141,14 +141,24 @@
   "settings": {
     "title": "專案設定",
     "tabs": {
-      "global": "全域設定",
       "structure": "庫結構設計",
       "version": "版本管理",
       "project": "專案設定"
     },
+    "subTabs": {
+      "general": "全域設定",
+      "dialect": "方言設定",
+      "model": "大模型"
+    },
+    "groups": {
+      "commonFields": "通用欄位",
+      "unifiedTypes": "統一類型",
+      "dialect": "方言設定",
+      "generatePrefs": "生成偏好",
+      "aiPrompt": "AI 提示詞"
+    },
     "structureEmpty": "請從上方「新增 Schema」開始，或點擊左側 Schema 下的表進行編輯",
     "resizeHint": "拖動可調整左側選單寬度",
-    "projectEmpty": "暫無設定項，後續將遷移部分公共設定至此。",
     "aiGuide": "產生 AI JSON 結構指南",
     "aiGuideHint": "開啟後，會在開啟的資料夾中寫入一份描述 JSON 結構的 markdown 檔案，協助 AI 工具正確修改這些 JSON。"
   },

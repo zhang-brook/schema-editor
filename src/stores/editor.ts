@@ -73,9 +73,8 @@ export const useEditorStore = defineStore('editor', () => {
   const selectedTableIdx = ref(-1)
   const expandedFields = reactive(new Set<string>())
   const expandedIndexes = reactive(new Set<string>())
-  const showCommonPanel = ref(false)
   // ===== 项目设置（VSCode 风格：左侧 tab 切换） =====
-  const settingsTab = ref<'global' | 'structure' | 'version' | 'project'>('structure')
+  const settingsTab = ref<'project' | 'structure' | 'version'>('structure')
   const toastMsg = ref('')
   const toastVisible = ref(false)
   const showAddFieldModal = ref(false)
@@ -334,7 +333,6 @@ export const useEditorStore = defineStore('editor', () => {
     migrations.value = []
     selectedSchemaIdx.value = -1
     selectedTableIdx.value = -1
-    showCommonPanel.value = false
     settingsTab.value = 'structure'
     expandedFields.clear()
     expandedIndexes.clear()
@@ -420,7 +418,6 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataDeletedKeys.clear()
     selectedSchemaIdx.value = -1
     selectedTableIdx.value = -1
-    showCommonPanel.value = false
     expandedFields.clear()
     expandedIndexes.clear()
 
@@ -493,7 +490,6 @@ export const useEditorStore = defineStore('editor', () => {
     await syncAiGuideToDisk()
     // 打开项目后默认选中「库结构设计」tab
     settingsTab.value = 'structure'
-    showCommonPanel.value = false
     // 加载版本/迁移列表（只读元数据，不加载完整快照）
     await loadVersionsAndMigrations()
     const parts: string[] = []
@@ -1023,7 +1019,6 @@ export const useEditorStore = defineStore('editor', () => {
     copySchema,
     renameSchema,
     selectTable,
-    selectCommonConfig,
     selectSchemaOnly,
     selectSettingsTab,
     addTable,
@@ -1092,7 +1087,6 @@ export const useEditorStore = defineStore('editor', () => {
     selectedTableIdx,
     expandedFields,
     expandedIndexes,
-    showCommonPanel,
     settingsTab,
     addFieldSchemaIdx,
     addFieldTableIdx,
@@ -1178,7 +1172,6 @@ export const useEditorStore = defineStore('editor', () => {
     schemas,
     selectedSchemaIdx,
     selectedTableIdx,
-    showCommonPanel,
     settingsTab,
     projectOpened,
     generateAiGuide,
@@ -1245,7 +1238,6 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Navigation
     selectTable,
-    selectCommonConfig,
     selectSchemaOnly,
     selectSettingsTab,
 

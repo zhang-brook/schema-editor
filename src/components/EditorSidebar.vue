@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
@@ -242,7 +242,7 @@ function cancelRenameSchema() {
       <template v-for="(schema, sIdx) in store.schemas" :key="schema.schema">
         <div
           class="sidebar-item schema-item"
-          :class="{ collapsed: !isExpanded(sIdx), active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === -1 && !store.showCommonPanel, 'dragging': dragSchemaIdx === sIdx && dragTableIdx < 0 }"
+          :class="{ collapsed: !isExpanded(sIdx), active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === -1, 'dragging': dragSchemaIdx === sIdx && dragTableIdx < 0 }"
           draggable="true"
           @click="store.selectSchemaOnly(sIdx)"
           @dragstart="onSchemaDragStart($event, sIdx)"
@@ -281,7 +281,7 @@ function cancelRenameSchema() {
           v-show="isExpanded(sIdx)"
           :key="table.name + tIdx"
           class="sidebar-item table-item"
-          :class="{ active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === tIdx && !store.showCommonPanel }"
+          :class="{ active: store.selectedSchemaIdx === sIdx && store.selectedTableIdx === tIdx }"
           draggable="true"
           @click="store.selectTable(sIdx, tIdx)"
           @dragstart="onDragStart($event, sIdx, tIdx)"

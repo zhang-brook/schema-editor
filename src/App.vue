@@ -2,6 +2,7 @@
 import { useEditorStore } from '@/stores/editor'
 import { useDropFolder } from '@/composables/useDropFolder'
 import EditorToolbar from '@/components/EditorToolbar.vue'
+import OpenFolderArt from '@/components/icon/OpenFolderArt.vue'
 import ProjectSettingsPanel from '@/components/ProjectSettingsPanel.vue'
 import AddFieldModal from '@/components/modal/AddFieldModal.vue'
 import ImportSqlModal from '@/components/modal/ImportSqlModal.vue'
@@ -34,6 +35,7 @@ const confirmState = useConfirmState()
 
       <!-- 未打开文件夹：直接提示打开，点击空白区域即可弹出打开文件夹对话框 -->
       <div v-else class="app-not-opened" @click="store.openProject()">
+        <OpenFolderArt style="margin-bottom: 3.14rem;" />
         <p>{{ $t('app.notOpened') }}</p>
       </div>
     </div>
@@ -114,8 +116,10 @@ const confirmState = useConfirmState()
 .app-not-opened {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 22px;
   color: var(--fg-muted);
   font-size: 14px;
   padding: 24px;

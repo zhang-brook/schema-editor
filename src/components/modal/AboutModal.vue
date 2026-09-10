@@ -17,7 +17,10 @@ const emit = defineEmits<{
 const { locale } = useI18n()
 
 // ESC 关闭弹窗
-useEscClose(computed(() => props.visible), () => emit('close'))
+useEscClose(
+  computed(() => props.visible),
+  () => emit('close'),
+)
 
 // 构建时刻转为本地时区展示
 const formattedBuildTime = computed(() => {
@@ -36,9 +39,7 @@ const formattedBuildTime = computed(() => {
 })
 
 const commitUrl = computed(() =>
-  COMMIT_ID && COMMIT_ID !== 'unknown'
-    ? `${GITHUB_REPO_URL}/commit/${COMMIT_ID}`
-    : '',
+  COMMIT_ID && COMMIT_ID !== 'unknown' ? `${GITHUB_REPO_URL}/commit/${COMMIT_ID}` : '',
 )
 </script>
 
@@ -53,9 +54,7 @@ const commitUrl = computed(() =>
         </div>
         <div class="about-info">
           <div class="about-name">{{ $t('app.title') }}</div>
-          <div class="about-version">
-            {{ $t('about.version') }} {{ version }}
-          </div>
+          <div class="about-version">{{ $t('about.version') }} {{ version }}</div>
           <div class="about-meta">
             <div class="about-meta-row">
               <span class="about-meta-label">{{ $t('about.buildTime') }}</span>
@@ -69,7 +68,7 @@ const commitUrl = computed(() =>
                 target="_blank"
                 rel="noopener noreferrer"
                 class="about-meta-value about-commit-link"
-              >{{ COMMIT_ID }}</a>
+                >{{ COMMIT_ID }}</a>
               <span v-else class="about-meta-value">{{ COMMIT_ID }}</span>
             </div>
           </div>
@@ -198,7 +197,7 @@ const commitUrl = computed(() =>
   font-size: 13px;
   color: var(--accent);
   text-decoration: none;
-  transition: color .15s;
+  transition: color 0.15s;
 }
 
 .about-github-link:hover {
@@ -211,5 +210,4 @@ const commitUrl = computed(() =>
   justify-content: center;
   gap: 8px;
 }
-
 </style>

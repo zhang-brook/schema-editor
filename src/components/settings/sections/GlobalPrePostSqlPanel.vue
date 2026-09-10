@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
 import { getGlobalPreSql, getGlobalPostSql } from '@/utils/sql-generator/shared'
-import PrePostSqlEditor from '@/components/PrePostSqlEditor.vue'
+import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
 
 const store = useEditorStore()
 </script>

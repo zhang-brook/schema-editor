@@ -2,15 +2,15 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import PageTabs from '@/components/PageTabs.vue'
-import CommonUsedFieldsPanel from './CommonUsedFieldsPanel.vue'
-import UnifiedTypesPanel from './UnifiedTypesPanel.vue'
-import DialectConfigPanel from './DialectConfigPanel.vue'
-import DatabaseDefaultsPanel from './DatabaseDefaultsPanel.vue'
-import DdlOptionsPanel from './DdlOptionsPanel.vue'
-import TypeCasePanel from './TypeCasePanel.vue'
-import GlobalPrePostSqlPanel from './GlobalPrePostSqlPanel.vue'
-import AiGuidePanel from './AiGuidePanel.vue'
+import PageTabs from '@/components/ui/PageTabs.vue'
+import CommonUsedFieldsPanel from './sections/CommonUsedFieldsPanel.vue'
+import UnifiedTypesPanel from './sections/UnifiedTypesPanel.vue'
+import DialectConfigPanel from './sections/DialectConfigPanel.vue'
+import DatabaseDefaultsPanel from './sections/database-defaults/DatabaseDefaultsPanel.vue'
+import DdlOptionsPanel from './sections/DdlOptionsPanel.vue'
+import TypeCasePanel from './sections/TypeCasePanel.vue'
+import GlobalPrePostSqlPanel from './sections/GlobalPrePostSqlPanel.vue'
+import AiGuidePanel from './sections/AiGuidePanel.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -27,7 +27,7 @@ const subTabOptions = computed(() =>
 
 <template>
   <!-- ===== 项目设置页：三个子 tab ===== -->
-  <div v-if="store.settingsTab === 'project' && store.commonConfig" class="pcfg-page">
+  <div v-if="store.commonConfig" class="pcfg-page">
     <PageTabs v-model="activeSubTab" :options="subTabOptions" />
 
     <!-- 全局配置 -->

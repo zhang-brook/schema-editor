@@ -21,21 +21,34 @@ src/
 │   └── style/                   # 按功能拆分的全局 .css（base / layout / table / modal / form 等），由 main.ts 引入
 ├── components/
 │   ├── EditorToolbar.vue        # 顶部工具栏：Open Folder / Reload from Disk
-│   ├── EditorSidebar.vue        # 左侧树形导航：Schema > Table，支持折叠/展开/拖拽
-│   ├── ProjectSettingsPanel.vue # 设置页框架：左侧 rail（项目设置 / 库结构设计 / 版本管理）
-│   ├── SchemaConfigPanel.vue    # Schema 配置编辑面板
-│   ├── TableEditor.vue          # 表编辑主面板，组合以下子组件
-│   ├── TableBasicInfo.vue       # 表基础信息编辑
-│   ├── FieldTable.vue           # 字段列表表格编辑
-│   ├── IndexTable.vue           # 索引列表表格编辑
-│   ├── IndexColumnsEditor.vue   # 索引列结构化编辑（排序列 + 方言覆盖）
-│   ├── SqlPreview.vue           # SQL 建表语句实时预览（MySQL / PostgreSQL 标签切换）
-│   ├── InitialDataEditor.vue    # 初始数据编辑器（表格模式 / JSON 模式）
-│   ├── InitialDataSqlPreview.vue# 初始数据 INSERT 语句预览
-│   ├── PrePostSqlEditor.vue     # 前置 / 后置 SQL 编辑
+│   ├── UpgradingOverlay.vue     # 旧版本项目升级遮罩
+│   ├── ui/                      # 无业务语义的基础组件
+│   │   ├── PageTabs.vue         # 下划线式页面级 tab
+│   │   └── SegmentedSwitch.vue  # 连体按钮式切换（方言 / 模式等）
+│   ├── common/                  # 跨页面复用的业务组件
+│   │   └── PrePostSqlEditor.vue # 前置 / 后置 SQL 编辑（表 / Schema / 初始数据 / 全局共用）
 │   ├── icon/                    # 图标组件
-│   ├── panel/                   # 独立配置板块（ProjectConfigPage 按三个子 tab 组合各方言 / 生成偏好 / AI 面板）
-│   └── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal）
+│   ├── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal）
+│   ├── settings/                # 设置区：左侧 rail + 三个页面
+│   │   ├── SettingsPanel.vue        # 外壳：SettingsRail + 三个页面组件
+│   │   ├── SettingsRail.vue         # 页面切换列（项目设置 / 库结构设计 / 版本管理）
+│   │   ├── ProjectConfigPage.vue    # 项目设置页（通用字段·统一类型 / 方言配置 / 大模型）
+│   │   ├── StructureDesignPage.vue  # 库结构设计页（侧边树 + 拖拽分隔 + 编辑面板）
+│   │   ├── VersionManagementPage.vue# 版本管理页（版本 / 迁移两个子 tab）
+│   │   └── sections/                # 项目设置页内的各配置板块
+│   │       ├── CommonUsedFieldsPanel.vue / UnifiedTypesPanel.vue
+│   │       ├── DialectConfigPanel.vue / DdlOptionsPanel.vue / TypeCasePanel.vue
+│   │       ├── GlobalPrePostSqlPanel.vue / AiGuidePanel.vue
+│   │       └── database-defaults/   # 数据库默认配置（合体卡片 + 三方言子面板）
+│   └── structure/               # 库结构设计相关组件
+│       ├── EditorSidebar.vue        # 左侧树形导航：Schema > Table，支持折叠/展开/拖拽
+│       ├── SchemaConfigPanel.vue    # Schema 配置编辑面板
+│       ├── TableEditor.vue          # 表编辑主面板，组合以下子组件
+│       ├── TableBasicInfo.vue       # 表基础信息编辑
+│       ├── FieldTable.vue           # 字段列表表格编辑（FieldCommentInput 为备注单元格）
+│       ├── IndexTable.vue           # 索引列表表格编辑（IndexColumnsEditor 为索引列编辑）
+│       ├── SqlPreview.vue           # SQL 建表语句实时预览（方言切换）
+│       └── InitialDataEditor.vue    # 初始数据编辑器（含 InitialDataSqlPreview）
 ├── composables/
 │   ├── useDropFolder.ts         # 拖拽文件夹打开的组合式函数
 │   └── useEscClose.ts           # Esc 关闭弹窗的组合式函数
@@ -47,6 +60,7 @@ src/
 │   └── editor.ts                # Pinia Store：编辑器全局状态管理（表/字段/索引 CRUD、拖拽、文件读写）
 ├── types/
 │   ├── schema.ts                # Schema 核心类型定义（Schema、Table、Field、Index 等）
+│   ├── settings.ts              # 设置区页面类型（SettingsTab）
 │   └── global.d.ts              # 全局类型声明
 └── utils/
     ├── constants.ts             # 全局常量

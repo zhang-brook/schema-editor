@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import type {
@@ -12,8 +12,8 @@ import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
 import { confirmDialog } from '@/composables/useConfirm'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
-import PageTabs from '@/components/PageTabs.vue'
-import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
+import PageTabs from '@/components/ui/PageTabs.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -202,298 +202,285 @@ const previewVersionSummary = computed(() => {
   return store.versions.find(b => b.id === previewVersionId.value) ?? null
 })
 
-// 进入版本管理 tab 时重置迁移编辑状态（保持未选中空白态，避免误以为在新建）
-watch(
-  () => store.settingsTab,
-  (tab) => {
-    if (tab === 'version') {
-      versionTab.value = 'version'
-      cancelDraft()
-    }
-  },
-)
-
+// 进入版本管理页时重置迁移编辑状态（保持未选中空白态，避免误以为在新建）
 onMounted(() => {
-  if (store.settingsTab === 'version') cancelDraft()
-})
-
-onUnmounted(() => {
-  // 卸载时无需额外处理
+  versionTab.value = 'version'
+  cancelDraft()
 })
 </script>
 
 <template>
-      <!-- 版本管理 -->
-      <div v-if="store.settingsTab === 'version'" class="ps-version">
-        <div class="ps-version-tabs">
-          <PageTabs v-model="versionTab" :options="versionTabOptions" />
+  <!-- 版本管理 -->
+  <div class="ps-version">
+    <div class="ps-version-tabs">
+      <PageTabs v-model="versionTab" :options="versionTabOptions" />
+    </div>
+
+    <!-- 版本 -->
+    <div v-if="versionTab === 'version'" class="ps-version-body ps-version-root">
+      <!-- 左侧：版本列表 -->
+      <div class="ps-version-list">
+        <div class="ps-create-row">
+          <input v-model="newVersionName" class="ps-input" :placeholder="$t('version.namePlaceholder')" />
+          <button class="btn btn-primary" @click="onCreateVersion">{{ $t('version.create') }}</button>
+        </div>
+        <div v-if="store.versions.length === 0" class="ps-empty-sm">{{ $t('version.empty') }}</div>
+        <ul v-else class="ps-list">
+          <li v-for="b in store.versions" :key="b.id" class="ps-list-item"
+            :class="{ active: previewVersionId === b.id }" @click="onPreviewVersion(b.id)">
+            <div class="ps-list-info">
+              <span class="ps-list-name">{{ b.name }}</span>
+              <span class="ps-list-meta">{{ b.created_at }}</span>
+            </div>
+            <button class="btn btn-danger-sm" @click.stop="onDeleteVersion(b.id, b.name)">{{ $t('version.delete')
+              }}</button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 右侧：版本预览面板 -->
+      <div class="ps-version-preview">
+        <!-- 未选中版本 -->
+        <div v-if="!previewVersionId" class="ps-version-empty">
+          {{ $t('version.previewEmpty') }}
         </div>
 
-        <!-- 版本 -->
-        <div v-if="versionTab === 'version'" class="ps-version-body ps-version-root">
-          <!-- 左侧：版本列表 -->
-          <div class="ps-version-list">
-            <div class="ps-create-row">
-              <input v-model="newVersionName" class="ps-input" :placeholder="$t('version.namePlaceholder')" />
-              <button class="btn btn-primary" @click="onCreateVersion">{{ $t('version.create') }}</button>
+        <!-- 加载中 -->
+        <div v-else-if="store.versionPreviewLoading" class="ps-version-empty">
+          {{ $t('app.loadingOpenProject') }}
+        </div>
+
+        <!-- 快照加载失败 -->
+        <div v-else-if="previewVersionId && !store.selectedVersionSnapshot" class="ps-version-empty">
+          {{ $t('version.previewLoadFailed') }}
+        </div>
+
+        <!-- 预览面板内容 -->
+        <template v-else-if="store.selectedVersionSnapshot">
+          <div class="ps-bp-header">
+            <div>
+              <span class="ps-bp-name">{{ previewVersionSummary?.name ?? store.selectedVersionSnapshot.name }}</span>
+              <span class="ps-bp-meta">{{ previewVersionSummary?.created_at ?? store.selectedVersionSnapshot.created_at }}</span>
             </div>
-            <div v-if="store.versions.length === 0" class="ps-empty-sm">{{ $t('version.empty') }}</div>
-            <ul v-else class="ps-list">
-              <li v-for="b in store.versions" :key="b.id" class="ps-list-item"
-                :class="{ active: previewVersionId === b.id }" @click="onPreviewVersion(b.id)">
-                <div class="ps-list-info">
-                  <span class="ps-list-name">{{ b.name }}</span>
-                  <span class="ps-list-meta">{{ b.created_at }}</span>
-                </div>
-                <button class="btn btn-danger-sm" @click.stop="onDeleteVersion(b.id, b.name)">{{ $t('version.delete')
-                  }}</button>
-              </li>
-            </ul>
+            <button class="btn btn-sm" @click="onCloseVersionPreview">{{ $t('version.previewClose') }}</button>
           </div>
 
-          <!-- 右侧：版本预览面板 -->
-          <div class="ps-version-preview">
-            <!-- 未选中版本 -->
-            <div v-if="!previewVersionId" class="ps-version-empty">
-              {{ $t('version.previewEmpty') }}
-            </div>
+          <div class="ps-bp-stats">
+            <span>{{ $t('version.previewSchemas', { n: versionSnapshotStats.schemas }) }}</span>
+            <span>·</span>
+            <span>{{ $t('version.previewTables', { n: versionSnapshotStats.tables }) }}</span>
+            <span>·</span>
+            <span>{{ $t('version.previewFields', { n: versionSnapshotStats.fields }) }}</span>
+            <span>·</span>
+            <span>{{ $t('version.previewIndexes', { n: versionSnapshotStats.indexes }) }}</span>
+            <span>·</span>
+            <span>{{ $t('version.previewStructVersion') }}: {{ store.selectedVersionSnapshot.struct_version }}</span>
+          </div>
 
-            <!-- 加载中 -->
-            <div v-else-if="store.versionPreviewLoading" class="ps-version-empty">
-              {{ $t('app.loadingOpenProject') }}
-            </div>
-
-            <!-- 快照加载失败 -->
-            <div v-else-if="previewVersionId && !store.selectedVersionSnapshot" class="ps-version-empty">
-              {{ $t('version.previewLoadFailed') }}
-            </div>
-
-            <!-- 预览面板内容 -->
-            <template v-else-if="store.selectedVersionSnapshot">
-              <div class="ps-bp-header">
-                <div>
-                  <span class="ps-bp-name">{{ previewVersionSummary?.name ?? store.selectedVersionSnapshot.name }}</span>
-                  <span class="ps-bp-meta">{{ previewVersionSummary?.created_at ?? store.selectedVersionSnapshot.created_at }}</span>
-                </div>
-                <button class="btn btn-sm" @click="onCloseVersionPreview">{{ $t('version.previewClose') }}</button>
-              </div>
-
-              <div class="ps-bp-stats">
-                <span>{{ $t('version.previewSchemas', { n: versionSnapshotStats.schemas }) }}</span>
-                <span>·</span>
-                <span>{{ $t('version.previewTables', { n: versionSnapshotStats.tables }) }}</span>
-                <span>·</span>
-                <span>{{ $t('version.previewFields', { n: versionSnapshotStats.fields }) }}</span>
-                <span>·</span>
-                <span>{{ $t('version.previewIndexes', { n: versionSnapshotStats.indexes }) }}</span>
-                <span>·</span>
-                <span>{{ $t('version.previewStructVersion') }}: {{ store.selectedVersionSnapshot.struct_version }}</span>
-              </div>
-
-              <!-- 结构树 -->
-              <div class="ps-bp-tree">
-                <template v-if="store.selectedVersionSnapshot.schemas.length === 0">
-                  <div class="ps-empty-sm">{{ $t('version.previewNoSchemas') }}</div>
-                </template>
-                <div v-for="(schema, si) in store.selectedVersionSnapshot.schemas" :key="si" class="ps-bp-schema">
-                  <details open>
-                    <summary class="ps-bp-schema-name">{{ schema.schema }}</summary>
-                    <div v-for="(table, ti) in schema.tables" :key="ti" class="ps-bp-table">
-                      <details>
-                        <summary class="ps-bp-table-name">{{ table.name }} <span class="ps-bp-table-comment">{{ table.comment }}</span></summary>
-                        <!-- 字段 -->
-                        <div class="ps-bp-fields">
-                          <div class="ps-bp-field-head">
-                            <span class="ps-bp-col ps-bp-col-name">{{ $t('fieldTable.fieldName') }}</span>
-                            <span class="ps-bp-col ps-bp-col-type">{{ $t('fieldTable.type') }}</span>
-                            <span class="ps-bp-col ps-bp-col-len">{{ $t('fieldTable.length') }}/{{ $t('fieldTable.scale') }}</span>
-                            <span class="ps-bp-col ps-bp-col-nn">{{ $t('fieldTable.nn') }}</span>
-                            <span class="ps-bp-col ps-bp-col-pk">{{ $t('fieldTable.pk') }}</span>
-                            <span class="ps-bp-col ps-bp-col-def">{{ $t('fieldTable.default') }}</span>
-                            <span class="ps-bp-col ps-bp-col-comment">{{ $t('fieldTable.comment') }}</span>
-                          </div>
-                          <div v-for="(field, fi) in table.fields" :key="fi" class="ps-bp-field-row">
-                            <span class="ps-bp-col ps-bp-col-name">{{ field.field_name }}</span>
-                            <span class="ps-bp-col ps-bp-col-type">{{ field.field_type || '-' }}</span>
-                            <span class="ps-bp-col ps-bp-col-len">{{ field.field_length ?? '-' }}{{ field.field_scale != null ? ',' + field.field_scale : '' }}</span>
-                            <span class="ps-bp-col ps-bp-col-nn">{{ field.not_null ? '✓' : '' }}</span>
-                            <span class="ps-bp-col ps-bp-col-pk">{{ field.primary_key ? '✓' : '' }}</span>
-                            <span class="ps-bp-col ps-bp-col-def">{{ field.default ?? '-' }}</span>
-                            <span class="ps-bp-col ps-bp-col-comment">{{ field.comment || '-' }}</span>
-                          </div>
-                        </div>
-                        <!-- 索引 -->
-                        <div v-if="table.indexes.length > 0" class="ps-bp-indexes">
-                          <div class="ps-bp-index-title">{{ $t('indexTable.indexes') }} ({{ table.indexes.length }})</div>
-                          <div v-for="(idx, ii) in table.indexes" :key="ii" class="ps-bp-index-row">
-                            <span class="ps-bp-index-name">{{ idx.name || '-' }}</span>
-                            <span class="ps-bp-index-type">{{ idx.type }}</span>
-                            <span class="ps-bp-index-cols">({{ idx.columns.map(c => c.name).join(', ') }})</span>
-                          </div>
-                        </div>
-                      </details>
+          <!-- 结构树 -->
+          <div class="ps-bp-tree">
+            <template v-if="store.selectedVersionSnapshot.schemas.length === 0">
+              <div class="ps-empty-sm">{{ $t('version.previewNoSchemas') }}</div>
+            </template>
+            <div v-for="(schema, si) in store.selectedVersionSnapshot.schemas" :key="si" class="ps-bp-schema">
+              <details open>
+                <summary class="ps-bp-schema-name">{{ schema.schema }}</summary>
+                <div v-for="(table, ti) in schema.tables" :key="ti" class="ps-bp-table">
+                  <details>
+                    <summary class="ps-bp-table-name">{{ table.name }} <span class="ps-bp-table-comment">{{ table.comment }}</span></summary>
+                    <!-- 字段 -->
+                    <div class="ps-bp-fields">
+                      <div class="ps-bp-field-head">
+                        <span class="ps-bp-col ps-bp-col-name">{{ $t('fieldTable.fieldName') }}</span>
+                        <span class="ps-bp-col ps-bp-col-type">{{ $t('fieldTable.type') }}</span>
+                        <span class="ps-bp-col ps-bp-col-len">{{ $t('fieldTable.length') }}/{{ $t('fieldTable.scale') }}</span>
+                        <span class="ps-bp-col ps-bp-col-nn">{{ $t('fieldTable.nn') }}</span>
+                        <span class="ps-bp-col ps-bp-col-pk">{{ $t('fieldTable.pk') }}</span>
+                        <span class="ps-bp-col ps-bp-col-def">{{ $t('fieldTable.default') }}</span>
+                        <span class="ps-bp-col ps-bp-col-comment">{{ $t('fieldTable.comment') }}</span>
+                      </div>
+                      <div v-for="(field, fi) in table.fields" :key="fi" class="ps-bp-field-row">
+                        <span class="ps-bp-col ps-bp-col-name">{{ field.field_name }}</span>
+                        <span class="ps-bp-col ps-bp-col-type">{{ field.field_type || '-' }}</span>
+                        <span class="ps-bp-col ps-bp-col-len">{{ field.field_length ?? '-' }}{{ field.field_scale != null ? ',' + field.field_scale : '' }}</span>
+                        <span class="ps-bp-col ps-bp-col-nn">{{ field.not_null ? '✓' : '' }}</span>
+                        <span class="ps-bp-col ps-bp-col-pk">{{ field.primary_key ? '✓' : '' }}</span>
+                        <span class="ps-bp-col ps-bp-col-def">{{ field.default ?? '-' }}</span>
+                        <span class="ps-bp-col ps-bp-col-comment">{{ field.comment || '-' }}</span>
+                      </div>
+                    </div>
+                    <!-- 索引 -->
+                    <div v-if="table.indexes.length > 0" class="ps-bp-indexes">
+                      <div class="ps-bp-index-title">{{ $t('indexTable.indexes') }} ({{ table.indexes.length }})</div>
+                      <div v-for="(idx, ii) in table.indexes" :key="ii" class="ps-bp-index-row">
+                        <span class="ps-bp-index-name">{{ idx.name || '-' }}</span>
+                        <span class="ps-bp-index-type">{{ idx.type }}</span>
+                        <span class="ps-bp-index-cols">({{ idx.columns.map(c => c.name).join(', ') }})</span>
+                      </div>
                     </div>
                   </details>
                 </div>
-              </div>
+              </details>
+            </div>
+          </div>
 
-              <!-- SQL 预览 -->
-              <div class="ps-bp-sql-section">
-                <div class="ps-bp-sql-header">
-                  <span>{{ $t('version.previewSqlTitle') }}</span>
-                  <SegmentedSwitch v-model="previewSqlDialect" :options="dialectOptions" />
-                </div>
-                <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
+          <!-- SQL 预览 -->
+          <div class="ps-bp-sql-section">
+            <div class="ps-bp-sql-header">
+              <span>{{ $t('version.previewSqlTitle') }}</span>
+              <SegmentedSwitch v-model="previewSqlDialect" :options="dialectOptions" />
+            </div>
+            <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 迁移 -->
+    <div v-else class="ps-version-body ps-mig">
+      <div class="ps-mig-list">
+        <button class="btn btn-primary btn-block" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
+        <div v-if="store.migrations.length === 0" class="ps-empty-sm">{{ $t('migration.empty') }}</div>
+        <ul class="ps-list">
+          <li v-for="m in store.migrations" :key="m.id" class="ps-list-item"
+            :class="{ active: selectedMigrationId === m.id }" @click="selectMigration(m)">
+            <div class="ps-list-info">
+              <span class="ps-list-name">{{ m.name }}</span>
+              <span class="ps-list-meta">{{ $t('migration.from') }}: {{ versionName(m.from_version) }} → {{ $t('migration.to') }}: {{ versionName(m.to_version) }}</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 未选中任何项：引导说明 -->
+      <div v-if="!isDrafting && !editingMigration" class="ps-mig-editor ps-mig-guide">
+        <div class="ps-guide-card">
+          <div class="ps-guide-icon">⇄</div>
+          <h3>{{ $t('migration.guideTitle') }}</h3>
+          <p>{{ $t('migration.guideDesc') }}</p>
+          <ol class="ps-guide-steps">
+            <li>{{ $t('migration.guideStep1') }}</li>
+            <li>{{ $t('migration.guideStep2') }}</li>
+            <li>{{ $t('migration.guideStep3') }}</li>
+          </ol>
+          <button class="btn btn-primary" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
+        </div>
+      </div>
+
+      <!-- 新建迁移草稿 -->
+      <div v-else-if="isDrafting && !editingMigration" class="ps-mig-editor">
+        <div class="ps-mig-titlebar">
+          <span class="ps-mig-title">{{ $t('migration.newTitle') }}</span>
+          <button class="btn btn-sm btn-ghost" @click="cancelDraft">{{ $t('migration.cancel') }}</button>
+        </div>
+
+        <div class="ps-mig-pick ps-mig-pick-form">
+          <div class="ps-pick-field">
+            <span class="ps-pick-label">{{ $t('migration.from') }}</span>
+            <select v-model="draftFrom">
+              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
+          </div>
+          <span class="ps-pick-arrow">→</span>
+          <div class="ps-pick-field">
+            <span class="ps-pick-label">{{ $t('migration.to') }}</span>
+            <select v-model="draftTo">
+              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
+          </div>
+          <button class="btn btn-primary ps-pick-create"
+            :disabled="!canCreateMigration" @click="onCreateMigration">{{
+            $t('migration.create') }}</button>
+        </div>
+
+        <div v-if="store.versions.length < 2" class="ps-mig-warn">
+          {{ $t('migration.needTwoBaselines') }}
+        </div>
+        <div v-else-if="draftFrom === draftTo" class="ps-mig-warn">
+          {{ $t('migration.sameBaseline') }}
+        </div>
+      </div>
+
+      <!-- 编辑已有迁移 -->
+      <div v-else-if="editingMigration" class="ps-mig-editor">
+        <div class="ps-mig-titlebar">
+          <span class="ps-mig-title">{{ $t('migration.editTitle', { name: editingMigration.name }) }}</span>
+        </div>
+
+        <div class="ps-mig-pick ps-mig-pick-form">
+          <div class="ps-pick-field">
+            <span class="ps-pick-label">{{ $t('migration.from') }}</span>
+            <select v-model="editingMigration.from_version"
+              @change="draftFrom = editingMigration!.from_version; refreshPreview()">
+              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
+          </div>
+          <span class="ps-pick-arrow">→</span>
+          <div class="ps-pick-field">
+            <span class="ps-pick-label">{{ $t('migration.to') }}</span>
+            <select v-model="editingMigration.to_version"
+              @change="draftTo = editingMigration!.to_version; refreshPreview()">
+              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ps-steps">
+          <div class="ps-steps-head">
+            <span>{{ $t('migration.steps') }}</span>
+            <div class="ps-step-add">
+              <button class="btn btn-sm" @click="addStep('auto_diff')">{{ $t('migration.stepAutoDiff') }}</button>
+              <button class="btn btn-sm" @click="addStep('clear_column')">{{ $t('migration.stepClearColumn')
+                }}</button>
+              <button class="btn btn-sm" @click="addStep('sql_transform')">{{ $t('migration.stepSqlTransform')
+                }}</button>
+              <button class="btn btn-sm" @click="addStep('custom_sql')">{{ $t('migration.stepCustomSql') }}</button>
+            </div>
+          </div>
+
+          <div v-if="editingMigration.steps.length === 0" class="ps-empty-sm ps-steps-empty">
+            {{ $t('migration.noSteps') }}
+          </div>
+
+          <div v-for="(step, idx) in editingMigration.steps" :key="idx" class="ps-step">
+            <div class="ps-step-head">
+              <span class="ps-step-type">{{ $t('migration.stepType') }}: {{ step.type }}</span>
+              <button class="btn btn-danger-sm" @click="removeStep(idx)">×</button>
+            </div>
+            <template v-if="step.type === 'clear_column'">
+              <div class="ps-step-fields">
+                <input v-model="step.schema" :placeholder="$t('migration.schema')" />
+                <input v-model="step.table" :placeholder="$t('migration.table')" />
+                <input v-model="step.column" :placeholder="$t('migration.column')" />
               </div>
+            </template>
+            <template v-else-if="step.type === 'sql_transform' || step.type === 'custom_sql'">
+              <textarea v-model="step.mysql" :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
+              <textarea v-model="step.postgresql" :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
+              <textarea v-model="step.sqlite" :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
+            </template>
+            <template v-else>
+              <div class="ps-step-hint">auto diff ({{ editingMigration.from_version }} → {{
+                editingMigration.to_version }})</div>
             </template>
           </div>
         </div>
 
-        <!-- 迁移 -->
-        <div v-else class="ps-version-body ps-mig">
-          <div class="ps-mig-list">
-            <button class="btn btn-primary btn-block" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
-            <div v-if="store.migrations.length === 0" class="ps-empty-sm">{{ $t('migration.empty') }}</div>
-            <ul class="ps-list">
-              <li v-for="m in store.migrations" :key="m.id" class="ps-list-item"
-                :class="{ active: selectedMigrationId === m.id }" @click="selectMigration(m)">
-                <div class="ps-list-info">
-                  <span class="ps-list-name">{{ m.name }}</span>
-                  <span class="ps-list-meta">{{ $t('migration.from') }}: {{ versionName(m.from_version) }} → {{ $t('migration.to') }}: {{ versionName(m.to_version) }}</span>
-                </div>
-              </li>
-            </ul>
+        <div class="ps-preview">
+          <div class="ps-preview-head">
+            <span>{{ $t('migration.preview') }}</span>
+            <SegmentedSwitch v-model="previewDialect" :options="dialectOptions" />
+            <button class="btn btn-sm" @click="onSaveMigration">{{ $t('migration.save') }}</button>
           </div>
-
-          <!-- 未选中任何项：引导说明 -->
-          <div v-if="!isDrafting && !editingMigration" class="ps-mig-editor ps-mig-guide">
-            <div class="ps-guide-card">
-              <div class="ps-guide-icon">⇄</div>
-              <h3>{{ $t('migration.guideTitle') }}</h3>
-              <p>{{ $t('migration.guideDesc') }}</p>
-              <ol class="ps-guide-steps">
-                <li>{{ $t('migration.guideStep1') }}</li>
-                <li>{{ $t('migration.guideStep2') }}</li>
-                <li>{{ $t('migration.guideStep3') }}</li>
-              </ol>
-              <button class="btn btn-primary" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
-            </div>
-          </div>
-
-          <!-- 新建迁移草稿 -->
-          <div v-else-if="isDrafting && !editingMigration" class="ps-mig-editor">
-            <div class="ps-mig-titlebar">
-              <span class="ps-mig-title">{{ $t('migration.newTitle') }}</span>
-              <button class="btn btn-sm btn-ghost" @click="cancelDraft">{{ $t('migration.cancel') }}</button>
-            </div>
-
-            <div class="ps-mig-pick ps-mig-pick-form">
-              <div class="ps-pick-field">
-                <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-                <select v-model="draftFrom">
-                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-                </select>
-              </div>
-              <span class="ps-pick-arrow">→</span>
-              <div class="ps-pick-field">
-                <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-                <select v-model="draftTo">
-                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-                </select>
-              </div>
-              <button class="btn btn-primary ps-pick-create"
-                :disabled="!canCreateMigration" @click="onCreateMigration">{{
-                $t('migration.create') }}</button>
-            </div>
-
-            <div v-if="store.versions.length < 2" class="ps-mig-warn">
-              {{ $t('migration.needTwoBaselines') }}
-            </div>
-            <div v-else-if="draftFrom === draftTo" class="ps-mig-warn">
-              {{ $t('migration.sameBaseline') }}
-            </div>
-          </div>
-
-          <!-- 编辑已有迁移 -->
-          <div v-else-if="editingMigration" class="ps-mig-editor">
-            <div class="ps-mig-titlebar">
-              <span class="ps-mig-title">{{ $t('migration.editTitle', { name: editingMigration.name }) }}</span>
-            </div>
-
-            <div class="ps-mig-pick ps-mig-pick-form">
-              <div class="ps-pick-field">
-                <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-                <select v-model="editingMigration.from_version"
-                  @change="draftFrom = editingMigration!.from_version; refreshPreview()">
-                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-                </select>
-              </div>
-              <span class="ps-pick-arrow">→</span>
-              <div class="ps-pick-field">
-                <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-                <select v-model="editingMigration.to_version"
-                  @change="draftTo = editingMigration!.to_version; refreshPreview()">
-                  <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="ps-steps">
-              <div class="ps-steps-head">
-                <span>{{ $t('migration.steps') }}</span>
-                <div class="ps-step-add">
-                  <button class="btn btn-sm" @click="addStep('auto_diff')">{{ $t('migration.stepAutoDiff') }}</button>
-                  <button class="btn btn-sm" @click="addStep('clear_column')">{{ $t('migration.stepClearColumn')
-                    }}</button>
-                  <button class="btn btn-sm" @click="addStep('sql_transform')">{{ $t('migration.stepSqlTransform')
-                    }}</button>
-                  <button class="btn btn-sm" @click="addStep('custom_sql')">{{ $t('migration.stepCustomSql') }}</button>
-                </div>
-              </div>
-
-              <div v-if="editingMigration.steps.length === 0" class="ps-empty-sm ps-steps-empty">
-                {{ $t('migration.noSteps') }}
-              </div>
-
-              <div v-for="(step, idx) in editingMigration.steps" :key="idx" class="ps-step">
-                <div class="ps-step-head">
-                  <span class="ps-step-type">{{ $t('migration.stepType') }}: {{ step.type }}</span>
-                  <button class="btn btn-danger-sm" @click="removeStep(idx)">×</button>
-                </div>
-                <template v-if="step.type === 'clear_column'">
-                  <div class="ps-step-fields">
-                    <input v-model="step.schema" :placeholder="$t('migration.schema')" />
-                    <input v-model="step.table" :placeholder="$t('migration.table')" />
-                    <input v-model="step.column" :placeholder="$t('migration.column')" />
-                  </div>
-                </template>
-                <template v-else-if="step.type === 'sql_transform' || step.type === 'custom_sql'">
-                  <textarea v-model="step.mysql" :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
-                  <textarea v-model="step.postgresql" :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
-                  <textarea v-model="step.sqlite" :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
-                </template>
-                <template v-else>
-                  <div class="ps-step-hint">auto diff ({{ editingMigration.from_version }} → {{
-                    editingMigration.to_version }})</div>
-                </template>
-              </div>
-            </div>
-
-            <div class="ps-preview">
-              <div class="ps-preview-head">
-                <span>{{ $t('migration.preview') }}</span>
-                <SegmentedSwitch v-model="previewDialect" :options="dialectOptions" />
-                <button class="btn btn-sm" @click="onSaveMigration">{{ $t('migration.save') }}</button>
-              </div>
-              <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>
-            </div>
-
-            <button class="btn btn-danger-sm ps-del"
-              @click="onDeleteMigration(editingMigration.id, editingMigration.name)">{{
-                $t('migration.delete') }}</button>
-          </div>
+          <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>
         </div>
+
+        <button class="btn btn-danger-sm ps-del"
+          @click="onDeleteMigration(editingMigration.id, editingMigration.name)">{{
+            $t('migration.delete') }}</button>
       </div>
+    </div>
+  </div>
 </template>
 
 <style scoped src="@/assets/style/btn.css"></style>

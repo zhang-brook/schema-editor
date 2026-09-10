@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
-import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import DefaultMysqlConfigPanel from './DefaultMysqlConfigPanel.vue'
 import DefaultPostgresqlConfigPanel from './DefaultPostgresqlConfigPanel.vue'
 import DefaultSqliteConfigPanel from './DefaultSqliteConfigPanel.vue'

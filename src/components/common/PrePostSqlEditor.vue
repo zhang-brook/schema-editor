@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
-import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 
 const props = defineProps<{
   title: string

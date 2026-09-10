@@ -1,6 +1,7 @@
 import type { Ref, ComputedRef } from 'vue'
 import type { CommonConfig, Schema, Table, Field, Index, TableMysqlConfig, TablePartitionConfig, PartitionByConfig, InitialData, CommentOption } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
+import type { SettingsTab } from '@/types/settings'
 import {
   affectedDatabase,
   affectedSchema,
@@ -26,7 +27,7 @@ export interface CrudDeps {
   selectedTableIdx: Ref<number>
   expandedFields: Set<string>
   expandedIndexes: Set<string>
-  settingsTab: Ref<'project' | 'structure' | 'version'>
+  settingsTab: Ref<SettingsTab>
   addFieldSchemaIdx: Ref<number>
   addFieldTableIdx: Ref<number>
   addFieldMode: Ref<'normal' | 'common'>
@@ -288,7 +289,7 @@ export function createCrudActions(deps: CrudDeps) {
 
   // ===== 项目设置 =====
   /** 切换到指定设置 tab */
-  function selectSettingsTab(tab: 'project' | 'structure' | 'version') {
+  function selectSettingsTab(tab: SettingsTab) {
     settingsTab.value = tab
   }
 

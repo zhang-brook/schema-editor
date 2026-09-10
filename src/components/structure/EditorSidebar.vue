@@ -2,8 +2,8 @@
 import { ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import ImportIcon from './icon/ImportIcon.vue'
-import CopyIcon from './icon/CopyIcon.vue'
+import ImportIcon from '@/components/icon/ImportIcon.vue'
+import CopyIcon from '@/components/icon/CopyIcon.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()

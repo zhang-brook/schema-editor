@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import type { SegmentedOption } from '@/components/SegmentedSwitch.vue'
+import type { SegmentedOption } from '@/components/ui/SegmentedSwitch.vue'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 /** 方言展示名（各方言名称在各语言环境下保持一致） */

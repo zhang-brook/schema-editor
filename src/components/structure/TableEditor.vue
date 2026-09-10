@@ -3,13 +3,13 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { getTablePreSql, getTablePostSql, type SqlDialect } from '@/utils/sql-generator/shared'
-import PageTabs from '@/components/PageTabs.vue'
+import PageTabs from '@/components/ui/PageTabs.vue'
 import TableBasicInfo from './TableBasicInfo.vue'
 import FieldTable from './FieldTable.vue'
 import IndexTable from './IndexTable.vue'
 import SqlPreview from './SqlPreview.vue'
 import InitialDataEditor from './InitialDataEditor.vue'
-import PrePostSqlEditor from './PrePostSqlEditor.vue'
+import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()

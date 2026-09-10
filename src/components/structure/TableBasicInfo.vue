@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import { toDialectOptions } from '@/composables/useEnabledDialect'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 

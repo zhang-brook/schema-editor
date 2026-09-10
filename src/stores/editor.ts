@@ -6,6 +6,7 @@ import type {
   Schema,
   InitialData,
 } from '@/types/schema'
+import type { SettingsTab } from '@/types/settings'
 import {
   isFileSystemAccessSupported,
   writeCommonToHandle,
@@ -74,7 +75,7 @@ export const useEditorStore = defineStore('editor', () => {
   const expandedFields = reactive(new Set<string>())
   const expandedIndexes = reactive(new Set<string>())
   // ===== 项目设置（VSCode 风格：左侧 tab 切换） =====
-  const settingsTab = ref<'project' | 'structure' | 'version'>('structure')
+  const settingsTab = ref<SettingsTab>('structure')
   const toastMsg = ref('')
   const toastVisible = ref(false)
   const showAddFieldModal = ref(false)

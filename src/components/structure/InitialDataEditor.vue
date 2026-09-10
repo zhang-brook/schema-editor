@@ -7,7 +7,7 @@ import { normalizeInitialData } from '@/utils/initial-data-io'
 import { getInitialDataPreSql, getInitialDataPostSql, type SqlDialect } from '@/utils/sql-generator/shared'
 import { confirmDialog } from '@/composables/useConfirm'
 import type { InitialData, InitialDataRow } from '@/types/schema'
-import PrePostSqlEditor from './PrePostSqlEditor.vue'
+import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
 import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
 const store = useEditorStore()

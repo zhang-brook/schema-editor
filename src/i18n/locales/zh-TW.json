@@ -49,6 +49,8 @@
     "editSqliteQuoteIdentifiers": "編輯 SQLite 引號識別符",
     "editTableDdlMode": "編輯建表 DDL 模式",
     "editTypeCase": "編輯類型大小寫",
+    "editProjectName": "編輯專案名稱",
+    "editProjectDescription": "編輯專案描述",
     "addCommonField": "新增公共欄位",
     "deleteCommonField": "刪除公共欄位",
     "addIndex": "新增索引",
@@ -146,8 +148,9 @@
       "project": "專案設定"
     },
     "subTabs": {
+      "project": "專案資訊",
       "general": "全域設定",
-      "dialect": "方言設定",
+      "dialect": "方言與偏好",
       "model": "大模型"
     },
     "groups": {
@@ -164,6 +167,11 @@
   },
   "commonConfig": {
     "databaseDefaults": "資料庫預設設定",
+    "projectName": "專案名稱",
+    "projectNamePlaceholder": "例如：電商平台資料庫",
+    "projectNameHint": "會顯示在網頁標題與頂部選單列，隨專案儲存到 common.json",
+    "projectDescription": "專案描述",
+    "projectDescriptionPlaceholder": "簡要說明此專案的用途、業務範圍等",
     "commonUsedFields": "公共欄位",
     "unifiedTypesTitle": "統一類型定義",
     "newTypePlaceholder": "新類型名稱...",

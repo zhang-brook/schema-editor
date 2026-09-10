@@ -49,6 +49,8 @@
     "editSqliteQuoteIdentifiers": "Edit SQLite Quote Identifiers",
     "editTableDdlMode": "Edit Table DDL Mode",
     "editTypeCase": "Edit Type Case",
+    "editProjectName": "Edit Project Name",
+    "editProjectDescription": "Edit Project Description",
     "addCommonField": "Add Common Field",
     "deleteCommonField": "Delete Common Field",
     "addIndex": "Add Index",
@@ -146,8 +148,9 @@
       "project": "Project Settings"
     },
     "subTabs": {
+      "project": "Project Info",
       "general": "General Config",
-      "dialect": "Dialect Config",
+      "dialect": "Dialect & Preferences",
       "model": "LLM"
     },
     "groups": {
@@ -164,6 +167,11 @@
   },
   "commonConfig": {
     "databaseDefaults": "Database Default Configuration",
+    "projectName": "Project Name",
+    "projectNamePlaceholder": "e.g. E-commerce Database",
+    "projectNameHint": "Shown in the page title and the top menu bar, saved to common.json with the project",
+    "projectDescription": "Project Description",
+    "projectDescriptionPlaceholder": "Briefly describe the purpose and scope of this project",
     "commonUsedFields": "Common Used Fields",
     "unifiedTypesTitle": "Unified Types",
     "newTypePlaceholder": "New type name...",

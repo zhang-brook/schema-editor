@@ -4,6 +4,8 @@ export const commonBody = `### common.json
 \`\`\`jsonc
 {
   "struct_version": "1.0",   // 结构版本号，当前 CURRENT_STRUCT_VERSION = "1.0"
+  "project_name": "",        // 项目名称（展示在网页标题与顶部菜单栏，可省略）
+  "project_description": "", // 项目描述（仅说明用途，可省略）
   "default_config": { "...": "见下" },
   "common_used_fields": { "id": { "field_name": "id", "unified_type": "BigInt", "primary_key": true } },
   "common_used_field_order": ["id"],  // 仅 UI 顺序

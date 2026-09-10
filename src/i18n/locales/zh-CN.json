@@ -49,6 +49,8 @@
     "editSqliteQuoteIdentifiers": "编辑 SQLite 引号标识符",
     "editTableDdlMode": "编辑建表 DDL 模式",
     "editTypeCase": "编辑类型大小写",
+    "editProjectName": "编辑项目名称",
+    "editProjectDescription": "编辑项目描述",
     "addCommonField": "添加公共字段",
     "deleteCommonField": "删除公共字段",
     "addIndex": "添加索引",
@@ -146,8 +148,9 @@
       "project": "项目设置"
     },
     "subTabs": {
+      "project": "项目信息",
       "general": "全局配置",
-      "dialect": "方言配置",
+      "dialect": "方言与偏好",
       "model": "大模型"
     },
     "groups": {
@@ -164,6 +167,11 @@
   },
   "commonConfig": {
     "databaseDefaults": "数据库默认配置",
+    "projectName": "项目名称",
+    "projectNamePlaceholder": "如：电商平台数据库",
+    "projectNameHint": "会显示在网页标题与顶部菜单栏，随项目保存到 common.json",
+    "projectDescription": "项目描述",
+    "projectDescriptionPlaceholder": "简要说明该项目的用途、业务范围等",
     "commonUsedFields": "公共字段",
     "unifiedTypesTitle": "统一类型定义",
     "newTypePlaceholder": "新类型名...",

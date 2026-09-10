@@ -171,6 +171,25 @@ export const useEditorStore = defineStore('editor', () => {
     return map
   })
 
+  // ===== 项目信息（common.json）：名称展示在网页标题与顶部菜单栏 =====
+  const projectName = computed(() => commonConfig.value?.project_name ?? '')
+  const projectDescription = computed(() => commonConfig.value?.project_description ?? '')
+
+  // 菜单栏标题点击后的一次性请求：打开「项目设置 → 项目信息」
+  const projectInfoTabRequest = ref(false)
+
+  function openProjectInfoSettings() {
+    settingsTab.value = 'project'
+    projectInfoTabRequest.value = true
+  }
+
+  /** 读取并清除一次性请求；ProjectConfigPage 挂载时调用，未请求则回退到「全局配置」 */
+  function consumeProjectInfoTabRequest(): boolean {
+    if (!projectInfoTabRequest.value) return false
+    projectInfoTabRequest.value = false
+    return true
+  }
+
   // ===== 启用的 SQL 方言（项目级，存于 common.json.enabled_dialects） =====
 
   /** 当前启用且受支持的方言（按支持顺序）；未配置或为空时视为全部启用 */
@@ -1110,6 +1129,8 @@ export const useEditorStore = defineStore('editor', () => {
   const {
     setGlobalPreSql,
     setGlobalPostSql,
+    setProjectName,
+    setProjectDescription,
     getCommonMysqlEngine,
     getCommonMysqlCharset,
     getCommonMysqlCollation,
@@ -1204,6 +1225,8 @@ export const useEditorStore = defineStore('editor', () => {
     commonFieldNames,
     unifiedTypeNames,
     unifiedTypeMap,
+    projectName,
+    projectDescription,
     currentInitialDataKey,
     currentInitialData,
 
@@ -1217,6 +1240,11 @@ export const useEditorStore = defineStore('editor', () => {
     openProjectFromHandle,
     closeProject,
     reloadFromDisk,
+    setProjectName,
+    setProjectDescription,
+    projectInfoTabRequest,
+    openProjectInfoSettings,
+    consumeProjectInfoTabRequest,
     syncAllToDisk,
     overlayVisible,
     overlayText,

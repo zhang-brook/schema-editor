@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import PageTabs from '@/components/ui/PageTabs.vue'
+import ProjectInfoPanel from './sections/ProjectInfoPanel.vue'
 import CommonUsedFieldsPanel from './sections/CommonUsedFieldsPanel.vue'
 import UnifiedTypesPanel from './sections/UnifiedTypesPanel.vue'
 import DialectConfigPanel from './sections/DialectConfigPanel.vue'
@@ -15,10 +16,17 @@ import AiGuidePanel from './sections/AiGuidePanel.vue'
 const store = useEditorStore()
 const { t } = useI18n()
 
-const subTabs = ['general', 'dialect', 'model'] as const
+const subTabs = ['project', 'general', 'dialect', 'model'] as const
 type SubTab = (typeof subTabs)[number]
 
 const activeSubTab = ref<SubTab>('general')
+
+// 由菜单栏标题点击进入时切到「项目信息」；immediate 同时覆盖首次挂载与已挂载后再次点击
+watch(() => store.projectInfoTabRequest, (pending) => {
+  if (!pending) return
+  activeSubTab.value = 'project'
+  store.consumeProjectInfoTabRequest()
+}, { immediate: true })
 
 const subTabOptions = computed(() =>
   subTabs.map(tab => ({ value: tab, label: t(`settings.subTabs.${tab}`) })),
@@ -26,12 +34,17 @@ const subTabOptions = computed(() =>
 </script>
 
 <template>
-  <!-- ===== 项目设置页：三个子 tab ===== -->
+  <!-- ===== 项目设置页：四个子 tab ===== -->
   <div v-if="store.commonConfig" class="pcfg-page">
     <PageTabs v-model="activeSubTab" :options="subTabOptions" />
 
+    <!-- 项目信息 -->
+    <template v-if="activeSubTab === 'project'">
+      <ProjectInfoPanel />
+    </template>
+
     <!-- 全局配置 -->
-    <template v-if="activeSubTab === 'general'">
+    <template v-else-if="activeSubTab === 'general'">
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.commonFields') }}</div>
         <CommonUsedFieldsPanel />

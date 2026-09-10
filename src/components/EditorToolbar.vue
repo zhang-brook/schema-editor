@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
@@ -14,6 +14,16 @@ const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userA
 
 const showAboutModal = ref(false)
 const openMenu = ref<string | null>(null)
+
+/** 顶部菜单栏居中标题：显示项目名称，未设置时留空 */
+const displayTitle = computed(() => store.projectName.trim())
+
+/** 网页标题：项目名称 - 应用名；未设置项目名时仅应用名 */
+watchEffect(() => {
+  document.title = displayTitle.value
+    ? `${displayTitle.value} - ${t('app.title')}`
+    : t('app.title')
+})
 
 function toggleMenu(menu: string) {
   openMenu.value = openMenu.value === menu ? null : menu
@@ -32,7 +42,6 @@ function switchLocale(newLocale: SupportedLocale) {
   locale.value = newLocale
   persistLocale(newLocale)
   document.documentElement.lang = newLocale
-  document.title = t('app.title')
 }
 
 // Close menu when clicking outside the menu bar
@@ -103,7 +112,7 @@ onUnmounted(() => {
   <!-- ===== Menu Bar ===== -->
   <div class="menu-bar">
     <img src="/logo.png" alt="Logo" class="menu-bar-logo" />
-    <span class="menu-bar-title">{{ $t('app.title') }}</span>
+    <span class="menu-bar-brand">{{ $t('app.title') }}</span>
 
     <!-- File Menu -->
     <div class="menu-item" :class="{ open: openMenu === 'file' }" @click.stop="toggleMenu('file')">
@@ -187,6 +196,15 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- 居中标题：点击进入「项目设置 → 项目信息」 -->
+    <button
+      v-if="displayTitle"
+      class="menu-bar-title"
+      type="button"
+      :title="`${displayTitle} — ${t('settings.tabs.project')}`"
+      @click="store.openProjectInfoSettings()"
+    >{{ displayTitle }}</button>
+
     <!-- Right Side -->
     <div class="menu-bar-right">
       <span v-if="store.projectOpened" class="sync-badge" :title="$t('toolbar.autoSavingTitle')">
@@ -220,6 +238,7 @@ onUnmounted(() => {
   height: 40px;
   user-select: none;
   box-shadow: 0 1px 2px rgba(27, 31, 36, 0.04);
+  position: relative;
 }
 
 .menu-bar-logo {
@@ -228,12 +247,39 @@ onUnmounted(() => {
   margin: 0 6px 0 12px;
 }
 
-.menu-bar-title {
+/* 品牌名：固定在左上角，不随项目变化 */
+.menu-bar-brand {
   font-size: 13px;
   font-weight: 600;
   color: var(--accent);
   margin-right: 16px;
   white-space: nowrap;
+}
+
+/* 项目名称：绝对定位在菜单栏正中（不受左右宽度影响），样式低调、可点击 */
+.menu-bar-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 40%;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+
+.menu-bar-title:hover {
+  background: var(--surface-3);
+  color: var(--fg);
 }
 
 .menu-item {

@@ -85,6 +85,45 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     })
   }
 
+  // ===== 项目信息（common.json 的 project_name / project_description） =====
+
+  function setProjectName(val: string) {
+    if (!commonConfig.value) return
+    const old = commonConfig.value.project_name
+    executeCommand({
+      label: t('history.editProjectName'),
+      coalesceKey: 'project-name',
+      apply() {
+        // 清空视为未设置，避免在 common.json 中留下空字符串
+        commonConfig.value!.project_name = val.trim() ? val : undefined
+      },
+      revert() {
+        commonConfig.value!.project_name = old
+      },
+      affectedFiles() {
+        return [affectedCommon()]
+      },
+    })
+  }
+
+  function setProjectDescription(val: string) {
+    if (!commonConfig.value) return
+    const old = commonConfig.value.project_description
+    executeCommand({
+      label: t('history.editProjectDescription'),
+      coalesceKey: 'project-description',
+      apply() {
+        commonConfig.value!.project_description = val.trim() ? val : undefined
+      },
+      revert() {
+        commonConfig.value!.project_description = old
+      },
+      affectedFiles() {
+        return [affectedCommon()]
+      },
+    })
+  }
+
   // ===== Common Config Editing =====
   function getCommonMysqlEngine() {
     return commonConfig.value?.default_config?.mysql?.table?.mysql_engine || ''
@@ -529,6 +568,8 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
   return {
     setGlobalPreSql,
     setGlobalPostSql,
+    setProjectName,
+    setProjectDescription,
     getCommonMysqlEngine,
     getCommonMysqlCharset,
     getCommonMysqlCollation,

@@ -234,6 +234,10 @@ export interface DefaultConfig {
 
 export interface CommonConfig {
   struct_version?: string  // 结构版本号，缺省为 "0.0"
+  /** 项目名称：展示在网页标题与顶部菜单栏；缺省或为空时回退到应用默认标题 */
+  project_name?: string
+  /** 项目描述：仅用于说明项目用途，不参与 SQL 生成 */
+  project_description?: string
   /**
    * 项目级启用的 SQL 方言（多选）。
    * 仅启用的方言会出现在各处方言切换页签中，并按此生成 output/ 下的 SQL；

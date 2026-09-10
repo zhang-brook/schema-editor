@@ -258,6 +258,7 @@ function buildIndexDefinition(
   if (dialect === 'sqlite') {
     return `${keyword} ${qIndexName} ON ${qTable} (${colList});`
   }
+  throw new Error(`Unsupported dialect: ${dialect}`)
 }
 
 // ===== diff → DDL =====

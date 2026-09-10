@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { SqlDialect } from '@/utils/sql-generator/shared';
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
 
-defineProps<{
+const props = defineProps<{
   title: string
   prePlaceholder: string
   postPlaceholder: string
@@ -24,7 +24,32 @@ const emit = defineEmits<{
   'update:sqlitePost': [value: string]
 }>()
 
-const dialect = ref<SqlDialect>('mysql')
+// 只展示已启用的方言；当前方言被禁用时自动回落
+const { enabledDialects, activeDialect } = useEnabledDialect()
+
+const preValue = computed(() =>
+  activeDialect.value === 'mysql' ? props.mysqlPre
+    : activeDialect.value === 'postgresql' ? props.postgresqlPre
+      : props.sqlitePre,
+)
+
+const postValue = computed(() =>
+  activeDialect.value === 'mysql' ? props.mysqlPost
+    : activeDialect.value === 'postgresql' ? props.postgresqlPost
+      : props.sqlitePost,
+)
+
+function updatePre(val: string) {
+  if (activeDialect.value === 'mysql') emit('update:mysqlPre', val)
+  else if (activeDialect.value === 'postgresql') emit('update:postgresqlPre', val)
+  else emit('update:sqlitePre', val)
+}
+
+function updatePost(val: string) {
+  if (activeDialect.value === 'mysql') emit('update:mysqlPost', val)
+  else if (activeDialect.value === 'postgresql') emit('update:postgresqlPost', val)
+  else emit('update:sqlitePost', val)
+}
 </script>
 
 <template>
@@ -35,9 +60,13 @@ const dialect = ref<SqlDialect>('mysql')
           <span>{{ title }}</span>
         </div>
         <div class="tab-group">
-          <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">MySQL</button>
-          <button class="tab-btn" :class="{ active: dialect === 'postgresql' }" @click="dialect = 'postgresql'">PostgreSQL</button>
-          <button class="tab-btn" :class="{ active: dialect === 'sqlite' }" @click="dialect = 'sqlite'">SQLite</button>
+          <button
+            v-for="d in enabledDialects"
+            :key="d"
+            class="tab-btn"
+            :class="{ active: activeDialect === d }"
+            @click="activeDialect = d"
+          >{{ DIALECT_LABELS[d] }}</button>
         </div>
       </div>
       <div class="header-right">
@@ -50,26 +79,9 @@ const dialect = ref<SqlDialect>('mysql')
         <div class="sql-group">
           <label class="sql-label">{{ $t('prePostSql.pre') }}</label>
           <textarea
-            v-if="dialect === 'mysql'"
             class="sql-textarea"
-            :value="mysqlPre"
-            @input="emit('update:mysqlPre', ($event.target as HTMLTextAreaElement).value)"
-            :placeholder="prePlaceholder"
-            :rows="rows ?? 4"
-          ></textarea>
-          <textarea
-            v-else-if="dialect === 'postgresql'"
-            class="sql-textarea"
-            :value="postgresqlPre"
-            @input="emit('update:postgresqlPre', ($event.target as HTMLTextAreaElement).value)"
-            :placeholder="prePlaceholder"
-            :rows="rows ?? 4"
-          ></textarea>
-          <textarea
-            v-else-if="dialect === 'sqlite'"
-            class="sql-textarea"
-            :value="sqlitePre"
-            @input="emit('update:sqlitePre', ($event.target as HTMLTextAreaElement).value)"
+            :value="preValue"
+            @input="updatePre(($event.target as HTMLTextAreaElement).value)"
             :placeholder="prePlaceholder"
             :rows="rows ?? 4"
           ></textarea>
@@ -78,26 +90,9 @@ const dialect = ref<SqlDialect>('mysql')
         <div class="sql-group">
           <label class="sql-label">{{ $t('prePostSql.post') }}</label>
           <textarea
-            v-if="dialect === 'mysql'"
             class="sql-textarea"
-            :value="mysqlPost"
-            @input="emit('update:mysqlPost', ($event.target as HTMLTextAreaElement).value)"
-            :placeholder="postPlaceholder"
-            :rows="rows ?? 4"
-          ></textarea>
-          <textarea
-            v-else-if="dialect === 'postgresql'"
-            class="sql-textarea"
-            :value="postgresqlPost"
-            @input="emit('update:postgresqlPost', ($event.target as HTMLTextAreaElement).value)"
-            :placeholder="postPlaceholder"
-            :rows="rows ?? 4"
-          ></textarea>
-          <textarea
-            v-else-if="dialect === 'sqlite'"
-            class="sql-textarea"
-            :value="sqlitePost"
-            @input="emit('update:sqlitePost', ($event.target as HTMLTextAreaElement).value)"
+            :value="postValue"
+            @input="updatePost(($event.target as HTMLTextAreaElement).value)"
             :placeholder="postPlaceholder"
             :rows="rows ?? 4"
           ></textarea>

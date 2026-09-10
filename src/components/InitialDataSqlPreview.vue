@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
+import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
 import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from '@/utils/sql-generator/shared'
 import { generateInitialDataMySQL } from '@/utils/sql-generator/mysql'
 import { generateInitialDataPostgreSQL } from '@/utils/sql-generator/postgresql'
 import { generateInitialDataSQLite } from '@/utils/sql-generator/sqlite'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
 const { t } = useI18n()
-
-const dialect = ref<SqlDialect>('mysql')
+const { enabledDialects, activeDialect } = useEnabledDialect()
 
 const previewSql = computed(() => {
   const table = store.currentTable
@@ -19,8 +18,8 @@ const previewSql = computed(() => {
   const data = store.currentInitialData
   if (!table || !data) return ''
 
-  const preSql = getInitialDataPreSql(data, dialect.value)
-  const postSql = getInitialDataPostSql(data, dialect.value)
+  const preSql = getInitialDataPreSql(data, activeDialect.value)
+  const postSql = getInitialDataPostSql(data, activeDialect.value)
 
   // 先过滤掉「不生成」的行，得到有效数据行
   const filtered = filterInitialDataRows(data.rows)
@@ -28,12 +27,12 @@ const previewSql = computed(() => {
   let sql = ''
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
   if (filtered.hasRows) {
-    if (dialect.value === 'mysql') {
+    if (activeDialect.value === 'mysql') {
       sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments)
-    } else if (dialect.value === 'postgresql') {
+    } else if (activeDialect.value === 'postgresql') {
       const schemaName = schema?.schema || 'public'
       sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig)
-    } else if (dialect.value === 'sqlite') {
+    } else if (activeDialect.value === 'sqlite') {
       sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, store.commonConfig)
     }
   }
@@ -58,10 +57,13 @@ function copyToClipboard() {
           <span>{{ $t('initialData.sqlPreview') }}</span>
         </div>
         <div class="tab-group">
-          <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">MySQL</button>
-          <button class="tab-btn" :class="{ active: dialect === 'postgresql' }"
-            @click="dialect = 'postgresql'">PostgreSQL</button>
-          <button class="tab-btn" :class="{ active: dialect === 'sqlite' }" @click="dialect = 'sqlite'">SQLite</button>
+          <button
+            v-for="d in enabledDialects"
+            :key="d"
+            class="tab-btn"
+            :class="{ active: activeDialect === d }"
+            @click="activeDialect = d"
+          >{{ DIALECT_LABELS[d] }}</button>
         </div>
       </div>
       <div class="header-right">

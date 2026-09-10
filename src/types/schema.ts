@@ -1,3 +1,5 @@
+import type { SqlDialect } from '@/utils/sql-generator/shared'
+
 /** 前置/后置 SQL 语句（按方言分别配置） */
 export interface SqlStatements {
   mysql?: string
@@ -232,6 +234,12 @@ export interface DefaultConfig {
 
 export interface CommonConfig {
   struct_version?: string  // 结构版本号，缺省为 "0.0"
+  /**
+   * 项目级启用的 SQL 方言（多选）。
+   * 仅启用的方言会出现在各处方言切换页签中，并按此生成 output/ 下的 SQL；
+   * 缺省（未配置或为空）视为全部启用，且至少保留一种方言。
+   */
+  enabled_dialects?: SqlDialect[]
   default_config: DefaultConfig
   schema_order?: string[]
   common_used_fields: Record<string, Field>

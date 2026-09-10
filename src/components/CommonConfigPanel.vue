@@ -2,6 +2,7 @@
 import { useEditorStore } from '@/stores/editor'
 import { getGlobalPreSql, getGlobalPostSql } from '@/utils/sql-generator/shared'
 import CommonUsedFieldsPanel from './panel/CommonUsedFieldsPanel.vue'
+import DialectConfigPanel from './panel/DialectConfigPanel.vue'
 import UnifiedTypesPanel from './panel/UnifiedTypesPanel.vue'
 import PrePostSqlEditor from './PrePostSqlEditor.vue'
 
@@ -11,6 +12,9 @@ const store = useEditorStore()
 <template>
   <!-- ===== Common Config Panel ===== -->
   <template v-if="store.showCommonPanel && store.commonConfig">
+    <!-- SQL 输出方言（项目级开关） -->
+    <DialectConfigPanel />
+
     <UnifiedTypesPanel />
 
     <!-- Default MySQL Table Config -->

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { DIALECT_LABELS } from '@/composables/useEnabledDialect'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
@@ -23,6 +24,19 @@ async function onTableNameChange(event: Event) {
 
 // ===== 分区表配置（按方言） =====
 const partitionDialect = ref<SqlDialect>('mysql')
+
+// 分区仅 MySQL / PostgreSQL 支持，再按项目启用的方言过滤
+const PARTITION_DIALECTS: SqlDialect[] = ['mysql', 'postgresql']
+const partitionDialects = computed(() =>
+  store.enabledDialects.filter(d => PARTITION_DIALECTS.includes(d)),
+)
+
+// 当前分区方言被禁用时自动回落到第一个可用方言
+watch(partitionDialects, (list) => {
+  if (list.length > 0 && !list.includes(partitionDialect.value)) {
+    partitionDialect.value = list[0]!
+  }
+}, { immediate: true })
 
 interface PartitionFormValue {
   strategy: string
@@ -127,12 +141,17 @@ const partitionExpression = computed({
       </div>
 
       <!-- Partition By（按方言） -->
-      <div class="form-row partition-block">
+      <div v-if="partitionDialects.length > 0" class="form-row partition-block">
         <div class="partition-header">
           <label class="form-label">{{ $t('tableEditor.partition') }}</label>
           <div class="header-tabs">
-            <button class="tab-btn" :class="{ active: partitionDialect === 'mysql' }" @click="partitionDialect = 'mysql'">{{ $t('sqlPreview.mysql') }}</button>
-            <button class="tab-btn" :class="{ active: partitionDialect === 'postgresql' }" @click="partitionDialect = 'postgresql'">{{ $t('sqlPreview.postgresql') }}</button>
+            <button
+              v-for="d in partitionDialects"
+              :key="d"
+              class="tab-btn"
+              :class="{ active: partitionDialect === d }"
+              @click="partitionDialect = d"
+            >{{ DIALECT_LABELS[d] }}</button>
           </div>
         </div>
         <div class="form-row">

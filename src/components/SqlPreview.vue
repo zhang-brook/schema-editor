@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
+import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
 import { generateTableMySQL } from '@/utils/sql-generator/mysql'
 import { generateTablePostgreSQL } from '@/utils/sql-generator/postgresql'
 import { generateTableSQLite } from '@/utils/sql-generator/sqlite'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
 
 const store = useEditorStore()
 const { t } = useI18n()
-const dialect = ref<SqlDialect>('mysql')
+const { enabledDialects, activeDialect } = useEnabledDialect()
 
 const previewSql = computed(() => {
   const table = store.currentTable
   if (!table) return ''
   const schema = store.currentSchema
 
-  if (dialect.value === 'mysql') {
+  if (activeDialect.value === 'mysql') {
     return generateTableMySQL(table, store.commonConfig)
   }
-  else if (dialect.value === 'postgresql') {
+  else if (activeDialect.value === 'postgresql') {
     const schemaName = schema?.schema || 'public'
     return generateTablePostgreSQL(table, schemaName, store.commonConfig)
   }
-  else if (dialect.value === 'sqlite') {
+  else if (activeDialect.value === 'sqlite') {
     return generateTableSQLite(table, store.commonConfig)
   }
   return ''
@@ -43,11 +43,13 @@ function copyToClipboard() {
         <div style="margin-right: 15px;">
           <span>{{ $t('sqlPreview.title') }}</span>
         </div>
-        <button class="tab-btn" :class="{ active: dialect === 'mysql' }" @click="dialect = 'mysql'">{{ $t('sqlPreview.mysql') }}</button>
-        <button class="tab-btn" :class="{ active: dialect === 'postgresql' }"
-          @click="dialect = 'postgresql'">{{ $t('sqlPreview.postgresql') }}</button>
-        <button class="tab-btn" :class="{ active: dialect === 'sqlite' }"
-          @click="dialect = 'sqlite'">{{ $t('sqlPreview.sqlite') }}</button>
+        <button
+          v-for="d in enabledDialects"
+          :key="d"
+          class="tab-btn"
+          :class="{ active: activeDialect === d }"
+          @click="activeDialect = d"
+        >{{ DIALECT_LABELS[d] }}</button>
       </div>
       <div class="header-actions">
         <button class="btn-copy" @click="copyToClipboard" :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>

@@ -133,6 +133,11 @@
     "previewSql": "SQL Generation",
     "previewLoadFailed": "Failed to load version"
   },
+  "dialectConfig": {
+    "title": "SQL Output Dialects",
+    "hint": "Checked dialects appear in SQL previews and all dialect switchers, and their SQL is generated into the project's output/ directory. Unchecking a dialect deletes its generated SQL, while the dialect configs stored in JSON are preserved.",
+    "keepOne": "At least one dialect must be enabled"
+  },
   "settings": {
     "title": "Project Settings",
     "tabs": {

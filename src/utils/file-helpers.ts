@@ -602,6 +602,21 @@ export async function deleteSqlFromOutput(
   }
 }
 
+/**
+ * 删除 output/<dialect>/ 整个目录（清空该方言已生成的全部 SQL）
+ */
+export async function deleteSqlDialectFromOutput(
+  rootHandle: FileSystemDirectoryHandle,
+  dialect: string
+): Promise<void> {
+  try {
+    const outputHandle = await getOutputDir(rootHandle, false)
+    await removeEntry(outputHandle, dialect, { recursive: true })
+  } catch {
+    // output/ 或该方言目录不存在，忽略
+  }
+}
+
 // ===== 业务无关的工具函数 =====
 
 

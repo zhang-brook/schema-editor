@@ -133,6 +133,11 @@
     "previewSql": "SQL 生成",
     "previewLoadFailed": "加载版本失败"
   },
+  "dialectConfig": {
+    "title": "SQL 输出方言",
+    "hint": "勾选的方言会出现在 SQL 预览与各处方言切换页签中，并在项目 output/ 目录生成对应 SQL；取消勾选会删除已生成的该方言 SQL，但 JSON 中记录的方言配置会保留。",
+    "keepOne": "至少需要启用一种方言"
+  },
   "settings": {
     "title": "项目设置",
     "tabs": {

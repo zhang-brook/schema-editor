@@ -11,7 +11,7 @@ import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
 import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
 import { confirmDialog } from '@/composables/useConfirm'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { DIALECT_LABELS, useEnabledDialect } from '@/composables/useEnabledDialect'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -37,7 +37,8 @@ const draftFrom = ref('')
 const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
 const preview = ref<MigrationDdlPreview | null>(null)
-const previewDialect = ref<SqlDialect>('mysql')
+// 迁移预览：只展示已启用的方言
+const { enabledDialects, activeDialect: previewDialect } = useEnabledDialect()
 
 const canCreateMigration = computed(
   () =>
@@ -135,7 +136,7 @@ function previewText(): string {
 
 // ===== 版本预览 =====
 const previewVersionId = ref<string | null>(null)
-const previewSqlDialect = ref<SqlDialect>('mysql')
+const { activeDialect: previewSqlDialect } = useEnabledDialect()
 
 async function onPreviewVersion(id: string) {
   previewVersionId.value = id
@@ -337,12 +338,9 @@ onUnmounted(() => {
                 <div class="ps-bp-sql-header">
                   <span>{{ $t('version.previewSqlTitle') }}</span>
                   <div class="ps-dialect">
-                    <button :class="{ active: previewSqlDialect === 'mysql' }"
-                      @click="previewSqlDialect = 'mysql'">MySQL</button>
-                    <button :class="{ active: previewSqlDialect === 'postgresql' }"
-                      @click="previewSqlDialect = 'postgresql'">PostgreSQL</button>
-                    <button :class="{ active: previewSqlDialect === 'sqlite' }"
-                      @click="previewSqlDialect = 'sqlite'">SQLite</button>
+                    <button v-for="d in enabledDialects" :key="d"
+                      :class="{ active: previewSqlDialect === d }"
+                      @click="previewSqlDialect = d">{{ DIALECT_LABELS[d] }}</button>
                   </div>
                 </div>
                 <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
@@ -485,12 +483,9 @@ onUnmounted(() => {
               <div class="ps-preview-head">
                 <span>{{ $t('migration.preview') }}</span>
                 <div class="ps-dialect">
-                  <button :class="{ active: previewDialect === 'mysql' }"
-                    @click="previewDialect = 'mysql'">MySQL</button>
-                  <button :class="{ active: previewDialect === 'postgresql' }"
-                    @click="previewDialect = 'postgresql'">PostgreSQL</button>
-                  <button :class="{ active: previewDialect === 'sqlite' }"
-                    @click="previewDialect = 'sqlite'">SQLite</button>
+                  <button v-for="d in enabledDialects" :key="d"
+                    :class="{ active: previewDialect === d }"
+                    @click="previewDialect = d">{{ DIALECT_LABELS[d] }}</button>
                   </div>
                 <button class="btn btn-sm" @click="onSaveMigration">{{ $t('migration.save') }}</button>
               </div>

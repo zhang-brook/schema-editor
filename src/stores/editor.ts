@@ -10,6 +10,7 @@ import {
   isFileSystemAccessSupported,
   writeCommonToHandle,
   deleteSqlFromOutput,
+  deleteSqlDialectFromOutput,
   writeSqlToOutput,
   // ===== 新结构（current/）读写 =====
   openProjectFolderNew,
@@ -169,6 +170,42 @@ export const useEditorStore = defineStore('editor', () => {
     }
     return map
   })
+
+  // ===== 启用的 SQL 方言（项目级，存于 common.json.enabled_dialects） =====
+
+  /** 当前启用且受支持的方言（按支持顺序）；未配置或为空时视为全部启用 */
+  const enabledDialects = computed<SqlDialect[]>(() => {
+    const list = commonConfig.value?.enabled_dialects
+    if (!list || list.length === 0) return [...ALL_SQL_DIALECTS]
+    return ALL_SQL_DIALECTS.filter(d => list.includes(d))
+  })
+
+  function isDialectEnabled(dialect: SqlDialect): boolean {
+    return enabledDialects.value.includes(dialect)
+  }
+
+  /**
+   * 切换方言启用状态：写入 common.json 并立即同步。
+   * 取消勾选会删除 output/ 下该方言已生成的 SQL（json 中的方言配置保留）；至少保留一种方言。
+   */
+  async function setDialectEnabled(dialect: SqlDialect, enabled: boolean) {
+    if (!commonConfig.value) return
+    const stored = commonConfig.value.enabled_dialects
+    const list = stored && stored.length ? [...stored] : [...ALL_SQL_DIALECTS]
+    const idx = list.indexOf(dialect)
+    if (enabled) {
+      if (idx === -1) list.push(dialect)
+    } else {
+      if (idx === -1) return
+      if (list.length <= 1) {
+        showToast(t('dialectConfig.keepOne'))
+        return
+      }
+      list.splice(idx, 1)
+    }
+    commonConfig.value.enabled_dialects = list
+    if (projectOpened.value) await syncAllToDisk()
+  }
 
   // ===== Toast =====
   let toastTimer: ReturnType<typeof setTimeout> | null = null
@@ -866,7 +903,10 @@ export const useEditorStore = defineStore('editor', () => {
   async function syncSqlToOutput() {
     if (!rootDirHandle.value) return
     try {
-      for (const dialect of ALL_SQL_DIALECTS) {
+      const enabled = enabledDialects.value
+      const disabled = ALL_SQL_DIALECTS.filter(d => !enabled.includes(d))
+
+      for (const dialect of enabled) {
         const generators = DIALECT_GENERATORS[dialect]
         const allSchemaSql: { name: string; sql: string }[] = []
 
@@ -896,6 +936,11 @@ export const useEditorStore = defineStore('editor', () => {
         if (initialDataSql.trim()) {
           await writeSqlToOutput(rootDirHandle.value, dialect, '__initial_data__.sql', initialDataSql)
         }
+      }
+
+      // 未启用的方言：删除其 output/<dialect>/ 下已生成的 SQL，保证与勾选状态一致
+      for (const dialect of disabled) {
+        await deleteSqlDialectFromOutput(rootDirHandle.value, dialect)
       }
     } catch (e) {
       console.error('SQL output sync failed:', e)
@@ -1167,6 +1212,11 @@ export const useEditorStore = defineStore('editor', () => {
     unifiedTypeMap,
     currentInitialDataKey,
     currentInitialData,
+
+    // 启用的 SQL 方言
+    enabledDialects,
+    isDialectEnabled,
+    setDialectEnabled,
 
     // Project
     openProject,

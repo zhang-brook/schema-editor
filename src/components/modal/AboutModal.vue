@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { version } from '@/../package.json'
+import { BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
 import { GITHUB_REPO_URL } from '@/utils/constants'
 import { useEscClose } from '@/composables/useEscClose'
 
@@ -13,10 +14,32 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { t } = useI18n()
+const { locale } = useI18n()
 
 // ESC 关闭弹窗
 useEscClose(computed(() => props.visible), () => emit('close'))
+
+// 构建时刻转为本地时区展示
+const formattedBuildTime = computed(() => {
+  if (!BUILD_TIME) return BUILD_TIME
+  const date = new Date(BUILD_TIME)
+  if (Number.isNaN(date.getTime())) return BUILD_TIME
+  return new Intl.DateTimeFormat(locale.value, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date)
+})
+
+const commitUrl = computed(() =>
+  COMMIT_ID && COMMIT_ID !== 'unknown'
+    ? `${GITHUB_REPO_URL}/commit/${COMMIT_ID}`
+    : '',
+)
 </script>
 
 <template>
@@ -32,6 +55,23 @@ useEscClose(computed(() => props.visible), () => emit('close'))
           <div class="about-name">{{ $t('app.title') }}</div>
           <div class="about-version">
             {{ $t('about.version') }} {{ version }}
+          </div>
+          <div class="about-meta">
+            <div class="about-meta-row">
+              <span class="about-meta-label">{{ $t('about.buildTime') }}</span>
+              <span class="about-meta-value">{{ formattedBuildTime }}</span>
+            </div>
+            <div class="about-meta-row">
+              <span class="about-meta-label">{{ $t('about.commit') }}</span>
+              <a
+                v-if="commitUrl"
+                :href="commitUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="about-meta-value about-commit-link"
+              >{{ COMMIT_ID }}</a>
+              <span v-else class="about-meta-value">{{ COMMIT_ID }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -112,6 +152,39 @@ useEscClose(computed(() => props.visible), () => emit('close'))
   font-size: 13px;
   color: #666;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.about-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+}
+
+.about-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.about-meta-label {
+  color: #999;
+}
+
+.about-meta-value {
+  color: #666;
+}
+
+.about-commit-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.about-commit-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
 }
 
 .about-github {

@@ -502,6 +502,8 @@
   "about": {
     "title": "About",
     "version": "Version",
+    "buildTime": "Build time",
+    "commit": "Git commit",
     "github": "View on GitHub",
     "close": "OK"
   }

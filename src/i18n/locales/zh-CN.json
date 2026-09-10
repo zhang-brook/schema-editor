@@ -502,6 +502,8 @@
   "about": {
     "title": "关于",
     "version": "版本",
+    "buildTime": "构建时间",
+    "commit": "Git 提交",
     "github": "在 GitHub 上查看",
     "close": "确定"
   }

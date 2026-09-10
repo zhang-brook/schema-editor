@@ -153,7 +153,7 @@
     "aiGuideHint": "开启后，会在打开的文件夹中写入一份描述 JSON 结构的 markdown 文件，帮助 AI 工具正确修改这些 JSON。"
   },
   "commonConfig": {
-    "defaultMysqlConfig": "默认 MySQL 表配置",
+    "defaultMysqlConfig": "MySQL 默认配置",
     "commonUsedFields": "公共字段",
     "unifiedTypesTitle": "统一类型定义",
     "newTypePlaceholder": "新类型名...",
@@ -181,8 +181,8 @@
     "deleteField": "删除公共字段",
     "dragToSort": "拖拽排序",
     "badge": "{n} 个字段",
-    "defaultPostgresqlConfig": "默认 PostgreSQL 配置",
-    "defaultSqliteConfig": "默认 SQLite 配置",
+    "defaultPostgresqlConfig": "PostgreSQL 默认配置",
+    "defaultSqliteConfig": "SQLite 默认配置",
     "quoteIdentifiers": "标识符加双引号",
     "quoteIdentifiersHint": "生成 SQL 时用双引号包裹表名和列名",
     "unifiedTypes": {

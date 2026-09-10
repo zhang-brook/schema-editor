@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { getTablePreSql, getTablePostSql, type SqlDialect } from '@/utils/sql-generator/shared'
+import PageTabs from '@/components/PageTabs.vue'
 import TableBasicInfo from './TableBasicInfo.vue'
 import FieldTable from './FieldTable.vue'
 import IndexTable from './IndexTable.vue'
@@ -10,8 +12,14 @@ import InitialDataEditor from './InitialDataEditor.vue'
 import PrePostSqlEditor from './PrePostSqlEditor.vue'
 
 const store = useEditorStore()
+const { t } = useI18n()
 
 const activeTab = ref<'structure' | 'initial-data'>('structure')
+
+const tabOptions = computed(() => [
+  { value: 'structure' as const, label: t('tableEditor.tabStructure') },
+  { value: 'initial-data' as const, label: t('tableEditor.tabInitialData') },
+])
 
 function tablePreSql(dialect: SqlDialect): string {
   if (!store.currentTable) return ''
@@ -40,22 +48,7 @@ function setTablePostSql(dialect: SqlDialect, val: string) {
     <TableBasicInfo />
 
     <!-- Tab Navigation -->
-    <div class="tab-bar">
-      <button
-        class="tab-item"
-        :class="{ active: activeTab === 'structure' }"
-        @click="activeTab = 'structure'"
-      >
-        {{ $t('tableEditor.tabStructure') }}
-      </button>
-      <button
-        class="tab-item"
-        :class="{ active: activeTab === 'initial-data' }"
-        @click="activeTab = 'initial-data'"
-      >
-        {{ $t('tableEditor.tabInitialData') }}
-      </button>
-    </div>
+    <PageTabs v-model="activeTab" :options="tabOptions" />
 
     <!-- Tab: Structure -->
     <template v-if="activeTab === 'structure'">
@@ -95,36 +88,3 @@ function setTablePostSql(dialect: SqlDialect, val: string) {
     </template>
   </template>
 </template>
-
-<style scoped>
-.tab-bar {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 18px;
-}
-
-.tab-item {
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  cursor: pointer;
-  transition: color .15s ease, border-color .15s ease;
-  font-family: inherit;
-}
-
-.tab-item:hover {
-  color: var(--fg);
-}
-
-.tab-item.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
-}
-</style>

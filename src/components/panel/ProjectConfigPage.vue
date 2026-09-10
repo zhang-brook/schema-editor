@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
+import PageTabs from '@/components/PageTabs.vue'
 import CommonUsedFieldsPanel from './CommonUsedFieldsPanel.vue'
 import UnifiedTypesPanel from './UnifiedTypesPanel.vue'
 import DialectConfigPanel from './DialectConfigPanel.vue'
@@ -11,25 +13,22 @@ import GlobalPrePostSqlPanel from './GlobalPrePostSqlPanel.vue'
 import AiGuidePanel from './AiGuidePanel.vue'
 
 const store = useEditorStore()
+const { t } = useI18n()
 
 const subTabs = ['general', 'dialect', 'model'] as const
 type SubTab = (typeof subTabs)[number]
 
 const activeSubTab = ref<SubTab>('general')
+
+const subTabOptions = computed(() =>
+  subTabs.map(tab => ({ value: tab, label: t(`settings.subTabs.${tab}`) })),
+)
 </script>
 
 <template>
   <!-- ===== 项目设置页：三个子 tab ===== -->
   <div v-if="store.settingsTab === 'project' && store.commonConfig" class="pcfg-page">
-    <div class="pcfg-tabs">
-      <button
-        v-for="tab in subTabs"
-        :key="tab"
-        class="pcfg-tab"
-        :class="{ active: activeSubTab === tab }"
-        @click="activeSubTab = tab"
-      >{{ $t(`settings.subTabs.${tab}`) }}</button>
-    </div>
+    <PageTabs v-model="activeSubTab" :options="subTabOptions" />
 
     <!-- 全局配置 -->
     <template v-if="activeSubTab === 'general'">
@@ -74,37 +73,6 @@ const activeSubTab = ref<SubTab>('general')
   min-width: 0;
   overflow-y: auto;
   padding: 20px 24px;
-}
-
-.pcfg-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 18px;
-}
-
-.pcfg-tab {
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: color .15s ease, border-color .15s ease;
-}
-
-.pcfg-tab:hover:not(.active) {
-  color: var(--fg);
-}
-
-.pcfg-tab.active {
-  color: var(--accent-active);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
 }
 
 /* 分组小标题：仅作视觉分隔，不增加点击层级 */

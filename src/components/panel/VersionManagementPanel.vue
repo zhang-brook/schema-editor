@@ -12,6 +12,7 @@ import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
 import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
 import { confirmDialog } from '@/composables/useConfirm'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
+import PageTabs from '@/components/PageTabs.vue'
 import SegmentedSwitch from '@/components/SegmentedSwitch.vue'
 
 const store = useEditorStore()
@@ -20,6 +21,11 @@ const { t } = useI18n()
 // ===== 版本管理（迁入自 VersionMigrationModal 的逻辑，去掉 modal 外壳） =====
 const versionTab = ref<'version' | 'migration'>('version')
 const newVersionName = ref('')
+
+const versionTabOptions = computed(() => [
+  { value: 'version' as const, label: t('version.title') },
+  { value: 'migration' as const, label: t('migration.title') },
+])
 
 async function onCreateVersion() {
   await store.createVersion(newVersionName.value)
@@ -220,10 +226,7 @@ onUnmounted(() => {
       <!-- 版本管理 -->
       <div v-if="store.settingsTab === 'version'" class="ps-version">
         <div class="ps-version-tabs">
-          <button :class="{ active: versionTab === 'version' }" @click="versionTab = 'version'">{{
-            $t('version.title') }}</button>
-          <button :class="{ active: versionTab === 'migration' }" @click="versionTab = 'migration'">{{
-            $t('migration.title') }}</button>
+          <PageTabs v-model="versionTab" :options="versionTabOptions" />
         </div>
 
         <!-- 版本 -->
@@ -505,29 +508,12 @@ onUnmounted(() => {
 }
 
 .ps-version-tabs {
-  display: flex;
-  gap: 4px;
   padding: 12px 16px 0;
-  border-bottom: 1px solid var(--border-muted);
 }
 
-.ps-version-tabs button {
-  padding: 7px 16px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  cursor: pointer;
-  font-family: inherit;
-  transition: background .15s ease, color .15s ease, border-color .15s ease;
-}
-
-.ps-version-tabs button.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+/* 共享 tab 自带的下边距在此处多余（内容区已有内边距） */
+.ps-version-tabs .page-tabs {
+  margin-bottom: 0;
 }
 
 .ps-version-body {

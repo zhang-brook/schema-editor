@@ -1,15 +1,24 @@
 ﻿<script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useEscClose } from '@/composables/useEscClose'
+import { useEnterConfirm } from '@/composables/useEnterConfirm'
 import { displayFieldLength, displayFieldScale } from '@/utils/file-helpers'
 
 const store = useEditorStore()
 
 const orderedCommonFields = computed(() => store.getOrderedCommonUsedFields())
 
+// 普通模式聚焦字段名输入框（可直接输入后回车），公共字段模式聚焦确认按钮
+const nameInput = ref<HTMLInputElement | null>(null)
+const confirmBtn = ref<HTMLButtonElement | null>(null)
+const initialFocus = computed<HTMLElement | null>(() => (store.addFieldMode === 'normal' ? nameInput.value : confirmBtn.value))
+
 // ESC 关闭弹窗
 useEscClose(computed(() => store.showAddFieldModal), () => { store.showAddFieldModal = false })
+
+// ENTER 确认添加
+useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddField(), initialFocus)
 </script>
 
 <template>
@@ -21,8 +30,8 @@ useEscClose(computed(() => store.showAddFieldModal), () => { store.showAddFieldM
         <label class="form-label">{{ $t('addFieldModal.fieldName') }}</label>
         <input
           class="form-input"
+          ref="nameInput"
           v-model="store.newFieldName"
-          @keyup.enter="store.confirmAddField()"
           :placeholder="$t('addFieldModal.namePlaceholder')"
         />
       </div>
@@ -56,7 +65,7 @@ useEscClose(computed(() => store.showAddFieldModal), () => { store.showAddFieldM
       </div>
       <div class="modal-actions">
         <button class="btn" @click="store.showAddFieldModal = false">{{ $t('addFieldModal.cancel') }}</button>
-        <button class="btn btn-primary" @click="store.confirmAddField()">{{ store.addFieldMode === 'common' ? $t('addFieldModal.confirm') : $t('addFieldModal.add') }}</button>
+        <button class="btn btn-primary" ref="confirmBtn" @click="store.confirmAddField()">{{ store.addFieldMode === 'common' ? $t('addFieldModal.confirm') : $t('addFieldModal.add') }}</button>
       </div>
     </div>
   </div>

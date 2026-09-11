@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref } from 'vue'
+import { useEscClose } from '@/composables/useEscClose'
+import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
 const props = withDefaults(defineProps<{
   /** 是否显示弹窗 */
@@ -31,28 +33,13 @@ const iconGlyph = computed(() => (showCancel.value ? '?' : 'i'))
 const iconClass = computed(() => (showCancel.value ? 'confirm-icon--warn' : 'confirm-icon--info'))
 
 // ===== 键盘快捷键：ESC 取消，ENTER 确认 =====
-// 弹窗由队列驱动、组件始终挂载，仅在 visible 时拦截；
-// 焦点在按钮/表单控件时不抢键，交给原生行为，避免重复触发。
-function onKeydown(e: KeyboardEvent) {
-  if (!props.visible) return
-  const el = e.target as HTMLElement | null
-  const tag = el?.tagName
-  const inFormField =
-    tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!el?.isContentEditable
-  if (inFormField) return
+// 弹窗由队列驱动、组件始终挂载，两个 composable 仅在 visible 时拦截按键；
+// 焦点落在确认按钮上（如表格里的删除 × 触发的弹窗），避免回车重复触发原按钮。
+const confirmBtn = ref<HTMLButtonElement | null>(null)
+const visibleFlag = computed(() => props.visible)
 
-  if (e.key === 'Escape') {
-    e.preventDefault()
-    emit('cancel')
-  } else if (e.key === 'Enter') {
-    if (el instanceof HTMLButtonElement) return
-    e.preventDefault()
-    emit('confirm')
-  }
-}
-
-onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+useEscClose(visibleFlag, () => emit('cancel'))
+useEnterConfirm(visibleFlag, () => emit('confirm'), confirmBtn)
 </script>
 
 <template>
@@ -66,7 +53,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <p class="confirm-message">{{ message }}</p>
       <div class="modal-actions">
         <button v-if="showCancel" class="btn" @click="emit('cancel')">{{ cancelText }}</button>
-        <button class="btn" :class="{ 'btn-primary': primaryConfirm }" @click="emit('confirm')">{{ confirmText }}</button>
+        <button class="btn" :class="{ 'btn-primary': primaryConfirm }" ref="confirmBtn" @click="emit('confirm')">{{ confirmText }}</button>
       </div>
     </div>
   </div>

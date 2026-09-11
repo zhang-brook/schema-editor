@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { version } from '@/../package.json'
 import { BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
 import { GITHUB_REPO_URL } from '@/utils/constants'
 import { useEscClose } from '@/composables/useEscClose'
+import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
 const props = defineProps<{
   visible: boolean
@@ -16,11 +17,15 @@ const emit = defineEmits<{
 
 const { locale } = useI18n()
 
-// ESC 关闭弹窗
+// ESC/ENTER 关闭弹窗
+const closeBtn = ref<HTMLButtonElement | null>(null)
+const visibleFlag = computed(() => props.visible)
+
 useEscClose(
-  computed(() => props.visible),
+  visibleFlag,
   () => emit('close'),
 )
+useEnterConfirm(visibleFlag, () => emit('close'), closeBtn)
 
 // 构建时刻转为本地时区展示
 const formattedBuildTime = computed(() => {
@@ -87,7 +92,7 @@ const commitUrl = computed(() =>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-primary" @click="emit('close')">
+        <button class="btn btn-primary" ref="closeBtn" @click="emit('close')">
           {{ $t('about.close') }}
         </button>
       </div>

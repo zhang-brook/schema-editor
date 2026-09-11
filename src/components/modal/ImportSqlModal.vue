@@ -3,6 +3,7 @@ import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useEscClose } from '@/composables/useEscClose'
+import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -41,6 +42,11 @@ const parsedSummary = computed(() => {
   const totalConstraints = tables.reduce((s, tbl) => s + tbl.constraints.length, 0)
   return { tableCount: tables.length, fieldCount: totalFields, constraintCount: totalConstraints }
 })
+
+// 目标 schema 已就绪、导入按钮可用时才允许回车确认
+const canImport = computed(() =>
+  !!parsedSummary.value && (store.importSqlTargetMode !== 'existing' || store.importSqlTargetSchemaIdx >= 0),
+)
 
 // Schema 列表（用于目标选择）
 const schemaOptions = computed(() => {
@@ -127,6 +133,11 @@ function onTableNameEdit(idx: number, val: string) {
 
 // ESC 关闭弹窗
 useEscClose(computed(() => store.showImportSqlModal), () => { store.showImportSqlModal = false })
+
+// ENTER 导入：焦点落在 SQL 文本域内时用 Ctrl/Cmd + ENTER（避免与换行冲突）
+useEnterConfirm(computed(() => store.showImportSqlModal), () => {
+  if (canImport.value) store.confirmImportSql()
+}, textareaRef)
 </script>
 
 <template>
@@ -317,7 +328,7 @@ useEscClose(computed(() => store.showImportSqlModal), () => { store.showImportSq
         <button
           class="btn btn-primary"
           @click="store.confirmImportSql()"
-          :disabled="!parsedSummary || (store.importSqlTargetMode === 'existing' && store.importSqlTargetSchemaIdx < 0)"
+          :disabled="!canImport"
         >
           {{ $t('importSqlModal.importBtn') }}
         </button>

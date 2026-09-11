@@ -19,7 +19,8 @@
     "lint": "run-s \"lint:*\"",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "oxfmt src/"
+    "format": "oxfmt src/",
+    "changelog": "node scripts/changelog.mjs"
   },
   "dependencies": {
     "nanoid": "^5.1.16",
@@ -34,6 +35,7 @@
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/tsconfig": "^0.9.1",
+    "changelogen": "^0.6.2",
     "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-oxlint": "~1.73.0",

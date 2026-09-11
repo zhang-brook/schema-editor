@@ -77,8 +77,6 @@ export type DiffChangeType =
 
 export interface FieldDiff {
   type: DiffChangeType
-  /** field_id（若存在），用于稳定匹配 */
-  field_id?: string
   /** 旧字段名（rename / 删除 / 修改前） */
   old_name?: string
   /** 新字段名（rename / 新增 / 修改后） */
@@ -89,8 +87,6 @@ export interface FieldDiff {
 
 export interface IndexDiff {
   type: DiffChangeType
-  /** index_id（若存在），用于稳定匹配 */
-  index_id?: string
   /** 旧索引标识（name 或 列签名） */
   old_name?: string
   new_name?: string
@@ -99,7 +95,6 @@ export interface IndexDiff {
 
 export interface TableDiff {
   type: 'table_added' | 'table_removed' | 'table_renamed'
-  table_id?: string
   old_name?: string
   new_name?: string
   /** 表内细粒度变更（仅 renamed 时可能同时存在字段/索引改动由下方字段承载） */
@@ -108,7 +103,6 @@ export interface TableDiff {
 }
 
 export interface SchemaDiff {
-  schema_id?: string
   schema: string
   tables: TableDiff[]
 }
@@ -173,7 +167,7 @@ export type MigrationStepType =
 /** auto_diff：自动基于两版本（from→to）结构差异生成 DDL；可选仅针对特定表 */
 export interface AutoDiffStep {
   type: 'auto_diff'
-  /** 限制生成范围到指定表（table_id 列表），省略则全量 */
+  /** 限制生成范围到指定表（`schema/table` 路径），省略则全量 */
   only_tables?: string[]
 }
 

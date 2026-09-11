@@ -345,7 +345,7 @@ function buildFieldDdl(
   if (!targetTable) return []
   switch (fd.type) {
     case 'field_added': {
-      const f = targetTable.fields.find(x => x.field_name === fd.new_name || (fd.field_id && x.field_id === fd.field_id))
+      const f = targetTable.fields.find(x => x.field_name === fd.new_name)
       if (f) return [buildAddColumn(dialect, schemaName, tableName, f, null)]
       return []
     }
@@ -354,7 +354,7 @@ function buildFieldDdl(
     case 'field_renamed':
       return [buildRenameColumn(dialect, schemaName, tableName, fd.old_name!, fd.new_name!, null)]
     case 'field_modified': {
-      const f = targetTable.fields.find(x => x.field_name === fd.new_name || (fd.field_id && x.field_id === fd.field_id))
+      const f = targetTable.fields.find(x => x.field_name === fd.new_name)
       if (f) return [buildModifyColumn(dialect, schemaName, tableName, f, null)]
       return []
     }
@@ -373,8 +373,7 @@ function buildIndexDdl(
   const targetTable = findTargetTable(targetSchemas, schemaName, tableName)
   if (!targetTable) return []
   if (id.type === 'index_added' || id.type === 'index_modified') {
-    const idx = (id.index_id && targetTable.indexes.find(x => x.index_id === id.index_id)) ||
-      targetTable.indexes.find(x => x.name === id.new_name)
+    const idx = targetTable.indexes.find(x => x.name === id.new_name)
     if (idx) return [buildIndexDefinition(dialect, schemaName, tableName, idx as any, null)]
     return []
   }

@@ -379,7 +379,6 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Versions / Migrations (extracted) =====
   const {
     loadVersionsAndMigrations,
-    ensureIdsForCurrent,
     createVersion,
     deleteVersionById,
     getVersionSnapshot,
@@ -502,11 +501,6 @@ export const useEditorStore = defineStore('editor', () => {
     // 加载 initial-data（行内化在各 table 目录）
     for (const { key, data } of newProj.initialData) {
       initialDataMap.set(key, data)
-    }
-
-    // 补齐磁盘上已有对象缺失的 id（无论是否已创建版本，保证全部带 id 以跨版本识别）
-    if (ensureIdsForCurrent()) {
-      await syncAllToDisk()
     }
 
     // 自动选中第一个 schema

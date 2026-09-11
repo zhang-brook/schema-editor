@@ -12,7 +12,6 @@ import {
   type Command,
   type AffectedFile,
 } from '@/core/history/command'
-import { newFieldId, newTableId, newSchemaId, newIndexId, newInitialDataId } from '@/core/ids'
 import { sanitizeName } from '@/core/workspace/layout'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
 import { resolveFieldTypeForDialect, resolveIndexName, ALL_SQL_DIALECTS } from '@/utils/sql-generator/shared'
@@ -131,8 +130,6 @@ export function createCrudActions(deps: CrudDeps) {
       schema: name,
       tables: []
     }
-    // 新增 schema 自动带 id（无论是否已创建版本，保证可跨版本识别）
-    newSchema.schema_id = newSchemaId()
     executeCommand({
       label: t('history.addSchema'),
       coalesceKey: `add-schema:${name}`,
@@ -303,8 +300,6 @@ export function createCrudActions(deps: CrudDeps) {
       fields: [],
       indexes: []
     }
-    // 新增 table 自动带 id（无论是否已创建版本，保证可跨版本识别）
-    newTable.table_id = newTableId()
     executeCommand({
       label: t('history.addTable'),
       coalesceKey: `add-table:${schema.schema}`,
@@ -444,29 +439,16 @@ export function createCrudActions(deps: CrudDeps) {
     return candidate
   }
 
-  /** 深拷贝表，并为所有子对象重新生成唯一 id（table_id / field_id / index_id） */
-  function cloneTableWithNewIds(table: Table, newName: string): Table {
+  /** 深拷贝表并改名 */
+  function cloneTable(table: Table, newName: string): Table {
     const clone: Table = JSON.parse(JSON.stringify(table))
     clone.name = newName
-    clone.table_id = newTableId()
-    for (const f of clone.fields) {
-      if (f.field_id !== undefined) f.field_id = newFieldId()
-    }
-    for (const idx of clone.indexes) {
-      if (idx.index_id !== undefined) idx.index_id = newIndexId()
-    }
     return clone
   }
 
-  /** 深拷贝初始数据，并为每行重新生成 initial_data_id */
-  function cloneInitialDataWithNewIds(data: InitialData): InitialData {
-    const clone: InitialData = JSON.parse(JSON.stringify(data))
-    if (clone.rows) {
-      for (const row of clone.rows) {
-        if (row.initial_data_id !== undefined) row.initial_data_id = newInitialDataId()
-      }
-    }
-    return clone
+  /** 深拷贝初始数据 */
+  function cloneInitialData(data: InitialData): InitialData {
+    return JSON.parse(JSON.stringify(data))
   }
 
   /** 复制表到同一 schema（新名称 + 全新 id），并一并复制其初始数据 */
@@ -477,7 +459,7 @@ export function createCrudActions(deps: CrudDeps) {
     if (!table) return
 
     const newName = uniqueTableName(schema, table.name)
-    const cloned = cloneTableWithNewIds(table, newName)
+    const cloned = cloneTable(table, newName)
 
     // 源表是否有初始数据需要一并复制
     const srcKey = initialDataKey(schema.schema, table.name)
@@ -489,7 +471,7 @@ export function createCrudActions(deps: CrudDeps) {
       apply() {
         schema.tables.splice(tableIdx + 1, 0, cloned)
         if (srcData) {
-          initialDataMap.set(newKey, cloneInitialDataWithNewIds(srcData))
+          initialDataMap.set(newKey, cloneInitialData(srcData))
         }
       },
       revert() {
@@ -534,8 +516,7 @@ export function createCrudActions(deps: CrudDeps) {
     const newSchemaName = uniqueSchemaName(schema.schema)
     const newSchema: Schema = {
       schema: newSchemaName,
-      schema_id: newSchemaId(),
-      tables: schema.tables.map(t => cloneTableWithNewIds(t, t.name)),
+      tables: schema.tables.map(t => cloneTable(t, t.name)),
     }
 
     // 收集源 schema 下所有表的初始数据
@@ -553,7 +534,7 @@ export function createCrudActions(deps: CrudDeps) {
         syncSchemaOrder()
         for (const item of srcDataList) {
           const key = initialDataKey(newSchemaName, item.name)
-          initialDataMap.set(key, cloneInitialDataWithNewIds(item.data))
+          initialDataMap.set(key, cloneInitialData(item.data))
         }
       },
       revert() {
@@ -945,8 +926,6 @@ export function createCrudActions(deps: CrudDeps) {
       const ut = newFieldUnifiedType.value || undefined
       const newField: Field = {
         field_name: name,
-        // 新增 field 自动带 id（无论是否已创建版本，保证可跨版本识别）
-        field_id: newFieldId(),
         unified_type: ut,
         // 仅当未选择 unified_type 时才预设 field_type/field_length
         field_type: ut ? undefined : 'varchar',
@@ -988,8 +967,6 @@ export function createCrudActions(deps: CrudDeps) {
       primary_key: false,
       comment: ''
     }
-    // 新增 field 自动带 id（无论是否已创建版本，保证可跨版本识别）
-    newField.field_id = newFieldId()
     executeCommand({
       label: t('history.addField'),
       coalesceKey: `add-field:${table.name}`,
@@ -1187,7 +1164,6 @@ export function createCrudActions(deps: CrudDeps) {
     const newIndex: Index = {
       type: 'index',
       // 新增 index 自动带 id（无论是否已创建版本，保证可跨版本识别）
-      index_id: newIndexId(),
       columns: [{ name: '' }],
       using: ''
     }
@@ -1679,9 +1655,6 @@ export function createCrudActions(deps: CrudDeps) {
       name: table.name,
       comment: table.comment,
     }
-    // 表唯一 id（创建版本后存在；无版本时为 undefined 不写出）
-    if (table.table_id) tableData.table_id = table.table_id
-
     // comment_before_table
     if (table.comment_before_table) {
       tableData.comment_before_table = table.comment_before_table
@@ -1731,8 +1704,6 @@ export function createCrudActions(deps: CrudDeps) {
     // fields
     tableData.fields = table.fields.map(field => {
       const f: Field = { field_name: field.field_name }
-      // 字段唯一 id（创建版本后存在；无版本时为 undefined 不写出）
-      if (field.field_id) f.field_id = field.field_id
       if (field.use_common_used_fields) {
         f.use_common_used_fields = true
       } else {
@@ -1782,7 +1753,6 @@ export function createCrudActions(deps: CrudDeps) {
       if (index.name) idx.name = index.name
       if (index.type) idx.type = index.type
       if (index.using) idx.using = index.using
-      if (index.index_id) idx.index_id = index.index_id
       idx.columns = index.columns.map(c => {
         const col: any = { name: c.name }
         if (c.sort_order) col.sort_order = c.sort_order
@@ -1807,7 +1777,6 @@ export function createCrudActions(deps: CrudDeps) {
       schema: schema.schema,
       tables: schema.tables.map(buildTableExportData),
     }
-    if (schema.schema_id) data.schema_id = schema.schema_id
     // schema 级别 pre_sql / post_sql
     if (schema.pre_sql && Object.keys(schema.pre_sql).length > 0) {
       data.pre_sql = { ...schema.pre_sql }

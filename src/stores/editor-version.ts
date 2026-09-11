@@ -1,7 +1,7 @@
 import type { Ref, ComputedRef } from 'vue'
 import type { CommonConfig, Schema } from '@/types/schema'
 import type { InitialData } from '@/types/schema'
-import { newVersionId, newMigrationId, newSchemaId, newTableId, newFieldId, newIndexId, newInitialDataId } from '@/core/ids'
+import { newVersionId, newMigrationId } from '@/core/ids'
 import {
   listVersions,
   readVersion,
@@ -81,65 +81,13 @@ export function createVersionActions(deps: VersionDeps) {
   }
 
   /**
-   * 为当前内存态补齐缺失的唯一 id（field_id / table_id / schema_id / index_id / initial_data_id）。
-   * 无论是否已创建版本都会在加载或创建版本时调用，保证所有对象都带 id 以跨版本识别 rename。
-   * 返回是否发生了补齐（用于决定是否需写盘）。
-   */
-  function ensureIdsForCurrent(): boolean {
-    let changed = false
-    for (const schema of schemas) {
-      if (!schema.schema_id) {
-        schema.schema_id = newSchemaId()
-        changed = true
-      }
-      for (const table of schema.tables) {
-        if (!table.table_id) {
-          table.table_id = newTableId()
-          changed = true
-        }
-        for (const field of table.fields) {
-          if (!field.field_id) {
-            field.field_id = newFieldId()
-            changed = true
-          }
-        }
-        for (const index of table.indexes) {
-          if (!index.index_id) {
-            index.index_id = newIndexId()
-            changed = true
-          }
-        }
-      }
-    }
-    for (const data of initialDataMap.values()) {
-      if (data.rows) {
-        for (const row of data.rows) {
-          if (!row.initial_data_id) {
-            row.initial_data_id = newInitialDataId()
-            changed = true
-          }
-        }
-      }
-    }
-    return changed
-  }
-
-  /**
-   * 创建版本：
-   * 1. 若当前内存态存在缺失 id，先补齐（保证版本快照可跨版本识别 rename）。
-   * 2. 将补齐后的 current 深拷贝快照为 versions/<id>.json。
-   * 3. 刷新版本列表。
-   * 创建后用户进入「有版本」状态，后续新增表/字段自动带 id。
+   * 创建版本：将当前内存态深拷贝快照为 versions/<id>.json 并刷新版本列表。
+   * 结构对象本身不携带 id，跨版本识别 rename 依赖迁移脚本上累积的改名记录。
    */
   async function createVersion(name?: string): Promise<VersionSummary | null> {
     if (!rootDirHandle.value) return null
     const id = newVersionId()
     const displayName = name?.trim() || `v${versions.value.length + 1}.0`
-
-    // 补齐缺失 id（若有变化，先写回 current/ 磁盘，保证快照与 current 一致）
-    if (ensureIdsForCurrent()) {
-      await syncAllToDisk()
-    }
 
     const snapshot: VersionSnapshot = {
       id,
@@ -352,7 +300,6 @@ export function createVersionActions(deps: VersionDeps) {
 
   return {
     loadVersionsAndMigrations,
-    ensureIdsForCurrent,
     createVersion,
     deleteVersionById,
     getVersionSnapshot,

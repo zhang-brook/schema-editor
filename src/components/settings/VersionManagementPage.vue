@@ -15,6 +15,9 @@ import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import PageTabs from '@/components/ui/PageTabs.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import VersionTimeline from './VersionTimeline.vue'
+import RenameAlignPanel from './RenameAlignPanel.vue'
+import type { RenameEntry } from '@/core/version/types'
+import type { RenameSuggestion } from '@/core/version/identity'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -68,6 +71,57 @@ async function selectMigration(m: Migration) {
   draftFrom.value = m.from_version
   draftTo.value = m.to_version
   await refreshPreview()
+  await loadRenameSuggestions()
+}
+
+// ===== 身份对齐 =====
+const renameSuggestions = ref<RenameSuggestion[]>([])
+const renameLoading = ref(false)
+
+/** 加载两版本之间的改名候选（自动推断，需用户确认后才生效） */
+async function loadRenameSuggestions() {
+  const m = editingMigration.value
+  if (!m || !m.from_version || !m.to_version || m.from_version === m.to_version) {
+    renameSuggestions.value = []
+    return
+  }
+  renameLoading.value = true
+  try {
+    renameSuggestions.value = await store.suggestRenameEntries(m.from_version, m.to_version, false)
+  } catch (e) {
+    console.error('[loadRenameSuggestions] failed:', e)
+    renameSuggestions.value = []
+  } finally {
+    renameLoading.value = false
+  }
+}
+
+/** 确认一条改名：写入迁移的 renames 并立即持久化 */
+async function onConfirmRename(entry: RenameEntry) {
+  const m = editingMigration.value
+  if (!m) return
+  const renames = m.renames ?? (m.renames = [])
+  const idx = renames.findIndex(r => r.from === entry.from && r.kind === entry.kind)
+  if (idx >= 0) renames[idx] = entry
+  else renames.push(entry)
+  await store.updateMigration(m)
+}
+
+/** 取消一条已确认的改名 */
+async function onRemoveRename(from: string) {
+  const m = editingMigration.value
+  if (!m) return
+  m.renames = (m.renames ?? []).filter(r => r.from !== from)
+  await store.updateMigration(m)
+}
+
+/** 迁移的源/目标版本变更：刷新预览与改名候选 */
+async function onMigrationVersionChange() {
+  if (!editingMigration.value) return
+  draftFrom.value = editingMigration.value.from_version
+  draftTo.value = editingMigration.value.to_version
+  await refreshPreview()
+  await loadRenameSuggestions()
 }
 
 /** 进入「新建迁移草稿」模式：清空选中态，默认选首尾两个版本作为 from/to */
@@ -78,6 +132,7 @@ function startNewMigration() {
   draftFrom.value = store.versions[0]?.id ?? ''
   draftTo.value = store.versions[store.versions.length - 1]?.id ?? ''
   preview.value = null
+  renameSuggestions.value = []
 }
 
 /** 点击时间轴上的迁移缺口：切到迁移页并预填 from/to，便于直接补建 */
@@ -97,6 +152,7 @@ function cancelDraft() {
   editingMigration.value = null
   selectedMigrationId.value = null
   preview.value = null
+  renameSuggestions.value = []
 }
 
 async function onCreateMigration() {
@@ -427,20 +483,21 @@ onMounted(() => {
         <div class="ps-mig-pick ps-mig-pick-form">
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-            <select v-model="editingMigration.from_version"
-              @change="draftFrom = editingMigration!.from_version; refreshPreview()">
+            <select v-model="editingMigration.from_version" @change="onMigrationVersionChange">
               <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
             </select>
           </div>
           <span class="ps-pick-arrow">→</span>
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-            <select v-model="editingMigration.to_version"
-              @change="draftTo = editingMigration!.to_version; refreshPreview()">
+            <select v-model="editingMigration.to_version" @change="onMigrationVersionChange">
               <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
             </select>
           </div>
         </div>
+
+        <RenameAlignPanel :suggestions="renameSuggestions" :confirmed="editingMigration.renames ?? []"
+          :loading="renameLoading" @confirm="onConfirmRename" @remove="onRemoveRename" />
 
         <div class="ps-steps">
           <div class="ps-steps-head">

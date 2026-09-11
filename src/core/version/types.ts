@@ -214,6 +214,14 @@ export interface CustomSqlStep {
 
 export type MigrationStep = AutoDiffStep | ClearColumnStep | SqlTransformStep | CustomSqlStep
 
+/** 迁移在某个环境下的执行状态与针对性备注 */
+export interface EnvMigrationStatus {
+  executed: boolean
+  executed_at?: string
+  /** 针对该环境的备注（如执行时的注意事项、回滚方式） */
+  note?: string
+}
+
 export interface Migration {
   id: string
   name: string
@@ -227,6 +235,8 @@ export interface Migration {
   steps: MigrationStep[]
   /** 迁移备注 */
   note?: string
+  /** 各环境下的执行状态，key 为环境 id */
+  env_status?: Record<string, EnvMigrationStatus>
   created_at: string
   updated_at: string
 }

@@ -17,8 +17,9 @@ import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import VersionTimeline from './VersionTimeline.vue'
 import RenameAlignPanel from './RenameAlignPanel.vue'
 import EnvironmentPanel from './EnvironmentPanel.vue'
-import type { RenameEntry } from '@/core/version/types'
+import type { EnvMigrationStatus, RenameEntry } from '@/core/version/types'
 import type { RenameSuggestion } from '@/core/version/identity'
+import { canDeleteVersion } from '@/core/version/guards'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -39,8 +40,31 @@ async function onCreateVersion() {
 }
 
 async function onDeleteVersion(id: string, name: string) {
+  if (!versionDeletable(id)) return
   if (!(await confirmDialog({ title: t('confirm.title'), message: t('version.deleteConfirm', { name }), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }))) return
   await store.deleteVersionById(id)
+}
+
+// ===== 版本删除保护 =====
+
+/** 版本是否可删除（未被迁移、环境引用） */
+function versionDeletable(id: string): boolean {
+  return canDeleteVersion(id, store.migrations, store.environments).ok
+}
+
+/** 不可删除时的原因提示，用于 tooltip */
+function versionDeleteTooltip(id: string): string {
+  const { ok, reasons } = canDeleteVersion(id, store.migrations, store.environments)
+  if (ok) return t('version.delete')
+  const lines = reasons.map(r =>
+    r.type === 'migration'
+      ? t('version.deleteBlockedByMigration', {
+          name: r.name,
+          role: r.role === 'from' ? t('migration.from') : t('migration.to'),
+        })
+      : t('version.deleteBlockedByEnvironment', { name: r.name }),
+  )
+  return `${t('version.cannotDelete')}\n${lines.join('\n')}`
 }
 
 const selectedMigrationId = ref<string | null>(null)
@@ -114,6 +138,42 @@ async function onRemoveRename(from: string) {
   const m = editingMigration.value
   if (!m) return
   m.renames = (m.renames ?? []).filter(r => r.from !== from)
+  await store.updateMigration(m)
+}
+
+// ===== 各环境执行状态 =====
+
+/** 取某环境在该迁移下的执行状态（缺省未执行） */
+function envStatus(envId: string): EnvMigrationStatus {
+  return editingMigration.value?.env_status?.[envId] ?? { executed: false }
+}
+
+/** 勾选框变化（模板无法写类型断言，故在此取值） */
+function onEnvExecutedToggle(envId: string, event: Event) {
+  onToggleEnvExecuted(envId, (event.target as HTMLInputElement).checked)
+}
+
+/** 切换某环境的执行状态，并立即持久化 */
+async function onToggleEnvExecuted(envId: string, executed: boolean) {
+  const m = editingMigration.value
+  if (!m) return
+  const status: EnvMigrationStatus = { ...envStatus(envId), executed }
+  status.executed_at = executed ? new Date().toISOString() : undefined
+  m.env_status = { ...m.env_status, [envId]: status }
+  await store.updateMigration(m)
+}
+
+/** 备注输入变化（模板无法写类型断言，故在此取值） */
+function onEnvNoteInput(envId: string, event: Event) {
+  onEnvNoteChange(envId, (event.target as HTMLInputElement).value)
+}
+
+/** 更新某环境的针对性备注 */
+async function onEnvNoteChange(envId: string, note: string) {
+  const m = editingMigration.value
+  if (!m) return
+  const status: EnvMigrationStatus = { ...envStatus(envId), note }
+  m.env_status = { ...m.env_status, [envId]: status }
   await store.updateMigration(m)
 }
 
@@ -306,8 +366,9 @@ onMounted(() => {
               <span class="ps-list-name">{{ b.name }}</span>
               <span class="ps-list-meta">{{ b.created_at }}</span>
             </div>
-            <button class="btn btn-danger-sm" @click.stop="onDeleteVersion(b.id, b.name)">{{ $t('version.delete')
-              }}</button>
+            <button class="btn btn-danger-sm" :disabled="!versionDeletable(b.id)"
+              :title="versionDeleteTooltip(b.id)" @click.stop="onDeleteVersion(b.id, b.name)">{{
+                $t('version.delete') }}</button>
           </li>
         </ul>
       </div>
@@ -551,6 +612,23 @@ onMounted(() => {
           <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>
         </div>
 
+        <div v-if="store.environments.length > 0" class="ps-env-status">
+          <div class="ps-env-status-head">{{ $t('migration.envStatus') }}</div>
+          <div v-for="env in store.environments" :key="env.id" class="ps-env-status-item">
+            <label class="ps-env-check">
+              <input type="checkbox" :checked="envStatus(env.id).executed"
+                @change="onEnvExecutedToggle(env.id, $event)" />
+              <span class="ps-env-name">{{ env.name }}</span>
+            </label>
+            <input class="ps-input" :value="envStatus(env.id).note ?? ''"
+              :placeholder="$t('migration.envNotePlaceholder')"
+              @change="onEnvNoteInput(env.id, $event)" />
+            <span v-if="envStatus(env.id).executed_at" class="ps-env-time">
+              {{ envStatus(env.id).executed_at }}
+            </span>
+          </div>
+        </div>
+
         <button class="btn btn-danger-sm ps-del"
           @click="onDeleteMigration(editingMigration.id, editingMigration.name)">{{
             $t('migration.delete') }}</button>
@@ -580,6 +658,46 @@ onMounted(() => {
 /* 共享 tab 自带的下边距在此处多余（内容区已有内边距） */
 .ps-version-tabs .page-tabs {
   margin-bottom: 0;
+}
+
+/* 各环境执行状态 */
+.ps-env-status {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-soft, #f9fafb);
+}
+
+.ps-env-status-head {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ps-env-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ps-env-check {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.ps-env-name {
+  font-size: 12px;
+}
+
+.ps-env-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
 }
 
 /* 版本 tab：时间轴固定在上，下方可滚动的双栏占满剩余高度 */

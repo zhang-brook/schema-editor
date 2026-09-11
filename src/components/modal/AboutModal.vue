@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { version } from '@/../package.json'
 import { BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
@@ -46,6 +46,50 @@ const formattedBuildTime = computed(() => {
 const commitUrl = computed(() =>
   COMMIT_ID && COMMIT_ID !== 'unknown' ? `${GITHUB_REPO_URL}/commit/${COMMIT_ID}` : '',
 )
+
+// 弹窗可见时每秒刷新「x 秒前」，便于一眼看出构建新鲜度
+const now = ref(Date.now())
+let ticker: number | undefined
+
+watch(
+  () => props.visible,
+  (visible) => {
+    window.clearInterval(ticker)
+    if (!visible) return
+    now.value = Date.now()
+    ticker = window.setInterval(() => {
+      now.value = Date.now()
+    }, 1000)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => window.clearInterval(ticker))
+
+const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ['second', 60],
+  ['minute', 60],
+  ['hour', 24],
+  ['day', 30],
+  ['month', 12],
+]
+
+/** 构建时刻相对当前的时长，如「3 分钟前」；时间无效时返回空串 */
+const relativeBuildTime = computed(() => {
+  const date = new Date(BUILD_TIME)
+  if (!BUILD_TIME || Number.isNaN(date.getTime())) return ''
+
+  const rtf = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
+  let value = Math.round((date.getTime() - now.value) / 1000)
+  for (const [unit, limit] of RELATIVE_UNITS) {
+    if (Math.abs(value) < limit) return rtf.format(value, unit)
+    value = Math.round(value / limit)
+  }
+  return rtf.format(value, 'year')
+})
+
+// 中文用全角括号，英文保持半角
+const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] : ['(', ')']))
 </script>
 
 <template>
@@ -63,7 +107,12 @@ const commitUrl = computed(() =>
           <div class="about-meta">
             <div class="about-meta-row">
               <span class="about-meta-label">{{ $t('about.buildTime') }}</span>
-              <span class="about-meta-value">{{ formattedBuildTime }}</span>
+              <span class="about-meta-value">
+                {{ formattedBuildTime }}
+                <span v-if="relativeBuildTime" class="about-meta-relative" :class="locale.startsWith('zh') ? 'zh' : null">
+                  {{ bracket[0] }}{{ relativeBuildTime }}{{ bracket[1] }}
+                </span>
+              </span>
             </div>
             <div class="about-meta-row">
               <span class="about-meta-label">{{ $t('about.commit') }}</span>
@@ -187,6 +236,15 @@ const commitUrl = computed(() =>
 
 .about-meta-value {
   color: #666;
+}
+
+.about-meta-relative {
+  color: #999;
+  font-size: 11px;
+}
+
+.about-meta-relative.zh {
+  font-size: 10px;
 }
 
 .about-commit-link {

@@ -211,7 +211,7 @@ export function parseCreateTableStatements(input: string): ParseResult {
     // 跳过注释
     while (!state.isEOF() &&
       (state.current().type === TokenType.COMMENT_LINE ||
-       state.current().type === TokenType.COMMENT_BLOCK)) {
+        state.current().type === TokenType.COMMENT_BLOCK)) {
       state.advance()
     }
 
@@ -366,7 +366,7 @@ function parseTableBody(
     // 跳过注释
     while (!state.isEOF() &&
       (state.current().type === TokenType.COMMENT_LINE ||
-       state.current().type === TokenType.COMMENT_BLOCK)) {
+        state.current().type === TokenType.COMMENT_BLOCK)) {
       state.advance()
     }
 
@@ -411,7 +411,7 @@ function parseTableBody(
     // 对于 is_commented_out 字段，我们仍然解析但标记为已注释
     // 实际上在 tokenize 阶段行注释已经被剥离，所以我们需要另一种方式检测
     // 简化处理：先按正常列解析
-    
+
     const column = parseColumnDef(state)
     if (column) {
       columns.push(column)

@@ -75,8 +75,10 @@ jobs:
         run: |
           mkdir -p dist release
           tar -xf pages-artifact/artifact.tar -C dist
-          (cd dist && zip -qr "../release/schema-editor-${GITHUB_REF_NAME}.zip" .)
-          tar -czf "release/schema-editor-${GITHUB_REF_NAME}.tar.gz" -C dist .
+          name="schema-editor-${GITHUB_REF_NAME}"
+          (cd dist && zip -qr "../release/${name}.zip" .)
+          # 用 %P 去掉 "./" 前缀，避免解压时多出一层 "." 目录
+          (cd dist && find . -mindepth 1 -maxdepth 1 -printf '%P\0' | tar --null -czf "../release/${name}.tar.gz" -T -)
 
       - name: Extract changelog section
         run: |

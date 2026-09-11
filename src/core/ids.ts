@@ -26,3 +26,8 @@ export function newVersionId(): string {
 export function newMigrationId(): string {
   return makeId('m')
 }
+
+/** 环境（environment）id，前缀 e_ */
+export function newEnvironmentId(): string {
+  return makeId('e')
+}

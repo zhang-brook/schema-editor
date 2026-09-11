@@ -390,6 +390,25 @@
     },
     "formatJson": "格式化"
   },
+  "environment": {
+    "title": "環境",
+    "create": "新增環境",
+    "newTitle": "新增環境",
+    "editTitle": "編輯環境：{name}",
+    "name": "名稱",
+    "namePlaceholder": "如 開發 / 測試 / 生產",
+    "version": "目前版本",
+    "note": "備註",
+    "notePlaceholder": "該環境的補充說明",
+    "save": "儲存",
+    "delete": "刪除環境",
+    "deleteConfirm": "確認刪除環境「{name}」？",
+    "empty": "暫無環境",
+    "emptyGuide": "從左側選擇環境，或新增一個",
+    "created": "環境已建立：{name}",
+    "defaultName": "環境 {n}",
+    "noVersion": "請先建立至少一個版本"
+  },
   "migration": {
     "title": "遷移腳本",
     "create": "建立遷移",

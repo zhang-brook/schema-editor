@@ -390,6 +390,25 @@
     },
     "formatJson": "格式化"
   },
+  "environment": {
+    "title": "环境",
+    "create": "新建环境",
+    "newTitle": "新建环境",
+    "editTitle": "编辑环境：{name}",
+    "name": "名称",
+    "namePlaceholder": "如 开发 / 测试 / 生产",
+    "version": "当前版本",
+    "note": "备注",
+    "notePlaceholder": "该环境的补充说明",
+    "save": "保存",
+    "delete": "删除环境",
+    "deleteConfirm": "确认删除环境「{name}」？",
+    "empty": "暂无环境",
+    "emptyGuide": "从左侧选择环境，或新建一个",
+    "created": "环境已创建：{name}",
+    "defaultName": "环境 {n}",
+    "noVersion": "请先创建至少一个版本"
+  },
   "migration": {
     "title": "迁移脚本",
     "create": "创建迁移",

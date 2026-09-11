@@ -16,6 +16,7 @@ import PageTabs from '@/components/ui/PageTabs.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import VersionTimeline from './VersionTimeline.vue'
 import RenameAlignPanel from './RenameAlignPanel.vue'
+import EnvironmentPanel from './EnvironmentPanel.vue'
 import type { RenameEntry } from '@/core/version/types'
 import type { RenameSuggestion } from '@/core/version/identity'
 
@@ -23,12 +24,13 @@ const store = useEditorStore()
 const { t } = useI18n()
 
 // ===== 版本管理（迁入自 VersionMigrationModal 的逻辑，去掉 modal 外壳） =====
-const versionTab = ref<'version' | 'migration'>('version')
+const versionTab = ref<'version' | 'migration' | 'environment'>('version')
 const newVersionName = ref('')
 
 const versionTabOptions = computed(() => [
   { value: 'version' as const, label: t('version.title') },
   { value: 'migration' as const, label: t('migration.title') },
+  { value: 'environment' as const, label: t('environment.title') },
 ])
 
 async function onCreateVersion() {
@@ -410,7 +412,7 @@ onMounted(() => {
     </div>
 
     <!-- 迁移 -->
-    <div v-else class="ps-version-body ps-mig">
+    <div v-else-if="versionTab === 'migration'" class="ps-version-body ps-mig">
       <div class="ps-mig-list">
         <button class="btn btn-primary btn-block" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
         <div v-if="store.migrations.length === 0" class="ps-empty-sm">{{ $t('migration.empty') }}</div>
@@ -554,6 +556,9 @@ onMounted(() => {
             $t('migration.delete') }}</button>
       </div>
     </div>
+
+    <!-- 环境 -->
+    <EnvironmentPanel v-else />
   </div>
 </template>
 

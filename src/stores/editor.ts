@@ -62,6 +62,7 @@ import type {
   VersionSummary,
   VersionSnapshot,
   Migration,
+  Environment,
 } from '@/core/version/types'
 import { confirmDialog, alertDialog } from '@/composables/useConfirm'
 
@@ -101,6 +102,7 @@ export const useEditorStore = defineStore('editor', () => {
   const versions = ref<VersionSummary[]>([])
   const hasVersions = computed(() => versions.value.length > 0)
   const migrations = ref<Migration[]>([])
+  const environments = ref<Environment[]>([])
   /** 版本链：按父子关系串成的时间轴，并标注相邻版本之间缺失的迁移 */
   const versionChain = computed(() => buildVersionChain(versions.value, migrations.value))
 
@@ -393,10 +395,14 @@ export const useEditorStore = defineStore('editor', () => {
     updateMigration,
     deleteMigrationById,
     previewMigrationDdl,
+    createEnvironment,
+    updateEnvironment,
+    deleteEnvironmentById,
   } = createVersionActions({
     rootDirHandle,
     versions,
     migrations,
+    environments,
     versionPreviewLoading,
     selectedVersionSnapshot,
     commonConfig,
@@ -1417,6 +1423,7 @@ export const useEditorStore = defineStore('editor', () => {
     hasVersions,
     versionChain,
     migrations,
+    environments,
     selectedVersionSnapshot,
     versionPreviewLoading,
     loadVersionsAndMigrations,
@@ -1431,5 +1438,8 @@ export const useEditorStore = defineStore('editor', () => {
     updateMigration,
     deleteMigrationById,
     previewMigrationDdl,
+    createEnvironment,
+    updateEnvironment,
+    deleteEnvironmentById,
   }
 })

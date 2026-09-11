@@ -1,7 +1,7 @@
 import type { Ref, ComputedRef } from 'vue'
 import type { CommonConfig, Schema } from '@/types/schema'
 import type { InitialData } from '@/types/schema'
-import { newVersionId, newMigrationId } from '@/core/ids'
+import { newVersionId, newMigrationId, newEnvironmentId } from '@/core/ids'
 import { listVersions, readVersion, writeVersion, deleteVersion } from '@/core/version/storage'
 import { computeStructureDiff } from '@/core/version/diff'
 import { buildRenameLookup, buildRenameMap, suggestRenames } from '@/core/version/identity'
@@ -20,6 +20,12 @@ import {
   writeMigration,
   deleteMigration,
 } from '@/core/version/migration-storage'
+import {
+  listEnvironments,
+  writeEnvironment,
+  deleteEnvironment,
+} from '@/core/version/environment-storage'
+import type { Environment } from '@/core/version/types'
 import { generateMigrationDdl } from '@/core/version/migration-ddl'
 import { CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
 
@@ -27,6 +33,7 @@ export interface VersionDeps {
   rootDirHandle: Ref<any>
   versions: Ref<VersionSummary[]>
   migrations: Ref<Migration[]>
+  environments: Ref<Environment[]>
   versionPreviewLoading: Ref<boolean>
   selectedVersionSnapshot: Ref<VersionSnapshot | null>
   commonConfig: Ref<CommonConfig | null>
@@ -41,6 +48,7 @@ export function createVersionActions(deps: VersionDeps) {
     rootDirHandle,
     versions,
     migrations,
+    environments,
     versionPreviewLoading,
     selectedVersionSnapshot,
     commonConfig,
@@ -66,6 +74,12 @@ export function createVersionActions(deps: VersionDeps) {
     } catch (e) {
       console.error('[loadVersionsAndMigrations] migrations failed:', e)
       migrations.value = []
+    }
+    try {
+      environments.value = await listEnvironments(rootDirHandle.value)
+    } catch (e) {
+      console.error('[loadVersionsAndMigrations] environments failed:', e)
+      environments.value = []
     }
   }
 
@@ -290,6 +304,61 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
+  // ===== Environments =====
+
+  /** 创建环境，关联到指定版本 */
+  async function createEnvironment(
+    name: string,
+    versionId: string,
+    note?: string,
+  ): Promise<Environment | null> {
+    if (!rootDirHandle.value) return null
+    const displayName = name?.trim() || t('environment.defaultName', { n: environments.value.length + 1 })
+    const env: Environment = {
+      id: newEnvironmentId(),
+      name: displayName,
+      version_id: versionId,
+      ...(note?.trim() ? { note: note.trim() } : {}),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    try {
+      await writeEnvironment(rootDirHandle.value, env)
+      await loadVersionsAndMigrations()
+      showToast(t('environment.created', { name: displayName }))
+      return env
+    } catch (e) {
+      console.error('[createEnvironment] failed:', e)
+      showToast(t('toast.failedSaveChanges'))
+      return null
+    }
+  }
+
+  /** 更新环境（名称 / 关联版本 / 备注） */
+  async function updateEnvironment(env: Environment): Promise<void> {
+    if (!rootDirHandle.value) return
+    env.updated_at = new Date().toISOString()
+    try {
+      await writeEnvironment(rootDirHandle.value, env)
+      const idx = environments.value.findIndex(e => e.id === env.id)
+      if (idx >= 0) environments.value[idx] = env
+      else environments.value.push(env)
+    } catch (e) {
+      console.error('[updateEnvironment] failed:', e)
+      showToast(t('toast.failedSaveChanges'))
+    }
+  }
+
+  async function deleteEnvironmentById(id: string): Promise<void> {
+    if (!rootDirHandle.value) return
+    try {
+      await deleteEnvironment(rootDirHandle.value, id)
+      await loadVersionsAndMigrations()
+    } catch (e) {
+      console.error('[deleteEnvironmentById] failed:', e)
+    }
+  }
+
   /** 预览迁移脚本合并后的最终 DDL（两方言） */
   async function previewMigrationDdl(migration: Migration): Promise<MigrationDdlPreview | null> {
     if (!rootDirHandle.value) return null
@@ -313,5 +382,8 @@ export function createVersionActions(deps: VersionDeps) {
     updateMigration,
     deleteMigrationById,
     previewMigrationDdl,
+    createEnvironment,
+    updateEnvironment,
+    deleteEnvironmentById,
   }
 }

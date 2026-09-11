@@ -158,6 +158,24 @@ export interface RenameEntry {
   confidence?: number
 }
 
+// ===== 环境 =====
+
+/**
+ * 环境：代表一个实际部署目标（开发 / 测试 / 生产等）。
+ * 每个环境关联到版本链上的某个版本，表示「该环境当前处于这个版本」。
+ */
+export interface Environment {
+  /** 环境 id（e_xxx） */
+  id: string
+  name: string
+  /** 该环境当前所处的版本 id */
+  version_id: string
+  /** 备注 */
+  note?: string
+  created_at: string
+  updated_at: string
+}
+
 // ===== 迁移脚本 =====
 
 export type MigrationStepType = 'auto_diff' | 'clear_column' | 'sql_transform' | 'custom_sql'

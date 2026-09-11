@@ -14,6 +14,7 @@ import {
   CURRENT_DIR,
   VERSIONS_DIR,
   MIGRATIONS_DIR,
+  ENVIRONMENTS_DIR,
   DATABASE_FILE,
   TABLE_FILE,
   INITIAL_DATA_FILE,
@@ -208,4 +209,21 @@ export function getMigrationFileHandle(
   create = true,
 ): Promise<FileSystemFileHandle> {
   return getFileHandleSafe(migrationsDir, `${id}.json`, create)
+}
+
+/** environments/ 目录句柄 */
+export function getEnvironmentsDir(
+  root: FileSystemDirectoryHandle,
+  create = true,
+): Promise<FileSystemDirectoryHandle> {
+  return getOrCreateDir(root, ENVIRONMENTS_DIR, create)
+}
+
+/** environments/<id>.json 文件句柄 */
+export function getEnvironmentFileHandle(
+  environmentsDir: FileSystemDirectoryHandle,
+  id: string,
+  create = true,
+): Promise<FileSystemFileHandle> {
+  return getFileHandleSafe(environmentsDir, `${id}.json`, create)
 }

@@ -390,6 +390,25 @@
     },
     "formatJson": "Format"
   },
+  "environment": {
+    "title": "Environment",
+    "create": "New environment",
+    "newTitle": "New environment",
+    "editTitle": "Edit environment: {name}",
+    "name": "Name",
+    "namePlaceholder": "e.g. Dev / Staging / Production",
+    "version": "Current version",
+    "note": "Note",
+    "notePlaceholder": "Extra notes for this environment",
+    "save": "Save",
+    "delete": "Delete environment",
+    "deleteConfirm": "Delete environment \"{name}\"?",
+    "empty": "No environments yet",
+    "emptyGuide": "Pick an environment on the left, or create a new one",
+    "created": "Environment created: {name}",
+    "defaultName": "Environment {n}",
+    "noVersion": "Create at least one version first"
+  },
   "migration": {
     "title": "Migration",
     "create": "Create migration",

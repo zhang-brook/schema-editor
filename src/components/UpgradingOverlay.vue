@@ -22,7 +22,8 @@ defineProps<{ text?: string }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 6000;
+  /* 低于 .modal-overlay(1000)：加载期间若弹出确认框，弹窗必须可点 */
+  z-index: 900;
   backdrop-filter: blur(2px);
 }
 

@@ -243,6 +243,17 @@ export const useEditorStore = defineStore('editor', () => {
   const overlayVisible = ref(false)
   const overlayText = ref('')
 
+  function showOverlay(text: string) {
+    overlayText.value = text
+    overlayVisible.value = true
+  }
+
+  /** 需要在等待用户决策前撤下遮罩（遮罩语义是「加载中」），故单独抽出 */
+  function hideOverlay() {
+    overlayVisible.value = false
+    overlayText.value = ''
+  }
+
   /** 选择项目文件夹并加载内容，之后所有编辑实时自动同步 */
   async function openProject() {
     if (!isFileSystemAccessSupported()) {
@@ -252,13 +263,12 @@ export const useEditorStore = defineStore('editor', () => {
     }
     try {
       const rootHandle: FileSystemDirectoryHandle = await window.showDirectoryPicker()
-      overlayText.value = t('app.loadingOpenProject')
-      overlayVisible.value = true
+      showOverlay(t('app.loadingOpenProject'))
       await _openRootHandle(rootHandle)
     } catch {
       // User cancelled the directory picker — do nothing
     } finally {
-      overlayVisible.value = false
+      hideOverlay()
     }
   }
 
@@ -269,14 +279,13 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
     try {
-      overlayText.value = t('app.loadingOpenProject')
-      overlayVisible.value = true
+      showOverlay(t('app.loadingOpenProject'))
       await _openRootHandle(handle)
     } catch (e) {
       console.error('[openProjectFromHandle] Failed:', e)
       showToast(t('toast.dropNotSupported'))
     } finally {
-      overlayVisible.value = false
+      hideOverlay()
     }
   }
 
@@ -299,6 +308,8 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     // 旧结构：弹升级确认窗，未确认不加载（也不允许编辑）
+    // 先撤下「正在打开项目」遮罩：等待用户决策不算加载中，且遮罩会压住确认弹窗
+    hideOverlay()
     pendingUpgradeRootHandle.value = rootHandle
     const upgraded = await confirmDialog({
       title: t('upgrade.title'),
@@ -318,15 +329,14 @@ export const useEditorStore = defineStore('editor', () => {
     const rootHandle = pendingUpgradeRootHandle.value
     if (!rootHandle) return
     pendingUpgradeRootHandle.value = null
-    overlayText.value = t('upgrade.loading')
-    overlayVisible.value = true
+    showOverlay(t('upgrade.loading'))
     try {
       await _migrateAndLoad(rootHandle)
     } catch (e) {
       console.error('[confirmUpgradeStructure] migration failed:', e)
       showToast(t('toast.upgradeFailed'))
     } finally {
-      overlayVisible.value = false
+      hideOverlay()
     }
   }
 

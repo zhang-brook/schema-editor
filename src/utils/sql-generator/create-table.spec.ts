@@ -306,10 +306,29 @@ describe('字段注释包含换行 / 特殊字符', () => {
     }
   }
 
-  it('MySQL：换行/回车转义为 \\n，引号加倍，反斜杠转义', () => {
+  it('MySQL：换行转义为 \\n，引号加倍，反斜杠加倍', () => {
     const sql = generateTableMySQL(makeMultilineCommentTable(), commonConfig)
-    // 生成的 COMMENT 字符串内不含原始换行
+    // 模型里是真实字符（真换行、真反斜杠），落 SQL 时按 MySQL 规则转义
     expect(sql).toContain("COMMENT '第一行内容\\n第二行：含 '' 引号\\n含 \\\\ 反斜杠'")
+  })
+
+  it('MySQL：真实反斜杠（C:\\new）转义为 C:\\\\new，不会被当成换行', () => {
+    const table: Table = {
+      name: 'nodes',
+      comment: '节点表',
+      fields: [
+        {
+          field_name: 'attachment_list',
+          field_type: 'json',
+          not_null: true,
+          is_commented_out: true,
+          comment: '附件：\n①上传到我们平台的附C:\\new件数组\n②外部附件',
+        },
+      ],
+      indexes: [],
+    }
+    const sql = generateTableMySQL(table, commonConfig)
+    expect(sql).toContain("COMMENT '附件：\\n①上传到我们平台的附C:\\\\new件数组\\n②外部附件'")
   })
 
   it('SQLite：换行注释逐行加 -- 前缀', () => {
@@ -317,8 +336,80 @@ describe('字段注释包含换行 / 特殊字符', () => {
     expect(sql).toContain('  -- 第一行内容\n  -- 第二行：含 \' 引号\n  -- 含 \\ 反斜杠\n  "content" text NOT NULL')
   })
 
-  it('PostgreSQL：COMMENT ON 保留原文换行（字符串字面量合法）', () => {
+  it('PostgreSQL：真实换行原样输出（PG 字符串字面量允许跨行），单引号加倍', () => {
     const sql = generateTablePostgreSQL(makeMultilineCommentTable(), 'public', commonConfig)
     expect(sql).toContain("COMMENT ON COLUMN \"public\".\"notes\".\"content\" IS '第一行内容\n第二行：含 '' 引号\n含 \\ 反斜杠';")
+    expect(sql).not.toContain("E'")
+  })
+
+  it('PostgreSQL：真实换行与真实反斜杠均原样输出（不用 E\'\' 转义）', () => {
+    const table: Table = {
+      name: 'nodes',
+      comment: '节点表',
+      fields: [
+        {
+          field_name: 'attachment_list',
+          field_type: 'json',
+          not_null: true,
+          comment: '附件：\n①上传到我们平台的附C:\\new件数组\n②外部附件',
+        },
+      ],
+      indexes: [],
+    }
+    const sql = generateTablePostgreSQL(table, 'public', commonConfig)
+    expect(sql).toContain(
+      "COMMENT ON COLUMN \"public\".\"nodes\".\"attachment_list\" IS '附件：\n①上传到我们平台的附C:\\new件数组\n②外部附件';",
+    )
+    // 反斜杠不能被吞成换行
+    expect(sql).not.toContain('附C:' + '\n' + 'ew件')
+    expect(sql).not.toContain("E'")
+  })
+
+  it('PostgreSQL：注释中的单引号加倍，普通注释不引入转义', () => {
+    const table: Table = {
+      name: 'users',
+      comment: "用户's 表",
+      fields: [{ field_name: 'name', field_type: 'varchar', field_length: 32 }],
+      indexes: [],
+    }
+    const sql = generateTablePostgreSQL(table, 'public', commonConfig)
+    expect(sql).toContain(`COMMENT ON TABLE "public"."users" IS '用户''s 表';`)
+  })
+
+  it('PostgreSQL：被注释字段的 COMMENT ON COLUMN 整体加 -- 前缀，去掉前缀即可执行', () => {
+    const table: Table = {
+      name: 'nodes',
+      comment: '节点表',
+      fields: [
+        { field_name: 'id', field_type: 'bigint', primary_key: true, not_null: true },
+        {
+          field_name: 'attachment_list',
+          field_type: 'json',
+          not_null: true,
+          is_commented_out: true,
+          comment: '【待定】节点包含的附件：\n①平台附件\n②外部附件',
+        },
+      ],
+      indexes: [],
+    }
+    const sql = generateTablePostgreSQL(table, 'public', commonConfig)
+
+    // 字段行只有 -- 前缀，注释不内联（避免与下方语句重复）
+    expect(sql).toContain('  -- "attachment_list" json NOT NULL')
+    expect(sql).not.toContain('-- "attachment_list" json NOT NULL COMMENT')
+    // 注释以被注释掉的 COMMENT ON COLUMN 语句保留；跨行时每行都带 -- 前缀，
+    // 否则第二行起会变成可执行 SQL
+    expect(sql).toContain(
+      '-- COMMENT ON COLUMN "public"."nodes"."attachment_list" IS \'【待定】节点包含的附件：\n' +
+        '-- ①平台附件\n' +
+        '-- ②外部附件\';',
+    )
+    expect(sql).not.toContain('undefined')
+  })
+
+  it('PostgreSQL：未被注释字段的 COMMENT ON COLUMN 不带 -- 前缀', () => {
+    const sql = generateTablePostgreSQL(makeUsersTable(), 'public', commonConfig)
+    expect(sql).toContain(`COMMENT ON COLUMN "public"."users"."name" IS '用户名';`)
+    expect(sql).not.toContain(`-- COMMENT ON COLUMN "public"."users"."name"`)
   })
 })

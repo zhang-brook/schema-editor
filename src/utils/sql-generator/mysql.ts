@@ -8,7 +8,15 @@ import { resolveDialectOverride } from '@/utils/dialect-resolver'
   纯函数，不依赖 Node.js fs，可在浏览器端运行
 */
 
-/** MySQL 字符串字面量转义：反斜杠、单引号（''）、回车/换行（\r/\n） */
+/**
+ * MySQL 字符串字面量转义：反斜杠加倍、单引号加倍，真实换行/回车写成 `\n`/`\r`。
+ *
+ * 模型里的注释是真实字符（JSON 的 `\n` 已由 JSON.parse 解成真换行、`\\` 解成单个反斜杠），
+ * 因此这里是标准 MySQL 转义：`C:\new` → `'C:\\new'`、真换行 → `'\n'`，
+ * MySQL 解读后与模型中的真实字符一致。
+ *
+ * 反斜杠必须最先替换，否则会把后续步骤插入的反斜杠再次加倍。
+ */
 function escapeMySqlStringLiteral(text: string): string {
   return text
     .replace(/\\/g, '\\\\')

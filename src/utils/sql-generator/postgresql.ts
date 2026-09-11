@@ -16,6 +16,24 @@ function quoteIdent(name: string, commonConfig: CommonConfig | null): string {
   return shouldQuote ? `"${name}"` : name
 }
 
+/**
+ * 注释文本 → PostgreSQL 字符串字面量：仅单引号加倍，其余原样输出。
+ *
+ * 模型里存的是真实字符（换行即真换行、`C:\new` 即真实反斜杠），
+ * PG 标准字符串（standard_conforming_strings=on）不解析反斜杠、且允许跨行，
+ * 原样写出即可得到与模型一致的结果，无需任何转义/解码。
+ *
+ * 不使用 `E'...'`：那会让 PG 开始解析反斜杠，`C:\new` 会被吃成换行。
+ */
+function formatPgStringLiteral(text: string): string {
+  return `'${text.replace(/'/g, "''")}'`
+}
+
+/** 逐行加 `--` 注释前缀：跨行语句若只注释首行，后续行会变成可执行 SQL */
+function commentOutLines(stmt: string): string {
+  return stmt.split('\n').map(line => `-- ${line}`).join('\n')
+}
+
 // ===== 表字段定义 =====
 
 function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig | null): string {
@@ -55,11 +73,11 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
     }
   }
 
-  // PostgreSQL 不在字段定义中添加 COMMENT，使用 COMMENT ON COLUMN 语句
+  // PostgreSQL 不在字段定义中添加 COMMENT，使用 COMMENT ON COLUMN 语句；
+  // 被注释掉的字段其 COMMENT ON COLUMN 语句整体加 -- 前缀输出（见 generateTablePostgreSQL）
 
   if (field.is_commented_out) {
-    // 如果字段被标记为 is_commented_out，则将注释保留在字段定义中
-    fieldDef = `-- ${fieldDef} COMMENT '${field.comment}'`
+    fieldDef = `-- ${fieldDef}`
   }
 
   return fieldDef
@@ -160,7 +178,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
       }).join(', ')});\n`
       // COMMENT ON INDEX (PostgreSQL)
       if (index.comment) {
-        sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
+        sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS ${formatPgStringLiteral(index.comment)};\n`
       }
       hasCreateIndexSql = true
     }
@@ -171,19 +189,19 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   }
 
   // 表级注释 - 使用 COMMENT ON TABLE 语句
-  sql += `COMMENT ON TABLE ${qSchemaName}.${qTableName} IS '${table.comment}';\n`
+  sql += `COMMENT ON TABLE ${qSchemaName}.${qTableName} IS ${formatPgStringLiteral(table.comment)};\n`
   sql += '\n'
 
-  // 字段注释 - 使用 COMMENT ON COLUMN 语句
-  table.fields
-    .filter(field => !field.is_commented_out)
-    .forEach(field => {
-      const fieldConfig = resolveField(field, commonConfig)
-      const finalComment = buildFieldComment(fieldConfig, 'postgresql')
-      if (finalComment) {
-        sql += `COMMENT ON COLUMN ${qSchemaName}.${qTableName}.${quoteIdent(fieldConfig.field_name, commonConfig)} IS '${finalComment.replace(/'/g, "''")}';\n`
-      }
-    })
+  // 字段注释 - 使用 COMMENT ON COLUMN 语句。
+  // 被注释掉的字段不出现在表结构中，其语句整体加 -- 前缀保留：既不会破坏语法，
+  // 去掉前缀即可直接执行；跨行时每行都加前缀（见 commentOutLines）
+  table.fields.forEach(field => {
+    const fieldConfig = resolveField(field, commonConfig)
+    const finalComment = buildFieldComment(fieldConfig, 'postgresql')
+    if (!finalComment) return
+    const stmt = `COMMENT ON COLUMN ${qSchemaName}.${qTableName}.${quoteIdent(fieldConfig.field_name, commonConfig)} IS ${formatPgStringLiteral(finalComment)};`
+    sql += `${fieldConfig.is_commented_out ? commentOutLines(stmt) : stmt}\n`
+  })
 
   // 索引注释 — 为唯一索引和已命名普通索引生成 COMMENT ON INDEX
   table.indexes.forEach(index => {
@@ -191,7 +209,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
     if (indexType === 'unique') {
       const indexName = resolveIndexName(index, 'postgresql', table.name)!
-      sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS '${index.comment.replace(/'/g, "''")}';\n`
+      sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS ${formatPgStringLiteral(index.comment)};\n`
     }
   })
 

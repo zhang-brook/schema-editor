@@ -527,6 +527,7 @@
     "buildTime": "Build time",
     "commit": "Git commit",
     "github": "View on GitHub",
+    "changelog": "Changelog",
     "close": "OK"
   }
 }

@@ -527,6 +527,7 @@
     "buildTime": "建置時間",
     "commit": "Git 提交",
     "github": "在 GitHub 上查看",
+    "changelog": "更新日誌",
     "close": "確定"
   }
 }

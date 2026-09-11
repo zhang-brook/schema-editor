@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { version } from '@/../package.json'
 import { BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
-import { GITHUB_REPO_URL } from '@/utils/constants'
+import { GITHUB_REPO_URL, CHANGELOG_URL } from '@/utils/constants'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
@@ -88,6 +88,14 @@ const commitUrl = computed(() =>
           class="about-github-link"
         >
           {{ $t('about.github') }}
+        </a>
+        <a
+          :href="CHANGELOG_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="about-github-link"
+        >
+          {{ $t('about.changelog') }}
         </a>
       </div>
 
@@ -192,6 +200,9 @@ const commitUrl = computed(() =>
 }
 
 .about-github {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
   padding-bottom: 12px;
 }
 

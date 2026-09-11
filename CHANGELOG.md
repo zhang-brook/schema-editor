@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.3.4
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.3...v0.3.4)
+
+### 🚀 新功能
+
+- 关于弹窗构建时间新增相对时长展示 ([c5c1cd8](https://github.com/zhang-brook/schema-editor/commit/c5c1cd8))
+
+### 🩹 问题修复
+
+- Changelog 收录 chore(deps) 提交并修正起始 tag 选取 ([4773938](https://github.com/zhang-brook/schema-editor/commit/4773938))
+
+### 🏡 杂项
+
+- **deps:** 升级 nanoid 至 6.0.1 ([6ecb950](https://github.com/zhang-brook/schema-editor/commit/6ecb950))
+
+### 🤖 持续集成
+
+- 修复 tar 打包多余 "./" 目录层级 ([49eaab0](https://github.com/zhang-brook/schema-editor/commit/49eaab0))
+
 ## v0.3.3
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.2...v0.3.3)

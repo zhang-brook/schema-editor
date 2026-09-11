@@ -1,9 +1,10 @@
-name: Deploy to GitHub Pages
+name: Deploy & Release
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    tags: ['v*']
+    # branches: [main]
+  # workflow_dispatch:
 
 permissions:
   contents: read
@@ -54,3 +55,44 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download Pages artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: github-pages
+          path: pages-artifact
+
+      - name: Package release assets
+        run: |
+          mkdir -p dist release
+          tar -xf pages-artifact/artifact.tar -C dist
+          (cd dist && zip -qr "../release/schema-editor-${GITHUB_REF_NAME}.zip" .)
+          tar -czf "release/schema-editor-${GITHUB_REF_NAME}.tar.gz" -C dist .
+
+      - name: Extract changelog section
+        run: |
+          awk -v ver="${GITHUB_REF_NAME}" '
+            $0 ~ ("^## " ver "[ \t\r]*$") { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-body.md
+          if [ ! -s release-body.md ]; then
+            echo "未在 CHANGELOG.md 中找到 ${GITHUB_REF_NAME} 对应的更新说明。" > release-body.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release-body.md
+          files: release/*

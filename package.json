@@ -1,7 +1,12 @@
 {
   "name": "schema-editor",
   "version": "0.3.1",
-  "private": true,
+  "author": "zhang-brook",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zhang-brook/schema-editor"
+  },
   "type": "module",
   "packageManager": "pnpm@12.3.4",
   "scripts": {

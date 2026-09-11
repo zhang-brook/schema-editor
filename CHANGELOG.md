@@ -8,6 +8,8 @@
 ### 🚀 新功能
 
 - 弹窗支持回车确认 ([38318b5](https://github.com/zhang-brook/schema-editor/commit/38318b5))
+- 关于页面新增更新日志链接 ([ab1d510](https://github.com/zhang-brook/schema-editor/commit/ab1d510))
+- 更新日志链接定位到当前版本对应小节 ([420c397](https://github.com/zhang-brook/schema-editor/commit/420c397))
 
 ### 🩹 问题修复
 
@@ -18,6 +20,7 @@
 
 - 补充 package.json 作者、许可证与仓库信息 ([2486820](https://github.com/zhang-brook/schema-editor/commit/2486820))
 - 版本号提升至 0.3.2 ([074d298](https://github.com/zhang-brook/schema-editor/commit/074d298))
+- 接入 changelogen 按 tag 自动生成 CHANGELOG ([28bf379](https://github.com/zhang-brook/schema-editor/commit/28bf379))
 
 ### 🎨 代码风格
 

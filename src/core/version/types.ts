@@ -4,8 +4,33 @@
  * 存储布局（见 docs/refactor/15）：
  *   versions/<id>.json   单个大 JSON，含完整 database + schemas + tables + initial-data（只读历史快照）
  *   migrations/<id>.json  迁移脚本（选两版本 → steps → 合并 DDL）
+ *
+ * 身份识别设计（不依赖持久化 id）：
+ * 结构对象本身不携带任何唯一 id，"两个版本里的对象是否为同一个"由迁移脚本上记录的
+ * 改名事实（RenameEntry）回答；记录缺失时退化为相似度推断（见 core/version/matcher.ts）。
  */
 import type { CommonConfig, InitialData, Schema } from '@/types/schema'
+
+// ===== 对象路径 =====
+
+/**
+ * 结构对象在某一版本快照内的路径，是身份识别的载体。
+ *   schema  `db`
+ *   table   `db/users`
+ *   field   `db/users.name`
+ *   index   `db/users#idx_name`
+ */
+export type ObjectPath = string
+
+/** 可被改名追踪的对象种类 */
+export type RenameKind = 'schema' | 'table' | 'field' | 'index'
+
+/** 路径分隔符：`.` 用于字段，`#` 用于索引，`/` 用于 schema 下的表 */
+export const PATH_TABLE_SEP = '/'
+export const PATH_FIELD_SEP = '.'
+export const PATH_INDEX_SEP = '#'
+
+// ===== 版本快照 =====
 
 /** 版本快照的完整内容（current/ 某个时刻的深拷贝） */
 export interface VersionSnapshot {
@@ -17,6 +42,8 @@ export interface VersionSnapshot {
   created_at: string
   /** 所属结构版本 */
   struct_version: string
+  /** 创建本版本时的基线版本 id；首个版本为 undefined。用于串成线性版本链 */
+  parent_id?: string
   /** 根 common 配置（与 current/ 同构，但不含 schema_order） */
   common: CommonConfig
   /** schema_order（来自 current/database.json） */
@@ -106,6 +133,35 @@ export interface CurrentRef {
   kind: 'current'
 }
 
+// ===== 身份识别：改名事实 =====
+
+/** 改名记录的来源 */
+export type RenameSource =
+  /** 编辑器内捕获的重命名操作，可直接采信 */
+  | 'editor'
+  /** 相似度自动推断，需经用户确认后才等同 editor */
+  | 'auto'
+  /** 用户在迁移编辑器中手工连线确认 */
+  | 'manual'
+
+/**
+ * 一条改名事实：某对象在本次迁移覆盖的范围内，路径由 from 变为 to。
+ *
+ * 与持久化 id 的区别：这是「过程记录」而非「对象属性」，
+ * 不写入 current/ 下的结构定义，只在迁移脚本上累积。
+ * 计算任意两版本的对应关系时，对所有历史迁移的 renames 做传递闭包查询。
+ */
+export interface RenameEntry {
+  kind: RenameKind
+  /** 源路径 */
+  from: ObjectPath
+  /** 目标路径 */
+  to: ObjectPath
+  source: RenameSource
+  /** 置信度 0~1；editor / manual 恒为 1，auto 由 matcher 给出 */
+  confidence?: number
+}
+
 // ===== 迁移脚本 =====
 
 export type MigrationStepType =
@@ -159,8 +215,12 @@ export interface Migration {
   from_version: string
   /** 目标版本 id（to） */
   to_version: string
+  /** 本次迁移确认过的改名事实，用于身份识别 */
+  renames: RenameEntry[]
   /** 步骤有序列表 */
   steps: MigrationStep[]
+  /** 迁移备注 */
+  note?: string
   created_at: string
   updated_at: string
 }

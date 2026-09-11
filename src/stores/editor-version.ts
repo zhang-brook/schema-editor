@@ -240,6 +240,7 @@ export function createVersionActions(deps: VersionDeps) {
       name: name?.trim() || `${fromName} → ${toName}`,
       from_version: fromVersion,
       to_version: toVersion,
+      renames: [],
       steps: [{ type: 'auto_diff' }],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

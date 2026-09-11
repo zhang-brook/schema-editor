@@ -12,6 +12,12 @@ import type { Migration } from './types'
 
 const MIGRATION_FILE_SUFFIX = '.json'
 
+/** 归一化：兼容早期无 renames 字段的迁移文件 */
+function normalize(data: Migration): Migration {
+  if (!Array.isArray(data.renames)) data.renames = []
+  return data
+}
+
 /** 列出所有迁移摘要（按更新时间升序） */
 export async function listMigrations(
   rootHandle: FileSystemDirectoryHandle,
@@ -29,7 +35,7 @@ export async function listMigrations(
     try {
       const data = await readJsonFile<Migration>(entry as FileSystemFileHandle)
       if (!data?.id) continue
-      result.push(data)
+      result.push(normalize(data))
     } catch {
       // 损坏跳过
     }
@@ -46,7 +52,7 @@ export async function readMigration(
     const dir = await getMigrationsDir(rootHandle, false)
     const handle = await getMigrationFileHandle(dir, id, false)
     const data = await readJsonFile<Migration>(handle)
-    return data ?? null
+    return data ? normalize(data) : null
   } catch {
     return null
   }

@@ -54,6 +54,7 @@ import type { UnifiedTypeDefinition } from '@/types/schema'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
 import { createInitialDataActions } from './editor-initial-data'
 import { createVersionActions } from './editor-version'
+import { buildVersionChain } from '@/core/version/chain'
 import { createImportSqlActions } from './editor-import-sql'
 import { createCommonConfigActions } from './editor-common-config'
 import { createCrudActions } from './editor-crud'
@@ -100,6 +101,8 @@ export const useEditorStore = defineStore('editor', () => {
   const versions = ref<VersionSummary[]>([])
   const hasVersions = computed(() => versions.value.length > 0)
   const migrations = ref<Migration[]>([])
+  /** 版本链：按父子关系串成的时间轴，并标注相邻版本之间缺失的迁移 */
+  const versionChain = computed(() => buildVersionChain(versions.value, migrations.value))
 
   // 版本预览状态
   const selectedVersionSnapshot = ref<VersionSnapshot | null>(null)
@@ -398,7 +401,6 @@ export const useEditorStore = defineStore('editor', () => {
     commonConfig,
     schemas,
     initialDataMap,
-    syncAllToDisk,
     showToast,
     t,
   })
@@ -1412,6 +1414,7 @@ export const useEditorStore = defineStore('editor', () => {
     // Versions / Migrations
     versions,
     hasVersions,
+    versionChain,
     migrations,
     selectedVersionSnapshot,
     versionPreviewLoading,

@@ -107,6 +107,10 @@
   "version": {
     "tooHigh": "The project structure version ({version}) is higher than the current editor supports. Please upgrade the editor.",
     "title": "Version",
+    "timeline": "Version timeline",
+    "chainGapHint": "{n} segment(s) between adjacent versions have no migration script; rename records may be missing",
+    "chainBranched": "Branches detected; shown as a linear chain for now",
+    "chainCreateMigration": "Create the missing migration",
     "create": "Create version",
     "createTitle": "Snapshot current structure as a read-only version",
     "nameLabel": "Version name",

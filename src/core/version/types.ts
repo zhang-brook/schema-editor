@@ -59,6 +59,8 @@ export interface VersionSummary {
   id: string
   name: string
   created_at: string
+  /** 基线版本 id；首个版本为 undefined。用于串成版本链 */
+  parent_id?: string
 }
 
 // ===== 结构 diff 结果 =====
@@ -158,11 +160,7 @@ export interface RenameEntry {
 
 // ===== 迁移脚本 =====
 
-export type MigrationStepType =
-  | 'auto_diff'
-  | 'clear_column'
-  | 'sql_transform'
-  | 'custom_sql'
+export type MigrationStepType = 'auto_diff' | 'clear_column' | 'sql_transform' | 'custom_sql'
 
 /** auto_diff：自动基于两版本（from→to）结构差异生成 DDL；可选仅针对特定表 */
 export interface AutoDiffStep {
@@ -196,11 +194,7 @@ export interface CustomSqlStep {
   sqlite?: string
 }
 
-export type MigrationStep =
-  | AutoDiffStep
-  | ClearColumnStep
-  | SqlTransformStep
-  | CustomSqlStep
+export type MigrationStep = AutoDiffStep | ClearColumnStep | SqlTransformStep | CustomSqlStep
 
 export interface Migration {
   id: string

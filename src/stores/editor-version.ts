@@ -2,18 +2,9 @@ import type { Ref, ComputedRef } from 'vue'
 import type { CommonConfig, Schema } from '@/types/schema'
 import type { InitialData } from '@/types/schema'
 import { newVersionId, newMigrationId } from '@/core/ids'
-import {
-  listVersions,
-  readVersion,
-  writeVersion,
-  deleteVersion,
-} from '@/core/version/storage'
+import { listVersions, readVersion, writeVersion, deleteVersion } from '@/core/version/storage'
 import { computeStructureDiff } from '@/core/version/diff'
-import {
-  buildRenameLookup,
-  buildRenameMap,
-  suggestRenames,
-} from '@/core/version/identity'
+import { buildRenameLookup, buildRenameMap, suggestRenames } from '@/core/version/identity'
 import type { RenameSuggestion } from '@/core/version/identity'
 import type {
   VersionSummary,
@@ -41,7 +32,6 @@ export interface VersionDeps {
   commonConfig: Ref<CommonConfig | null>
   schemas: Schema[]
   initialDataMap: Map<string, InitialData>
-  syncAllToDisk: () => Promise<void>
   showToast: (msg: string) => void
   t: (key: string, options?: any) => string
 }
@@ -56,7 +46,6 @@ export function createVersionActions(deps: VersionDeps) {
     commonConfig,
     schemas,
     initialDataMap,
-    syncAllToDisk,
     showToast,
     t,
   } = deps
@@ -88,14 +77,19 @@ export function createVersionActions(deps: VersionDeps) {
     if (!rootDirHandle.value) return null
     const id = newVersionId()
     const displayName = name?.trim() || `v${versions.value.length + 1}.0`
+    // 基线取时间上最新的已有版本，使版本串成链
+    const parentId = [...versions.value]
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .at(-1)?.id
 
     const snapshot: VersionSnapshot = {
       id,
       name: displayName,
       created_at: new Date().toISOString(),
       struct_version: CURRENT_STRUCT_VERSION,
+      ...(parentId ? { parent_id: parentId } : {}),
       common: JSON.parse(JSON.stringify(commonConfig.value)),
-      schema_order: commonConfig.value?.schema_order ?? schemas.map(s => s.schema),
+      schema_order: commonConfig.value?.schema_order ?? schemas.map((s) => s.schema),
       initial_data: JSON.parse(JSON.stringify(Object.fromEntries(initialDataMap.entries()))),
       schemas: JSON.parse(JSON.stringify(schemas)),
     }
@@ -192,7 +186,11 @@ export function createVersionActions(deps: VersionDeps) {
       return null
     }
     const fromRef: StructureDiff['from'] = fromId
-      ? { kind: 'version', id: fromId, name: versions.value.find(b => b.id === fromId)?.name ?? fromId }
+      ? {
+          kind: 'version',
+          id: fromId,
+          name: versions.value.find((b) => b.id === fromId)?.name ?? fromId,
+        }
       : null
     return { fromSchemas, toSchemas, fromRef, toRef }
   }
@@ -235,11 +233,15 @@ export function createVersionActions(deps: VersionDeps) {
   // ===== Migrations =====
 
   /** 创建迁移脚本（选两版本），默认带一个 auto_diff 步骤 */
-  async function createMigration(fromVersion: string, toVersion: string, name?: string): Promise<Migration | null> {
+  async function createMigration(
+    fromVersion: string,
+    toVersion: string,
+    name?: string,
+  ): Promise<Migration | null> {
     if (!rootDirHandle.value) return null
     const id = newMigrationId()
-    const fromName = versions.value.find(b => b.id === fromVersion)?.name ?? fromVersion
-    const toName = versions.value.find(b => b.id === toVersion)?.name ?? toVersion
+    const fromName = versions.value.find((b) => b.id === fromVersion)?.name ?? fromVersion
+    const toName = versions.value.find((b) => b.id === toVersion)?.name ?? toVersion
     const migration: Migration = {
       id,
       name: name?.trim() || `${fromName} → ${toName}`,
@@ -269,7 +271,7 @@ export function createVersionActions(deps: VersionDeps) {
     try {
       await writeMigration(rootDirHandle.value, migration)
       // 刷新缓存（保留引用顺序）
-      const idx = migrations.value.findIndex(m => m.id === migration.id)
+      const idx = migrations.value.findIndex((m) => m.id === migration.id)
       if (idx >= 0) migrations.value[idx] = migration
       else migrations.value.push(migration)
     } catch (e) {

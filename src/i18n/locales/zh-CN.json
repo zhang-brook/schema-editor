@@ -107,6 +107,10 @@
   "version": {
     "tooHigh": "项目结构版本（{version}）高于当前编辑器支持的版本，请升级编辑器。",
     "title": "版本",
+    "timeline": "版本时间轴",
+    "chainGapHint": "有 {n} 段相邻版本之间还没有迁移脚本，改名记录可能缺失",
+    "chainBranched": "存在分支，暂按线性链展示",
+    "chainCreateMigration": "补建该段迁移脚本",
     "create": "创建版本",
     "createTitle": "快照当前结构为只读版本",
     "nameLabel": "版本名称",

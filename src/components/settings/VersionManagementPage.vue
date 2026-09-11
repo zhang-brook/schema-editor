@@ -14,6 +14,7 @@ import { confirmDialog } from '@/composables/useConfirm'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import PageTabs from '@/components/ui/PageTabs.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
+import VersionTimeline from './VersionTimeline.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -77,6 +78,17 @@ function startNewMigration() {
   draftFrom.value = store.versions[0]?.id ?? ''
   draftTo.value = store.versions[store.versions.length - 1]?.id ?? ''
   preview.value = null
+}
+
+/** 点击时间轴上的迁移缺口：切到迁移页并预填 from/to，便于直接补建 */
+function onCreateMigrationForGap(from: string, to: string) {
+  versionTab.value = 'migration'
+  isDrafting.value = true
+  editingMigration.value = null
+  selectedMigrationId.value = null
+  preview.value = null
+  draftFrom.value = from
+  draftTo.value = to
 }
 
 /** 取消草稿，回到「未选中」空白态 */
@@ -217,7 +229,11 @@ onMounted(() => {
     </div>
 
     <!-- 版本 -->
-    <div v-if="versionTab === 'version'" class="ps-version-body ps-version-root">
+    <div v-if="versionTab === 'version'" class="ps-version-tab">
+      <VersionTimeline :active-id="previewVersionId" @select="onPreviewVersion"
+        @create-migration="onCreateMigrationForGap" />
+
+      <div class="ps-version-body ps-version-root">
       <!-- 左侧：版本列表 -->
       <div class="ps-version-list">
         <div class="ps-create-row">
@@ -333,6 +349,7 @@ onMounted(() => {
             <pre class="ps-code">{{ versionSqlText || $t('version.previewNoSchemas') }}</pre>
           </div>
         </template>
+      </div>
       </div>
     </div>
 
@@ -501,6 +518,14 @@ onMounted(() => {
 /* 共享 tab 自带的下边距在此处多余（内容区已有内边距） */
 .ps-version-tabs .page-tabs {
   margin-bottom: 0;
+}
+
+/* 版本 tab：时间轴固定在上，下方可滚动的双栏占满剩余高度 */
+.ps-version-tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .ps-version-body {

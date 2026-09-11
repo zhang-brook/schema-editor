@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.3.3
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.2...v0.3.3)
+
+### 📖 文档
+
+- 新增发布流程说明文档 ([895aa7b](https://github.com/zhang-brook/schema-editor/commit/895aa7b))
+
+### 🤖 持续集成
+
+- 部署改为 tag 触发并自动创建 GitHub Release ([46ad35f](https://github.com/zhang-brook/schema-editor/commit/46ad35f))
+
 ## v0.3.2
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.1...v0.3.2)

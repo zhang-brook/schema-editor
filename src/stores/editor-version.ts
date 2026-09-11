@@ -9,11 +9,18 @@ import {
   deleteVersion,
 } from '@/core/version/storage'
 import { computeStructureDiff } from '@/core/version/diff'
+import {
+  buildRenameLookup,
+  buildRenameMap,
+  suggestRenames,
+} from '@/core/version/identity'
+import type { RenameSuggestion } from '@/core/version/identity'
 import type {
   VersionSummary,
   VersionSnapshot,
   Migration,
   MigrationDdlPreview,
+  RenameEntry,
   StructureDiff,
 } from '@/core/version/types'
 import {
@@ -193,16 +200,31 @@ export function createVersionActions(deps: VersionDeps) {
     selectedVersionSnapshot.value = null
   }
 
-  /**
-   * 计算两版本（或 当前 vs 版本）之间的结构 diff。
-   * @param fromId 源版本 id；为 null 表示与「空结构」对比（即首次全量）
-   * @param toCurrent true 时目标取当前内存态；否则取 toId 版本
-   */
-  async function computeDiff(
+  /** 汇总所有迁移上记录的改名事实（跨迁移复用，配合传递闭包可跨版本识别） */
+  function collectRenameEntries(): RenameEntry[] {
+    const out: RenameEntry[] = []
+    for (const m of migrations.value) {
+      if (Array.isArray(m.renames)) out.push(...m.renames)
+    }
+    return out
+  }
+
+  /** 由历史改名事实构造反查表，供 diff 匹配使用 */
+  function buildLookup(): ReturnType<typeof buildRenameLookup> {
+    return buildRenameLookup(buildRenameMap(collectRenameEntries()).map)
+  }
+
+  /** 读取 diff 的源/目标两侧结构 */
+  async function loadDiffSides(
     fromId: string | null,
     toId: string | null,
     toCurrent: boolean,
-  ): Promise<StructureDiff | null> {
+  ): Promise<{
+    fromSchemas: import('@/types/schema').Schema[] | null
+    toSchemas: import('@/types/schema').Schema[]
+    fromRef: StructureDiff['from']
+    toRef: StructureDiff['to']
+  } | null> {
     if (!rootDirHandle.value) return null
     let fromSchemas: import('@/types/schema').Schema[] | null = null
     if (fromId) {
@@ -224,7 +246,42 @@ export function createVersionActions(deps: VersionDeps) {
     const fromRef: StructureDiff['from'] = fromId
       ? { kind: 'version', id: fromId, name: versions.value.find(b => b.id === fromId)?.name ?? fromId }
       : null
-    return computeStructureDiff(fromSchemas, toSchemas, fromRef, toRef)
+    return { fromSchemas, toSchemas, fromRef, toRef }
+  }
+
+  /**
+   * 计算两版本（或 当前 vs 版本）之间的结构 diff。
+   * @param fromId 源版本 id；为 null 表示与「空结构」对比（即首次全量）
+   * @param toCurrent true 时目标取当前内存态；否则取 toId 版本
+   */
+  async function computeDiff(
+    fromId: string | null,
+    toId: string | null,
+    toCurrent: boolean,
+  ): Promise<StructureDiff | null> {
+    const sides = await loadDiffSides(fromId, toId, toCurrent)
+    if (!sides) return null
+    return computeStructureDiff(
+      sides.fromSchemas,
+      sides.toSchemas,
+      sides.fromRef,
+      sides.toRef,
+      buildLookup(),
+    )
+  }
+
+  /**
+   * 推断两版本之间的改名候选。
+   * 仅在缺少改名记录时作为补充手段，结论需经用户确认后写入迁移的 renames 才生效。
+   */
+  async function suggestRenameEntries(
+    fromId: string | null,
+    toId: string | null,
+    toCurrent: boolean,
+  ): Promise<RenameSuggestion[]> {
+    const sides = await loadDiffSides(fromId, toId, toCurrent)
+    if (!sides || !sides.fromSchemas) return []
+    return suggestRenames(sides.fromSchemas, sides.toSchemas)
   }
 
   // ===== Migrations =====
@@ -302,6 +359,7 @@ export function createVersionActions(deps: VersionDeps) {
     previewVersionById,
     clearVersionPreview,
     computeDiff,
+    suggestRenameEntries,
     createMigration,
     updateMigration,
     deleteMigrationById,

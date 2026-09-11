@@ -53,20 +53,23 @@ export function levenshtein(a: string, b: string): number {
   if (!a.length) return b.length
   if (!b.length) return a.length
   // 保证内层数组更短
-  let prev = new Array<number>(b.length + 1)
-  let curr = new Array<number>(b.length + 1)
+  let prev: number[] = []
+  let curr: number[] = []
   for (let j = 0; j <= b.length; j++) prev[j] = j
   for (let i = 1; i <= a.length; i++) {
     curr[0] = i
     for (let j = 1; j <= b.length; j++) {
       const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1
-      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost)
+      const deletion = (prev[j] ?? 0) + 1
+      const insertion = (curr[j - 1] ?? 0) + 1
+      const substitution = (prev[j - 1] ?? 0) + cost
+      curr[j] = Math.min(deletion, insertion, substitution)
     }
     const tmp = prev
     prev = curr
     curr = tmp
   }
-  return prev[b.length]
+  return prev[b.length] ?? b.length
 }
 
 /** 名称归一化：忽略大小写与分隔符差异，使 user_name 与 userName 等价 */
@@ -128,8 +131,8 @@ export function fieldSimilarity(a: Field, b: Field): number {
   let compared = 0
   let same = 0
   for (const k of FIELD_SEMANTIC_KEYS) {
-    const av = (a as Record<string, unknown>)[k]
-    const bv = (b as Record<string, unknown>)[k]
+    const av = (a as unknown as Record<string, unknown>)[k]
+    const bv = (b as unknown as Record<string, unknown>)[k]
     if (av === undefined && bv === undefined) continue
     compared++
     if (JSON.stringify(av) === JSON.stringify(bv)) same++
@@ -231,21 +234,27 @@ export function matchByScore(
 
 /** 表级配对便捷入口 */
 export function matchTables(oldTables: Table[], newTables: Table[]): MatchResult {
-  return matchByScore(oldTables.length, newTables.length, (i, j) =>
-    tableSimilarity(oldTables[i], newTables[j]),
-  )
+  return matchByScore(oldTables.length, newTables.length, (i, j) => {
+    const a = oldTables[i]
+    const b = newTables[j]
+    return a && b ? tableSimilarity(a, b) : 0
+  })
 }
 
 /** 字段级配对便捷入口 */
 export function matchFields(oldFields: Field[], newFields: Field[]): MatchResult {
-  return matchByScore(oldFields.length, newFields.length, (i, j) =>
-    fieldSimilarity(oldFields[i], newFields[j]),
-  )
+  return matchByScore(oldFields.length, newFields.length, (i, j) => {
+    const a = oldFields[i]
+    const b = newFields[j]
+    return a && b ? fieldSimilarity(a, b) : 0
+  })
 }
 
 /** 索引级配对便捷入口 */
 export function matchIndexes(oldIndexes: Index[], newIndexes: Index[]): MatchResult {
-  return matchByScore(oldIndexes.length, newIndexes.length, (i, j) =>
-    indexSimilarity(oldIndexes[i], newIndexes[j]),
-  )
+  return matchByScore(oldIndexes.length, newIndexes.length, (i, j) => {
+    const a = oldIndexes[i]
+    const b = newIndexes[j]
+    return a && b ? indexSimilarity(a, b) : 0
+  })
 }

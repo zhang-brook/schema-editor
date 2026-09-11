@@ -126,7 +126,7 @@ describe('matchByScore', () => {
       [1.0, 0.9],
       [0.9, 1.0],
     ]
-    const result = matchByScore(2, 2, (i, j) => scores[i][j])
+    const result = matchByScore(2, 2, (i, j) => scores[i]?.[j] ?? 0)
     expect(result.pairs).toEqual([
       { from: 0, to: 0, score: 1.0 },
       { from: 1, to: 1, score: 1.0 },
@@ -148,10 +148,10 @@ describe('matchByScore', () => {
       [0.9, 0.85],
       [0.1, 0.1],
     ]
-    const result = matchByScore(2, 2, (i, j) => scores[i][j])
+    const result = matchByScore(2, 2, (i, j) => scores[i]?.[j] ?? 0)
     expect(result.pairs).toHaveLength(1)
     expect(result.ambiguous).toHaveLength(1)
-    expect(result.ambiguous[0].map(c => c.to)).toEqual([0, 1])
+    expect(result.ambiguous[0]?.map(c => c.to)).toEqual([0, 1])
   })
 
   it('分数差距明显时不标注歧义', () => {
@@ -159,7 +159,7 @@ describe('matchByScore', () => {
       [0.95, 0.6],
       [0.1, 0.1],
     ]
-    const result = matchByScore(2, 2, (i, j) => scores[i][j])
+    const result = matchByScore(2, 2, (i, j) => scores[i]?.[j] ?? 0)
     expect(result.ambiguous).toEqual([])
   })
 })
@@ -199,7 +199,7 @@ describe('matchFields', () => {
     const news = [field('username', { field_type: 'varchar', field_length: 64 })]
     const result = matchFields(olds, news)
     expect(result.pairs).toHaveLength(1)
-    expect(result.pairs[0].score).toBeGreaterThan(0.9)
+    expect(result.pairs[0]?.score).toBeGreaterThan(0.9)
   })
 
   it('类型与名称均不同的字段不配对', () => {

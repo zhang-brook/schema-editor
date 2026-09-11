@@ -24,7 +24,10 @@ export function resolveField(field: Field, commonConfig: CommonConfig | null): F
  * - sqlite:     {pre} → uk_ / idx_
  * - postgresql: {pre} → uk__<table>__ / idx__<table>__（同库内索引名全局唯一，故带表名）
  *
- * {post} 三种方言均展开为空串；名称为空时统一回退「前缀 + 列名拼接」。
+ * {post} 三种方言均展开为空串。名称为空时的处理按方言区分：
+ * - mysql:      返回 undefined，由调用方省略索引名（MySQL 自动按首列命名）
+ * - sqlite:     回退「前缀 + 列名拼接」
+ * - postgresql: 回退「前缀 + 列名拼接」（前缀已含表名）
  *
  * @param index     索引配置
  * @param dialect   目标方言
@@ -34,18 +37,26 @@ export function resolveIndexName(index: Index, dialect: SqlDialect, tableName: s
   const indexType = resolveDialectOverride(index, dialect, 'type', index.type)
   const indexName = resolveDialectOverride(index, dialect, 'name', index.name)
 
-  let prefix, resolved
   switch (dialect) {
+    case 'sqlite': {
+      const prefix = indexType === 'unique' ? 'uk_' : 'idx_'
+      return (
+        indexName?.replace('{pre}', prefix).replace('{post}', '') ||
+        `${prefix}${index.columns.map(c => c.name).join('_')}`
+      )
+    }
+    case 'postgresql': {
+      const prefix = indexType === 'unique' ? `uk__${tableName}__` : `idx__${tableName}__`
+      return (
+        indexName?.replace('{pre}', prefix).replace('{post}', '') ||
+        `${prefix}${index.columns.map(c => c.name).join('_')}`
+      )
+    }
     default:
-    case 'sqlite':
-    case 'mysql':
-      prefix = indexType === 'unique' ? 'uk_' : 'idx_'
-      resolved = indexName?.replace('{pre}', prefix).replace('{post}', '')
-      return resolved
-    case 'postgresql':
-      prefix = indexType === 'unique' ? `uk__${tableName}__` : `idx__${tableName}__`
-      resolved = indexName?.replace('{pre}', prefix).replace('{post}', '')
-      return resolved || `${prefix}${index.columns.map(c => c.name).join('_')}`
+    case 'mysql': {
+      const prefix = indexType === 'unique' ? 'uk_' : 'idx_'
+      return indexName?.replace('{pre}', prefix).replace('{post}', '')
+    }
   }
 }
 

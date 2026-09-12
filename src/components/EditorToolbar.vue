@@ -69,10 +69,26 @@ function onKeydown(e: KeyboardEvent) {
     closeMenu()
   }
 
+  // 从磁盘重新加载（Alt/Option+R，仅项目打开时生效）
+  if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyR') {
+    if (store.projectOpened) {
+      e.preventDefault()
+      store.reloadFromDisk()
+    }
+    return
+  }
   // 打开文件夹（通用约定 Ctrl/Cmd+O），调用目录选择器
   if (mod && (e.key === 'o' || e.key === 'O')) {
     e.preventDefault()
     store.openProject()
+    return
+  }
+  // 通过 SQL 导入（Ctrl/Cmd+I，仅项目打开时生效）
+  if (mod && !e.altKey && e.code === 'KeyI') {
+    if (store.projectOpened) {
+      e.preventDefault()
+      store.openImportSqlModal()
+    }
     return
   }
   // 关闭文件夹（Ctrl/Cmd+E，避开浏览器保留的 Ctrl+W / Ctrl+Shift+W）
@@ -141,7 +157,8 @@ onUnmounted(() => {
           :class="{ disabled: !store.projectOpened }"
           @click="store.projectOpened && menuAction(() => store.openImportSqlModal())"
         >
-          {{ $t('toolbar.importSql') }}
+          <span>{{ $t('toolbar.importSql') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘I' : 'Ctrl+I' }}</span>
         </div>
         <div class="menu-separator"></div>
         <div
@@ -149,7 +166,8 @@ onUnmounted(() => {
           :class="{ disabled: !store.projectOpened }"
           @click="store.projectOpened && menuAction(() => store.reloadFromDisk())"
         >
-          {{ $t('toolbar.reloadFromDisk') }}
+          <span>{{ $t('toolbar.reloadFromDisk') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌥R' : 'Alt+R' }}</span>
         </div>
       </div>
     </div>

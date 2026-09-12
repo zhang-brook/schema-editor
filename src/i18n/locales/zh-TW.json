@@ -399,7 +399,7 @@
     "formatJson": "格式化"
   },
   "environment": {
-    "title": "環境",
+    "title": "環境管理",
     "create": "新增環境",
     "newTitle": "新增環境",
     "editTitle": "編輯環境：{name}",

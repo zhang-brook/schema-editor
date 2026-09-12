@@ -88,3 +88,18 @@
   border-color: transparent;
   color: var(--fg);
 }
+
+/* 危险按钮的小尺寸变体：兼具 btn-danger 配色与 btn-sm 尺寸 */
+.btn-danger-sm {
+  padding: 3px 9px;
+  font-size: 11px;
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--surface);
+}
+
+.btn-danger-sm:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}

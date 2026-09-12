@@ -115,19 +115,19 @@ async function onDelete(env: Environment) {
         <div class="ps-env-form">
           <div class="ps-env-field">
             <span class="ps-pick-label">{{ t('environment.name') }}</span>
-            <input v-model="draft.name" class="ps-input" :placeholder="t('environment.namePlaceholder')" />
+            <input v-model="draft.name" class="form-input" :placeholder="t('environment.namePlaceholder')" />
           </div>
 
           <div class="ps-env-field">
             <span class="ps-pick-label">{{ t('environment.version') }}</span>
-            <select v-model="draft.version_id">
+            <select v-model="draft.version_id" class="form-input">
               <option v-for="v in store.versions" :key="v.id" :value="v.id">{{ v.name }}</option>
             </select>
           </div>
 
           <div class="ps-env-field">
             <span class="ps-pick-label">{{ t('environment.note') }}</span>
-            <textarea v-model="draft.note" class="ps-textarea" rows="3"
+            <textarea v-model="draft.note" class="form-input ps-textarea" rows="3"
               :placeholder="t('environment.notePlaceholder')" />
           </div>
 
@@ -144,6 +144,9 @@ async function onDelete(env: Environment) {
     </div>
   </div>
 </template>
+
+<style scoped src="@/assets/style/form.css"></style>
+<style scoped src="@/assets/style/btn.css"></style>
 
 <style scoped>
 .ps-env {
@@ -180,12 +183,88 @@ async function onDelete(env: Environment) {
   gap: 4px;
 }
 
+/* textarea 外观交由全局 form-input 统一处理，这里只保留交互行为 */
 .ps-textarea {
-  padding: 6px 8px;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: var(--radius-sm, 6px);
-  font: inherit;
   resize: vertical;
+}
+
+.ps-env-field .form-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ===== 以下类原本定义在 VersionManagementPage 的 scoped 样式中。
+   scoped 样式不会穿透到子组件的内部元素，环境面板引用了它们却拿不到样式，
+   故按相同取值在此重新声明，使环境 tab 的列表、标题栏、空态与项目其他页面一致。 ===== */
+.ps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid var(--border-muted);
+  border-radius: 5px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.ps-list-item.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle-2);
+}
+
+.ps-list-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.ps-list-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.ps-list-meta {
+  font-size: 11px;
+  color: #999;
+}
+
+.ps-empty-sm {
+  color: #999;
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+}
+
+.ps-version-empty {
+  color: #999;
+  font-size: 13px;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.ps-mig-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.ps-mig-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.ps-pick-label {
+  font-size: 11px;
+  color: #888;
 }
 
 .ps-env-actions {

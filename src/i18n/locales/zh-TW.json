@@ -87,6 +87,7 @@
     "importSql": "透過 SQL 建表語句匯入",
     "importSqlTitle": "貼上 SQL 建表語句，自動解析並匯入",
     "changelog": "更新日誌",
+    "reportIssue": "回報問題",
     "about": "關於"
   },
   "sidebar": {

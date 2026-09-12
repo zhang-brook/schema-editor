@@ -87,6 +87,7 @@
     "importSql": "Import via SQL CREATE TABLE",
     "importSqlTitle": "Paste CREATE TABLE statements, auto-parse and import",
     "changelog": "Changelog",
+    "reportIssue": "Report an Issue",
     "about": "About"
   },
   "sidebar": {

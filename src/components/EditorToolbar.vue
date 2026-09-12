@@ -5,7 +5,7 @@ import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
-import { GITHUB_REPO_URL, changelogUrl } from '@/utils/constants'
+import { GITHUB_REPO_URL, GITHUB_ISSUE_URL, changelogUrl } from '@/utils/constants'
 import { version } from '@/../package.json'
 
 const store = useEditorStore()
@@ -190,6 +190,16 @@ onUnmounted(() => {
         >
           {{ $t('toolbar.github') }}
         </a>
+        <a
+          class="menu-dropdown-item"
+          :href="GITHUB_ISSUE_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          @click="closeMenu()"
+        >
+          {{ $t('toolbar.reportIssue') }}
+        </a>
+        <div class="menu-separator"></div>
         <a
           class="menu-dropdown-item"
           :href="changelogUrl(version)"

@@ -111,6 +111,7 @@
     "chainGapHint": "{n} segment(s) between adjacent versions have no migration script; rename records may be missing",
     "chainBranched": "Branches detected; shown as a linear chain for now",
     "chainCreateMigration": "Create the missing migration",
+    "chainGapLabel": "+ Configure",
     "chainViewMigration": "View",
     "chainViewMigrationTip": "View migration \"{name}\"",
     "create": "Create version",

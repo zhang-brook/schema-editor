@@ -116,8 +116,8 @@ const vFocus = {
             :title="t('version.chainCreateMigration')"
             @click="emit('create-migration', segmentAfter(i)!.from.id, segmentAfter(i)!.to.id)"
           >
+            <span class="tl-link-label">{{ t('version.chainGapLabel') }}</span>
             <span class="tl-link-line" />
-            <span class="tl-link-label">＋</span>
           </button>
           <button
             v-else
@@ -125,8 +125,8 @@ const vFocus = {
             :title="t('version.chainViewMigrationTip', { name: segmentAfter(i)!.migration!.name })"
             @click="emit('view-migration', segmentAfter(i)!.migration!.id)"
           >
-            <span class="tl-link-line" />
             <span class="tl-link-label">{{ t('version.chainViewMigration') }}</span>
+            <span class="tl-link-line" />
           </button>
         </template>
       </li>
@@ -263,11 +263,15 @@ const vFocus = {
   white-space: nowrap;
 }
 
+/* 版本之间的连线：带箭头的横线，操作文字居中浮在线的上方 */
 .tl-link {
+  position: relative;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  width: 68px;
-  padding: 0;
+  width: 76px;
+  height: 28px;
+  padding: 0 8px;
   border: none;
   background: transparent;
   cursor: default;
@@ -279,20 +283,41 @@ const vFocus = {
 }
 
 .tl-link-line {
+  position: relative;
   flex: 1;
   height: 2px;
   background: var(--primary-color, #2563eb);
+}
+
+/* 左端箭头，指向左侧（更早的）版本 */
+.tl-link-line::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-right: 6px solid var(--primary-color, #2563eb);
 }
 
 .tl-link.is-gap .tl-link-line {
   background: repeating-linear-gradient(to right, #b45309 0 5px, transparent 5px 10px);
 }
 
+.tl-link.is-gap .tl-link-line::before {
+  border-right-color: #b45309;
+}
+
 .tl-link-label {
-  margin-left: 4px;
-  font-size: 12px;
-  color: #b45309;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  line-height: 1;
   white-space: nowrap;
+  color: #b45309;
 }
 
 .tl-link.is-gap:hover .tl-link-label {

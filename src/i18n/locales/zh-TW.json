@@ -111,6 +111,7 @@
     "chainGapHint": "有 {n} 段相鄰版本之間還沒有遷移腳本，改名記錄可能缺失",
     "chainBranched": "存在分支，暫按線性鏈展示",
     "chainCreateMigration": "補建該段遷移腳本",
+    "chainGapLabel": "＋ 配置",
     "chainViewMigration": "查看",
     "chainViewMigrationTip": "查看遷移腳本「{name}」",
     "create": "建立版本",

@@ -414,6 +414,8 @@
     "empty": "No environments yet",
     "emptyGuide": "Pick an environment on the left, or create a new one",
     "created": "Environment created: {name}",
+    "saved": "Environment saved: {name}",
+    "edit": "Edit",
     "defaultName": "Environment {n}",
     "noVersion": "Create at least one version first"
   },

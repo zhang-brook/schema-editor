@@ -414,6 +414,8 @@
     "empty": "暂无环境",
     "emptyGuide": "从左侧选择环境，或新建一个",
     "created": "环境已创建：{name}",
+    "saved": "环境已保存：{name}",
+    "edit": "编辑",
     "defaultName": "环境 {n}",
     "noVersion": "请先创建至少一个版本"
   },

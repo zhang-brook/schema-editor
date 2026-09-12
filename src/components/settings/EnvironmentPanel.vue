@@ -11,7 +11,9 @@ import { confirmDialog } from '@/composables/useConfirm'
 const store = useEditorStore()
 const { t } = useI18n()
 
-const selectedId = ref<string | null>(null)
+/** view = 查看详情；edit = 编辑 / 新建表单 */
+const viewId = ref<string | null>(null)
+const editing = ref(false)
 const isCreating = ref(false)
 const draft = ref<Environment | null>(null)
 
@@ -20,14 +22,36 @@ const canSave = computed(
   () => !!draft.value && !!draft.value.name.trim() && !!draft.value.version_id,
 )
 
+/** 当前查看的环境：直接取自列表，保存后自动展示最新内容 */
+const viewingEnv = computed(
+  () => store.environments.find(e => e.id === viewId.value) ?? null,
+)
+
 function versionName(id: string): string {
   return store.versions.find(v => v.id === id)?.name ?? id
 }
 
+/** 点击列表项：先进入查看详情，不直接进编辑 */
+function select(env: Environment) {
+  viewId.value = env.id
+  editing.value = false
+  isCreating.value = false
+  draft.value = null
+}
+
+/** 查看 → 编辑 */
+function startEdit() {
+  const env = viewingEnv.value
+  if (!env) return
+  draft.value = JSON.parse(JSON.stringify(env))
+  editing.value = true
+  isCreating.value = false
+}
+
+/** 新建：直接进入表单 */
 function startCreate() {
   if (!hasVersions.value) return
-  isCreating.value = true
-  selectedId.value = null
+  viewId.value = null
   draft.value = {
     id: '',
     name: '',
@@ -35,20 +59,19 @@ function startCreate() {
     created_at: '',
     updated_at: '',
   }
+  editing.value = true
+  isCreating.value = true
 }
 
-function select(env: Environment) {
+/** 取消编辑：新建回到空白态，编辑现有环境则回到该环境的查看页 */
+function cancelEdit() {
+  if (isCreating.value) viewId.value = null
+  editing.value = false
   isCreating.value = false
-  selectedId.value = env.id
-  draft.value = JSON.parse(JSON.stringify(env))
-}
-
-function cancel() {
-  isCreating.value = false
-  selectedId.value = null
   draft.value = null
 }
 
+/** 保存：成功后退出表单，回到该环境的查看页 */
 async function onSave() {
   if (!draft.value || !canSave.value) return
   if (isCreating.value) {
@@ -57,10 +80,19 @@ async function onSave() {
       draft.value.version_id,
       draft.value.note,
     )
-    if (created) select(created)
+    if (!created) return
+    viewId.value = created.id
+    editing.value = false
+    isCreating.value = false
+    draft.value = null
     return
   }
-  await store.updateEnvironment(draft.value)
+  const saved = draft.value
+  await store.updateEnvironment(saved)
+  // 失败时 store 已给出错误提示，这里回到查看页展示最新内容
+  viewId.value = saved.id
+  editing.value = false
+  draft.value = null
 }
 
 async function onDelete(env: Environment) {
@@ -74,7 +106,10 @@ async function onDelete(env: Environment) {
   )
     return
   await store.deleteEnvironmentById(env.id)
-  cancel()
+  viewId.value = null
+  editing.value = false
+  isCreating.value = false
+  draft.value = null
 }
 </script>
 
@@ -91,7 +126,7 @@ async function onDelete(env: Environment) {
       </div>
       <ul v-else class="ps-list">
         <li v-for="env in store.environments" :key="env.id" class="ps-list-item"
-          :class="{ active: selectedId === env.id }" @click="select(env)">
+          :class="{ active: viewId === env.id }" @click="select(env)">
           <div class="ps-list-info">
             <span class="ps-list-name">{{ env.name }}</span>
             <span class="ps-list-meta">{{ versionName(env.version_id) }}</span>
@@ -100,16 +135,46 @@ async function onDelete(env: Environment) {
       </ul>
     </div>
 
-    <!-- 右侧：编辑区 -->
+    <!-- 右侧：查看 / 编辑 -->
     <div class="ps-env-editor">
-      <div v-if="!draft" class="ps-version-empty">{{ t('environment.emptyGuide') }}</div>
+      <!-- 未选中环境且未编辑 -->
+      <div v-if="!editing && !viewingEnv" class="ps-version-empty">
+        {{ t('environment.emptyGuide') }}
+      </div>
 
-      <template v-else>
+      <!-- 查看页 -->
+      <template v-else-if="!editing && viewingEnv">
+        <div class="ps-mig-titlebar">
+          <span class="ps-mig-title">{{ viewingEnv.name }}</span>
+          <div class="ps-env-view-actions">
+            <button class="btn btn-sm" @click="startEdit">{{ t('environment.edit') }}</button>
+            <button class="btn btn-danger-sm" @click="onDelete(viewingEnv)">
+              {{ t('environment.delete') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="ps-env-view">
+          <div class="ps-env-view-row">
+            <span class="ps-pick-label">{{ t('environment.version') }}</span>
+            <span class="ps-env-view-value">{{ versionName(viewingEnv.version_id) }}</span>
+          </div>
+          <div class="ps-env-view-row">
+            <span class="ps-pick-label">{{ t('environment.note') }}</span>
+            <span class="ps-env-view-value">{{ viewingEnv.note || '—' }}</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- 编辑页 -->
+      <template v-else-if="editing && draft">
         <div class="ps-mig-titlebar">
           <span class="ps-mig-title">
-            {{ isCreating ? t('environment.newTitle') : t('environment.editTitle', { name: draft.name }) }}
+            {{ isCreating
+              ? t('environment.newTitle')
+              : t('environment.editTitle', { name: viewingEnv?.name ?? draft.name }) }}
           </span>
-          <button class="btn btn-sm btn-ghost" @click="cancel">{{ t('migration.cancel') }}</button>
+          <button class="btn btn-sm btn-ghost" @click="cancelEdit">{{ t('migration.cancel') }}</button>
         </div>
 
         <div class="ps-env-form">
@@ -134,9 +199,6 @@ async function onDelete(env: Environment) {
           <div class="ps-env-actions">
             <button class="btn btn-primary" :disabled="!canSave" @click="onSave">
               {{ t('environment.save') }}
-            </button>
-            <button v-if="!isCreating" class="btn btn-danger-sm" @click="onDelete(draft)">
-              {{ t('environment.delete') }}
             </button>
           </div>
         </div>
@@ -269,6 +331,33 @@ async function onDelete(env: Environment) {
 
 .ps-env-actions {
   display: flex;
+  gap: 8px;
+}
+
+.ps-env-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+  margin-top: 12px;
+}
+
+.ps-env-view-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ps-env-view-value {
+  font-size: 13px;
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ps-env-view-actions {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 </style>

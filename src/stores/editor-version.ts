@@ -366,6 +366,7 @@ export function createVersionActions(deps: VersionDeps) {
       const idx = environments.value.findIndex(e => e.id === env.id)
       if (idx >= 0) environments.value[idx] = env
       else environments.value.push(env)
+      showToast(t('environment.saved', { name: env.name }))
     } catch (e) {
       console.error('[updateEnvironment] failed:', e)
       showToast(t('toast.failedSaveChanges'))

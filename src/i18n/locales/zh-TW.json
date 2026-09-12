@@ -414,6 +414,8 @@
     "empty": "暫無環境",
     "emptyGuide": "從左側選擇環境，或新增一個",
     "created": "環境已建立：{name}",
+    "saved": "環境已儲存：{name}",
+    "edit": "編輯",
     "defaultName": "環境 {n}",
     "noVersion": "請先建立至少一個版本"
   },

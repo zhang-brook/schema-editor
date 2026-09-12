@@ -86,6 +86,7 @@
     "github": "GitHub",
     "importSql": "Import via SQL CREATE TABLE",
     "importSqlTitle": "Paste CREATE TABLE statements, auto-parse and import",
+    "changelog": "Changelog",
     "about": "About"
   },
   "sidebar": {

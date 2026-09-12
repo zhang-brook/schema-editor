@@ -5,7 +5,8 @@ import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
-import { GITHUB_REPO_URL } from '@/utils/constants'
+import { GITHUB_REPO_URL, changelogUrl } from '@/utils/constants'
+import { version } from '@/../package.json'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
@@ -188,6 +189,15 @@ onUnmounted(() => {
           @click="closeMenu()"
         >
           {{ $t('toolbar.github') }}
+        </a>
+        <a
+          class="menu-dropdown-item"
+          :href="changelogUrl(version)"
+          target="_blank"
+          rel="noopener noreferrer"
+          @click="closeMenu()"
+        >
+          {{ $t('toolbar.changelog') }}
         </a>
         <div class="menu-separator"></div>
         <div class="menu-dropdown-item" @click="menuAction(() => { showAboutModal = true })">

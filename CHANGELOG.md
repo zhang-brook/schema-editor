@@ -1,6 +1,50 @@
 # Changelog
 
 
+## v0.4.0
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.4...v0.4.0)
+
+### 🚀 新功能
+
+- **version:** 新增改名事实类型与版本父级引用 ([260f323](https://github.com/zhang-brook/schema-editor/commit/260f323))
+- **version:** 新增相似度推断引擎 matcher ([43f7020](https://github.com/zhang-brook/schema-editor/commit/43f7020))
+- **version:** Diff 引擎改用改名记录与路径匹配 ([1886a9e](https://github.com/zhang-brook/schema-editor/commit/1886a9e))
+- **version:** 新增版本链与迁移缺口提示 ([6487cad](https://github.com/zhang-brook/schema-editor/commit/6487cad))
+- **migration:** 迁移编辑器新增身份对齐步骤 ([3f3d6c0](https://github.com/zhang-brook/schema-editor/commit/3f3d6c0))
+- **version:** 新增环境概念并关联到版本 ([b0cdf7b](https://github.com/zhang-brook/schema-editor/commit/b0cdf7b))
+- **version:** 版本删除保护 + 迁移环境执行状态 ([ff35e65](https://github.com/zhang-brook/schema-editor/commit/ff35e65))
+- **迁移脚本:** 自定义 SQL 步骤只展示项目设置中启用的方言 ([abd711c](https://github.com/zhang-brook/schema-editor/commit/abd711c))
+- **版本:** 时间线版本名称支持改名 ([94d9e7f](https://github.com/zhang-brook/schema-editor/commit/94d9e7f))
+- **帮助菜单:** 顶部帮助菜单新增更新日志菜单项 ([0bfcfd8](https://github.com/zhang-brook/schema-editor/commit/0bfcfd8))
+- **帮助菜单:** 新增报告问题菜单项 ([bbd4fd1](https://github.com/zhang-brook/schema-editor/commit/bbd4fd1))
+- **版本:** 版本列表与时间线改为新到旧展示 ([a29138a](https://github.com/zhang-brook/schema-editor/commit/a29138a))
+- **版本管理:** 支持点击时间轴迁移连线查看脚本 ([1a398cb](https://github.com/zhang-brook/schema-editor/commit/1a398cb))
+- **version:** 优化连线样式并本地化间隔标签 ([7fbb285](https://github.com/zhang-brook/schema-editor/commit/7fbb285))
+- **环境:** 环境详情改为先查看再编辑，保存后返回查看页 ([96d7a3c](https://github.com/zhang-brook/schema-editor/commit/96d7a3c))
+- **toolbar:** 添加重新加载和导入 SQL 的快捷键 ([e876ca3](https://github.com/zhang-brook/schema-editor/commit/e876ca3))
+
+### 🩹 问题修复
+
+- **sql-generator:** 修正 SQLite 索引名缺失时的回退逻辑 ([a80032f](https://github.com/zhang-brook/schema-editor/commit/a80032f))
+- **版本:** 修复时间线名称偏左，左侧列表新增改名按钮 ([672d03b](https://github.com/zhang-brook/schema-editor/commit/672d03b))
+- **sql-generator:** 为 PostgreSQL 索引注释前添加空行 ([cb1d085](https://github.com/zhang-brook/schema-editor/commit/cb1d085))
+- **环境:** 统一环境 tab 控件样式并将 tab 更名为环境管理 ([33c94dc](https://github.com/zhang-brook/schema-editor/commit/33c94dc))
+
+### ♻️ 代码重构
+
+- **version:** 移除结构对象上的持久化 id 体系 ([56658c9](https://github.com/zhang-brook/schema-editor/commit/56658c9))
+
+### 📖 文档
+
+- 更新待办事项列表 ([b45c61d](https://github.com/zhang-brook/schema-editor/commit/b45c61d))
+- **i18n:** 更新版本标题为版本历史 ([fce97f4](https://github.com/zhang-brook/schema-editor/commit/fce97f4))
+
+### 🎨 代码风格
+
+- **settings:** 优化版本时间线节点按钮视觉样式 ([251eb61](https://github.com/zhang-brook/schema-editor/commit/251eb61))
+- **settings:** 调整项目配置页内边距 ([0474bb8](https://github.com/zhang-brook/schema-editor/commit/0474bb8))
+
 ## v0.3.4
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.3...v0.3.4)

@@ -2,10 +2,10 @@
  * 唯一 id 生成工具（nanoid 封装）。
  *
  * 设计要点：
- * - field_id / table_id / schema_id / index_id / initial_data_id（行级）在「创建对象时即生成」——
- *   无论是否已创建版本，新增的 schema/table/field/index/initial-data 行都自动带 id，
- *   加载已有项目时也会补齐磁盘上缺失的 id，保证可跨版本识别 rename。
- * - 带语义前缀（f_/t_/s_/i_/d_）便于阅读与排错，纯随机部分使用 nanoid 避免依赖全局计数（改名后不歧义）。
+ * - 仅用于「版本」与「迁移脚本」这类仓储实体，不用于结构对象。
+ * - 结构对象（schema / table / field / index / initial-data 行）不再携带唯一 id，
+ *   跨版本识别 rename 由迁移脚本上累积的改名记录完成，详见 core/version/identity.ts。
+ * - 带语义前缀（v_/m_）便于阅读与排错，纯随机部分使用 nanoid 避免依赖全局计数。
  */
 import { customAlphabet } from 'nanoid'
 
@@ -17,32 +17,17 @@ function makeId(prefix: string): string {
   return `${prefix}_${generate()}`
 }
 
-export function newFieldId(): string {
-  return makeId('f')
-}
-
-export function newTableId(): string {
-  return makeId('t')
-}
-
-export function newSchemaId(): string {
-  return makeId('s')
-}
-
+/** 版本（version）id，前缀 v_ */
 export function newVersionId(): string {
   return makeId('v')
 }
 
-/** 初始数据行（initial-data row）唯一 id，前缀 d_ */
-export function newInitialDataId(): string {
-  return makeId('d')
-}
-
-/** 索引（index）唯一 id，前缀 i_ */
-export function newIndexId(): string {
-  return makeId('i')
-}
-
+/** 迁移脚本（migration）id，前缀 m_ */
 export function newMigrationId(): string {
   return makeId('m')
+}
+
+/** 环境（environment）id，前缀 e_ */
+export function newEnvironmentId(): string {
+  return makeId('e')
 }

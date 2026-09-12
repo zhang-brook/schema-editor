@@ -1,6 +1,5 @@
 import { computed, type ComputedRef } from 'vue'
 import type { Schema, Table, Field, InitialData } from '@/types/schema'
-import { newInitialDataId } from '@/core/ids'
 import { affectedInitialData, affectedSql, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
@@ -66,12 +65,6 @@ export function createInitialDataActions(deps: InitialDataDeps) {
           initialDataMap.delete(key)
           initialDataDeletedKeys.add(key)
         } else {
-          // 新建初始数据时，为每一行分配 id（无论是否已创建版本）
-          if (data.rows) {
-            for (const row of data.rows) {
-              if (!row.initial_data_id) row.initial_data_id = newInitialDataId()
-            }
-          }
           initialDataMap.set(key, data)
           initialDataDeletedKeys.delete(key)
         }

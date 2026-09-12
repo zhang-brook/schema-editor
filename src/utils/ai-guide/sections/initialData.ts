@@ -8,7 +8,6 @@ export const initialDataBody = `### initial-data.json（初始数据）
   "rows": [
     {
       "data": { "id": 1, "name": "Alice", "status": "active" },
-      "initial_data_id": "d_xxx",     // 可选
       "field_comments": { "name": "姓名" },  // 可选：字段级注释
       "is_skip": false,               // true → 该行不生成 INSERT
       "row_comment": "示例行"          // 可选：行级注释

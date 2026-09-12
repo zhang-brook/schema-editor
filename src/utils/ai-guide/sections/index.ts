@@ -4,7 +4,6 @@ export const indexBody = `### Index（索引）
 \`\`\`jsonc
 {
   "name": "idx_user_email",        // 可选
-  "index_id": "i_xxx",             // 可选；跨版本识别用
   "type": "unique",                // 必填：仅 "index" 或 "unique"
   "using": "BTREE",                // 仅 MySQL（USING BTREE/HASH）
   "columns": [                     // IndexColumn[]（结构化，取代旧版纯字符串）

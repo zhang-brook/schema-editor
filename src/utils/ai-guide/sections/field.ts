@@ -4,7 +4,6 @@ export const fieldBody = `### Field（字段）详解
 \`\`\`jsonc
 {
   "field_name": "price",
-  "field_id": "f_xxx",            // 可选；跨版本识别 rename
   "use_common_used_fields": false,
   "unified_type": "Decimal",       // 可选；引用 common.unified_types 的名称
   "field_type": "DECIMAL",         // 可选；自定义类型（自由文本）

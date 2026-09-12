@@ -54,6 +54,7 @@ import type { UnifiedTypeDefinition } from '@/types/schema'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
 import { createInitialDataActions } from './editor-initial-data'
 import { createVersionActions } from './editor-version'
+import { buildVersionChain } from '@/core/version/chain'
 import { createImportSqlActions } from './editor-import-sql'
 import { createCommonConfigActions } from './editor-common-config'
 import { createCrudActions } from './editor-crud'
@@ -61,6 +62,7 @@ import type {
   VersionSummary,
   VersionSnapshot,
   Migration,
+  Environment,
 } from '@/core/version/types'
 import { confirmDialog, alertDialog } from '@/composables/useConfirm'
 
@@ -100,6 +102,9 @@ export const useEditorStore = defineStore('editor', () => {
   const versions = ref<VersionSummary[]>([])
   const hasVersions = computed(() => versions.value.length > 0)
   const migrations = ref<Migration[]>([])
+  const environments = ref<Environment[]>([])
+  /** 版本链：按父子关系串成的时间轴，并标注相邻版本之间缺失的迁移 */
+  const versionChain = computed(() => buildVersionChain(versions.value, migrations.value))
 
   // 版本预览状态
   const selectedVersionSnapshot = ref<VersionSnapshot | null>(null)
@@ -379,27 +384,31 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Versions / Migrations (extracted) =====
   const {
     loadVersionsAndMigrations,
-    ensureIdsForCurrent,
     createVersion,
+    renameVersion,
     deleteVersionById,
     getVersionSnapshot,
     previewVersionById,
     clearVersionPreview,
     computeDiff,
+    suggestRenameEntries,
     createMigration,
     updateMigration,
     deleteMigrationById,
     previewMigrationDdl,
+    createEnvironment,
+    updateEnvironment,
+    deleteEnvironmentById,
   } = createVersionActions({
     rootDirHandle,
     versions,
     migrations,
+    environments,
     versionPreviewLoading,
     selectedVersionSnapshot,
     commonConfig,
     schemas,
     initialDataMap,
-    syncAllToDisk,
     showToast,
     t,
   })
@@ -502,11 +511,6 @@ export const useEditorStore = defineStore('editor', () => {
     // 加载 initial-data（行内化在各 table 目录）
     for (const { key, data } of newProj.initialData) {
       initialDataMap.set(key, data)
-    }
-
-    // 补齐磁盘上已有对象缺失的 id（无论是否已创建版本，保证全部带 id 以跨版本识别）
-    if (ensureIdsForCurrent()) {
-      await syncAllToDisk()
     }
 
     // 自动选中第一个 schema
@@ -1418,19 +1422,26 @@ export const useEditorStore = defineStore('editor', () => {
     // Versions / Migrations
     versions,
     hasVersions,
+    versionChain,
     migrations,
+    environments,
     selectedVersionSnapshot,
     versionPreviewLoading,
     loadVersionsAndMigrations,
     createVersion,
+    renameVersion,
     deleteVersionById,
     getVersionSnapshot,
     previewVersionById,
     clearVersionPreview,
     computeDiff,
+    suggestRenameEntries,
     createMigration,
     updateMigration,
     deleteMigrationById,
     previewMigrationDdl,
+    createEnvironment,
+    updateEnvironment,
+    deleteEnvironmentById,
   }
 })

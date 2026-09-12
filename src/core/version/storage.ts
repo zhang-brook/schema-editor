@@ -4,10 +4,7 @@
  * 存储：versions/<id>.json（单文件完整快照）。
  * 实现纯函数 + FS 原语，不持有任何 reactive 状态，便于在 store 中调用。
  */
-import {
-  getVersionsDir,
-  getVersionFileHandle,
-} from '@/core/workspace/paths'
+import { getVersionsDir, getVersionFileHandle } from '@/core/workspace/paths'
 import { readJsonFile, writeJsonFile, removeEntry } from '@/core/workspace/handles'
 import type { VersionSnapshot, VersionSummary } from './types'
 
@@ -32,7 +29,12 @@ export async function listVersions(
     try {
       const data = await readJsonFile<VersionSnapshot>(entry as FileSystemFileHandle)
       if (!data?.id) continue
-      summaries.push({ id: data.id, name: data.name, created_at: data.created_at })
+      summaries.push({
+        id: data.id,
+        name: data.name,
+        created_at: data.created_at,
+        ...(data.parent_id ? { parent_id: data.parent_id } : {}),
+      })
     } catch {
       // 损坏的版本文件跳过
     }

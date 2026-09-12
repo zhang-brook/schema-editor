@@ -86,8 +86,6 @@ export interface IndexColumn {
 
 export interface Field {
   field_name: string
-  /** 字段唯一 id（创建首个版本时延迟生成，用于跨版本变更识别 rename） */
-  field_id?: string
   use_common_used_fields?: boolean
   /** 指向 CommonConfig.unified_types 中的类型名，为空时回退到 field_type 自由文本 */
   unified_type?: string
@@ -117,8 +115,6 @@ export interface Field {
 export interface Index {
   // name is optional
   name?: string
-  /** 索引唯一 id（创建时即生成，用于跨版本变更识别） */
-  index_id?: string
   type: string
   using?: string
   columns: IndexColumn[]
@@ -165,8 +161,6 @@ export interface TablePartitionConfig {
 
 export interface Table {
   name: string
-  /** 表唯一 id（创建首个版本时延迟生成，用于跨版本变更识别 rename） */
-  table_id?: string
   comment: string
   comment_before_table?: string | (string | null)[]
   comment_before_fields?: Record<string, string | (string | null)[]>
@@ -184,8 +178,6 @@ export interface Table {
 
 export interface Schema {
   schema: string
-  /** schema 唯一 id（创建首个版本时延迟生成） */
-  schema_id?: string
   tables: Table[]
   /** 前置 SQL（按方言分别配置，生成在所有表之前） */
   pre_sql?: SqlStatements
@@ -264,8 +256,6 @@ export interface CommonConfig {
 export interface InitialDataRow {
   /** 行的字段数据 */
   data: Record<string, any>
-  /** 初始数据行唯一 id（创建时即生成，用于跨版本变更识别） */
-  initial_data_id?: string
   /** 该行的字段级注释（仅有注释的字段才出现） */
   field_comments?: Record<string, string>
   /** 是否跳过该行（true 时该行不生成 INSERT 语句，语义同旧 skip_rows[i]===true） */

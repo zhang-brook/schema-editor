@@ -14,17 +14,31 @@ import { confirmDialog } from '@/composables/useConfirm'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import PageTabs from '@/components/ui/PageTabs.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
+import VersionTimeline from './VersionTimeline.vue'
+import RenameAlignPanel from './RenameAlignPanel.vue'
+import EnvironmentPanel from './EnvironmentPanel.vue'
+import type { EnvMigrationStatus, RenameEntry } from '@/core/version/types'
+import type { RenameSuggestion } from '@/core/version/identity'
+import { canDeleteVersion } from '@/core/version/guards'
 
 const store = useEditorStore()
 const { t } = useI18n()
 
 // ===== 版本管理（迁入自 VersionMigrationModal 的逻辑，去掉 modal 外壳） =====
-const versionTab = ref<'version' | 'migration'>('version')
+const versionTab = ref<'version' | 'migration' | 'environment'>('version')
 const newVersionName = ref('')
+
+/**
+ * 左侧版本列表展示顺序：新 → 旧。
+ * 仅反转 UI 呈现顺序，store.versions 底层顺序（时间升序）不变，
+ * 最新版本位于列表顶部，用户无需滚动到列表底部。
+ */
+const displayVersions = computed(() => [...store.versions].reverse())
 
 const versionTabOptions = computed(() => [
   { value: 'version' as const, label: t('version.title') },
   { value: 'migration' as const, label: t('migration.title') },
+  { value: 'environment' as const, label: t('environment.title') },
 ])
 
 async function onCreateVersion() {
@@ -33,8 +47,55 @@ async function onCreateVersion() {
 }
 
 async function onDeleteVersion(id: string, name: string) {
+  if (!versionDeletable(id)) return
   if (!(await confirmDialog({ title: t('confirm.title'), message: t('version.deleteConfirm', { name }), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }))) return
   await store.deleteVersionById(id)
+}
+
+// ===== 版本删除保护 =====
+
+/** 版本是否可删除（未被迁移、环境引用） */
+function versionDeletable(id: string): boolean {
+  return canDeleteVersion(id, store.migrations, store.environments).ok
+}
+
+/** 不可删除时的原因提示，用于 tooltip */
+function versionDeleteTooltip(id: string): string {
+  const { ok, reasons } = canDeleteVersion(id, store.migrations, store.environments)
+  if (ok) return t('version.delete')
+  const lines = reasons.map(r =>
+    r.type === 'migration'
+      ? t('version.deleteBlockedByMigration', {
+          name: r.name,
+          role: r.role === 'from' ? t('migration.from') : t('migration.to'),
+        })
+      : t('version.deleteBlockedByEnvironment', { name: r.name }),
+  )
+  return `${t('version.cannotDelete')}\n${lines.join('\n')}`
+}
+
+// ===== 版本改名（列表内联编辑） =====
+const editingId = ref<string | null>(null)
+const editingName = ref('')
+
+function startRename(b: { id: string; name: string }) {
+  editingId.value = b.id
+  editingName.value = b.name
+}
+
+function commitRename(id: string) {
+  if (editingId.value !== id) return
+  const name = editingName.value
+  editingId.value = null
+  void store.renameVersion(id, name)
+}
+
+function cancelRename() {
+  editingId.value = null
+}
+
+const vFocus = {
+  mounted: (el: Element) => (el as HTMLInputElement).focus(),
 }
 
 const selectedMigrationId = ref<string | null>(null)
@@ -45,7 +106,7 @@ const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
 const preview = ref<MigrationDdlPreview | null>(null)
 // 迁移预览：只展示已启用的方言
-const { dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
+const { enabledDialects, dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
 
 const canCreateMigration = computed(
   () =>
@@ -67,6 +128,93 @@ async function selectMigration(m: Migration) {
   draftFrom.value = m.from_version
   draftTo.value = m.to_version
   await refreshPreview()
+  await loadRenameSuggestions()
+}
+
+// ===== 身份对齐 =====
+const renameSuggestions = ref<RenameSuggestion[]>([])
+const renameLoading = ref(false)
+
+/** 加载两版本之间的改名候选（自动推断，需用户确认后才生效） */
+async function loadRenameSuggestions() {
+  const m = editingMigration.value
+  if (!m || !m.from_version || !m.to_version || m.from_version === m.to_version) {
+    renameSuggestions.value = []
+    return
+  }
+  renameLoading.value = true
+  try {
+    renameSuggestions.value = await store.suggestRenameEntries(m.from_version, m.to_version, false)
+  } catch (e) {
+    console.error('[loadRenameSuggestions] failed:', e)
+    renameSuggestions.value = []
+  } finally {
+    renameLoading.value = false
+  }
+}
+
+/** 确认一条改名：写入迁移的 renames 并立即持久化 */
+async function onConfirmRename(entry: RenameEntry) {
+  const m = editingMigration.value
+  if (!m) return
+  const renames = m.renames ?? (m.renames = [])
+  const idx = renames.findIndex(r => r.from === entry.from && r.kind === entry.kind)
+  if (idx >= 0) renames[idx] = entry
+  else renames.push(entry)
+  await store.updateMigration(m)
+}
+
+/** 取消一条已确认的改名 */
+async function onRemoveRename(from: string) {
+  const m = editingMigration.value
+  if (!m) return
+  m.renames = (m.renames ?? []).filter(r => r.from !== from)
+  await store.updateMigration(m)
+}
+
+// ===== 各环境执行状态 =====
+
+/** 取某环境在该迁移下的执行状态（缺省未执行） */
+function envStatus(envId: string): EnvMigrationStatus {
+  return editingMigration.value?.env_status?.[envId] ?? { executed: false }
+}
+
+/** 勾选框变化（模板无法写类型断言，故在此取值） */
+function onEnvExecutedToggle(envId: string, event: Event) {
+  onToggleEnvExecuted(envId, (event.target as HTMLInputElement).checked)
+}
+
+/** 切换某环境的执行状态，并立即持久化 */
+async function onToggleEnvExecuted(envId: string, executed: boolean) {
+  const m = editingMigration.value
+  if (!m) return
+  const status: EnvMigrationStatus = { ...envStatus(envId), executed }
+  status.executed_at = executed ? new Date().toISOString() : undefined
+  m.env_status = { ...m.env_status, [envId]: status }
+  await store.updateMigration(m)
+}
+
+/** 备注输入变化（模板无法写类型断言，故在此取值） */
+function onEnvNoteInput(envId: string, event: Event) {
+  onEnvNoteChange(envId, (event.target as HTMLInputElement).value)
+}
+
+/** 更新某环境的针对性备注 */
+async function onEnvNoteChange(envId: string, note: string) {
+  const m = editingMigration.value
+  if (!m) return
+  const status: EnvMigrationStatus = { ...envStatus(envId), note }
+  m.env_status = { ...m.env_status, [envId]: status }
+  await store.updateMigration(m)
+}
+
+/** 迁移的源/目标版本变更：刷新预览与改名候选 */
+async function onMigrationVersionChange() {
+  if (!editingMigration.value) return
+  draftFrom.value = editingMigration.value.from_version
+  draftTo.value = editingMigration.value.to_version
+  await refreshPreview()
+  await loadRenameSuggestions()
 }
 
 /** 进入「新建迁移草稿」模式：清空选中态，默认选首尾两个版本作为 from/to */
@@ -77,6 +225,26 @@ function startNewMigration() {
   draftFrom.value = store.versions[0]?.id ?? ''
   draftTo.value = store.versions[store.versions.length - 1]?.id ?? ''
   preview.value = null
+  renameSuggestions.value = []
+}
+
+/** 点击时间轴上的迁移缺口：切到迁移页并预填 from/to，便于直接补建 */
+function onCreateMigrationForGap(from: string, to: string) {
+  versionTab.value = 'migration'
+  isDrafting.value = true
+  editingMigration.value = null
+  selectedMigrationId.value = null
+  preview.value = null
+  draftFrom.value = from
+  draftTo.value = to
+}
+
+/** 点击时间轴上已有迁移的连线：切到迁移页并选中该迁移脚本 */
+async function onViewMigration(id: string) {
+  const m = store.migrations.find(x => x.id === id)
+  if (!m) return
+  versionTab.value = 'migration'
+  await selectMigration(m)
 }
 
 /** 取消草稿，回到「未选中」空白态 */
@@ -85,6 +253,7 @@ function cancelDraft() {
   editingMigration.value = null
   selectedMigrationId.value = null
   preview.value = null
+  renameSuggestions.value = []
 }
 
 async function onCreateMigration() {
@@ -217,7 +386,11 @@ onMounted(() => {
     </div>
 
     <!-- 版本 -->
-    <div v-if="versionTab === 'version'" class="ps-version-body ps-version-root">
+    <div v-if="versionTab === 'version'" class="ps-version-tab">
+      <VersionTimeline :active-id="previewVersionId" @select="onPreviewVersion"
+        @create-migration="onCreateMigrationForGap" @view-migration="onViewMigration" />
+
+      <div class="ps-version-body ps-version-root">
       <!-- 左侧：版本列表 -->
       <div class="ps-version-list">
         <div class="ps-create-row">
@@ -226,14 +399,26 @@ onMounted(() => {
         </div>
         <div v-if="store.versions.length === 0" class="ps-empty-sm">{{ $t('version.empty') }}</div>
         <ul v-else class="ps-list">
-          <li v-for="b in store.versions" :key="b.id" class="ps-list-item"
-            :class="{ active: previewVersionId === b.id }" @click="onPreviewVersion(b.id)">
-            <div class="ps-list-info">
-              <span class="ps-list-name">{{ b.name }}</span>
-              <span class="ps-list-meta">{{ b.created_at }}</span>
-            </div>
-            <button class="btn btn-danger-sm" @click.stop="onDeleteVersion(b.id, b.name)">{{ $t('version.delete')
-              }}</button>
+          <li v-for="b in displayVersions" :key="b.id" class="ps-list-item"
+            :class="{ active: previewVersionId === b.id }">
+            <template v-if="editingId === b.id">
+              <input class="ps-rename-input" v-model="editingName" v-focus
+                @click.stop @keyup.enter="commitRename(b.id)" @keyup.esc="cancelRename"
+                @blur="commitRename(b.id)" />
+            </template>
+            <template v-else>
+              <div class="ps-list-info" @click="onPreviewVersion(b.id)">
+                <span class="ps-list-name">{{ b.name }}</span>
+                <span class="ps-list-meta">{{ b.created_at }}</span>
+              </div>
+              <div class="ps-list-actions">
+                <button class="btn btn-sm btn-ghost" :title="t('version.rename')" @click.stop="startRename(b)">✎</button>
+                <button class="btn btn-danger-sm" :disabled="!versionDeletable(b.id)"
+                  :title="versionDeleteTooltip(b.id)" @click.stop="onDeleteVersion(b.id, b.name)">
+                  {{ $t('version.delete') }}
+                </button>
+              </div>
+            </template>
           </li>
         </ul>
       </div>
@@ -334,10 +519,11 @@ onMounted(() => {
           </div>
         </template>
       </div>
+      </div>
     </div>
 
     <!-- 迁移 -->
-    <div v-else class="ps-version-body ps-mig">
+    <div v-else-if="versionTab === 'migration'" class="ps-version-body ps-mig">
       <div class="ps-mig-list">
         <button class="btn btn-primary btn-block" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
         <div v-if="store.migrations.length === 0" class="ps-empty-sm">{{ $t('migration.empty') }}</div>
@@ -410,20 +596,21 @@ onMounted(() => {
         <div class="ps-mig-pick ps-mig-pick-form">
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-            <select v-model="editingMigration.from_version"
-              @change="draftFrom = editingMigration!.from_version; refreshPreview()">
+            <select v-model="editingMigration.from_version" @change="onMigrationVersionChange">
               <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
             </select>
           </div>
           <span class="ps-pick-arrow">→</span>
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-            <select v-model="editingMigration.to_version"
-              @change="draftTo = editingMigration!.to_version; refreshPreview()">
+            <select v-model="editingMigration.to_version" @change="onMigrationVersionChange">
               <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
             </select>
           </div>
         </div>
+
+        <RenameAlignPanel :suggestions="renameSuggestions" :confirmed="editingMigration.renames ?? []"
+          :loading="renameLoading" @confirm="onConfirmRename" @remove="onRemoveRename" />
 
         <div class="ps-steps">
           <div class="ps-steps-head">
@@ -454,10 +641,18 @@ onMounted(() => {
                 <input v-model="step.column" :placeholder="$t('migration.column')" />
               </div>
             </template>
-            <template v-else-if="step.type === 'sql_transform' || step.type === 'custom_sql'">
+            <template v-else-if="step.type === 'sql_transform'">
               <textarea v-model="step.mysql" :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
               <textarea v-model="step.postgresql" :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
               <textarea v-model="step.sqlite" :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
+            </template>
+            <template v-else-if="step.type === 'custom_sql'">
+              <textarea v-if="enabledDialects.includes('mysql')" v-model="step.mysql"
+                :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
+              <textarea v-if="enabledDialects.includes('postgresql')" v-model="step.postgresql"
+                :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
+              <textarea v-if="enabledDialects.includes('sqlite')" v-model="step.sqlite"
+                :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
             </template>
             <template v-else>
               <div class="ps-step-hint">auto diff ({{ editingMigration.from_version }} → {{
@@ -475,11 +670,31 @@ onMounted(() => {
           <pre class="ps-code">{{ previewText() || $t('version.noChange') }}</pre>
         </div>
 
+        <div v-if="store.environments.length > 0" class="ps-env-status">
+          <div class="ps-env-status-head">{{ $t('migration.envStatus') }}</div>
+          <div v-for="env in store.environments" :key="env.id" class="ps-env-status-item">
+            <label class="ps-env-check">
+              <input type="checkbox" :checked="envStatus(env.id).executed"
+                @change="onEnvExecutedToggle(env.id, $event)" />
+              <span class="ps-env-name">{{ env.name }}</span>
+            </label>
+            <input class="ps-input" :value="envStatus(env.id).note ?? ''"
+              :placeholder="$t('migration.envNotePlaceholder')"
+              @change="onEnvNoteInput(env.id, $event)" />
+            <span v-if="envStatus(env.id).executed_at" class="ps-env-time">
+              {{ envStatus(env.id).executed_at }}
+            </span>
+          </div>
+        </div>
+
         <button class="btn btn-danger-sm ps-del"
           @click="onDeleteMigration(editingMigration.id, editingMigration.name)">{{
             $t('migration.delete') }}</button>
       </div>
     </div>
+
+    <!-- 环境 -->
+    <EnvironmentPanel v-else />
   </div>
 </template>
 
@@ -501,6 +716,54 @@ onMounted(() => {
 /* 共享 tab 自带的下边距在此处多余（内容区已有内边距） */
 .ps-version-tabs .page-tabs {
   margin-bottom: 0;
+}
+
+/* 各环境执行状态 */
+.ps-env-status {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-soft, #f9fafb);
+}
+
+.ps-env-status-head {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ps-env-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ps-env-check {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.ps-env-name {
+  font-size: 12px;
+}
+
+.ps-env-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* 版本 tab：时间轴固定在上，下方可滚动的双栏占满剩余高度 */
+.ps-version-tab {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .ps-version-body {
@@ -566,6 +829,24 @@ onMounted(() => {
 .ps-list-meta {
   font-size: 11px;
   color: #999;
+}
+
+.ps-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ps-rename-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--accent, #2563eb);
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 /* 迁移双栏 */

@@ -39,6 +39,9 @@ export const VERSIONS_DIR = 'versions'
 /** 用户维护的迁移脚本目录 */
 export const MIGRATIONS_DIR = 'migrations'
 
+/** 环境定义目录 */
+export const ENVIRONMENTS_DIR = 'environments'
+
 /** 当前版本下的 database.json（schema order + 与版本相关配置） */
 export const DATABASE_FILE = 'database.json'
 

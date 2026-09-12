@@ -266,14 +266,15 @@ const vFocus = {
 .tl-link {
   display: flex;
   align-items: center;
-  width: 56px;
+  width: 68px;
   padding: 0;
   border: none;
   background: transparent;
   cursor: default;
 }
 
-.tl-link.is-gap {
+.tl-link.is-gap,
+.tl-link.is-migration {
   cursor: pointer;
 }
 
@@ -291,9 +292,19 @@ const vFocus = {
   margin-left: 4px;
   font-size: 12px;
   color: #b45309;
+  white-space: nowrap;
 }
 
 .tl-link.is-gap:hover .tl-link-label {
   font-weight: 700;
+}
+
+.tl-link.is-migration .tl-link-label {
+  color: var(--primary-color, #2563eb);
+}
+
+.tl-link.is-migration:hover .tl-link-label {
+  font-weight: 700;
+  text-decoration: underline;
 }
 </style>

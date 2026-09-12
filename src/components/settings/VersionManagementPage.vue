@@ -239,6 +239,14 @@ function onCreateMigrationForGap(from: string, to: string) {
   draftTo.value = to
 }
 
+/** 点击时间轴上已有迁移的连线：切到迁移页并选中该迁移脚本 */
+async function onViewMigration(id: string) {
+  const m = store.migrations.find(x => x.id === id)
+  if (!m) return
+  versionTab.value = 'migration'
+  await selectMigration(m)
+}
+
 /** 取消草稿，回到「未选中」空白态 */
 function cancelDraft() {
   isDrafting.value = false
@@ -380,7 +388,7 @@ onMounted(() => {
     <!-- 版本 -->
     <div v-if="versionTab === 'version'" class="ps-version-tab">
       <VersionTimeline :active-id="previewVersionId" @select="onPreviewVersion"
-        @create-migration="onCreateMigrationForGap" />
+        @create-migration="onCreateMigrationForGap" @view-migration="onViewMigration" />
 
       <div class="ps-version-body ps-version-root">
       <!-- 左侧：版本列表 -->

@@ -120,6 +120,29 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
+  /** 重命名版本：仅改 name 并持久化快照，同步刷新列表缓存 */
+  async function renameVersion(id: string, name: string): Promise<void> {
+    if (!rootDirHandle.value) return
+    const displayName = name.trim()
+    if (!displayName) return
+    const snap = await readVersion(rootDirHandle.value, id)
+    if (!snap) return
+    if (displayName === snap.name) return
+    snap.name = displayName
+    try {
+      await writeVersion(rootDirHandle.value, snap)
+      const idx = versions.value.findIndex((v) => v.id === id)
+      if (idx >= 0) {
+        const cur = versions.value[idx]!
+        versions.value[idx] = { ...cur, name: displayName }
+      }
+      showToast(t('version.renamed', { name: displayName }))
+    } catch (e) {
+      console.error('[renameVersion] failed:', e)
+      showToast(t('toast.failedSaveChanges'))
+    }
+  }
+
   /** 删除版本 */
   async function deleteVersionById(id: string): Promise<void> {
     if (!rootDirHandle.value) return
@@ -372,6 +395,7 @@ export function createVersionActions(deps: VersionDeps) {
   return {
     loadVersionsAndMigrations,
     createVersion,
+    renameVersion,
     deleteVersionById,
     getVersionSnapshot,
     previewVersionById,

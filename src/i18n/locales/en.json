@@ -116,6 +116,8 @@
     "nameLabel": "Version name",
     "namePlaceholder": "e.g. v1.0",
     "created": "Version created: {name}",
+    "rename": "Rename version",
+    "renamed": "Renamed to {name}",
     "delete": "Delete version",
     "deleteConfirm": "Delete version \"{name}\"?",
     "cannotDelete": "Cannot delete because:",

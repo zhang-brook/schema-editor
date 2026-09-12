@@ -116,6 +116,8 @@
     "nameLabel": "版本名稱",
     "namePlaceholder": "如 v1.0",
     "created": "版本已建立：{name}",
+    "rename": "重新命名版本",
+    "renamed": "已重新命名為 {name}",
     "delete": "刪除版本",
     "deleteConfirm": "確認刪除版本「{name}」？",
     "cannotDelete": "無法刪除，原因：",

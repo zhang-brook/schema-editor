@@ -3,7 +3,7 @@
  * 版本时间轴：按版本链顺序展示版本节点，节点之间的一段代表一次迁移。
  * 虚线段表示「相邻版本之间还没有迁移」，点击可直接补建。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 
@@ -28,6 +28,34 @@ function segmentAfter(index: number) {
 function shortTime(iso: string): string {
   return (iso ?? '').slice(0, 16).replace('T', ' ')
 }
+
+/** 改名：进入编辑态 / 提交 / 取消 */
+const editingId = ref<string | null>(null)
+const editingName = ref('')
+
+/** 进入改名态：回填当前名称并聚焦输入框 */
+function startRename(v: { id: string; name: string }) {
+  editingId.value = v.id
+  editingName.value = v.name
+}
+
+/** 提交改名（失焦或回车触发）；editingId 守卫避免重复提交 */
+function commitRename(id: string) {
+  if (editingId.value !== id) return
+  const name = editingName.value
+  editingId.value = null
+  void store.renameVersion(id, name)
+}
+
+/** 取消改名（Esc） */
+function cancelRename() {
+  editingId.value = null
+}
+
+/** 进入编辑态后自动聚焦输入框 */
+const vFocus = {
+  mounted: (el: Element) => (el as HTMLInputElement).focus(),
+}
 </script>
 
 <template>
@@ -42,16 +70,32 @@ function shortTime(iso: string): string {
 
     <ol class="tl-track">
       <li v-for="(v, i) in chain.versions" :key="v.id" class="tl-item">
-        <button
+        <div
           class="tl-node"
           :class="{ active: props.activeId === v.id }"
           :title="v.created_at"
           @click="emit('select', v.id)"
         >
           <span class="tl-dot" />
-          <span class="tl-name">{{ v.name }}</span>
+          <div class="tl-name-row">
+            <template v-if="editingId === v.id">
+              <input
+                class="tl-name-input"
+                v-model="editingName"
+                v-focus
+                @click.stop
+                @keyup.enter="commitRename(v.id)"
+                @keyup.esc="cancelRename"
+                @blur="commitRename(v.id)"
+              />
+            </template>
+            <template v-else>
+              <span class="tl-name">{{ v.name }}</span>
+              <button class="tl-rename" :title="t('version.rename')" @click.stop="startRename(v)">✎</button>
+            </template>
+          </div>
           <span class="tl-date">{{ shortTime(v.created_at) }}</span>
-        </button>
+        </div>
 
         <template v-if="segmentAfter(i)">
           <button
@@ -149,6 +193,44 @@ function shortTime(iso: string): string {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.tl-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tl-rename {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  color: var(--text-secondary, #6b7280);
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+
+.tl-node:hover .tl-rename,
+.tl-rename:focus {
+  opacity: 1;
+}
+
+.tl-rename:hover {
+  color: var(--primary-color, #2563eb);
+}
+
+.tl-name-input {
+  width: 92px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 1px 4px;
+  border: 1px solid var(--primary-color, #2563eb);
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 .tl-date {

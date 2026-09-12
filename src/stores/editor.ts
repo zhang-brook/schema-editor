@@ -385,6 +385,7 @@ export const useEditorStore = defineStore('editor', () => {
   const {
     loadVersionsAndMigrations,
     createVersion,
+    renameVersion,
     deleteVersionById,
     getVersionSnapshot,
     previewVersionById,
@@ -1428,6 +1429,7 @@ export const useEditorStore = defineStore('editor', () => {
     versionPreviewLoading,
     loadVersionsAndMigrations,
     createVersion,
+    renameVersion,
     deleteVersionById,
     getVersionSnapshot,
     previewVersionById,

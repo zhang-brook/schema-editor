@@ -75,7 +75,7 @@ const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
 const preview = ref<MigrationDdlPreview | null>(null)
 // 迁移预览：只展示已启用的方言
-const { dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
+const { enabledDialects, dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
 
 const canCreateMigration = computed(
   () =>
@@ -591,10 +591,18 @@ onMounted(() => {
                 <input v-model="step.column" :placeholder="$t('migration.column')" />
               </div>
             </template>
-            <template v-else-if="step.type === 'sql_transform' || step.type === 'custom_sql'">
+            <template v-else-if="step.type === 'sql_transform'">
               <textarea v-model="step.mysql" :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
               <textarea v-model="step.postgresql" :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
               <textarea v-model="step.sqlite" :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
+            </template>
+            <template v-else-if="step.type === 'custom_sql'">
+              <textarea v-if="enabledDialects.includes('mysql')" v-model="step.mysql"
+                :placeholder="$t('migration.mysqlSql')" rows="3"></textarea>
+              <textarea v-if="enabledDialects.includes('postgresql')" v-model="step.postgresql"
+                :placeholder="$t('migration.postgresqlSql')" rows="3"></textarea>
+              <textarea v-if="enabledDialects.includes('sqlite')" v-model="step.sqlite"
+                :placeholder="$t('migration.sqliteSql')" rows="3"></textarea>
             </template>
             <template v-else>
               <div class="ps-step-hint">auto diff ({{ editingMigration.from_version }} → {{

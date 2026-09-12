@@ -10,7 +10,7 @@ export const CURRENT_STRUCT_VERSION = '1.0'
 /**
  * 工作目录路径片段常量与文件名友好化规则（纯常量与字符串规则，无业务语义）。
  *
- * 作为整个项目的「路径单一事实来源」：目录重构（见 docs/refactor/11）后路径规则更复杂，
+ * 作为整个项目的「路径单一事实来源」：`current/versions/migrations` 结构下路径规则较复杂，
  * 所有路径拼接与句柄获取都应经本模块与 `handles.ts` / `paths.ts`，禁止在业务代码中散落硬编码。
  */
 

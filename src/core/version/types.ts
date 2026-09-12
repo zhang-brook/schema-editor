@@ -1,7 +1,7 @@
 /**
  * 版本(version)与迁移脚本(migration)的核心类型定义。
  *
- * 存储布局（见 docs/refactor/15）：
+ * 存储布局：
  *   versions/<id>.json   单个大 JSON，含完整 database + schemas + tables + initial-data（只读历史快照）
  *   migrations/<id>.json  迁移脚本（选两版本 → steps → 合并 DDL）
  *

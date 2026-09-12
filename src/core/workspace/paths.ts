@@ -3,7 +3,7 @@
  * 对 `editor.ts` / `file-helpers.ts` 暴露语义化的目录/文件句柄获取。
  *
  * 同时覆盖「旧结构（重构前）」与「新结构（current/versions/migrations）」两种布局，
- * 旧结构兼容读取经本模块解析，便于后续「升级项目结构」按钮（docs/refactor/13）做一次性迁移。
+ * 旧结构兼容读取经本模块解析，便于「升级项目结构」时做一次性迁移（见 `utils/structure-migrations/`）。
  */
 
 import {

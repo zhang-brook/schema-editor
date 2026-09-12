@@ -7,11 +7,11 @@
 ## 功能
 
 - **可视化编辑**：树形导航（Schema > Table），直观管理多 Schema 下的表结构
-- **方言支持**：字段类型、索引配置均支持 MySQL / PostgreSQL 差异化覆盖
+- **方言支持**：字段类型、索引配置均支持 MySQL / PostgreSQL / SQLite 差异化覆盖
 - **字段管理**：表格化编辑字段属性，支持增删改查、注释开关、拖拽排序
 - **索引管理**：定义主键、唯一索引、普通索引，含方言覆盖配置
 - **SQL 实时预览**：编辑时实时预览当前表的建表语句及初始数据 INSERT 语句
-- **初始数据编辑**：支持表格模式 / JSON 模式编辑初始数据，自动保存为 `initial-data/<schema>/<table>.json`
+- **初始数据编辑**：支持表格模式 / JSON 模式编辑初始数据，自动保存为 `current/schemas/<schema>/<table>/initial-data.json`
 - **公共配置**：编辑 `common.json` 中的公共字段引用（`common_used_fields`）和默认配置
 - **文件自动保存**：通过 File System Access API 打开本地文件夹，编辑内容实时同步保存
 
@@ -30,7 +30,7 @@ pnpm build
 
 ## 使用说明
 
-1. **打开文件夹**：点击顶部「Open Folder」按钮，选择包含 `common.json` 和 schema JSON 文件的文件夹
+1. **打开文件夹**：点击顶部「Open Folder」按钮，选择一个空文件夹或已有项目文件夹（含 `common.json` + `current/`）
 2. **导航**：左侧树形面板展开 Schema 查看表列表，点击表名切换编辑目标
 3. **编辑**：右侧面板可编辑表属性、字段、索引，切换方言标签查看不同数据库的 SQL 预览
 4. **初始数据**：展开「Initial Data」面板编辑表的初始数据
@@ -60,5 +60,3 @@ your-schema-folder/
 ---
 
 如需了解项目架构或参与开发，请参阅 [DEVELOPMENT.md](./DEVELOPMENT.md)。
-
-项目正在进行渐进式重构，方案与进度详见 [docs/refactor/](./docs/refactor/README.md)。

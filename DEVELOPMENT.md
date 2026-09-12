@@ -2,8 +2,6 @@
 
 本文档面向参与 schema-editor 开发的成员，涵盖技术栈、项目结构、架构设计和质量保障体系。
 
-> 项目正在进行渐进式重构，具体方案与进度详见 [`docs/refactor/`](./docs/refactor/README.md)。
-
 ## 技术栈
 
 - **Vue 3** + **TypeScript** + **Vite**

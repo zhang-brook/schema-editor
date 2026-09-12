@@ -8,7 +8,7 @@
     "url": "https://github.com/zhang-brook/schema-editor"
   },
   "type": "module",
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.4.1",
   "scripts": {
     "dev": "vite",
     "build": "run-p type-check \"build-only {@}\" --",

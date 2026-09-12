@@ -196,12 +196,18 @@ const vFocus = {
 }
 
 .tl-name-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
 }
 
 .tl-rename {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 2px;
   border: none;
   background: transparent;
   cursor: pointer;

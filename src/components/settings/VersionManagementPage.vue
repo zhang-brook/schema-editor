@@ -67,6 +67,30 @@ function versionDeleteTooltip(id: string): string {
   return `${t('version.cannotDelete')}\n${lines.join('\n')}`
 }
 
+// ===== 版本改名（列表内联编辑） =====
+const editingId = ref<string | null>(null)
+const editingName = ref('')
+
+function startRename(b: { id: string; name: string }) {
+  editingId.value = b.id
+  editingName.value = b.name
+}
+
+function commitRename(id: string) {
+  if (editingId.value !== id) return
+  const name = editingName.value
+  editingId.value = null
+  void store.renameVersion(id, name)
+}
+
+function cancelRename() {
+  editingId.value = null
+}
+
+const vFocus = {
+  mounted: (el: Element) => (el as HTMLInputElement).focus(),
+}
+
 const selectedMigrationId = ref<string | null>(null)
 // true => 右侧处于「新建迁移草稿」模式；false => 未选中任何项
 const isDrafting = ref(false)
@@ -361,14 +385,24 @@ onMounted(() => {
         <div v-if="store.versions.length === 0" class="ps-empty-sm">{{ $t('version.empty') }}</div>
         <ul v-else class="ps-list">
           <li v-for="b in store.versions" :key="b.id" class="ps-list-item"
-            :class="{ active: previewVersionId === b.id }" @click="onPreviewVersion(b.id)">
-            <div class="ps-list-info">
-              <span class="ps-list-name">{{ b.name }}</span>
-              <span class="ps-list-meta">{{ b.created_at }}</span>
-            </div>
-            <button class="btn btn-danger-sm" :disabled="!versionDeletable(b.id)"
-              :title="versionDeleteTooltip(b.id)" @click.stop="onDeleteVersion(b.id, b.name)">{{
-                $t('version.delete') }}</button>
+            :class="{ active: previewVersionId === b.id }">
+            <template v-if="editingId === b.id">
+              <input class="ps-rename-input" v-model="editingName" v-focus
+                @click.stop @keyup.enter="commitRename(b.id)" @keyup.esc="cancelRename"
+                @blur="commitRename(b.id)" />
+            </template>
+            <template v-else>
+              <div class="ps-list-info" @click="onPreviewVersion(b.id)">
+                <span class="ps-list-name">{{ b.name }}</span>
+                <span class="ps-list-meta">{{ b.created_at }}</span>
+              </div>
+              <div class="ps-list-actions">
+                <button class="btn btn-sm btn-ghost" :title="t('version.rename')" @click.stop="startRename(b)">✎</button>
+                <button class="btn btn-danger-sm" :disabled="!versionDeletable(b.id)"
+                  :title="versionDeleteTooltip(b.id)" @click.stop="onDeleteVersion(b.id, b.name)">{{
+                  $t('version.delete') }}</button>
+              </div>
+            </template>
           </li>
         </ul>
       </div>
@@ -779,6 +813,24 @@ onMounted(() => {
 .ps-list-meta {
   font-size: 11px;
   color: #999;
+}
+
+.ps-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ps-rename-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--accent, #2563eb);
+  border-radius: 4px;
+  box-sizing: border-box;
 }
 
 /* 迁移双栏 */

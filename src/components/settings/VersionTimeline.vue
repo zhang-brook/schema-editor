@@ -13,15 +13,27 @@ const { t } = useI18n()
 const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'create-migration', from: string, to: string): void
+  (e: 'view-migration', id: string): void
 }>()
 
 const props = defineProps<{ activeId?: string | null }>()
 
 const chain = computed(() => store.versionChain)
 
-/** 取第 i 个节点之后的那一段连接（i 为最后一个节点时无） */
+/**
+ * 展示顺序：新 → 旧。
+ * 仅反转 UI 呈现顺序，底层版本链（版本父子关系、迁移方向）保持原样，
+ * 使最新版本落在最左侧，无需横向滚动到末尾即可看到。
+ */
+const displayVersions = computed(() => [...chain.value.versions].reverse())
+
+/**
+ * 取第 index 个「展示节点」右侧的那一段连接。
+ * 展示位置 index 对应原链下标 n-1-index，它与其右侧节点之间的连接下标为 n-2-index。
+ */
 function segmentAfter(index: number) {
-  return chain.value.segments[index] ?? null
+  const k = chain.value.versions.length - 2 - index
+  return k >= 0 ? (chain.value.segments[k] ?? null) : null
 }
 
 /** ISO 时间截取到分钟，避免长串时间戳 */
@@ -69,7 +81,7 @@ const vFocus = {
     </div>
 
     <ol class="tl-track">
-      <li v-for="(v, i) in chain.versions" :key="v.id" class="tl-item">
+      <li v-for="(v, i) in displayVersions" :key="v.id" class="tl-item">
         <div
           class="tl-node"
           :class="{ active: props.activeId === v.id }"
@@ -107,9 +119,15 @@ const vFocus = {
             <span class="tl-link-line" />
             <span class="tl-link-label">＋</span>
           </button>
-          <span v-else class="tl-link" :title="segmentAfter(i)!.migration!.name">
+          <button
+            v-else
+            class="tl-link is-migration"
+            :title="t('version.chainViewMigrationTip', { name: segmentAfter(i)!.migration!.name })"
+            @click="emit('view-migration', segmentAfter(i)!.migration!.id)"
+          >
             <span class="tl-link-line" />
-          </span>
+            <span class="tl-link-label">{{ t('version.chainViewMigration') }}</span>
+          </button>
         </template>
       </li>
     </ol>

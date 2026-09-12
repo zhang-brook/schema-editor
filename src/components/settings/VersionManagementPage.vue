@@ -28,6 +28,13 @@ const { t } = useI18n()
 const versionTab = ref<'version' | 'migration' | 'environment'>('version')
 const newVersionName = ref('')
 
+/**
+ * 左侧版本列表展示顺序：新 → 旧。
+ * 仅反转 UI 呈现顺序，store.versions 底层顺序（时间升序）不变，
+ * 最新版本位于列表顶部，用户无需滚动到列表底部。
+ */
+const displayVersions = computed(() => [...store.versions].reverse())
+
 const versionTabOptions = computed(() => [
   { value: 'version' as const, label: t('version.title') },
   { value: 'migration' as const, label: t('migration.title') },
@@ -384,7 +391,7 @@ onMounted(() => {
         </div>
         <div v-if="store.versions.length === 0" class="ps-empty-sm">{{ $t('version.empty') }}</div>
         <ul v-else class="ps-list">
-          <li v-for="b in store.versions" :key="b.id" class="ps-list-item"
+          <li v-for="b in displayVersions" :key="b.id" class="ps-list-item"
             :class="{ active: previewVersionId === b.id }">
             <template v-if="editingId === b.id">
               <input class="ps-rename-input" v-model="editingName" v-focus

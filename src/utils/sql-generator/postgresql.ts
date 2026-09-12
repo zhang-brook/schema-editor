@@ -203,11 +203,16 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     sql += `${fieldConfig.is_commented_out ? commentOutLines(stmt) : stmt}\n`
   })
 
+  let isFirstIndex = true
   // 索引注释 — 为唯一索引和已命名普通索引生成 COMMENT ON INDEX
   table.indexes.forEach(index => {
     if (!index.comment) return
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
     if (indexType === 'unique') {
+      if (isFirstIndex) {
+        isFirstIndex = false
+        sql += '\n'
+      }
       const indexName = resolveIndexName(index, 'postgresql', table.name)!
       sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS ${formatPgStringLiteral(index.comment)};\n`
     }

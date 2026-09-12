@@ -183,15 +183,18 @@ const vFocus = {
   align-items: center;
   gap: 2px;
   padding: 4px 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-muted, #e4e8ec);
   border-radius: 6px;
-  background: transparent;
+  background: var(--surface, #fff);
+  /* box-shadow: var(--shadow-sm, 0 1px 2px rgba(27, 31, 36, .06)); */
   cursor: pointer;
   font: inherit;
   color: var(--text-primary, #111827);
+  transition: border-color .12s ease, background .12s ease;
 }
 
 .tl-node:hover {
+  border-color: var(--border-strong, #c9d4e3);
   background: var(--hover-bg, #f3f4f6);
 }
 
@@ -205,6 +208,7 @@ const vFocus = {
   height: 10px;
   border-radius: 50%;
   background: var(--primary-color, #2563eb);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .75);
 }
 
 .tl-name {

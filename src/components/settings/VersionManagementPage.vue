@@ -414,8 +414,9 @@ onMounted(() => {
               <div class="ps-list-actions">
                 <button class="btn btn-sm btn-ghost" :title="t('version.rename')" @click.stop="startRename(b)">✎</button>
                 <button class="btn btn-danger-sm" :disabled="!versionDeletable(b.id)"
-                  :title="versionDeleteTooltip(b.id)" @click.stop="onDeleteVersion(b.id, b.name)">{{
-                  $t('version.delete') }}</button>
+                  :title="versionDeleteTooltip(b.id)" @click.stop="onDeleteVersion(b.id, b.name)">
+                  {{ $t('version.delete') }}
+                </button>
               </div>
             </template>
           </li>

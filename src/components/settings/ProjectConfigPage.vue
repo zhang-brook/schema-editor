@@ -85,7 +85,7 @@ const subTabOptions = computed(() =>
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 16px;
 }
 
 /* 分组小标题：仅作视觉分隔，不增加点击层级 */

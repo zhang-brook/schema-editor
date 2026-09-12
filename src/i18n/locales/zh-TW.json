@@ -106,7 +106,7 @@
   },
   "version": {
     "tooHigh": "專案結構版本（{version}）高於目前編輯器支援的版本，請升級編輯器。",
-    "title": "版本",
+    "title": "版本歷史",
     "timeline": "版本時間軸",
     "chainGapHint": "有 {n} 段相鄰版本之間還沒有遷移腳本，改名記錄可能缺失",
     "chainBranched": "存在分支，暫按線性鏈展示",

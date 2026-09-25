@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type {
   CommonConfig,
+  Field,
   Schema,
   InitialData,
 } from '@/types/schema'
@@ -472,6 +473,11 @@ export const useEditorStore = defineStore('editor', () => {
         // sqlite 为后加方言，旧 common.json 无此键时补齐默认配置
         if (!data.default_config.sqlite) {
           data.default_config.sqlite = { quote_identifiers: true }
+        }
+        // 统一类型字段可能残留历史写入的空 field_type（common.json 直写内存对象），
+        // 加载时清除，否则下次写盘又把它带回去
+        for (const field of Object.values(data.common_used_fields) as Field[]) {
+          if (field && field.field_type === '') field.field_type = undefined
         }
         common = data
       }

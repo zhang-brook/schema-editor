@@ -182,7 +182,8 @@ async function handleDelete(name: string) {
 function handleUnifiedTypeChange(field: Field, value: string) {
   if (value) {
     field.unified_type = value
-    field.field_type = ''
+    // 置 undefined 而非空串：common.json 直写内存对象，空串会残留成 "field_type": ""
+    field.field_type = undefined
     // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
     field.quote_default = undefined
   } else {

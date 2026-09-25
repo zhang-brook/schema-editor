@@ -85,7 +85,7 @@ function handleUnifiedTypeChange(field: Field, value: string) {
   if (value) {
     store.updateFieldProps(store.currentTable!, field, {
       unified_type: value,
-      field_type: '',
+      field_type: undefined,
       // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
       quote_default: undefined,
     }, `unified-type:${field.field_name}`)

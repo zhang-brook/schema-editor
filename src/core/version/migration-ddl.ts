@@ -26,7 +26,6 @@ import type {
   Migration,
   MigrationDdlPreview,
   StructureDiff,
-  TableDiff,
 } from './types'
 
 const DIALECTS: SqlDialect[] = ['mysql', 'postgresql', 'sqlite']

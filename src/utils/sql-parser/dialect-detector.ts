@@ -56,6 +56,7 @@ export function detectDialectFromTokens(tokens: Token[], sqliteScore = 0): Detec
   let hasBacktickId = false
   let hasDoubleQuoteId = false
   let hasEngine = false
+  // oxlint-disable-next-line no-unused-vars
   let insideCreateTable = false
 
   for (let i = 0; i < tokens.length; i++) {

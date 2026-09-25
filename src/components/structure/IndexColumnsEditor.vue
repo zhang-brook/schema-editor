@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue'
+import { watch, reactive } from 'vue'
 import type { IndexColumn } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 

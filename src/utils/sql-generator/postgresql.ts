@@ -164,7 +164,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
 
   // 普通索引在建表语句下方定义
   let hasCreateIndexSql = false
-  table.indexes.forEach((index, i) => {
+  table.indexes.forEach((index, _i) => {
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
 
     if (indexType !== 'unique' && (indexType || index.columns)) {

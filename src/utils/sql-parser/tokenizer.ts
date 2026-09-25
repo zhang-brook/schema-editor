@@ -119,6 +119,7 @@ export function tokenize(input: string): Token[] {
     return pos + offset < len ? input[pos + offset]! : ''
   }
 
+  // oxlint-disable-next-line no-unused-vars
   function peekAhead(n: number): string {
     return pos + n < len ? input.substring(pos, pos + n) : ''
   }

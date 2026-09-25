@@ -1,5 +1,5 @@
 import { computed, type ComputedRef } from 'vue'
-import type { Schema, Table, Field, InitialData } from '@/types/schema'
+import type { Schema, Table, InitialData } from '@/types/schema'
 import { affectedInitialData, affectedSql, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 
@@ -17,7 +17,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
   const {
     initialDataMap,
     initialDataDeletedKeys,
-    schemas,
+    // schemas,
     currentSchema,
     currentTable,
     executeCommand,

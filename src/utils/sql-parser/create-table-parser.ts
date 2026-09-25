@@ -223,7 +223,7 @@ export function parseCreateTableStatements(input: string): ParseResult {
     }
     // 查找 CREATE TABLE
     else if (state.isKeyword('CREATE')) {
-      const createToken = state.advance() // CREATE
+      const _createToken = state.advance() // CREATE
 
       // OR REPLACE (PostgreSQL)
       state.matchKeyword('OR_REPLACE')
@@ -429,7 +429,7 @@ function parseTableBody(
 // ===== 列定义解析 =====
 
 function parseColumnDef(state: ParserState): ParsedColumn | null {
-  const startToken = state.current()
+  const _startToken = state.current()
 
   // 读取列名
   if (!state.isIdentOrKeyword()) {
@@ -1141,7 +1141,7 @@ function parseTableOptions(state: ParserState): ParsedTableOptions {
     // 其他未知选项 — 跳过
     // 尝试消费 "KEYWORD = value" 模式
     if (state.current().type === TokenType.KEYWORD) {
-      const kw = state.advance().value
+      const _kw = state.advance().value
       if (state.matchSymbol('=')) {
         parseOptionValue(state)
       }

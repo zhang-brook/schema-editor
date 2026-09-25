@@ -44,19 +44,19 @@ export async function listMigrations(
   return result
 }
 
-export async function readMigration(
-  rootHandle: FileSystemDirectoryHandle,
-  id: string,
-): Promise<Migration | null> {
-  try {
-    const dir = await getMigrationsDir(rootHandle, false)
-    const handle = await getMigrationFileHandle(dir, id, false)
-    const data = await readJsonFile<Migration>(handle)
-    return data ? normalize(data) : null
-  } catch {
-    return null
-  }
-}
+// export async function readMigration(
+//   rootHandle: FileSystemDirectoryHandle,
+//   id: string,
+// ): Promise<Migration | null> {
+//   try {
+//     const dir = await getMigrationsDir(rootHandle, false)
+//     const handle = await getMigrationFileHandle(dir, id, false)
+//     const data = await readJsonFile<Migration>(handle)
+//     return data ? normalize(data) : null
+//   } catch {
+//     return null
+//   }
+// }
 
 export async function writeMigration(
   rootHandle: FileSystemDirectoryHandle,

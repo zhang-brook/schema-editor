@@ -1,4 +1,4 @@
-import type { Ref, ComputedRef } from 'vue'
+import type { Ref } from 'vue'
 import type { CommonConfig, Schema } from '@/types/schema'
 import type { InitialData } from '@/types/schema'
 import { newVersionId, newMigrationId, newEnvironmentId } from '@/core/ids'
@@ -16,7 +16,6 @@ import type {
 } from '@/core/version/types'
 import {
   listMigrations,
-  readMigration,
   writeMigration,
   deleteMigration,
 } from '@/core/version/migration-storage'

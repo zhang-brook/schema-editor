@@ -70,8 +70,8 @@ export function sanitizeName(name: string): string {
   const replaced = name
     // 路径分隔符与常见非法字符
     .replace(/[/\\<>:"|?*]/g, '_')
-    // 控制字符
-    .replace(/[\x00-\x1f]/g, '_')
+    // 控制字符（\p{Cc} 等价于 \x00-\x1f）
+    .replace(/\p{Cc}/gu, '_') // .replace(/[\x00-\x1f]/g, '_')
     // 折叠连续下划线
     .replace(/_+/g, '_')
     // 去除首尾下划线与空白

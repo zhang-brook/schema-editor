@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
 const store = useEditorStore()
-const { t } = useI18n()
 
 // 行号
 const textareaRef = ref<HTMLTextAreaElement | null>(null)

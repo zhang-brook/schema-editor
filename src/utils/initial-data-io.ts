@@ -7,11 +7,8 @@ import {
   getTableDirUnderSchema,
   getInitialDataFileHandle,
   getInitialDataDir,
-  removeOldInitialDataFile,
 } from '@/core/workspace/paths'
 import {
-  getOrCreateDir,
-  readJsonFile,
   writeJsonFile,
   removeEntry,
 } from '@/core/workspace/handles'

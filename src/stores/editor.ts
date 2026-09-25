@@ -758,6 +758,7 @@ export const useEditorStore = defineStore('editor', () => {
         } else if (rootDirHandle.value && f.schema) {
           // schema 已从内存移除：清理整个 schema 目录 + 其 initial-data + SQL output
           await deleteSchemaDirFromHandle(rootDirHandle.value, f.schema)
+          // oxlint-disable-next-line unicorn/no-useless-spread
           for (const key of [...initialDataDeletedKeys]) {
             if (key.startsWith(`${f.schema}/`)) {
               const sep = key.indexOf('/')
@@ -1022,7 +1023,6 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Initial Data Actions (extracted) =====
   const {
     initialDataKey,
-    findInitialDataOwner,
     currentInitialDataKey,
     currentInitialData,
     setInitialDataObject,
@@ -1080,8 +1080,6 @@ export const useEditorStore = defineStore('editor', () => {
     confirmAddField,
     directAddField,
     deleteField,
-    currentSchemaName,
-    currentSchemaNameOfField,
     updateFieldProp,
     updateFieldProps,
     updateFieldName,

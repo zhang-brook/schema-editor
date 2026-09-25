@@ -97,20 +97,29 @@ function onUnifiedTypeDropTail(e: DragEvent) {
 }
 
 // ===== Unified Types 本地数组 =====
+// 用对象身份（而非数组下标）记录每个类型上一次同步时的名称：
+// 拖拽排序只移动对象、不改名称，因此不会误判为改名，
+// 从而避免把所有引用该类型的字段错误地改名。
+const unifiedTypeNameById = new WeakMap<UnifiedTypeDefinition, string>()
+
 function readUnifiedTypes(): UnifiedTypeDefinition[] {
   if (!store.commonConfig?.unified_types) return []
   // 深拷贝避免 v-model 编辑直接污染 store，确保 sync 时能检测到名称变更
-  return store.commonConfig.unified_types.map(ut => ({
-    name: ut.name,
-    description: ut.description,
-    quote_default: ut.quote_default,
-    default_input: ut.default_input,
-    mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
-    postgresql: { type: ut.postgresql.type, length: ut.postgresql.length, scale: ut.postgresql.scale },
-    sqlite: ut.sqlite
-      ? { type: ut.sqlite.type, length: ut.sqlite.length, scale: ut.sqlite.scale }
-      : undefined,
-  }))
+  return store.commonConfig.unified_types.map(ut => {
+    const copy: UnifiedTypeDefinition = {
+      name: ut.name,
+      description: ut.description,
+      quote_default: ut.quote_default,
+      default_input: ut.default_input,
+      mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
+      postgresql: { type: ut.postgresql.type, length: ut.postgresql.length, scale: ut.postgresql.scale },
+      sqlite: ut.sqlite
+        ? { type: ut.sqlite.type, length: ut.sqlite.length, scale: ut.sqlite.scale }
+        : undefined,
+    }
+    unifiedTypeNameById.set(copy, copy.name)
+    return copy
+  })
 }
 
 const localUnifiedTypes = ref<UnifiedTypeDefinition[]>(readUnifiedTypes())
@@ -121,18 +130,17 @@ watch(() => store.commonConfig, () => {
 
 // 同步回 store
 function syncUnifiedTypes() {
-  // 检测类型名变更并同步更新所有引用
-  const oldTypes = store.commonConfig?.unified_types ?? []
+  // 基于对象身份检测类型名变更：仅当某条类型自身名称改变时才触发改名同步，
+  // 拖拽排序只移动对象、不改名称，故不会误改全局表/公共字段中对该类型的引用。
   const newTypes = localUnifiedTypes.value
-  const compareLen = Math.min(oldTypes.length, newTypes.length)
-  for (let i = 0; i < compareLen; i++) {
-    const oldName = oldTypes[i]!.name
-    const newName = newTypes[i]!.name
-    if (oldName !== newName) {
-      store.renameUnifiedType(oldName, newName)
+  for (const ut of newTypes) {
+    const prevName = unifiedTypeNameById.get(ut) ?? ut.name
+    if (prevName !== ut.name) {
+      store.renameUnifiedType(prevName, ut.name)
     }
+    unifiedTypeNameById.set(ut, ut.name)
   }
-  store.rebuildUnifiedTypesFromArray([...localUnifiedTypes.value])
+  store.rebuildUnifiedTypesFromArray([...newTypes])
 }
 
 const newUnifiedTypeName = ref('')

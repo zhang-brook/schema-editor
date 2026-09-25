@@ -1,6 +1,20 @@
 # Changelog
 
 
+## v0.5.0
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.4.1...v0.5.0)
+
+### 🚀 新功能
+
+- 统一类型新增定长字符串、小整数与推荐日期时间 ([1a0c1b1](https://github.com/zhang-brook/schema-editor/commit/1a0c1b1))
+
+### 🩹 问题修复
+
+- **sql-generator:** PostgreSQL 布尔默认值输出为 TRUE/FALSE ([ae347c3](https://github.com/zhang-brook/schema-editor/commit/ae347c3))
+- 统一类型切换时将 field_type 置为 undefined 避免空串残留 ([598b186](https://github.com/zhang-brook/schema-editor/commit/598b186))
+- 统一类型拖拽排序时不再误改全局表与公共字段的类型引用 ([501ec71](https://github.com/zhang-brook/schema-editor/commit/501ec71))
+
 ## v0.4.1
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.4.0...v0.4.1)

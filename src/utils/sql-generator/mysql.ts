@@ -77,6 +77,9 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
       if (field.field_name === 'last_modified_time') {
         fieldDef += ' ON UPDATE CURRENT_TIMESTAMP(3)'
       }
+    } else if (typeof defaultValue === 'boolean') {
+      // MySQL boolean 类型的默认值使用 0/1 (不再使用 true/false 虽然 MySQL 也支持这么写)
+      fieldDef += ` DEFAULT ${defaultValue ? 1 : 0}`
     } else {
       const shouldQuote = resolveQuoteDefault(field, commonConfig)
       fieldDef += ` DEFAULT ${formatSqlDefault(defaultValue, shouldQuote)}`

@@ -67,6 +67,9 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
   if (defaultValue !== undefined) {
     if (typeof defaultValue === 'string' && (defaultValue === 'CURRENT_TIMESTAMP' || defaultValue.includes('CURRENT_TIMESTAMP'))) {
       fieldDef += ` DEFAULT ${defaultValue}`
+    } else if (typeof defaultValue === 'boolean') {
+      // TRUE / FALSE 使用全大写形式
+      fieldDef += ` DEFAULT ${defaultValue ? 'TRUE' : 'FALSE'}`
     } else {
       const shouldQuote = resolveQuoteDefault(field, commonConfig)
       fieldDef += ` DEFAULT ${formatSqlDefault(defaultValue, shouldQuote)}`

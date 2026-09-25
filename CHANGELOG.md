@@ -1,6 +1,29 @@
 # Changelog
 
 
+## v0.4.1
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.4.0...v0.4.1)
+
+### 🩹 问题修复
+
+- **sql-generator:** MySQL 布尔默认值输出为 0/1 ([93bad61](https://github.com/zhang-brook/schema-editor/commit/93bad61))
+
+### 📖 文档
+
+- 移除重构文档引用并更新路径说明 ([ce54c99](https://github.com/zhang-brook/schema-editor/commit/ce54c99))
+- 更新 DEVELOPMENT.md ([8661b70](https://github.com/zhang-brook/schema-editor/commit/8661b70))
+
+### 📦 构建
+
+- **deps:** 升级 pnpm 至 12.4.1 ([722c4ec](https://github.com/zhang-brook/schema-editor/commit/722c4ec))
+- **deps:** 更新依赖版本 ([f63df6a](https://github.com/zhang-brook/schema-editor/commit/f63df6a))
+- **deps:** 更新依赖版本并启用 TS 扩展名导入 ([fa27b56](https://github.com/zhang-brook/schema-editor/commit/fa27b56))
+
+### 🏡 杂项
+
+- 清理未使用变量与死代码 ([b2ac1c0](https://github.com/zhang-brook/schema-editor/commit/b2ac1c0))
+
 ## v0.4.0
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.3.4...v0.4.0)

@@ -18,6 +18,14 @@ export const DEFAULT_UNIFIED_TYPES: UnifiedTypeDefinition[] = [
     sqlite: { type: 'TEXT' },
   },
   {
+    name: 'FixedLengthString',
+    description: '定长字符串',
+    quote_default: true,
+    mysql: { type: 'CHAR'/*, length: 255*/ },
+    postgresql: { type: 'CHAR'/*, length: 255*/ },
+    sqlite: { type: 'TEXT' },
+  },
+  {
     name: 'Integer',
     description: '整数',
     quote_default: false,
@@ -31,6 +39,14 @@ export const DEFAULT_UNIFIED_TYPES: UnifiedTypeDefinition[] = [
     quote_default: false,
     mysql: { type: 'BIGINT'/*, length: 20*/ },
     postgresql: { type: 'BIGINT' },
+    sqlite: { type: 'INTEGER' },
+  },
+  {
+    name: 'SmallInt',
+    description: '小整数',
+    quote_default: false,
+    mysql: { type: 'TINYINT' },
+    postgresql: { type: 'SMALLINT' },
     sqlite: { type: 'INTEGER' },
   },
   {
@@ -92,7 +108,7 @@ export const DEFAULT_UNIFIED_TYPES: UnifiedTypeDefinition[] = [
   },
   {
     name: 'DateTime',
-    description: '日期时间',
+    description: '日期时间（不带时区）',
     quote_default: true,
     mysql: { type: 'DATETIME' },
     postgresql: { type: 'TIMESTAMP' },
@@ -100,10 +116,18 @@ export const DEFAULT_UNIFIED_TYPES: UnifiedTypeDefinition[] = [
   },
   {
     name: 'Timestamp',
-    description: '时间戳',
+    description: '时间戳（带时区）',
     quote_default: true,
     mysql: { type: 'TIMESTAMP' },
     postgresql: { type: 'TIMESTAMPTZ' },
+    sqlite: { type: 'TEXT' },
+  },
+  {
+    name: 'RecommendDateTime',
+    description: '日期时间（针对数据库推荐）',
+    quote_default: true,
+    mysql: { type: 'DATETIME', length: 3 },
+    postgresql: { type: 'TIMESTAMPTZ', length: 3 },
     sqlite: { type: 'TEXT' },
   },
   {

@@ -1,7 +1,8 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema, Field, UnifiedTypeDefinition, TypeCaseMode, TableDdlMode } from '@/types/schema'
+import type { CommonConfig, Schema, Table, Field, UnifiedTypeDefinition, TypeCaseMode, TableDdlMode } from '@/types/schema'
 import { affectedCommon, affectedSql, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { moveFieldCommentBefore } from '@/utils/table-comment-utils'
 import { confirmDialog } from '@/composables/useConfirm'
 
 export interface CommonConfigDeps {
@@ -369,23 +370,28 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     const trimmed = newName.trim()
     if (!trimmed || oldName === trimmed) return
     // 捕获命令执行前所有引用此 common field 的表的字段快照，用于完整回滚
-    const affectedFields: { field: Field; oldName: string }[] = []
+    const affectedFields: { table: Table; field: Field; oldName: string }[] = []
     for (const schema of schemas) {
       for (const table of schema.tables) {
         for (const field of table.fields) {
           if (field.use_common_used_fields && field.field_name === oldName) {
-            affectedFields.push({ field, oldName: field.field_name })
+            affectedFields.push({ table, field, oldName: field.field_name })
           }
         }
       }
     }
     const hadOrder = commonConfig.value?.common_used_field_order !== undefined
     const oldOrder = hadOrder ? [...commonConfig.value!.common_used_field_order!] : undefined
+    let undoComments: (() => void)[] = []
     executeCommand({
       label: t('history.renameCommonField'),
       apply() {
-        for (const { field } of affectedFields) {
+        for (const undo of undoComments) undo()
+        undoComments = []
+        for (const { table, field } of affectedFields) {
           field.field_name = trimmed
+          const undo = moveFieldCommentBefore(table, oldName, trimmed)
+          if (undo) undoComments.push(undo)
         }
         if (commonConfig.value?.common_used_field_order) {
           const idx = commonConfig.value.common_used_field_order.indexOf(oldName)
@@ -393,6 +399,8 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
         }
       },
       revert() {
+        for (const undo of undoComments) undo()
+        undoComments = []
         for (const { field, oldName: prev } of affectedFields) {
           field.field_name = prev
         }

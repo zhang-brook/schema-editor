@@ -16,6 +16,7 @@ import { sanitizeName } from '@/core/workspace/layout'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
 import { resolveFieldTypeForDialect, resolveIndexName, ALL_SQL_DIALECTS } from '@/utils/sql-generator/shared'
 import { formatIndexColumn } from '@/utils/index-column-utils'
+import { moveFieldCommentBefore, removeFieldCommentBefore } from '@/utils/table-comment-utils'
 import { parseFieldLengthInput } from '@/utils/file-helpers'
 import { confirmDialog } from '@/composables/useConfirm'
 
@@ -863,6 +864,7 @@ export function createCrudActions(deps: CrudDeps) {
 
     if (addFieldMode.value === 'common') {
       const selectedNames = newFieldSelectCommons.value
+      const originalFields = table.fields.slice()
       const existingCommonNames = table.fields
         .filter(f => f.use_common_used_fields)
         .map(f => f.field_name)
@@ -898,17 +900,27 @@ export function createCrudActions(deps: CrudDeps) {
       })()
 
       // 记录增删前后的字段数组快照，便于 undo/redo 完整回滚
-      const beforeFields = table.fields.filter(f => !added.includes(f))
+      const beforeFields = originalFields
       const afterFields = table.fields.slice()
+      let undoComments: (() => void)[] = []
 
       executeCommand({
         label: t('history.editCommonFields'),
         coalesceKey: `edit-common-fields:${table.name}`,
         apply() {
           table.fields.splice(0, table.fields.length, ...afterFields)
+          for (const undo of undoComments) undo()
+          undoComments = []
+          // 取消引用的同时清理对应的字段前注释
+          for (const f of removed) {
+            const undo = removeFieldCommentBefore(table, f.field_name)
+            if (undo) undoComments.push(undo)
+          }
         },
         revert() {
           table.fields.splice(0, table.fields.length, ...beforeFields)
+          for (const undo of undoComments) undo()
+          undoComments = []
         },
         affectedFiles() {
           return [affectedTable(schemaName, table.name), affectedCommon(), affectedSql()]
@@ -992,28 +1004,20 @@ export function createCrudActions(deps: CrudDeps) {
     const removed = table.fields[fieldIdx]
     if (!removed) return
     const removedIdx = fieldIdx
-    // 删除 comment_before_fields 中该字段的注释（revert 时一并恢复）
-    const removedCommentBefore = fieldName && table.comment_before_fields
-      ? { ...table.comment_before_fields }
-      : undefined
+    let undoComment: (() => void) | null = null
 
     executeCommand({
       label: t('history.deleteField', { name: fieldName || '' }),
       coalesceKey: `delete-field:${table.name}:${fieldIdx}`,
       apply() {
         table.fields.splice(removedIdx, 1)
-        if (fieldName && table.comment_before_fields && table.comment_before_fields[fieldName]) {
-          delete table.comment_before_fields[fieldName]
-          if (Object.keys(table.comment_before_fields).length === 0) {
-            delete table.comment_before_fields
-          }
-        }
+        undoComment?.()
+        undoComment = removeFieldCommentBefore(table, fieldName ?? '')
       },
       revert() {
         table.fields.splice(removedIdx, 0, removed)
-        if (removedCommentBefore) {
-          table.comment_before_fields = removedCommentBefore
-        }
+        undoComment?.()
+        undoComment = null
       },
       affectedFiles() {
         return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
@@ -1095,21 +1099,26 @@ export function createCrudActions(deps: CrudDeps) {
     })
   }
 
-  /** 字段名编辑命令：改名后同步索引中引用的列名 */
+  /** 字段名编辑命令：改名后同步索引中引用的列名与字段前注释的键 */
   function updateFieldName(table: Table, field: Field, newName: string) {
     const oldName = field.field_name
     const trimmed = newName.trim()
     if (!trimmed || oldName === trimmed) return
+    let undoComment: (() => void) | null = null
     executeCommand({
       label: t('history.renameField', { name: trimmed }),
       coalesceKey: `rename-field:${table.name}:${oldName}`,
       apply() {
+        undoComment?.()
         field.field_name = trimmed
         syncFieldNameInIndexes(table, oldName, trimmed)
+        undoComment = moveFieldCommentBefore(table, oldName, trimmed)
       },
       revert() {
         field.field_name = oldName
         syncFieldNameInIndexes(table, trimmed, oldName)
+        undoComment?.()
+        undoComment = null
       },
       affectedFiles() {
         return [affectedTable(currentSchemaName(table), table.name), affectedSql()]

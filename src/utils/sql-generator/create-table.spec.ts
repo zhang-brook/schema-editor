@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Table, CommonConfig } from '@/types/schema'
+import type { Table, CommonConfig, Index } from '@/types/schema'
 import { generateTableMySQL } from './mysql'
 import { generateTablePostgreSQL } from './postgresql'
 import { generateTableSQLite } from './sqlite'
@@ -69,8 +69,8 @@ describe('generateTableMySQL', () => {
     expect(sql).toContain('PRIMARY KEY (`id`) USING BTREE')
   })
 
-  it('单列唯一键使用 UNIQUE KEY 并携带 COMMENT', () => {
-    expect(sql).toContain("UNIQUE KEY (`name`) COMMENT '用户名唯一'")
+  it('单列唯一键使用 UNIQUE KEY，带名称并携带 COMMENT', () => {
+    expect(sql).toContain("UNIQUE KEY `uk_name` (`name`) COMMENT '用户名唯一'")
   })
 
   it('普通复合索引使用 INDEX 定义', () => {
@@ -248,6 +248,36 @@ describe('索引未填写名称时自动回退生成', () => {
     expect(sql).toContain('CONSTRAINT "uk_tenant_code_user_code" UNIQUE ("tenant_code", "user_code")')
     expect(sql).toContain('CREATE INDEX "idx_balance" ON "user_wallet" ("balance");')
     expect(sql).not.toContain('undefined')
+  })
+})
+
+describe('MySQL 单列唯一索引的名称与 USING 输出', () => {
+  function makeTable(overrides: Partial<Index>): Table {
+    return {
+      name: 'system_user',
+      comment: '系统用户',
+      fields: [
+        { field_name: 'id', field_type: 'bigint', primary_key: true, not_null: true },
+        { field_name: 'username', field_type: 'varchar', field_length: 255, not_null: true },
+      ],
+      indexes: [{ type: 'unique', columns: [{ name: 'username' }], ...overrides }],
+    }
+  }
+
+  it('指定名称（含 {pre} 占位符）时输出 UNIQUE KEY `name` (`col`)', () => {
+    const sql = generateTableMySQL(makeTable({ name: '{pre}username' }), commonConfig)
+    expect(sql).toContain('UNIQUE KEY `uk_username` (`username`)')
+  })
+
+  it('同时指定 using 时输出 USING BTREE', () => {
+    const sql = generateTableMySQL(makeTable({ name: 'uk_username', using: 'BTREE' }), commonConfig)
+    expect(sql).toContain('UNIQUE KEY `uk_username` (`username`) USING BTREE')
+  })
+
+  it('名称为空时仍省略名称，交由 MySQL 自动命名', () => {
+    const sql = generateTableMySQL(makeTable({}), commonConfig)
+    expect(sql).toContain('UNIQUE KEY (`username`)')
+    expect(sql).not.toContain('uk_')
   })
 })
 

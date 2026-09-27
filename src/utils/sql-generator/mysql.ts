@@ -140,7 +140,8 @@ function getMySQLIndexDefinition(index: Index): string {
       return `UNIQUE INDEX${indexNameSql} (${colList})${finalIndexUsing}${commentPart}`
     }
     // UNIQUE KEY (`column1`) USING BTREE
-    return `UNIQUE KEY (${colList})${commentPart}`
+    // UNIQUE KEY `indexName` (`column1`) USING BTREE
+    return `UNIQUE KEY${indexNameSql} (${colList})${finalIndexUsing}${commentPart}`
   } else {
     // INDEX `indexName` (`column1`, `column2`) USING BTREE
     return `INDEX${indexNameSql} (${colList})${finalIndexUsing}${commentPart}`

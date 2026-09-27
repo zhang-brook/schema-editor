@@ -251,6 +251,81 @@ describe('索引未填写名称时自动回退生成', () => {
   })
 })
 
+describe('索引勾选「默认」时不指定名称', () => {
+  // 对应 UI 勾选「默认」复选框：即使填了 name / 占位符，也不应出现在 SQL 里
+  const table: Table = {
+    name: 'user_wallet',
+    comment: '用户钱包表',
+    fields: [
+      { field_name: 'id', field_type: 'bigint', primary_key: true, not_null: true },
+      { field_name: 'tenant_code', field_type: 'varchar', field_length: 100 },
+      { field_name: 'user_code', field_type: 'varchar', field_length: 100 },
+      { field_name: 'balance', field_type: 'bigint' },
+    ],
+    indexes: [
+      { name: 'uk_custom', use_default_name: true, type: 'unique', columns: [{ name: 'tenant_code' }, { name: 'user_code' }] },
+      { name: '{pre}my_balance{post}', use_default_name: true, type: 'index', columns: [{ name: 'balance' }] },
+      // 方言覆盖的 name 同样被忽略
+      { name: 'idx_x', use_default_name: true, type: 'index', columns: [{ name: 'balance' }], postgresql: { name: 'pg_custom' } },
+    ],
+  }
+
+  it('MySQL：省略索引名，不输出已填入的名称', () => {
+    const sql = generateTableMySQL(table, commonConfig)
+    expect(sql).toContain('UNIQUE INDEX (`tenant_code`, `user_code`)')
+    expect(sql).toContain('INDEX (`balance`)')
+    expect(sql).not.toContain('uk_custom')
+    expect(sql).not.toContain('my_balance')
+    expect(sql).not.toContain('undefined')
+  })
+
+  it('PostgreSQL：回退「前缀 + 表名 + 列名拼接」，方言覆盖的 name 被忽略', () => {
+    const sql = generateTablePostgreSQL(table, 'public', commonConfig)
+    expect(sql).toContain('CONSTRAINT "uk__user_wallet__tenant_code_user_code" UNIQUE ("tenant_code", "user_code")')
+    expect(sql).toContain('CREATE INDEX "idx__user_wallet__balance" ON "public"."user_wallet" ("balance");')
+    expect(sql).not.toContain('pg_custom')
+  })
+
+  it('SQLite：回退「前缀 + 列名拼接」', () => {
+    const sql = generateTableSQLite(table, commonConfig)
+    expect(sql).toContain('CONSTRAINT "uk_tenant_code_user_code" UNIQUE ("tenant_code", "user_code")')
+    expect(sql).toContain('CREATE INDEX "idx_balance" ON "user_wallet" ("balance");')
+  })
+})
+
+describe('索引核心名被清空（只剩占位符）时视为未指定', () => {
+  // UI 上把核心名删空后 name 会变成 {pre}{post}，不应展开成纯前缀 uk_ / idx_
+  const table: Table = {
+    name: 'user_wallet',
+    comment: '用户钱包表',
+    fields: [
+      { field_name: 'id', field_type: 'bigint', primary_key: true, not_null: true },
+      { field_name: 'tenant_code', field_type: 'varchar', field_length: 100 },
+      { field_name: 'user_code', field_type: 'varchar', field_length: 100 },
+      { field_name: 'balance', field_type: 'bigint' },
+    ],
+    indexes: [
+      { name: '{pre}{post}', type: 'unique', columns: [{ name: 'tenant_code' }, { name: 'user_code' }] },
+      { name: '{pre}{post}', type: 'index', columns: [{ name: 'balance' }] },
+    ],
+  }
+
+  it('MySQL：不输出纯前缀，直接省略索引名', () => {
+    const sql = generateTableMySQL(table, commonConfig)
+    expect(sql).toContain('UNIQUE INDEX (`tenant_code`, `user_code`)')
+    expect(sql).toContain('INDEX (`balance`)')
+    expect(sql).not.toContain('`uk_`')
+    expect(sql).not.toContain('`idx_`')
+  })
+
+  it('PostgreSQL / SQLite：回退「前缀 + 列名拼接」', () => {
+    expect(generateTablePostgreSQL(table, 'public', commonConfig))
+      .toContain('CONSTRAINT "uk__user_wallet__tenant_code_user_code" UNIQUE')
+    expect(generateTableSQLite(table, commonConfig))
+      .toContain('CREATE INDEX "idx_balance" ON "user_wallet" ("balance");')
+  })
+})
+
 describe('索引名 {pre}/{post} 占位符解析', () => {
   function makeTokenTable(): Table {
     return {

@@ -17,6 +17,11 @@ export function resolveField(field: Field, commonConfig: CommonConfig | null): F
 
 // ===== 索引名称解析 =====
 
+/** 名称是否只剩下 {pre} / {post} 占位符（核心名被清空后的状态） */
+function isAffixOnly(name: string | undefined): boolean {
+  return !!name && name.replace('{pre}', '').replace('{post}', '') === ''
+}
+
 /**
  * 解析索引名称中的 {pre} / {post} 占位符，返回最终索引名。
  * 前缀规则按方言与索引类型区分（与 mysql.ts / postgresql.ts / sqlite.ts 的建表、索引 DDL 生成保持一致）：
@@ -24,10 +29,10 @@ export function resolveField(field: Field, commonConfig: CommonConfig | null): F
  * - sqlite:     {pre} → uk_ / idx_
  * - postgresql: {pre} → uk__<table>__ / idx__<table>__（同库内索引名全局唯一，故带表名）
  *
- * {post} 三种方言均展开为空串。名称为空时的处理按方言区分：
+ * {post} 三种方言均展开为空串。索引名缺省时（未填写或勾选 use_default_name）的处理按方言区分：
  * - mysql:      返回 undefined，由调用方省略索引名（MySQL 自动按首列命名）
- * - sqlite:     回退「前缀 + 列名拼接」
- * - postgresql: 回退「前缀 + 列名拼接」（前缀已含表名）
+ * - sqlite:     回退「前缀 + 列名拼接」（CREATE INDEX 必须带名）
+ * - postgresql: 回退「前缀 + 列名拼接」（前缀已含表名，CREATE INDEX / CONSTRAINT 必须带名）
  *
  * @param index     索引配置
  * @param dialect   目标方言
@@ -35,7 +40,12 @@ export function resolveField(field: Field, commonConfig: CommonConfig | null): F
  */
 export function resolveIndexName(index: Index, dialect: SqlDialect, tableName: string): string | undefined {
   const indexType = resolveDialectOverride(index, dialect, 'type', index.type)
-  const indexName = resolveDialectOverride(index, dialect, 'name', index.name)
+  // 勾选「默认」时不指定索引名：忽略 name 与各方言的 name 覆盖
+  const configuredName = index.use_default_name
+    ? undefined
+    : resolveDialectOverride(index, dialect, 'name', index.name)
+  // 核心名被清空后只剩 {pre}/{post} 占位符时同样视为未指定，否则会展开出一个纯前缀（如 uk_）
+  const indexName = isAffixOnly(configuredName) ? undefined : configuredName
 
   switch (dialect) {
     case 'sqlite': {

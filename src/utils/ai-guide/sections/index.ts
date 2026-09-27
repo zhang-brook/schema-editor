@@ -4,6 +4,7 @@ export const indexBody = `### Index（索引）
 \`\`\`jsonc
 {
   "name": "idx_user_email",        // 可选
+  "use_default_name": false,       // 可选：true 表示不指定索引名
   "type": "unique",                // 必填：仅 "index" 或 "unique"
   "using": "BTREE",                // 仅 MySQL（USING BTREE/HASH）
   "columns": [                     // IndexColumn[]（结构化，取代旧版纯字符串）
@@ -23,4 +24,6 @@ export const indexBody = `### Index（索引）
 - **主键**：不要写成 Index，直接在 Field 上设 \`"primary_key": true\`。
 - 索引名占位符：\`{pre}\` 替换为 \`idx_\`（普通）或 \`uk_\`（唯一），\`{post}\` 替换为空；名称为空时回退「前缀 + 列名拼接」。
   PostgreSQL 的前缀额外带表名（\`idx__<table>__\`），因其索引名在 schema 内全局唯一。
+- \`"use_default_name": true\` 表示不指定索引名：MySQL 省略索引名由数据库自动命名，PostgreSQL / SQLite 回退「前缀 + 列名拼接」
+  （这两种方言的 \`CREATE INDEX\`/\`CONSTRAINT\` 必须带名）。此时不应再写 \`name\`，各方言覆盖中的 \`name\` 也会被忽略。
 - PostgreSQL / SQLite：唯一索引生成 \`CONSTRAINT ... UNIQUE (...)\`，普通索引生成 \`CREATE INDEX ...\`；覆盖中的 \`using\` 被忽略（SQLite 无 USING 子句）。`

@@ -115,6 +115,8 @@ export interface Field {
 export interface Index {
   // name is optional
   name?: string
+  /** 勾选后不指定索引名：MySQL 省略索引名由数据库自动命名，PostgreSQL / SQLite 回退「前缀 + 列名拼接」 */
+  use_default_name?: boolean
   type: string
   using?: string
   columns: IndexColumn[]

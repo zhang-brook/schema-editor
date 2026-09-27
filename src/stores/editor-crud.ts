@@ -1759,7 +1759,12 @@ export function createCrudActions(deps: CrudDeps) {
     // indexes
     tableData.indexes = table.indexes.map(index => {
       const idx: Partial<Index> = {}
-      if (index.name) idx.name = index.name
+      // 使用默认索引名时不再导出 name（该名字不参与 SQL 生成，避免留下误导性的冗余字段）
+      if (index.use_default_name) {
+        idx.use_default_name = true
+      } else if (index.name) {
+        idx.name = index.name
+      }
       if (index.type) idx.type = index.type
       if (index.using) idx.using = index.using
       idx.columns = index.columns.map(c => {

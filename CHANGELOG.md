@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.5.2
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.1...v0.5.2)
+
+### 🚀 新功能
+
+- **structure:** 索引支持「自定义名称」开关，未勾选时交由数据库默认命名 ([73da2c4](https://github.com/zhang-brook/schema-editor/commit/73da2c4))
+
+### 🩹 问题修复
+
+- **sql-generator:** MySQL 单列唯一键输出索引名称与 USING ([d06f9d1](https://github.com/zhang-brook/schema-editor/commit/d06f9d1))
+- **structure:** 新建索引默认勾选使用默认名称 ([c10b703](https://github.com/zhang-brook/schema-editor/commit/c10b703))
+
 ## v0.5.1
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.0...v0.5.1)

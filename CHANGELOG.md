@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.5.1
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.0...v0.5.1)
+
+### 🩹 问题修复
+
+- **structure:** 字段名变更与删除时同步维护字段前注释 ([e6b087b](https://github.com/zhang-brook/schema-editor/commit/e6b087b))
+
+### 📦 构建
+
+- **deps:** 更新依赖版本 ([54066a6](https://github.com/zhang-brook/schema-editor/commit/54066a6))
+
+### 🏡 杂项
+
+- 开发服务器端口设置为 6842 ([9916e12](https://github.com/zhang-brook/schema-editor/commit/9916e12))
+
 ## v0.5.0
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.4.1...v0.5.0)

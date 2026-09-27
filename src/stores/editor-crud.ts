@@ -1174,7 +1174,9 @@ export function createCrudActions(deps: CrudDeps) {
       type: 'index',
       // 新增 index 自动带 id（无论是否已创建版本，保证可跨版本识别）
       columns: [{ name: '' }],
-      using: ''
+      using: '',
+      // 新建索引默认不指定名称，勾选「自定义」后才填写
+      use_default_name: true,
     }
     executeCommand({
       label: t('history.addIndex'),

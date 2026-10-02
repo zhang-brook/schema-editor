@@ -333,6 +333,12 @@ export function convertColumnToField(
   if (column.defaultValue !== undefined && column.defaultValue !== null) {
     field.default = column.defaultValue
   }
+  if (column.onUpdateCurrentTimestamp) {
+    field.on_update_current_timestamp = true
+    if (typeof column.onUpdateCurrentTimestampPrecision === 'number') {
+      field.on_update_current_timestamp_precision = column.onUpdateCurrentTimestampPrecision
+    }
+  }
   if (column.comment) {
     field.comment = column.comment
   }

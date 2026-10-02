@@ -15,6 +15,8 @@ export const fieldBody = `### Field（字段）详解
   "primary_key": false,
   "quote_default": false,           // ⚠️ 见下
   "default": 0,
+  "on_update_current_timestamp": false,          // MySQL：追加 ON UPDATE CURRENT_TIMESTAMP
+  "on_update_current_timestamp_precision": 3,    // 可选；0-6，省略则不带 (n)
   "comment": "价格",
   "comment_options_enabled": false, // true → 在 comment 后自动拼接选项含义（随方言变化）
   "comment_options": [            // 选项含义列表；仅 comment_options_enabled=true 时生效
@@ -79,6 +81,13 @@ SQL 长度输出：同时有 length+scale → \`TYPE(length,scale)\`；仅 lengt
 - \`default_input: "boolean"\` 时 UI 用 TRUE/FALSE 下拉，底层存 \`true\`/\`false\`。
 - \`default\` 经方言覆盖解析：方言 \`default\` 优先于顶层 \`default\`。
 - 字段对象中无 \`default\` key → 不生成 \`DEFAULT\` 子句。
+
+#### ON UPDATE CURRENT_TIMESTAMP（仅 MySQL）
+
+- \`on_update_current_timestamp: true\` → 生成 \`ON UPDATE CURRENT_TIMESTAMP\`；配 \`on_update_current_timestamp_precision: 3\` → \`ON UPDATE CURRENT_TIMESTAMP(3)\`（精度省略则不带括号）。
+- 「最后修改时间」写法：\`field_length: 3\` + \`default: "CURRENT_TIMESTAMP"\` + \`on_update_current_timestamp: true\` + 精度 \`3\`
+  → \`datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)\`。
+- PostgreSQL / SQLite 无此语法，设置了也不会输出。
 
 #### comment_options（注释选项含义自动拼接）
 

@@ -107,6 +107,14 @@ function getFieldDefinition(
     }
   }
 
+  // ON UPDATE CURRENT_TIMESTAMP[(n)]（仅 MySQL）
+  if (dialect === 'mysql' && field.on_update_current_timestamp) {
+    const precision = field.on_update_current_timestamp_precision
+    def += typeof precision === 'number'
+      ? ` ON UPDATE CURRENT_TIMESTAMP(${precision})`
+      : ' ON UPDATE CURRENT_TIMESTAMP'
+  }
+
   if (dialect === 'mysql' && field.comment) {
     def += ` COMMENT '${field.comment.replace(/'/g, "''")}'`
   }

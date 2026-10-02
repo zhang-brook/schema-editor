@@ -88,6 +88,46 @@ describe('generateTableMySQL', () => {
   })
 })
 
+describe('MySQL ON UPDATE CURRENT_TIMESTAMP', () => {
+  function makeTimestampTable(field: Partial<Table['fields'][number]>): Table {
+    return {
+      name: 'orders',
+      comment: '订单表',
+      fields: [
+        { field_name: 'id', field_type: 'int', primary_key: true },
+        { field_name: 'last_modified_at', field_type: 'datetime', field_length: 3, default: 'CURRENT_TIMESTAMP', ...field },
+      ],
+      indexes: [],
+    }
+  }
+
+  it('勾选且带精度时输出 ON UPDATE CURRENT_TIMESTAMP(3)', () => {
+    const sql = generateTableMySQL(
+      makeTimestampTable({ on_update_current_timestamp: true, on_update_current_timestamp_precision: 3 }),
+      commonConfig,
+    )
+    expect(sql).toContain(
+      '`last_modified_at` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)',
+    )
+  })
+
+  it('未填精度时不带括号', () => {
+    const sql = generateTableMySQL(makeTimestampTable({ on_update_current_timestamp: true }), commonConfig)
+    expect(sql).toMatch(/ON UPDATE CURRENT_TIMESTAMP\b(?!\()/)
+  })
+
+  it('未勾选时不输出 ON UPDATE', () => {
+    const sql = generateTableMySQL(makeTimestampTable({}), commonConfig)
+    expect(sql).not.toContain('ON UPDATE')
+  })
+
+  it('PostgreSQL / SQLite 不输出 ON UPDATE', () => {
+    const table = makeTimestampTable({ on_update_current_timestamp: true, on_update_current_timestamp_precision: 3 })
+    expect(generateTablePostgreSQL(table, 'public', commonConfig)).not.toContain('ON UPDATE')
+    expect(generateTableSQLite(table, commonConfig)).not.toContain('ON UPDATE')
+  })
+})
+
 describe('generateTablePostgreSQL', () => {
   const sql = generateTablePostgreSQL(makeUsersTable(), 'public', commonConfig)
 

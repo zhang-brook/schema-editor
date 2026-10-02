@@ -73,6 +73,35 @@ describe('parseCreateTableStatements — MySQL 固定样例', () => {
   })
 })
 
+describe('parseCreateTableStatements — ON UPDATE CURRENT_TIMESTAMP', () => {
+  const sql = `
+    CREATE TABLE \`orders\` (
+      \`id\` bigint NOT NULL,
+      \`last_modified_at\` datetime(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '最后修改时间',
+      \`updated_at\` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+  `
+  const result = parseCreateTableStatements(sql)
+  const table = result.tables[0]!
+  const col = table.columns.find(c => c.name === 'last_modified_at')!
+  const plain = table.columns.find(c => c.name === 'updated_at')!
+
+  it('解析出 ON UPDATE 及其精度', () => {
+    expect(col.onUpdateCurrentTimestamp).toBe(true)
+    expect(col.onUpdateCurrentTimestampPrecision).toBe(3)
+    expect(col.defaultValue).toBe('CURRENT_TIMESTAMP(3)')
+  })
+
+  it('无括号时精度为 null', () => {
+    expect(plain.onUpdateCurrentTimestamp).toBe(true)
+    expect(plain.onUpdateCurrentTimestampPrecision).toBeNull()
+  })
+
+  it('未写 ON UPDATE 的列不误报', () => {
+    expect(table.columns.find(c => c.name === 'id')!.onUpdateCurrentTimestamp).toBe(false)
+  })
+})
+
 describe('parseCreateTableStatements — PostgreSQL + COMMENT ON 固定样例', () => {
   const sql = `
     CREATE TABLE "public"."account" (
@@ -155,6 +184,7 @@ describe('mapSqlTypeToField — 统一类型与回退', () => {
       primaryKey: false,
       isCommentedOut: false,
       unsigned: false,
+      onUpdateCurrentTimestamp: false,
     }
   }
 

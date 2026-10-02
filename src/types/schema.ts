@@ -129,6 +129,13 @@ export interface Field {
   /** 默认值是否需要引号包裹（覆盖 unified_type 的设置，仅自定义类型时生效） */
   quote_default?: boolean
   default?: any
+  /** MySQL：追加 `ON UPDATE CURRENT_TIMESTAMP[(n)]`（「最后修改时间」字段用法）；其他方言不输出 */
+  on_update_current_timestamp?: boolean
+  /**
+   * `ON UPDATE CURRENT_TIMESTAMP` 的小数秒精度（0-6）。
+   * 为空时不带括号（`ON UPDATE CURRENT_TIMESTAMP`），为数字时输出 `CURRENT_TIMESTAMP(n)`。
+   */
+  on_update_current_timestamp_precision?: number | null
   comment?: string
   /** 勾选后在注释后自动拼接选项含义（依据 comment_options 生成，随方言变化） */
   comment_options_enabled?: boolean

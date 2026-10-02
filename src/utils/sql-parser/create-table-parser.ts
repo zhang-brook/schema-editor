@@ -25,6 +25,10 @@ export interface ParsedColumn {
   generatedIdentity?: 'ALWAYS' | 'BY_DEFAULT'
   isCommentedOut: boolean
   unsigned: boolean
+  /** ON UPDATE CURRENT_TIMESTAMP 是否存在（MySQL） */
+  onUpdateCurrentTimestamp: boolean
+  /** ON UPDATE CURRENT_TIMESTAMP 的小数秒精度；无括号时为 null */
+  onUpdateCurrentTimestampPrecision?: number | null
 }
 
 /** 解析后的约束（表级） */
@@ -539,6 +543,8 @@ function parseColumnDef(state: ParserState): ParsedColumn | null {
   let comment: string | undefined
   let generatedIdentity: 'ALWAYS' | 'BY_DEFAULT' | undefined
   let unsigned = false
+  let onUpdateCurrentTimestamp = false
+  let onUpdateCurrentTimestampPrecision: number | null = null
 
   // 循环解析列约束（直到遇到 , 或 )）
   let safety = 0
@@ -650,18 +656,17 @@ function parseColumnDef(state: ParserState): ParsedColumn | null {
       continue
     }
 
-    // ON UPDATE CURRENT_TIMESTAMP
+    // ON UPDATE CURRENT_TIMESTAMP[(n)]
     if (state.isKeyword('ON_UPDATE')) {
       state.advance()
-      // 跳过 CURRENT_TIMESTAMP 及其参数
       if (state.isKeyword('CURRENT_TIMESTAMP') || state.isKeyword('NOW')) {
         state.advance()
-        // 可能带括号参数
-        if (state.matchSymbol('(')) {
-          while (!state.isEOF() && !state.matchSymbol(')')) {
-            state.advance()
-          }
-        }
+        onUpdateCurrentTimestamp = true
+        onUpdateCurrentTimestampPrecision = parsePrecisionArg(state)
+      } else {
+        // 非 CURRENT_TIMESTAMP 的表达式（如 ON UPDATE NOW()）暂不建模，跳过
+        state.addWarning(`Unsupported ON UPDATE expression: "${state.current().value}"`, state.current())
+        skipBalancedParens(state)
       }
       continue
     }
@@ -715,7 +720,30 @@ function parseColumnDef(state: ParserState): ParsedColumn | null {
     generatedIdentity,
     isCommentedOut: false,
     unsigned,
+    onUpdateCurrentTimestamp,
+    onUpdateCurrentTimestampPrecision,
   }
+}
+
+/** 若当前 token 是 '('，则跳过整个括号片段（支持嵌套） */
+function skipBalancedParens(state: ParserState): void {
+  if (!state.matchSymbol('(')) return
+  let depth = 1
+  while (!state.isEOF() && depth > 0) {
+    const tt = state.advance()
+    if (tt.type === TokenType.SYMBOL && tt.value === '(') depth++
+    if (tt.type === TokenType.SYMBOL && tt.value === ')') depth--
+  }
+}
+
+/** 解析可选的括号精度参数，如 `(3)` → 3；无括号或非数字返回 null */
+function parsePrecisionArg(state: ParserState): number | null {
+  if (!state.matchSymbol('(')) return null
+  const precision = state.current().type === TokenType.NUMBER ? Number(state.advance().value) : null
+  while (!state.isEOF() && !state.matchSymbol(')')) {
+    state.advance()
+  }
+  return precision
 }
 
 /** 解析 DEFAULT 值 */

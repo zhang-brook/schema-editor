@@ -80,6 +80,19 @@ function onDragEnd(e: DragEvent) {
   dragFieldIdx.value = -1
 }
 
+/** ON UPDATE 勾选时按字段长度预填小数秒精度（datetime(3) → 3），非 0-6 的长度不作数 */
+function defaultOnUpdatePrecision(field: Field): number | undefined {
+  const len = field.field_length
+  return typeof len === 'number' && len >= 0 && len <= 6 ? len : undefined
+}
+
+/** 切换 MySQL 的 ON UPDATE CURRENT_TIMESTAMP */
+function toggleOnUpdate(field: Field, checked: boolean) {
+  store.updateFieldProps(store.currentTable!, field, checked
+    ? { on_update_current_timestamp: true, on_update_current_timestamp_precision: defaultOnUpdatePrecision(field) }
+    : { on_update_current_timestamp: undefined, on_update_current_timestamp_precision: undefined })
+}
+
 /** 选择统一类型时仅清除 field_type，长度和小数位由用户决定是否覆盖 */
 function handleUnifiedTypeChange(field: Field, value: string) {
   if (value) {
@@ -173,6 +186,10 @@ function onDropTail(e: DragEvent) {
             <th style="width:40px;">
               "?"
               <span class="quote-help-icon" :title="$t('fieldTable.quoteDefaultHint')">?</span>
+            </th>
+            <th style="width:96px;">
+              {{ $t('fieldTable.onUpdate') }}
+              <span class="quote-help-icon" :title="$t('fieldTable.onUpdateHint')">?</span>
             </th>
             <th>{{ $t('fieldTable.comment') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.removed') }}</th>
@@ -345,6 +362,31 @@ function onDropTail(e: DragEvent) {
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
+                  <span v-if="store.getResolvedField(field).on_update_current_timestamp">✓</span>
+                </template>
+                <div v-else class="on-update-cell">
+                  <input
+                    type="checkbox"
+                    class="table-checkbox"
+                    :checked="!!field.on_update_current_timestamp"
+                    @change="toggleOnUpdate(field, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <input
+                    v-if="field.on_update_current_timestamp"
+                    class="table-input"
+                    type="number"
+                    min="0"
+                    max="6"
+                    :value="field.on_update_current_timestamp_precision ?? ''"
+                    @input="store.updateFieldProp(store.currentTable!, field, 'on_update_current_timestamp_precision', parseFieldLengthInput(($event.target as HTMLInputElement).value))"
+                    :title="$t('fieldTable.onUpdatePrecisionHint')"
+                    placeholder="0-6"
+                    style="width:44px;"
+                  >
+                </div>
+              </td>
+              <td>
+                <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).comment || '' }}
                 </template>
                 <FieldCommentInput
@@ -369,7 +411,7 @@ function onDropTail(e: DragEvent) {
             </tr>
             <!-- Expanded Field Detail -->
             <tr v-if="store.expandedFields.has(store.fieldKey(store.currentSchema!, store.currentTable!, field))">
-              <td colspan="13">
+              <td colspan="14">
                 <div class="field-expand-content">
                   <!-- 解析后类型预览 -->
                   <div class="expand-section">
@@ -483,7 +525,7 @@ function onDropTail(e: DragEvent) {
             @dragleave="onDropTailLeave"
             @drop="onDropTail"
           >
-            <td :colspan="13"></td>
+            <td :colspan="14"></td>
           </tr>
         </tbody>
       </table>
@@ -547,6 +589,12 @@ function onDropTail(e: DragEvent) {
 
 
 .field-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.on-update-cell {
   display: flex;
   align-items: center;
   gap: 4px;

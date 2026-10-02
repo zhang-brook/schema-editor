@@ -210,6 +210,23 @@ function toggleHasDefault(field: Field) {
   }
 }
 
+/** ON UPDATE 勾选时按字段长度预填小数秒精度（datetime(3) → 3），非 0-6 的长度不作数 */
+function defaultOnUpdatePrecision(field: Field): number | undefined {
+  const len = field.field_length
+  return typeof len === 'number' && len >= 0 && len <= 6 ? len : undefined
+}
+
+/** 切换 MySQL 的 ON UPDATE CURRENT_TIMESTAMP */
+function toggleOnUpdate(field: Field, checked: boolean) {
+  if (checked) {
+    field.on_update_current_timestamp = true
+    field.on_update_current_timestamp_precision = defaultOnUpdatePrecision(field)
+  } else {
+    field.on_update_current_timestamp = undefined
+    field.on_update_current_timestamp_precision = undefined
+  }
+}
+
 /** 获取统一类型定义的默认值输入组件类型 */
 function getDefaultInputType(field: Field): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
@@ -263,6 +280,10 @@ function toggleCommonFieldExpand(fieldName: string) {
               <th style="width:40px;">
                 "?"
                 <span class="quote-help-icon" :title="$t('fieldTable.quoteDefaultHint')">?</span>
+              </th>
+              <th style="width:96px;">
+                {{ $t('fieldTable.onUpdate') }}
+                <span class="quote-help-icon" :title="$t('fieldTable.onUpdateHint')">?</span>
               </th>
               <th>{{ $t('commonConfig.fields.comment') }}</th>
               <th style="width:90px;"></th>
@@ -422,6 +443,29 @@ function toggleCommonFieldExpand(fieldName: string) {
                 </template>
                 <input v-else type="checkbox" class="table-checkbox" v-model="field.quote_default">
               </td>
+              <!-- on_update_current_timestamp -->
+              <td>
+                <div class="on-update-cell">
+                  <input
+                    type="checkbox"
+                    class="table-checkbox"
+                    :checked="!!field.on_update_current_timestamp"
+                    @change="toggleOnUpdate(field, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <input
+                    v-if="field.on_update_current_timestamp"
+                    class="table-input"
+                    type="number"
+                    min="0"
+                    max="6"
+                    :value="field.on_update_current_timestamp_precision ?? ''"
+                    @input="field.on_update_current_timestamp_precision = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                    :title="$t('fieldTable.onUpdatePrecisionHint')"
+                    placeholder="0-6"
+                    style="width:44px;"
+                  >
+                </div>
+              </td>
               <!-- comment -->
               <td>
                 <input class="table-input" v-model="field.comment" style="min-width:80px;" />
@@ -441,7 +485,7 @@ function toggleCommonFieldExpand(fieldName: string) {
             </tr>
             <!-- 展开行：数据库方言覆盖 -->
             <tr v-if="expandedCommonFields.has(field.field_name)">
-              <td :colspan="12">
+              <td :colspan="13">
                 <div class="field-expand-content">
                   <!-- 解析后类型预览 -->
                   <div class="expand-section">
@@ -699,6 +743,13 @@ function toggleCommonFieldExpand(fieldName: string) {
 
 /* Default value cell */
 .default-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ON UPDATE cell */
+.on-update-cell {
   display: flex;
   align-items: center;
   gap: 4px;

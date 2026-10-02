@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.5.4
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.3...v0.5.4)
+
+### 🚀 新功能
+
+- **structure:** 索引支持拖拽排序 ([f059c15](https://github.com/zhang-brook/schema-editor/commit/f059c15))
+
+### 📦 构建
+
+- **deps:** 更新依赖版本 ([eb15d1a](https://github.com/zhang-brook/schema-editor/commit/eb15d1a))
+
 ## v0.5.3
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.2...v0.5.3)

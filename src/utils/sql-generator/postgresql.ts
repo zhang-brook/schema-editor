@@ -184,10 +184,10 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
       const indexName = resolveIndexName(index, 'postgresql', table.name)!
       const keyword = logicalDelete ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
       const whereClause = logicalDelete ? ` WHERE ${logicalDelete.predicate}` : ''
-      // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
-      if (logicalDelete) {
-        sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
-      }
+      // // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
+      // if (logicalDelete) {
+      //   sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
+      // }
       sql += `${keyword} ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'postgresql')
         return quoteIdent(name, commonConfig) + sortPart

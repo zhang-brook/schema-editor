@@ -187,10 +187,10 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
       if (index.comment) {
         sql += `-- ${index.comment}\n`
       }
-      // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
-      if (logicalDelete) {
-        sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
-      }
+      // // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
+      // if (logicalDelete) {
+      //   sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
+      // }
       const indexName = resolveIndexName(index, 'sqlite', table.name)!
       const keyword = logicalDelete ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
       const whereClause = logicalDelete ? ` WHERE ${logicalDelete.predicate}` : ''

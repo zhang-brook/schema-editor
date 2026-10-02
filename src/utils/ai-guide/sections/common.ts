@@ -11,6 +11,7 @@ export const commonBody = `### common.json
   "common_used_field_order": ["id"],  // 仅 UI 顺序
   "unified_types": [ "..." ],        // 统一顶层类型（见下）
   "type_case": "keep",               // keep | lowercase | uppercase | pascal
+  "logical_delete": { "...": "见下" }, // 逻辑删除配置（可选）
   "generate_ai_guide": false         // 是否生成本 AI 指南（项目级开关，默认不生成）
 }
 \`\`\`
@@ -48,4 +49,18 @@ export const commonBody = `### common.json
 
 - 内置默认集（\`src/utils/unified-types.ts\`）：String/Integer/BigInt/Boolean/Text/LongText/Decimal/Float/Double/Date/DateTime/Timestamp/JSON/UUID。
 - 字段引用：在 Field 上写 \`"unified_type": "Decimal"\`，继承其 \`type/length/scale\` 与 \`quote_default\`。
-- \`sqlite\` 映射可省略（旧数据兼容）：缺失时该方言回退到字段级 \`field_type\`。内置集按 SQLite 类型亲和规则映射：整数→\`INTEGER\`、浮点→\`REAL\`、精确小数→\`NUMERIC\`、文本/日期/JSON/UUID→\`TEXT\`。`
+- \`sqlite\` 映射可省略（旧数据兼容）：缺失时该方言回退到字段级 \`field_type\`。内置集按 SQLite 类型亲和规则映射：整数→\`INTEGER\`、浮点→\`REAL\`、精确小数→\`NUMERIC\`、文本/日期/JSON/UUID→\`TEXT\`。
+
+#### logical_delete（逻辑删除）
+
+\`\`\`jsonc
+{
+  "enabled": true,           // 未启用（false/缺省）时索引上的 active_only 不生效
+  "field": "deleted_at",     // 逻辑删除字段名；表中不存在该字段时，该表索引降级为普通唯一索引
+  "predicate": "deleted_at IS NULL",  // 可选：未删除谓词，缺省由 field 推导（deleted* → IS NULL，其余 → = 0）
+  "mysql_strategy": "functional"      // functional=函数索引(8.0.13+) | timestamp_union=删除列并入索引列(兼容 5.7)
+}
+\`\`\`
+
+- 唯一索引上写 \`"active_only": true\` 才会生效；索引级可用 \`logical_delete\` 逐键覆盖本配置。
+- MySQL 不支持部分索引：\`functional\` 生成 \`((IF(<field> IS NULL, col, NULL)))\`，\`timestamp_union\` 把删除列追加到索引列末尾（要求每次删除写入不同值，否则只能删一次）。`

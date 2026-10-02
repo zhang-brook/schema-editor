@@ -50,6 +50,7 @@
     "editSqliteQuoteIdentifiers": "Edit SQLite Quote Identifiers",
     "editTableDdlMode": "Edit Table DDL Mode",
     "editTypeCase": "Edit Type Case",
+    "editLogicalDelete": "Edit Logical Delete Config",
     "editProjectName": "Edit Project Name",
     "editProjectDescription": "Edit Project Description",
     "addCommonField": "Add Common Field",
@@ -172,6 +173,7 @@
     "groups": {
       "commonFields": "Common Fields",
       "unifiedTypes": "Unified Types",
+      "logicalDelete": "Logical Delete",
       "dialect": "Dialect Config",
       "generatePrefs": "Generation Preferences",
       "aiPrompt": "AI Prompts"
@@ -341,7 +343,34 @@
     "postAffixTip": "Click to toggle auto suffix",
     "commentPlaceholder": "Index comment",
     "preCommentPlaceholder": "Comment before index",
-    "empty": "No indexes defined"
+    "empty": "No indexes defined",
+    "logicalDelete": "Logical Delete",
+    "activeOnly": "Active rows only",
+    "activeOnlyShort": "Active only",
+    "activeOnlyTip": "When checked, this unique index skips soft-deleted rows: PostgreSQL / SQLite emit a partial unique index (WHERE), MySQL emits a functional index or appends the delete column. Unique indexes only",
+    "resolvedLogicalDelete": "Resolved Effect",
+    "overrideField": "Override field",
+    "overrideStrategy": "Override MySQL strategy",
+    "inherit": "(inherit project-level)",
+    "notApplied": "disabled",
+    "ldNotEnabled": "Not applied: logical delete not enabled in project config",
+    "ldNoField": "Not applied: no delete flag field configured",
+    "ldFieldMissing": "Not applied: field {field} not found in this table",
+    "ldNotUnique": "Not applied: not a unique index for this dialect"
+  },
+  "logicalDelete": {
+    "title": "Logical Delete",
+    "enabled": "Enable logical-delete awareness",
+    "enabledTip": "Once enabled, unique indexes marked \"Active rows only\" are generated per dialect so soft-deleted rows no longer block the business key",
+    "field": "Delete flag field",
+    "fieldPlaceholder": "e.g. deleted_at / is_deleted",
+    "predicate": "Not-deleted predicate",
+    "predicatePlaceholder": "Auto-derived when empty: deleted* → IS NULL, otherwise = 0",
+    "mysqlStrategy": "MySQL strategy",
+    "functional": "Functional index (MySQL 8.0.13+)",
+    "timestampUnion": "Append delete column (5.7 compatible)",
+    "applyHint": "This only declares the field and strategy; you must also check \"Active rows only\" on the target table's unique index.",
+    "tip": "MySQL has no partial indexes, so it must work around; PostgreSQL / SQLite always use a partial index (WHERE). \"Append delete column\" requires the flag to hold a different value per deletion (timestamp or PK), otherwise the same business key can only be deleted once."
   },
   "indexColumnsEditor": {
     "columnName": "Column",

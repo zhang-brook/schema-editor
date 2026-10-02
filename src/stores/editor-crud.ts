@@ -1883,6 +1883,11 @@ export function createCrudActions(deps: CrudDeps) {
       }
       if (index.type) idx.type = index.type
       if (index.using) idx.using = index.using
+      // 逻辑删除感知：仅约束未删除行 + 索引级覆盖（逐键覆盖项目级配置）
+      if (index.active_only) idx.active_only = true
+      if (index.logical_delete && Object.keys(index.logical_delete).length > 0) {
+        idx.logical_delete = { ...index.logical_delete }
+      }
       idx.columns = index.columns.map(c => {
         const col: any = { name: c.name }
         if (c.sort_order) col.sort_order = c.sort_order

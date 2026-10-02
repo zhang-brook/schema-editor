@@ -1180,6 +1180,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonSqliteQuoteIdentifiers,
     getTableDdlMode,
     setTableDdlMode,
+    getLogicalDelete,
+    setLogicalDelete,
     getCommonTypeCase,
     setCommonTypeCase,
     addCommonUsedField,
@@ -1418,6 +1420,8 @@ export const useEditorStore = defineStore('editor', () => {
     setCommonSqliteQuoteIdentifiers,
     getTableDdlMode,
     setTableDdlMode,
+    getLogicalDelete,
+    setLogicalDelete,
     getCommonTypeCase,
     setCommonTypeCase,
 

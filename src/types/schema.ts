@@ -70,6 +70,34 @@ export interface IndexOverride {
   using?: string  // 仅 mysql
 }
 
+/** MySQL 逻辑删除感知唯一索引的落地策略 */
+export type LogicalDeleteMysqlStrategy = 'functional' | 'timestamp_union'
+
+/**
+ * 逻辑删除配置：声明哪个字段是逻辑删除标记，以及唯一索引如何绕开「已删除行仍占用唯一性」的问题。
+ *
+ * 两个层级：
+ * - 项目级：`CommonConfig.logical_delete`（全局默认）
+ * - 索引级：`Index.logical_delete`（覆盖项目级同名键，缺省回退项目级）
+ */
+export interface LogicalDeleteConfig {
+  /** 是否启用逻辑删除感知；未启用时索引上的 active_only 不产生任何效果 */
+  enabled?: boolean
+  /** 逻辑删除字段名；表中不存在该字段时，该表的索引降级为普通唯一索引 */
+  field?: string
+  /**
+   * 「未删除」判定谓词（不完整 WHERE 条件，不含 WHERE 关键字）。
+   * 缺省由 field 推导：字段名含 delete/del（或为时间戳语义）→ `<field> IS NULL`，否则 → `<field> = 0`。
+   */
+  predicate?: string
+  /**
+   * MySQL 落地策略（MySQL 不支持部分索引，只能绕）：
+   * - `functional`：函数索引 `((IF(<field> IS NULL, col, NULL)))`，需 MySQL 8.0.13+
+   * - `timestamp_union`：把逻辑删除列并入索引列，要求该列每次删除写入不同值（时间戳 / 主键），兼容 5.7
+   */
+  mysql_strategy?: LogicalDeleteMysqlStrategy
+}
+
 // 索引列的数据库特定覆盖（排序方向）
 export interface IndexColumnDbOverride {
   sort_order?: 'ASC' | 'DESC'
@@ -120,6 +148,13 @@ export interface Index {
   type: string
   using?: string
   columns: IndexColumn[]
+  /**
+   * 唯一索引仅约束「未删除」行（逻辑删除感知），规避软删除与唯一索引的冲突。
+   * 仅对 unique 索引生效；具体字段名 / 策略取自 Index.logical_delete ?? CommonConfig.logical_delete。
+   */
+  active_only?: boolean
+  /** 索引级逻辑删除配置覆盖（逐键覆盖项目级配置，未配置的键回退项目级） */
+  logical_delete?: LogicalDeleteConfig
   comment?: string
   mysql?: IndexOverride
   postgresql?: Omit<IndexOverride, 'using'>
@@ -249,6 +284,8 @@ export interface CommonConfig {
   type_case?: TypeCaseMode
   /** 是否在当前项目文件夹中生成 AI JSON 结构指南（AI_JSON_STRUCTURE_GUIDE.md）；缺省视为 true */
   generate_ai_guide?: boolean
+  /** 项目级逻辑删除配置：声明逻辑删除字段与唯一索引的落地策略，索引级可覆盖 */
+  logical_delete?: LogicalDeleteConfig
 }
 
 /**

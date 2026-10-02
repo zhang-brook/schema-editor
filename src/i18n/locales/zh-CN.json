@@ -50,6 +50,7 @@
     "editSqliteQuoteIdentifiers": "编辑 SQLite 引号标识符",
     "editTableDdlMode": "编辑建表 DDL 模式",
     "editTypeCase": "编辑类型大小写",
+    "editLogicalDelete": "编辑逻辑删除配置",
     "editProjectName": "编辑项目名称",
     "editProjectDescription": "编辑项目描述",
     "addCommonField": "添加公共字段",
@@ -172,6 +173,7 @@
     "groups": {
       "commonFields": "通用字段",
       "unifiedTypes": "统一类型",
+      "logicalDelete": "逻辑删除",
       "dialect": "方言配置",
       "generatePrefs": "生成偏好",
       "aiPrompt": "AI 提示词"
@@ -341,7 +343,34 @@
     "postAffixTip": "点击切换是否自动添加后缀",
     "commentPlaceholder": "索引备注",
     "preCommentPlaceholder": "索引前注释",
-    "empty": "暂无索引"
+    "empty": "暂无索引",
+    "logicalDelete": "逻辑删除",
+    "activeOnly": "仅约束未删除行",
+    "activeOnlyShort": "仅未删除",
+    "activeOnlyTip": "勾选后该唯一索引绕开「已删除」记录：PostgreSQL / SQLite 生成部分唯一索引（WHERE），MySQL 按策略生成函数索引或把删除列并入索引列。仅对 unique 索引生效",
+    "resolvedLogicalDelete": "解析后效果",
+    "overrideField": "覆盖字段",
+    "overrideStrategy": "覆盖 MySQL 策略",
+    "inherit": "（继承项目级）",
+    "notApplied": "未启用",
+    "ldNotEnabled": "未生效：项目配置未启用逻辑删除",
+    "ldNoField": "未生效：未配置逻辑删除字段",
+    "ldFieldMissing": "未生效：本表不存在字段 {field}",
+    "ldNotUnique": "未生效：该方言下不是唯一索引"
+  },
+  "logicalDelete": {
+    "title": "逻辑删除",
+    "enabled": "启用逻辑删除感知",
+    "enabledTip": "启用后，勾选了「仅约束未删除行」的唯一索引会按方言自动绕开已删除行，避免软删除与唯一索引冲突",
+    "field": "逻辑删除字段",
+    "fieldPlaceholder": "如 deleted_at / is_deleted",
+    "predicate": "未删除谓词",
+    "predicatePlaceholder": "留空自动推导：deleted* → IS NULL，其余 → = 0",
+    "mysqlStrategy": "MySQL 策略",
+    "functional": "函数索引（MySQL 8.0.13+）",
+    "timestampUnion": "删除列并入索引列（兼容 5.7）",
+    "applyHint": "此处只声明「删除字段与策略」；还需在目标表的唯一索引上勾选「仅约束未删除行」才会生效。",
+    "tip": "MySQL 不支持部分索引，只能绕；PostgreSQL / SQLite 一律使用部分唯一索引（WHERE）。「并入索引列」要求该字段每次删除写入不同值（时间戳或主键），否则同一业务键只能删一次。"
   },
   "indexColumnsEditor": {
     "columnName": "列名",

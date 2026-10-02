@@ -2,6 +2,7 @@ import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/sc
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
+import { resolveIndexLogicalDelete } from '@/utils/logical-delete'
 
 /*
   SQL 生成器
@@ -141,9 +142,11 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   }
 
   // UNIQUE 索引在建表语句中定义
+  // 例外：逻辑删除感知的唯一索引需带 WHERE，而 PG 的表级 UNIQUE 约束不支持 WHERE，
+  // 只能降级为建表后的 CREATE UNIQUE INDEX ... WHERE（见下方普通索引循环）
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
-    if (indexType === 'unique') {
+    if (indexType === 'unique' && !resolveIndexLogicalDelete(index, table, 'postgresql', commonConfig)) {
       const indexName = resolveIndexName(index, 'postgresql', table.name)!
       indexDefinitions.push(`  CONSTRAINT ${quoteIdent(indexName, commonConfig)} UNIQUE (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'postgresql')
@@ -166,19 +169,29 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   sql += ';\n\n'
 
   // 普通索引在建表语句下方定义
+  // 逻辑删除感知的唯一索引同样在此输出：部分唯一索引无法写成表内 CONSTRAINT
   let hasCreateIndexSql = false
   table.indexes.forEach((index, _i) => {
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
+    const logicalDelete = indexType === 'unique'
+      ? resolveIndexLogicalDelete(index, table, 'postgresql', commonConfig)
+      : null
 
-    if (indexType !== 'unique' && (indexType || index.columns)) {
+    if ((indexType !== 'unique' && (indexType || index.columns)) || logicalDelete) {
       if (index.pre_comment) {
         sql += `-- ${index.pre_comment}\n`
       }
       const indexName = resolveIndexName(index, 'postgresql', table.name)!
-      sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
+      const keyword = logicalDelete ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
+      const whereClause = logicalDelete ? ` WHERE ${logicalDelete.predicate}` : ''
+      // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
+      if (logicalDelete) {
+        sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
+      }
+      sql += `${keyword} ${quoteIdent(indexName, commonConfig)} ON ${qSchemaName}.${qTableName} (${index.columns.map(col => {
         const { name, sortPart } = splitColumnForSql(col, 'postgresql')
         return quoteIdent(name, commonConfig) + sortPart
-      }).join(', ')});\n`
+      }).join(', ')})${whereClause};\n`
       // COMMENT ON INDEX (PostgreSQL)
       if (index.comment) {
         sql += `COMMENT ON INDEX ${qSchemaName}.${quoteIdent(indexName, commonConfig)} IS ${formatPgStringLiteral(index.comment)};\n`
@@ -211,7 +224,8 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   table.indexes.forEach(index => {
     if (!index.comment) return
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
-    if (indexType === 'unique') {
+    // 部分唯一索引的 COMMENT ON INDEX 已在 CREATE UNIQUE INDEX 后输出，此处跳过避免重复
+    if (indexType === 'unique' && !resolveIndexLogicalDelete(index, table, 'postgresql', commonConfig)) {
       if (isFirstIndex) {
         isFirstIndex = false
         sql += '\n'

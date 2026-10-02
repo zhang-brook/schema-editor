@@ -1,15 +1,87 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Index } from '@/types/schema'
 import { useEditorStore } from '@/stores/editor'
 import IndexColumnsEditor from './IndexColumnsEditor.vue'
+import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { getTableColumnNames } from '@/utils/sql-generator/shared'
+import { resolveDialectOverride } from '@/utils/dialect-resolver'
+import { buildMysqlActiveExpression, mergeLogicalDelete, resolveIndexLogicalDelete } from '@/utils/logical-delete'
 
 const store = useEditorStore()
+const { t } = useI18n()
 
 const availableFieldNames = computed(() => {
   if (!store.currentTable) return []
   return store.currentTable.fields.map(f => f.field_name)
 })
+
+// ===== 逻辑删除感知 =====
+
+/** 项目级逻辑删除字段（作为索引级覆盖的占位提示） */
+const projectDeleteField = computed(() => store.getLogicalDelete().field ?? '')
+
+function setActiveOnly(index: Index, val: boolean) {
+  index.active_only = val ? true : undefined
+}
+
+/** 该索引在任一方言下是否为唯一索引（普通索引无唯一性冲突，不提供开关） */
+function isUniqueIndex(index: Index): boolean {
+  return (
+    index.type === 'unique' ||
+    index.mysql?.type === 'unique' ||
+    index.postgresql?.type === 'unique' ||
+    index.sqlite?.type === 'unique'
+  )
+}
+
+/** 索引级覆盖值（空串表示继承项目级） */
+function ldOverrideValue(index: Index, key: 'field' | 'predicate' | 'mysql_strategy'): string {
+  return (index.logical_delete?.[key] as string) ?? ''
+}
+
+function setLdOverride(index: Index, key: 'field' | 'predicate' | 'mysql_strategy', val: string) {
+  const trimmed = val.trim()
+  if (!trimmed) {
+    if (index.logical_delete) {
+      delete index.logical_delete[key]
+      if (Object.keys(index.logical_delete).length === 0) index.logical_delete = undefined
+    }
+    return
+  }
+  if (!index.logical_delete) index.logical_delete = {}
+  ;(index.logical_delete as Record<string, unknown>)[key] = trimmed
+}
+
+/**
+ * 解析后效果预览：MySQL 给出索引列形态，PostgreSQL / SQLite 给出 WHERE 条件。
+ * 未生效时给出具体降级原因（静默降级最难排查，故逐条显式说明）。
+ */
+function ldEffect(index: Index, dialect: SqlDialect): string {
+  const table = store.currentTable
+  if (!table) return '-'
+  const cfg = mergeLogicalDelete(index, store.commonConfig)
+  if (cfg.enabled !== true) return t('indexTable.ldNotEnabled')
+  const field = (cfg.field ?? '').trim()
+  if (!field) return t('indexTable.ldNoField')
+  if (!getTableColumnNames(table, store.commonConfig).includes(field)) {
+    return t('indexTable.ldFieldMissing', { field })
+  }
+  if (index.active_only !== true) return t('indexTable.notApplied')
+  if (resolveDialectOverride(index, dialect, 'type', index.type) !== 'unique') {
+    return t('indexTable.ldNotUnique')
+  }
+  const resolved = resolveIndexLogicalDelete(index, table, dialect, store.commonConfig)
+  if (!resolved) return t('indexTable.notApplied')
+  if (dialect === 'mysql') {
+    if (resolved.mysqlStrategy === 'functional') {
+      return index.columns.map(c => `(${buildMysqlActiveExpression(c.name, resolved.field)})`).join(', ')
+    }
+    return [...index.columns.map(c => c.name), resolved.field].map(c => `\`${c}\``).join(', ')
+  }
+  return `WHERE ${resolved.predicate}`
+}
 
 // 索引名称采用「{pre} + 核心名 + {post}」三段式：用户只需填写中间核心部分，
 // 前后缀占位符在生成 SQL 时按方言与索引类型自动展开；且前后缀均可点击徽标自由开关。
@@ -147,6 +219,7 @@ function onDropTail(e: DragEvent) {
             <th>{{ $t('indexTable.columns') }}</th>
             <th>{{ $t('indexTable.using') }}</th>
             <th>{{ $t('indexTable.comment') }}</th>
+            <th style="width:70px;" :title="$t('indexTable.activeOnlyTip')">{{ $t('indexTable.activeOnlyShort') }}</th>
             <th style="width:50px;">{{ $t('indexTable.actions') }}</th>
           </tr>
         </thead>
@@ -218,6 +291,13 @@ function onDropTail(e: DragEvent) {
                 <input class="table-input" v-model="index.comment" :placeholder="$t('indexTable.commentPlaceholder')" style="min-width:100px;">
               </td>
               <td>
+                <!-- 逻辑删除感知开关：仅 unique 索引可勾选，直接暴露在行内避免遗漏 -->
+                <label v-if="isUniqueIndex(index)" class="ld-cell" :title="$t('indexTable.activeOnlyTip')">
+                  <input type="checkbox" :checked="index.active_only === true" @change="setActiveOnly(index, ($event.target as HTMLInputElement).checked)">
+                </label>
+                <span v-else class="ld-na">-</span>
+              </td>
+              <td>
                 <div class="move-btns">
                   <button class="move-btn" @click="store.moveIndexUp(store.currentTable!, iIdx)" :disabled="iIdx === 0" :title="$t('commonConfig.moveUp')">↑</button>
                   <button class="move-btn" @click="store.moveIndexDown(store.currentTable!, iIdx)" :disabled="iIdx === store.currentTable!.indexes.length - 1" :title="$t('commonConfig.moveDown')">↓</button>
@@ -227,7 +307,7 @@ function onDropTail(e: DragEvent) {
             </tr>
             <!-- Expanded Index Detail -->
             <tr v-if="store.expandedIndexes.has(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx))">
-              <td colspan="8">
+              <td colspan="9">
                 <div class="field-expand-content">
                   <!-- 解析后名称预览 -->
                   <div class="expand-section">
@@ -275,6 +355,38 @@ function onDropTail(e: DragEvent) {
                     </div>
                   </div>
                   <div class="expand-section">
+                    <div class="expand-section-title">{{ $t('indexTable.logicalDelete') }}</div>
+                    <label class="index-name-custom" :title="$t('indexTable.activeOnlyTip')">
+                      <input type="checkbox" :checked="index.active_only === true" @change="setActiveOnly(index, ($event.target as HTMLInputElement).checked)">
+                      <span>{{ $t('indexTable.activeOnly') }}</span>
+                    </label>
+                    <div class="ld-override-grid">
+                      <input
+                        class="form-input"
+                        :placeholder="$t('indexTable.overrideField') + (projectDeleteField ? `：${projectDeleteField}` : '')"
+                        :value="ldOverrideValue(index, 'field')"
+                        @input="setLdOverride(index, 'field', ($event.target as HTMLInputElement).value)"
+                      >
+                      <select
+                        class="form-input"
+                        :value="ldOverrideValue(index, 'mysql_strategy')"
+                        @change="setLdOverride(index, 'mysql_strategy', ($event.target as HTMLSelectElement).value)"
+                      >
+                        <option value="">{{ $t('indexTable.overrideStrategy') }}{{ $t('indexTable.inherit') }}</option>
+                        <option value="functional">{{ $t('logicalDelete.functional') }}</option>
+                        <option value="timestamp_union">{{ $t('logicalDelete.timestampUnion') }}</option>
+                      </select>
+                    </div>
+                    <div class="resolved-type-row">
+                      <span class="db-label">MySQL:</span>
+                      <code>{{ ldEffect(index, 'mysql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">PostgreSQL:</span>
+                      <code>{{ ldEffect(index, 'postgresql') }}</code>
+                      <span class="db-label" style="margin-left:16px;">SQLite:</span>
+                      <code>{{ ldEffect(index, 'sqlite') }}</code>
+                    </div>
+                  </div>
+                  <div class="expand-section">
                     <div class="expand-section-title">{{ $t('indexTable.preComment') }}</div>
                     <input class="form-input" v-model="index.pre_comment" :placeholder="$t('indexTable.preCommentPlaceholder')">
                   </div>
@@ -290,7 +402,7 @@ function onDropTail(e: DragEvent) {
             @dragleave="onDropTailLeave"
             @drop="onDropTail"
           >
-            <td :colspan="8"></td>
+            <td :colspan="9"></td>
           </tr>
         </tbody>
       </table>
@@ -423,6 +535,38 @@ function onDropTail(e: DragEvent) {
   border-color: var(--border);
   color: var(--fg-subtle);
   opacity: 0.4;
+}
+
+/* 行内「仅约束未删除行」开关 */
+.ld-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ld-cell input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.ld-na {
+  display: block;
+  text-align: center;
+  color: var(--fg-subtle);
+}
+
+/* 逻辑删除覆盖行：字段名 + MySQL 策略 */
+.ld-override-grid {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.ld-override-grid .form-input {
+  flex: 1 1 auto;
+  min-width: 120px;
 }
 
 /* 解析后名称预览（与 FieldTable 的解析类型预览保持一致） */

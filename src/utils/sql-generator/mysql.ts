@@ -2,6 +2,7 @@ import type { CommonConfig, Schema, Table, Field, Index, InitialData } from '@/t
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
+import { buildMysqlActiveExpression, resolveIndexLogicalDelete } from '@/utils/logical-delete'
 
 /*
   SQL 生成器
@@ -101,7 +102,7 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
 
 // ===== 表索引定义 =====
 
-function getMySQLIndexDefinition(index: Index): string {
+function getMySQLIndexDefinition(index: Index, table: Table, commonConfig: CommonConfig | null): string {
   // 获取数据库特定的索引名称
   let indexType = index.type
   let indexUsing = index.using
@@ -117,7 +118,21 @@ function getMySQLIndexDefinition(index: Index): string {
   // 如果没有指定 type，默认使用 BTREE（MySQL 默认索引类型）
   const finalIndexUsing = indexUsing ? ' USING ' + indexUsing.toUpperCase() : ''
 
-  const colList = index.columns.map(c => {
+  // 逻辑删除感知：MySQL 不支持部分索引，只能靠函数索引或把删除列并入索引列来绕
+  const logicalDelete = resolveIndexLogicalDelete(index, table, 'mysql', commonConfig)
+  const appendDeleteColumn =
+    logicalDelete?.mysqlStrategy === 'timestamp_union' &&
+    !index.columns.some(c => c.name === logicalDelete.field)
+  const columnsForSql = appendDeleteColumn && logicalDelete
+    ? [...index.columns, { name: logicalDelete.field }]
+    : index.columns
+
+  const colList = columnsForSql.map(c => {
+    // 函数索引：已删除行整体映射为 NULL（唯一索引中多个 NULL 互不冲突）
+    if (logicalDelete && logicalDelete.mysqlStrategy === 'functional') {
+      const { sortPart } = splitColumnForSql(c, 'mysql')
+      return `(${buildMysqlActiveExpression(c.name, logicalDelete.field)})${sortPart}`
+    }
     const { name, sortPart } = splitColumnForSql(c, 'mysql')
     return '`' + name + '`' + sortPart
   }).join(', ')
@@ -214,7 +229,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
 
   // 索引
   table.indexes.forEach(index => {
-    const indexDef = `  ${getMySQLIndexDefinition(index)}`
+    const indexDef = `  ${getMySQLIndexDefinition(index, table, commonConfig)}`
     if (index.pre_comment) {
       indexDefinitions.push(`  -- ${index.pre_comment}\n${indexDef}`)
     } else {

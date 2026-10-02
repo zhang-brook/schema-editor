@@ -50,6 +50,7 @@
     "editSqliteQuoteIdentifiers": "編輯 SQLite 引號識別符",
     "editTableDdlMode": "編輯建表 DDL 模式",
     "editTypeCase": "編輯類型大小寫",
+    "editLogicalDelete": "編輯邏輯刪除配置",
     "editProjectName": "編輯專案名稱",
     "editProjectDescription": "編輯專案描述",
     "addCommonField": "新增公共欄位",
@@ -172,6 +173,7 @@
     "groups": {
       "commonFields": "通用欄位",
       "unifiedTypes": "統一類型",
+      "logicalDelete": "邏輯刪除",
       "dialect": "方言設定",
       "generatePrefs": "生成偏好",
       "aiPrompt": "AI 提示詞"
@@ -341,7 +343,34 @@
     "postAffixTip": "點擊切換是否自動加入後綴",
     "commentPlaceholder": "索引備註",
     "preCommentPlaceholder": "索引前註解",
-    "empty": "暫無索引"
+    "empty": "暫無索引",
+    "logicalDelete": "邏輯刪除",
+    "activeOnly": "僅約束未刪除列",
+    "activeOnlyShort": "僅未刪除",
+    "activeOnlyTip": "勾選後此唯一索引會繞開「已刪除」記錄：PostgreSQL / SQLite 產生部分唯一索引（WHERE），MySQL 依策略產生函數索引或將刪除欄併入索引欄。僅對 unique 索引生效",
+    "resolvedLogicalDelete": "解析後效果",
+    "overrideField": "覆寫欄位",
+    "overrideStrategy": "覆寫 MySQL 策略",
+    "inherit": "（繼承專案級）",
+    "notApplied": "未啟用",
+    "ldNotEnabled": "未生效：專案配置未啟用邏輯刪除",
+    "ldNoField": "未生效：未配置邏輯刪除欄位",
+    "ldFieldMissing": "未生效：本表不存在欄位 {field}",
+    "ldNotUnique": "未生效：該方言下不是唯一索引"
+  },
+  "logicalDelete": {
+    "title": "邏輯刪除",
+    "enabled": "啟用邏輯刪除感知",
+    "enabledTip": "啟用後，勾選了「僅約束未刪除列」的唯一索引會依方言自動繞開已刪除列，避免軟刪除與唯一索引衝突",
+    "field": "邏輯刪除欄位",
+    "fieldPlaceholder": "如 deleted_at / is_deleted",
+    "predicate": "未刪除謂詞",
+    "predicatePlaceholder": "留空自動推導：deleted* → IS NULL，其餘 → = 0",
+    "mysqlStrategy": "MySQL 策略",
+    "functional": "函數索引（MySQL 8.0.13+）",
+    "timestampUnion": "刪除欄併入索引欄（相容 5.7）",
+    "applyHint": "此處只宣告「刪除欄位與策略」；還需在目標表的唯一索引上勾選「僅約束未刪除列」才會生效。",
+    "tip": "MySQL 不支援部分索引，只能繞；PostgreSQL / SQLite 一律使用部分唯一索引（WHERE）。「併入索引欄」要求該欄位每次刪除寫入不同值（時間戳或主鍵），否則同一業務鍵只能刪一次。"
   },
   "indexColumnsEditor": {
     "columnName": "欄名",

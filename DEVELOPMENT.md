@@ -39,6 +39,7 @@ src/
 │   │   ├── RenameAlignPanel.vue     # 改名识别的对齐配置
 │   │   └── sections/                # 项目设置页内的各配置板块
 │   │       ├── CommonUsedFieldsPanel.vue / UnifiedTypesPanel.vue
+│       ├── LogicalDeletePanel.vue   # 逻辑删除配置（删除字段 / 未删除谓词 / MySQL 策略）
 │   │       ├── DialectConfigPanel.vue / DdlOptionsPanel.vue / TypeCasePanel.vue
 │   │       ├── GlobalPrePostSqlPanel.vue / AiGuidePanel.vue / ProjectInfoPanel.vue
 │   │       └── database-defaults/   # 数据库默认配置（合体卡片 + 三方言子面板）
@@ -97,6 +98,7 @@ src/
     ├── initial-data-io.ts       # 初始数据（行内结构）读写
     ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
     ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
+    ├── logical-delete.ts        # 逻辑删除解析（项目级配置 + 索引级覆盖 → 各方言落地形式）
     ├── unified-types.ts         # 跨模块共用的统一类型
     ├── build-info.ts            # 构建信息（版本号 / 构建时间）
     ├── ai-guide/                # AI 结构指南 Markdown 生成

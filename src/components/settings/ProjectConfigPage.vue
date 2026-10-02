@@ -6,6 +6,7 @@ import PageTabs from '@/components/ui/PageTabs.vue'
 import ProjectInfoPanel from './sections/ProjectInfoPanel.vue'
 import CommonUsedFieldsPanel from './sections/CommonUsedFieldsPanel.vue'
 import UnifiedTypesPanel from './sections/UnifiedTypesPanel.vue'
+import LogicalDeletePanel from './sections/LogicalDeletePanel.vue'
 import DialectConfigPanel from './sections/DialectConfigPanel.vue'
 import DatabaseDefaultsPanel from './sections/database-defaults/DatabaseDefaultsPanel.vue'
 import DdlOptionsPanel from './sections/DdlOptionsPanel.vue'
@@ -52,6 +53,10 @@ const subTabOptions = computed(() =>
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.unifiedTypes') }}</div>
         <UnifiedTypesPanel />
+      </div>
+      <div class="pcfg-group">
+        <div class="pcfg-group-title">{{ $t('settings.groups.logicalDelete') }}</div>
+        <LogicalDeletePanel />
       </div>
     </template>
 

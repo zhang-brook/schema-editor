@@ -27,7 +27,8 @@ import { FIELD_SEMANTIC_KEYS } from './matcher'
 /** 对单索引的「语义属性」做对比（排除 name，name 作为匹配标识） */
 function compareIndexSemantics(a: Index, b: Index): Record<string, [any, any]> {
   const changes: Record<string, [any, any]> = {}
-  const keys: (keyof Index)[] = ['type', 'using', 'columns', 'comment', 'pre_comment', 'mysql', 'postgresql', 'sqlite']
+  // active_only / logical_delete 影响生成的索引定义（部分索引、函数索引），必须参与对比
+  const keys: (keyof Index)[] = ['type', 'using', 'columns', 'active_only', 'logical_delete', 'comment', 'pre_comment', 'mysql', 'postgresql', 'sqlite']
   for (const k of keys) {
     const av = (a as any)[k]
     const bv = (b as any)[k]

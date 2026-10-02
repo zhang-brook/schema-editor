@@ -10,7 +10,7 @@
  * SQLite 的 ALTER 能力有限（仅 ADD COLUMN / DROP COLUMN / RENAME COLUMN / RENAME TO，
  * 且无 schema 前缀、无 USING 子句），修改列属性需重建表，故此处输出提示性注释。
  */
-import type { CommonConfig, Field } from '@/types/schema'
+import type { CommonConfig, Field, Index, Table } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import {
   resolveFieldTypeForDialect,
@@ -19,6 +19,7 @@ import {
 } from '@/utils/sql-generator/shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
+import { buildMysqlActiveExpression, resolveIndexLogicalDelete } from '@/utils/logical-delete'
 import { fmtPrePostSql } from '@/utils/sql-generator/shared'
 import type {
   FieldDiff,
@@ -219,7 +220,8 @@ function buildIndexDefinition(
   dialect: SqlDialect,
   schemaName: string,
   tableName: string,
-  index: { name?: string; type: string; using?: string; columns: { name: string; sort_order?: 'ASC' | 'DESC'; mysql?: any; postgresql?: any; sqlite?: any }[] },
+  table: Table,
+  index: Index,
   commonConfig: CommonConfig | null,
 ): string {
   let indexName = index.name
@@ -233,10 +235,27 @@ function buildIndexDefinition(
   }
   indexName = (indexName ?? '').replace('{pre}', indexType === 'unique' ? 'uk_' : 'idx_').replace('{post}', '') || (indexType === 'unique' ? 'uk_col' : 'idx_col')
 
-  const colList = index.columns.map(c => {
+  // 逻辑删除感知：MySQL 走函数索引 / 删除列并入索引列，PostgreSQL / SQLite 走部分索引
+  const logicalDelete = resolveIndexLogicalDelete(index, table, dialect, commonConfig)
+  const useMysqlExpression = dialect === 'mysql' && logicalDelete?.mysqlStrategy === 'functional'
+  const appendDeleteColumn =
+    dialect === 'mysql' &&
+    logicalDelete?.mysqlStrategy === 'timestamp_union' &&
+    !index.columns.some(c => c.name === logicalDelete.field)
+  const columnsForSql = appendDeleteColumn && logicalDelete
+    ? [...index.columns, { name: logicalDelete.field }]
+    : index.columns
+
+  const colList = columnsForSql.map(c => {
     const { name, sortPart } = splitColumnForSql(c as any, dialect)
+    if (useMysqlExpression && logicalDelete) {
+      return `(${buildMysqlActiveExpression(name, logicalDelete.field)})${sortPart}`
+    }
     return quoteIdent(dialect, name, commonConfig) + sortPart
   }).join(', ')
+
+  // MySQL 无部分索引语法，其余方言在索引定义后追加 WHERE
+  const whereClause = logicalDelete && dialect !== 'mysql' ? ` WHERE ${logicalDelete.predicate}` : ''
 
   const qIndexName = quoteIdent(dialect, indexName, commonConfig)
   const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
@@ -251,11 +270,11 @@ function buildIndexDefinition(
   // PostgreSQL：USING 子句位于列列表之前
   if (dialect === 'postgresql') {
     const using = indexUsing ? ` USING ${indexUsing.toLowerCase()}` : ''
-    return `${keyword} ${qIndexName} ON ${qTable}${using} (${colList});`
+    return `${keyword} ${qIndexName} ON ${qTable}${using} (${colList})${whereClause};`
   }
   // SQLite 不支持 USING 子句，索引方法由 SQLite 自行决定
   if (dialect === 'sqlite') {
-    return `${keyword} ${qIndexName} ON ${qTable} (${colList});`
+    return `${keyword} ${qIndexName} ON ${qTable} (${colList})${whereClause};`
   }
   throw new Error(`Unsupported dialect: ${dialect}`)
 }
@@ -291,7 +310,7 @@ function generateDiffDdl(
           }
           // 内部字段/索引变更（rename 场景）
           for (const fd of td.fields) lines.push(...buildFieldDdl(dialect, sd.schema, td.new_name!, fd, targetSchemas))
-          for (const id of td.indexes) lines.push(...buildIndexDdl(dialect, sd.schema, td.new_name!, id, targetSchemas))
+          for (const id of td.indexes) lines.push(...buildIndexDdl(dialect, sd.schema, td.new_name!, id, targetSchemas, commonConfig))
         } else if (td.type === 'table_removed') {
           const qTable = qualifyTable(dialect, sd.schema, td.old_name!, commonConfig)
           lines.push(`DROP TABLE ${qTable};`)
@@ -328,7 +347,7 @@ function buildCreateTable(
   stmt += '\n);'
   lines.push(stmt)
   for (const idx of table.indexes) {
-    lines.push(buildIndexDefinition(dialect, schemaName, table.name, idx as any, commonConfig))
+    lines.push(buildIndexDefinition(dialect, schemaName, table.name, table, idx, commonConfig))
   }
   return lines
 }
@@ -368,12 +387,13 @@ function buildIndexDdl(
   tableName: string,
   id: IndexDiff,
   targetSchemas: import('@/types/schema').Schema[],
+  commonConfig: CommonConfig | null,
 ): string[] {
   const targetTable = findTargetTable(targetSchemas, schemaName, tableName)
   if (!targetTable) return []
   if (id.type === 'index_added' || id.type === 'index_modified') {
     const idx = targetTable.indexes.find(x => x.name === id.new_name)
-    if (idx) return [buildIndexDefinition(dialect, schemaName, tableName, idx as any, null)]
+    if (idx) return [buildIndexDefinition(dialect, schemaName, tableName, targetTable, idx, commonConfig)]
     return []
   }
   if (id.type === 'index_removed') {

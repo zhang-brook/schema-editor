@@ -13,6 +13,8 @@ export const indexBody = `### Index（索引）
   ],
   "comment": "邮箱唯一索引",
   "pre_comment": "-- 索引前注释",
+  "active_only": true,             // 可选：仅约束「未删除」行（见 logical_delete）
+  "logical_delete": { "field": "deleted_at" },  // 可选：逐键覆盖项目级逻辑删除配置
   "mysql":      { "type": "unique", "name": "uk_xxx", "using": "BTREE" },
   "postgresql": { "type": "unique", "name": "uk_xxx" },  // postgresql 无 using
   "sqlite":     { "type": "unique", "name": "uk_xxx" }   // sqlite 无 using
@@ -26,4 +28,8 @@ export const indexBody = `### Index（索引）
   PostgreSQL 的前缀额外带表名（\`idx__<table>__\`），因其索引名在 schema 内全局唯一。
 - \`"use_default_name": true\` 表示不指定索引名：MySQL 省略索引名由数据库自动命名，PostgreSQL / SQLite 回退「前缀 + 列名拼接」
   （这两种方言的 \`CREATE INDEX\`/\`CONSTRAINT\` 必须带名）。此时不应再写 \`name\`，各方言覆盖中的 \`name\` 也会被忽略。
-- PostgreSQL / SQLite：唯一索引生成 \`CONSTRAINT ... UNIQUE (...)\`，普通索引生成 \`CREATE INDEX ...\`；覆盖中的 \`using\` 被忽略（SQLite 无 USING 子句）。`
+- PostgreSQL / SQLite：唯一索引生成 \`CONSTRAINT ... UNIQUE (...)\`，普通索引生成 \`CREATE INDEX ...\`；覆盖中的 \`using\` 被忽略（SQLite 无 USING 子句）。
+- \`"active_only": true\`（仅 unique 有意义）：该索引只约束「未删除」行，规避软删除与唯一索引的冲突。
+  字段名 / 策略取自 \`Index.logical_delete\` 逐键覆盖 \`common.json\` 的 \`logical_delete\`（见 §3）；未启用或表中无该字段时降级为普通唯一索引。
+  - PostgreSQL / SQLite 生成部分唯一索引 \`CREATE UNIQUE INDEX ... WHERE <predicate>\`（表级 UNIQUE 约束不支持 WHERE，故从表内声明降级为建表后语句）
+  - MySQL 按 \`mysql_strategy\` 落地：\`functional\` → \`((IF(<field> IS NULL, col, NULL)))\`；\`timestamp_union\` → 把删除列追加到索引列末尾`

@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema, Table, Field, UnifiedTypeDefinition, TypeCaseMode, TableDdlMode } from '@/types/schema'
+import type { CommonConfig, Schema, Table, Field, UnifiedTypeDefinition, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from '@/types/schema'
 import { affectedCommon, affectedSql, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import { moveFieldCommentBefore } from '@/utils/table-comment-utils'
@@ -573,6 +573,39 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     })
   }
 
+  // ===== 逻辑删除配置（项目级） =====
+  function getLogicalDelete(): LogicalDeleteConfig {
+    return commonConfig.value?.logical_delete ?? {}
+  }
+
+  /**
+   * 局部更新项目级逻辑删除配置（逐键 patch）。
+   * 空串 / undefined 的键会被移除；配置整体为空时移除 logical_delete，避免污染 common.json。
+   */
+  function setLogicalDelete(patch: Partial<LogicalDeleteConfig>) {
+    if (!commonConfig.value) return
+    const old = commonConfig.value.logical_delete
+      ? { ...commonConfig.value.logical_delete }
+      : undefined
+    executeCommand({
+      label: t('history.editLogicalDelete'),
+      coalesceKey: 'logical-delete',
+      apply() {
+        const next: LogicalDeleteConfig = { ...commonConfig.value!.logical_delete, ...patch }
+        for (const k of Object.keys(next) as (keyof LogicalDeleteConfig)[]) {
+          if (next[k] === undefined || next[k] === '') delete next[k]
+        }
+        commonConfig.value!.logical_delete = Object.keys(next).length > 0 ? next : undefined
+      },
+      revert() {
+        commonConfig.value!.logical_delete = old ? { ...old } : undefined
+      },
+      affectedFiles() {
+        return [affectedCommon(), affectedSql()]
+      },
+    })
+  }
+
   return {
     setGlobalPreSql,
     setGlobalPostSql,
@@ -590,6 +623,8 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     setCommonSqliteQuoteIdentifiers,
     getTableDdlMode,
     setTableDdlMode,
+    getLogicalDelete,
+    setLogicalDelete,
     getCommonTypeCase,
     setCommonTypeCase,
     addCommonUsedField,

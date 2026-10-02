@@ -2,6 +2,7 @@ import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/sc
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
+import { resolveIndexLogicalDelete } from '@/utils/logical-delete'
 
 /*
   SQL 生成器（SQLite 方言）
@@ -148,9 +149,11 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
   }
 
   // UNIQUE 索引在建表语句中定义（SQLite 支持具名 CONSTRAINT ... UNIQUE）
+  // 例外：逻辑删除感知的唯一索引需带 WHERE，而表级 CONSTRAINT UNIQUE 不支持 WHERE，
+  // 只能降级为建表后的 CREATE UNIQUE INDEX ... WHERE（见下方普通索引循环）
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'sqlite', 'type', index.type)
-    if (indexType === 'unique') {
+    if (indexType === 'unique' && !resolveIndexLogicalDelete(index, table, 'sqlite', commonConfig)) {
       const indexName = resolveIndexName(index, 'sqlite', table.name)!
       let def = `  CONSTRAINT ${quoteIdent(indexName, commonConfig)} UNIQUE (${indexColumnList(index.columns, commonConfig)})`
       // SQLite 无 COMMENT ON INDEX，索引注释以注释行输出
@@ -169,19 +172,29 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
   sql += '\n);\n\n'
 
   // 普通索引在建表语句下方定义
+  // 逻辑删除感知的唯一索引同样在此输出：部分唯一索引无法写成表内 CONSTRAINT
   let hasCreateIndexSql = false
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'sqlite', 'type', index.type)
+    const logicalDelete = indexType === 'unique'
+      ? resolveIndexLogicalDelete(index, table, 'sqlite', commonConfig)
+      : null
 
-    if (indexType !== 'unique' && (indexType || index.columns)) {
+    if ((indexType !== 'unique' && (indexType || index.columns)) || logicalDelete) {
       if (index.pre_comment) {
         sql += `-- ${index.pre_comment}\n`
       }
       if (index.comment) {
         sql += `-- ${index.comment}\n`
       }
+      // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
+      if (logicalDelete) {
+        sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
+      }
       const indexName = resolveIndexName(index, 'sqlite', table.name)!
-      sql += `CREATE INDEX ${quoteIdent(indexName, commonConfig)} ON ${qTableName} (${indexColumnList(index.columns, commonConfig)});\n`
+      const keyword = logicalDelete ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
+      const whereClause = logicalDelete ? ` WHERE ${logicalDelete.predicate}` : ''
+      sql += `${keyword} ${quoteIdent(indexName, commonConfig)} ON ${qTableName} (${indexColumnList(index.columns, commonConfig)})${whereClause};\n`
       hasCreateIndexSql = true
     }
   })

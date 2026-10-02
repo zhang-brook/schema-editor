@@ -299,24 +299,30 @@ export function renderCommentBeforeField(comment: string | (string | null)[]): s
 // ===== Initial Data INSERT 语句生成 =====
 
 /**
- * 判断字段是否为「字符串类」类型：在 INSERT 中通常以字符串字面量（带引号）存储。
- * 覆盖字符类型（char/varchar/text…）、 temporal 类型（date/time/timestamp/datetime…）、
- * 以及 uuid/json/enum 等以文本形式写入的类型。用于 initial-data 表达式中「表达式」复选框的可见性。
+ * 判断字段是否为「字符串类」类型：值通常以字符串字面量（带引号）存储，
+ * 用于 initial-data 表达式中「表达式」复选框的可见性。
+ *
+ * 判定策略（不再依赖类型名关键字，避免误判）：
+ * - 统一字段（use_common_used_fields）：先 resolveField 取 common_used_fields 中同名列配置，
+ *   再依据其 unified_type 的 quote_default（值是否以字符串字面量存储）可靠判定。
+ * - 自定义类型（无 unified_type 映射、纯自由文本类型名）：无法可靠判定，
+ *   统一展示「表达式」复选框交由用户决定。
  */
-const STRING_TYPE_KEYWORDS = [
-  'char', 'varchar', 'text', 'nchar', 'nvarchar', 'string', 'uuid', 'json',
-  'clob', 'bpchar', 'name', 'date', 'time', 'timestamp', 'datetime', 'year',
-  'enum', 'set', 'inet', 'cidr', 'macaddr', 'xml',
-]
 export function isStringTypeField(
   field: Field,
-  dialect: SqlDialect,
   commonConfig: CommonConfig | null,
 ): boolean {
-  const { type } = resolveFieldTypeForDialect(field, dialect, commonConfig)
-  if (!type) return false
-  const t = type.toLowerCase()
-  return STRING_TYPE_KEYWORDS.some(k => t.includes(k))
+  // 统一字段：取 common_used_fields 中同名列配置（表内占位字段无类型，需取真实配置）
+  const resolved = resolveField(field, commonConfig)
+
+  // 自定义类型：无统一类型映射，无法可靠判定字符串与否，统一展示复选框避免误判
+  if (!resolved.unified_type) {
+    return true
+  }
+
+  // 统一类型：依据 unified_type.quote_default（值是否以字符串字面量存储）可靠判定
+  const def = commonConfig?.unified_types?.find(ut => ut.name === resolved.unified_type)
+  return def?.quote_default === true
 }
 
 /** 获取 Table 的有效字段名列表（排除 is_commented_out 的字段），解析 common fields */

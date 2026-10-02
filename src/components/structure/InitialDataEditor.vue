@@ -4,8 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { parseDefaultInput } from '@/utils/file-helpers'
 import { normalizeInitialData } from '@/utils/initial-data-io'
-import { getInitialDataPreSql, getInitialDataPostSql, resolveField, isStringTypeField, type SqlDialect } from '@/utils/sql-generator/shared'
-import { useEnabledDialect } from '@/composables/useEnabledDialect'
+import { getInitialDataPreSql, getInitialDataPostSql, isStringTypeField, type SqlDialect } from '@/utils/sql-generator/shared'
 import { confirmDialog } from '@/composables/useConfirm'
 import type { InitialData, InitialDataRow } from '@/types/schema'
 import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
@@ -13,7 +12,6 @@ import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
-const { activeDialect } = useEnabledDialect()
 
 const editorMode = ref<'json' | 'table'>('table')
 const jsonText = ref('')
@@ -33,7 +31,7 @@ const stringFieldSet = computed(() => {
   return new Set(
     store.currentTable.fields
       .filter(f => !f.is_commented_out)
-      .filter(f => isStringTypeField(resolveField(f, store.commonConfig), activeDialect.value, store.commonConfig))
+      .filter(f => isStringTypeField(f, store.commonConfig))
       .map(f => f.field_name)
   )
 })

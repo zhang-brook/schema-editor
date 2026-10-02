@@ -218,6 +218,10 @@ function onDropTail(e: DragEvent) {
                 <input class="table-input" v-model="index.comment" :placeholder="$t('indexTable.commentPlaceholder')" style="min-width:100px;">
               </td>
               <td>
+                <div class="move-btns">
+                  <button class="move-btn" @click="store.moveIndexUp(store.currentTable!, iIdx)" :disabled="iIdx === 0" :title="$t('commonConfig.moveUp')">↑</button>
+                  <button class="move-btn" @click="store.moveIndexDown(store.currentTable!, iIdx)" :disabled="iIdx === store.currentTable!.indexes.length - 1" :title="$t('commonConfig.moveDown')">↓</button>
+                </div>
                 <button class="btn btn-sm btn-danger" @click="store.deleteIndex(store.currentTable!, iIdx)">×</button>
               </td>
             </tr>
@@ -302,6 +306,7 @@ function onDropTail(e: DragEvent) {
 <style scoped src="@/assets/style/form.css"></style>
 <style scoped src="@/assets/style/btn.css"></style>
 <style scoped src="@/assets/style/expand.css"></style>
+<style scoped src="@/assets/style/move-btn.css"></style>
 <style scoped>
 .indexes-table {
   width: 100%;

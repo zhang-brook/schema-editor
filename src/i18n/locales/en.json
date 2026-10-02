@@ -214,6 +214,8 @@
     "clickToRename": "Click to rename",
     "deleteField": "Delete common field",
     "dragToSort": "Drag to sort",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "badge": "{n} fields",
     "quoteIdentifiers": "Quote Identifiers",
     "quoteIdentifiersHint": "Wrap table and column names in double quotes in generated SQL",

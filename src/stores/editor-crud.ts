@@ -1255,6 +1255,50 @@ export function createCrudActions(deps: CrudDeps) {
     })
   }
 
+  /** 上移一个索引位置（与 moveIndex 一致使用 undo/redo 命令） */
+  function moveIndexUp(table: Table, indexIdx: number) {
+    if (indexIdx <= 0) return
+    const fromIdx = indexIdx
+    const toIdx = indexIdx - 1
+    executeCommand({
+      label: t('history.moveIndex'),
+      coalesceKey: `move-index-up:${table.name}:${indexIdx}`,
+      apply() {
+        const arr = table.indexes
+        ;[arr[toIdx], arr[fromIdx]] = [arr[fromIdx]!, arr[toIdx]!]
+      },
+      revert() {
+        const arr = table.indexes
+        ;[arr[fromIdx], arr[toIdx]] = [arr[toIdx]!, arr[fromIdx]!]
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+  }
+
+  /** 下移一个索引位置 */
+  function moveIndexDown(table: Table, indexIdx: number) {
+    if (indexIdx >= table.indexes.length - 1) return
+    const fromIdx = indexIdx
+    const toIdx = indexIdx + 1
+    executeCommand({
+      label: t('history.moveIndex'),
+      coalesceKey: `move-index-down:${table.name}:${indexIdx}`,
+      apply() {
+        const arr = table.indexes
+        ;[arr[toIdx], arr[fromIdx]] = [arr[fromIdx]!, arr[toIdx]!]
+      },
+      revert() {
+        const arr = table.indexes
+        ;[arr[fromIdx], arr[toIdx]] = [arr[toIdx]!, arr[fromIdx]!]
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+  }
+
   /** 就地重命名对象的键，保持原有键顺序（重命名后的值覆盖同名目标键） */
   function renameRecordKey<T>(record: Record<string, T> | undefined, oldKey: string, newKey: string) {
     if (!record || oldKey === newKey || !(oldKey in record)) return
@@ -1919,6 +1963,8 @@ export function createCrudActions(deps: CrudDeps) {
     addIndex,
     deleteIndex,
     moveIndex,
+    moveIndexUp,
+    moveIndexDown,
     syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,

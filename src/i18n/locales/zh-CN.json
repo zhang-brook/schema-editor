@@ -214,6 +214,8 @@
     "clickToRename": "点击重命名",
     "deleteField": "删除公共字段",
     "dragToSort": "拖拽排序",
+    "moveUp": "上移",
+    "moveDown": "下移",
     "badge": "{n} 个字段",
     "quoteIdentifiers": "标识符加双引号",
     "quoteIdentifiersHint": "生成 SQL 时用双引号包裹表名和列名",

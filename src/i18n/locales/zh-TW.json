@@ -104,6 +104,8 @@
     "deleteTable": "刪除表",
     "copyTable": "複製資料表",
     "copySchema": "複製 Schema",
+    "expandAll": "全部展開",
+    "collapseAll": "全部摺疊",
     "prompt": {
       "schemaName": "Schema 名稱：",
       "newName": "新名稱："

@@ -104,6 +104,8 @@
     "deleteTable": "Delete table",
     "copyTable": "Copy table",
     "copySchema": "Copy schema",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
     "prompt": {
       "schemaName": "Schema name:",
       "newName": "New name:"

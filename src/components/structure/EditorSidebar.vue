@@ -19,6 +19,15 @@ function toggleExpand(sIdx: number) {
   expandedMap.value[sIdx] = !isExpanded(sIdx)
 }
 
+// 全部展开 / 全部折叠
+function expandAllSchemas() {
+  store.schemas.forEach((_, i) => { expandedMap.value[i] = true })
+}
+
+function collapseAllSchemas() {
+  store.schemas.forEach((_, i) => { expandedMap.value[i] = false })
+}
+
 // 拖拽状态
 const dragSchemaIdx = ref(-1)
 const dragTableIdx = ref(-1)
@@ -238,6 +247,8 @@ function cancelRenameSchema() {
     <div class="sidebar-header">
       <span>{{ $t('sidebar.navigation') }}</span>
       <span v-if="store.projectOpened" class="sidebar-header-actions">
+        <span class="sidebar-header-btn expand-all-btn" @click="expandAllSchemas" :title="$t('sidebar.expandAll')">&#9660;</span>
+        <span class="sidebar-header-btn collapse-all-btn" @click="collapseAllSchemas" :title="$t('sidebar.collapseAll')">&#9654;</span>
         <span class="sidebar-header-btn" @click="store.openImportSqlModal()" :title="$t('sidebar.importSqlTitle')">
           <ImportIcon style="transform: translateY(1.8px);" />
         </span>

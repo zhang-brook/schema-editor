@@ -1,6 +1,25 @@
 # Changelog
 
 
+## v0.6.0
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.4...v0.6.0)
+
+### 🚀 新功能
+
+- **structure:** 索引支持上移/下移按钮调整顺序 ([cead007](https://github.com/zhang-brook/schema-editor/commit/cead007))
+- **structure:** 唯一索引支持逻辑删除感知 ([1c80005](https://github.com/zhang-brook/schema-editor/commit/1c80005))
+- **structure:** 字段支持 MySQL ON UPDATE CURRENT_TIMESTAMP ([3fb388c](https://github.com/zhang-brook/schema-editor/commit/3fb388c))
+- **sidebar:** 支持全部展开/折叠 Schema ([cbd0348](https://github.com/zhang-brook/schema-editor/commit/cbd0348))
+- **sidebar:** 替换全部展开/折叠按钮为 SVG 图标 ([32fea67](https://github.com/zhang-brook/schema-editor/commit/32fea67))
+
+### 🩹 问题修复
+
+- **structure:** 字段重命名时同步更新初始数据字段名键 ([0caa7d7](https://github.com/zhang-brook/schema-editor/commit/0caa7d7))
+- **structure:** 移除 PostgreSQL/SQLite 部分唯一索引注释输出 ([f1e0731](https://github.com/zhang-brook/schema-editor/commit/f1e0731))
+- **sidebar:** 修复 schema 重命名输入框连续输入被覆盖 ([00d683e](https://github.com/zhang-brook/schema-editor/commit/00d683e))
+- **structure:** 落盘时省略被清空的长度/小数位字段 ([adcead5](https://github.com/zhang-brook/schema-editor/commit/adcead5))
+
 ## v0.5.4
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.3...v0.5.4)

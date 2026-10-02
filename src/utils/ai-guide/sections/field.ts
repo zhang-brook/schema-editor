@@ -50,6 +50,7 @@ SQL 长度输出：同时有 length+scale → \`TYPE(length,scale)\`；仅 lengt
   \`\`\`
 - 二者是**分开的两个字段**，不要拼成 \`"10,6"\`；且必须是**数字**，不要写成字符串。
 - 只想输出类型不带长度（如 \`TEXT\`、\`JSON\`、\`DATETIME\`）：省略 \`field_length\`/\`field_scale\`，或置 \`field_length_disabled: true\`。
+- \`field_length_disabled: true\` 与 \`field_length\` 不会同时出现：勾选禁用后落盘即移除该数值（它已完全不参与生成），\`field_scale\` 同理。手写 JSON 时也**不要**同时写两者。
 
 #### ⚠️ quote_default 用法
 

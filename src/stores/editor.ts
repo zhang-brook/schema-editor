@@ -30,6 +30,7 @@ import {
   deleteInitialDataFromNewStructure,
 } from '@/utils/initial-data-io'
 import { DIALECT_GENERATORS } from '@/utils/sql-generator'
+import { stripDisabledFieldMetrics } from '@/utils/field-utils'
 import { checkVersion } from '@/utils/structure-migrations/version-utils'
 import { runStructureMigrations } from '@/utils/structure-migrations'
 import {
@@ -725,6 +726,24 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
+   * common.json 的落盘数据：不携带 schema_order（已迁入 database.json），
+   * 公共字段同样省略被禁用的长度/小数位。
+   */
+  function buildCommonWriteData(): any {
+    const data: any = { ...commonConfig.value }
+    delete data.schema_order
+    const fields = data.common_used_fields as Record<string, Field> | undefined
+    if (fields) {
+      const cleaned: Record<string, Field> = {}
+      for (const key of Object.keys(fields)) {
+        cleaned[key] = stripDisabledFieldMetrics(fields[key]!)
+      }
+      data.common_used_fields = cleaned
+    }
+    return data
+  }
+
+  /**
    * 按需写盘：仅对命令声明的受影响文件集合写盘，不再全量遍历所有 schema。
    * SQL 因暂无部分更新能力，仍全量重新生成并写 output/（行为保持与重构前一致）。
    */
@@ -737,9 +756,7 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       // common / database 仅当相关命令时写
       if (merged.some(f => f.kind === 'common')) {
-        const commonToWrite: any = { ...commonConfig.value }
-        delete commonToWrite.schema_order
-        await writeCommonToHandle(rootDirHandle.value, commonToWrite)
+        await writeCommonToHandle(rootDirHandle.value, buildCommonWriteData())
       }
       if (merged.some(f => f.kind === 'database')) {
         await writeDatabaseToHandle(rootDirHandle.value, {
@@ -855,9 +872,7 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       if (commonConfig.value) {
         // 根 common.json：不再携带 schema_order（已迁入 current/database.json）
-        const commonToWrite: any = { ...commonConfig.value }
-        delete commonToWrite.schema_order
-        await writeCommonToHandle(rootDirHandle.value, commonToWrite)
+        await writeCommonToHandle(rootDirHandle.value, buildCommonWriteData())
         // current/database.json：schema 排序
         await writeDatabaseToHandle(rootDirHandle.value, {
           schema_order: commonConfig.value.schema_order ?? schemas.map(s => s.schema),

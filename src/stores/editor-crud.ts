@@ -16,6 +16,7 @@ import { sanitizeName } from '@/core/workspace/layout'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
 import { resolveFieldTypeForDialect, resolveIndexName, ALL_SQL_DIALECTS } from '@/utils/sql-generator/shared'
 import { formatIndexColumn } from '@/utils/index-column-utils'
+import { stripDisabledFieldMetrics } from '@/utils/field-utils'
 import { moveFieldCommentBefore, removeFieldCommentBefore } from '@/utils/table-comment-utils'
 import { parseFieldLengthInput } from '@/utils/file-helpers'
 import { confirmDialog } from '@/composables/useConfirm'
@@ -1755,7 +1756,8 @@ export function createCrudActions(deps: CrudDeps) {
         if (field.postgresql && Object.keys(field.postgresql).length > 0) f.postgresql = { ...field.postgresql }
         if (field.sqlite && Object.keys(field.sqlite).length > 0) f.sqlite = { ...field.sqlite }
       }
-      return f
+      // 已禁用长度/小数位时不再输出对应数值（disabled 已完全决定输出，保留数值只会误导）
+      return stripDisabledFieldMetrics(f)
     })
 
     // indexes

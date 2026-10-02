@@ -92,9 +92,9 @@ export interface Field {
   field_type?: string
   field_length?: number | null
   field_scale?: number | null
-  /** 勾选后强制跳过长度输出，SQL 中不生成 (N) 部分 */
+  /** 勾选后强制跳过长度输出，SQL 中不生成 (N) 部分；落盘时会自动移除无意义的 field_length */
   field_length_disabled?: boolean
-  /** 勾选后强制跳过小数位输出 */
+  /** 勾选后强制跳过小数位输出；落盘时会自动移除无意义的 field_scale */
   field_scale_disabled?: boolean
   not_null?: boolean
   primary_key?: boolean

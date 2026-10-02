@@ -189,18 +189,27 @@ function handleAddSchema() {
 // ===== Schema 原地重命名 =====
 const editingSchemaIdx = ref(-1)
 const editingSchemaName = ref('')
+const renameInputEl = ref<HTMLInputElement | null>(null)
+let renameFocused = false
 
-// 输入框挂载时立即聚焦并全选（函数 ref：v-if 内元素挂载即触发）
-function focusRenameInput(el: unknown) {
+// 输入框挂载时聚焦并全选（仅首次，避免连续输入时重新选中覆盖字符）
+function setRenameInputRef(el: unknown) {
   if (el instanceof HTMLInputElement) {
-    el.focus()
-    el.select()
+    renameInputEl.value = el
+    if (!renameFocused) {
+      el.focus()
+      el.select()
+      renameFocused = true
+    }
+  } else {
+    renameInputEl.value = null
   }
 }
 
 function startRenameSchema(sIdx: number) {
   const schema = store.schemas[sIdx]
   if (!schema) return
+  renameFocused = false
   editingSchemaIdx.value = sIdx
   editingSchemaName.value = schema.schema
 }
@@ -254,7 +263,7 @@ function cancelRenameSchema() {
           <span class="sidebar-icon arrow-icon" :class="{ rotated: isExpanded(sIdx) }" @click.stop="toggleExpand(sIdx)">&#9654;</span>
           <input
             v-if="editingSchemaIdx === sIdx"
-            :ref="focusRenameInput"
+            :ref="setRenameInputRef"
             class="schema-rename-input"
             v-model="editingSchemaName"
             @click.stop

@@ -15,7 +15,7 @@ import {
 import { sanitizeName } from '@/core/workspace/layout'
 import { getDialectSubConfig } from '@/utils/dialect-resolver'
 import { resolveFieldTypeForDialect, resolveIndexName, ALL_SQL_DIALECTS } from '@/utils/sql-generator/shared'
-import { formatIndexColumn } from '@/utils/index-column-utils'
+import { createIndexFieldRemoval, formatIndexColumn } from '@/utils/index-column-utils'
 import { stripDisabledFieldMetrics } from '@/utils/field-utils'
 import { moveFieldCommentBefore, removeFieldCommentBefore } from '@/utils/table-comment-utils'
 import { parseFieldLengthInput } from '@/utils/file-helpers'
@@ -904,12 +904,15 @@ export function createCrudActions(deps: CrudDeps) {
       const beforeFields = originalFields
       const afterFields = table.fields.slice()
       let undoComments: (() => void)[] = []
+      // 取消引用的字段若被索引引用，同步清理索引中的对应列（revert 时逆序恢复）
+      const indexRemovals = removed.map(f => createIndexFieldRemoval(table.indexes, f.field_name))
 
       executeCommand({
         label: t('history.editCommonFields'),
         coalesceKey: `edit-common-fields:${table.name}`,
         apply() {
           table.fields.splice(0, table.fields.length, ...afterFields)
+          for (const removal of indexRemovals) removal.apply()
           for (const undo of undoComments) undo()
           undoComments = []
           // 取消引用的同时清理对应的字段前注释
@@ -920,6 +923,7 @@ export function createCrudActions(deps: CrudDeps) {
         },
         revert() {
           table.fields.splice(0, table.fields.length, ...beforeFields)
+          for (let i = indexRemovals.length - 1; i >= 0; i--) indexRemovals[i]!.restore()
           for (const undo of undoComments) undo()
           undoComments = []
         },
@@ -1006,17 +1010,21 @@ export function createCrudActions(deps: CrudDeps) {
     if (!removed) return
     const removedIdx = fieldIdx
     let undoComment: (() => void) | null = null
+    // 同步清理索引中对该字段的引用：仅剩该列的索引会被整体移除（revert 时一并恢复）
+    const indexRemoval = createIndexFieldRemoval(table.indexes, fieldName ?? '')
 
     executeCommand({
       label: t('history.deleteField', { name: fieldName || '' }),
       coalesceKey: `delete-field:${table.name}:${fieldIdx}`,
       apply() {
         table.fields.splice(removedIdx, 1)
+        indexRemoval.apply()
         undoComment?.()
         undoComment = removeFieldCommentBefore(table, fieldName ?? '')
       },
       revert() {
         table.fields.splice(removedIdx, 0, removed)
+        indexRemoval.restore()
         undoComment?.()
         undoComment = null
       },

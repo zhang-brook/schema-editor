@@ -1,6 +1,20 @@
 # Changelog
 
 
+## v0.5.3
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.2...v0.5.3)
+
+### 🚀 新功能
+
+- **structure:** 初始数据字符串字段支持标记为 SQL 表达式 ([cfd9f76](https://github.com/zhang-brook/schema-editor/commit/cfd9f76))
+
+### 🩹 问题修复
+
+- **structure:** 字符串字段判定改用统一类型 quote_default ([e71c576](https://github.com/zhang-brook/schema-editor/commit/e71c576))
+- **structure:** 落盘时移除已禁用的字段长度与小数位 ([5358a65](https://github.com/zhang-brook/schema-editor/commit/5358a65))
+- **structure:** 删除字段时同步清理索引中的列引用 ([0fcce49](https://github.com/zhang-brook/schema-editor/commit/0fcce49))
+
 ## v0.5.2
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.5.1...v0.5.2)

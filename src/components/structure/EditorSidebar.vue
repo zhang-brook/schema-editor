@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import ImportIcon from '@/components/icon/ImportIcon.vue'
 import CopyIcon from '@/components/icon/CopyIcon.vue'
+import ExpandAllIcon from '@/components/icon/ExpandAllIcon.vue'
+import CollapseAllIcon from '@/components/icon/CollapseAllIcon.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -247,8 +249,12 @@ function cancelRenameSchema() {
     <div class="sidebar-header">
       <span>{{ $t('sidebar.navigation') }}</span>
       <span v-if="store.projectOpened" class="sidebar-header-actions">
-        <span class="sidebar-header-btn expand-all-btn" @click="expandAllSchemas" :title="$t('sidebar.expandAll')">&#9660;</span>
-        <span class="sidebar-header-btn collapse-all-btn" @click="collapseAllSchemas" :title="$t('sidebar.collapseAll')">&#9654;</span>
+        <span class="sidebar-header-btn expand-all-btn" @click="expandAllSchemas" :title="$t('sidebar.expandAll')">
+          <ExpandAllIcon />
+        </span>
+        <span class="sidebar-header-btn collapse-all-btn" @click="collapseAllSchemas" :title="$t('sidebar.collapseAll')">
+          <CollapseAllIcon />
+        </span>
         <span class="sidebar-header-btn" @click="store.openImportSqlModal()" :title="$t('sidebar.importSqlTitle')">
           <ImportIcon style="transform: translateY(1.8px);" />
         </span>

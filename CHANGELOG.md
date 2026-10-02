@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.3
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.2...v0.8.3)
+
+### 🚀 新功能
+
+- **desktop:** 记住上次打开的文件夹并提供最近打开列表 ([835e9f1](https://github.com/zhang-brook/schema-editor/commit/835e9f1))
+
+### 🩹 问题修复
+
+- **desktop:** 非递归删除目录改用 rmdir，修复重命名表后保存失败 ([fb37ec5](https://github.com/zhang-brook/schema-editor/commit/fb37ec5))
+
+### 📦 构建
+
+- **desktop:** 支持 macOS/Linux 打包并在产物名中区分系统与架构 ([4c5e893](https://github.com/zhang-brook/schema-editor/commit/4c5e893))
+
 ## v0.8.2
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.1...v0.8.2)

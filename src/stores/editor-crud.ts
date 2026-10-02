@@ -1224,6 +1224,31 @@ export function createCrudActions(deps: CrudDeps) {
     showToast(t('toast.indexDeleted'))
   }
 
+  /** 拖拽调整表内索引顺序，toIdx 为插入槽位（0 ~ indexes.length） */
+  function moveIndex(table: Table, fromIdx: number, toIdx: number) {
+    if (fromIdx === toIdx) return
+    if (fromIdx < 0 || fromIdx >= table.indexes.length) return
+    if (toIdx < 0 || toIdx > table.indexes.length) return
+    const [index] = table.indexes.splice(fromIdx, 1)
+    if (!index) return
+    const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
+    executeCommand({
+      label: t('history.moveIndex'),
+      coalesceKey: `move-index:${table.name}:${fromIdx}-${toIdx}`,
+      apply() {
+        table.indexes.splice(insertIdx, 0, index)
+      },
+      revert() {
+        const curIdx = table.indexes.indexOf(index)
+        if (curIdx >= 0) table.indexes.splice(curIdx, 1)
+        table.indexes.splice(fromIdx, 0, index)
+      },
+      affectedFiles() {
+        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+      },
+    })
+  }
+
   /** 当字段名变更时，同步更新所有索引中引用的列名 */
   function syncFieldNameInIndexes(table: Table, oldName: string, newName: string) {
     if (!oldName || !newName || oldName === newName) return
@@ -1858,6 +1883,7 @@ export function createCrudActions(deps: CrudDeps) {
     moveFieldDown,
     addIndex,
     deleteIndex,
+    moveIndex,
     syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,

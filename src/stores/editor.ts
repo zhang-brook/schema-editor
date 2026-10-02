@@ -1109,6 +1109,7 @@ export const useEditorStore = defineStore('editor', () => {
     moveFieldDown,
     addIndex,
     deleteIndex,
+    moveIndex,
     syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,
@@ -1363,6 +1364,7 @@ export const useEditorStore = defineStore('editor', () => {
     // Index CRUD
     addIndex,
     deleteIndex,
+    moveIndex,
     syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,

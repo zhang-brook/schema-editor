@@ -56,6 +56,7 @@
     "deleteCommonField": "Delete Common Field",
     "addIndex": "Add Index",
     "deleteIndex": "Delete Index",
+    "moveIndex": "Move Index",
     "editIndexColumns": "Edit Index Columns",
     "editIndexOverride": "Edit Index Dialect Override",
     "editTableMysqlEngine": "Edit Table MySQL Engine",

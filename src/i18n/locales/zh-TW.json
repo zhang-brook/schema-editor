@@ -56,6 +56,7 @@
     "deleteCommonField": "刪除公共欄位",
     "addIndex": "新增索引",
     "deleteIndex": "刪除索引",
+    "moveIndex": "移動索引",
     "editIndexColumns": "編輯索引欄位",
     "editIndexOverride": "編輯索引方言覆蓋",
     "editTableMysqlEngine": "編輯表 MySQL 引擎",

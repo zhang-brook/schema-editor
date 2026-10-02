@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Index } from '@/types/schema'
 import { useEditorStore } from '@/stores/editor'
 import IndexColumnsEditor from './IndexColumnsEditor.vue'
@@ -64,6 +64,69 @@ function isDefaultName(index: Index): boolean {
 function toggleCustomName(index: Index, custom: boolean) {
   index.use_default_name = custom ? undefined : true
 }
+
+// ===== Drag-and-drop for Indexes =====
+const dragIndexIdx = ref(-1)
+
+function onDragStart(e: DragEvent, idx: number) {
+  dragIndexIdx.value = idx
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.add('row-dragging')
+}
+
+function onDragOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over-row')
+}
+
+function onDragLeave(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
+}
+
+function onDrop(e: DragEvent, toIdx: number) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
+  const fromIdx = dragIndexIdx.value
+  dragIndexIdx.value = -1
+  if (fromIdx < 0 || fromIdx === toIdx || !store.currentTable) return
+  store.moveIndex(store.currentTable, fromIdx, toIdx)
+}
+
+function onDragEnd(e: DragEvent) {
+  const tr = (e.currentTarget as HTMLElement).closest('tr')
+  tr?.classList.remove('row-dragging')
+  document.querySelectorAll('.drag-over-row, .drag-over-tail').forEach(el => el.classList.remove('drag-over-row', 'drag-over-tail'))
+  dragIndexIdx.value = -1
+}
+
+function onDropTailOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  ;(e.currentTarget as HTMLElement)?.classList.add('drag-over-tail')
+}
+
+function onDropTailLeave(e: DragEvent) {
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-tail')
+}
+
+function onDropTail(e: DragEvent) {
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-tail')
+  const fromIdx = dragIndexIdx.value
+  dragIndexIdx.value = -1
+  if (fromIdx < 0 || !store.currentTable) return
+  const arr = store.currentTable.indexes
+  if (fromIdx === arr.length - 1) return
+  store.moveIndex(store.currentTable, fromIdx, arr.length)
+}
 </script>
 
 <template>
@@ -77,6 +140,7 @@ function toggleCustomName(index: Index, custom: boolean) {
       <table class="indexes-table" v-if="store.currentTable.indexes.length > 0">
         <thead>
           <tr>
+            <th style="width:24px;"></th>
             <th style="width:30px;"></th>
             <th>{{ $t('indexTable.name') }}</th>
             <th>{{ $t('indexTable.type') }}</th>
@@ -88,7 +152,19 @@ function toggleCustomName(index: Index, custom: boolean) {
         </thead>
         <tbody>
           <template v-for="(index, iIdx) in store.currentTable.indexes" :key="iIdx">
-            <tr>
+            <tr
+              @dragover="onDragOver"
+              @dragleave="onDragLeave"
+              @drop="onDrop($event, iIdx)"
+            >
+              <td
+                class="drag-handle-cell"
+                draggable="true"
+                @dragstart="onDragStart($event, iIdx)"
+                @dragend="onDragEnd"
+              >
+                <span class="drag-handle" :title="$t('commonConfig.dragToSort')">⋮⋮</span>
+              </td>
               <td>
                 <span class="expand-toggle" @click="store.toggleIndexExpand(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx))">
                   {{ store.expandedIndexes.has(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx)) ? '▼' : '▶' }}
@@ -147,7 +223,7 @@ function toggleCustomName(index: Index, custom: boolean) {
             </tr>
             <!-- Expanded Index Detail -->
             <tr v-if="store.expandedIndexes.has(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx))">
-              <td colspan="7">
+              <td colspan="8">
                 <div class="field-expand-content">
                   <!-- 解析后名称预览 -->
                   <div class="expand-section">
@@ -202,6 +278,16 @@ function toggleCustomName(index: Index, custom: boolean) {
               </td>
             </tr>
           </template>
+          <!-- 尾部 drop 区域 -->
+          <tr
+            v-if="store.currentTable.indexes.length > 0"
+            class="drop-tail-row"
+            @dragover="onDropTailOver"
+            @dragleave="onDropTailLeave"
+            @drop="onDropTail"
+          >
+            <td :colspan="8"></td>
+          </tr>
         </tbody>
       </table>
       <div v-else style="padding: 14px; color: #aaa; font-size: 12px; text-align: center;">
@@ -382,6 +468,47 @@ function toggleCustomName(index: Index, custom: boolean) {
 
 .btn-danger:hover {
   background: var(--danger-subtle);
+}
+
+/* 拖拽排序样式 */
+.drag-handle-cell {
+  cursor: grab;
+  text-align: center;
+  padding: 4px 6px !important;
+  user-select: none;
+}
+
+.drag-handle {
+  color: var(--border);
+  font-size: 18px;
+  letter-spacing: -2px;
+  line-height: 1;
+  transition: color .15s;
+}
+
+.drag-handle-cell:hover .drag-handle {
+  color: #999;
+}
+
+.row-dragging {
+  opacity: 0.4;
+}
+
+.drag-over-row {
+  border-top: 2px solid var(--accent) !important;
+}
+
+.drop-tail-row {
+  height: 8px;
+}
+
+.drop-tail-row td {
+  padding: 0 !important;
+  border-bottom: none;
+}
+
+.drop-tail-row.drag-over-tail {
+  border-top: 2px solid var(--accent);
 }
 
 .btn-sm {

@@ -727,7 +727,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   /**
    * common.json 的落盘数据：不携带 schema_order（已迁入 database.json），
-   * 公共字段同样省略被禁用的长度/小数位。
+   * 公共字段同样省略被禁用/清空为 null 的长度与小数位（见 stripDisabledFieldMetrics）。
    */
   function buildCommonWriteData(): any {
     const data: any = { ...commonConfig.value }

@@ -1108,12 +1108,14 @@ export function createCrudActions(deps: CrudDeps) {
     })
   }
 
-  /** 字段名编辑命令：改名后同步索引中引用的列名与字段前注释的键 */
+  /** 字段名编辑命令：改名后同步索引中引用的列名、字段前注释的键与初始数据中的字段名键 */
   function updateFieldName(table: Table, field: Field, newName: string) {
     const oldName = field.field_name
     const trimmed = newName.trim()
     if (!trimmed || oldName === trimmed) return
     let undoComment: (() => void) | null = null
+    const schemaName = currentSchemaName(table)
+    const hasInitialRows = (initialDataMap.get(initialDataKey(schemaName, table.name))?.rows?.length ?? 0) > 0
     executeCommand({
       label: t('history.renameField', { name: trimmed }),
       coalesceKey: `rename-field:${table.name}:${oldName}`,
@@ -1121,16 +1123,20 @@ export function createCrudActions(deps: CrudDeps) {
         undoComment?.()
         field.field_name = trimmed
         syncFieldNameInIndexes(table, oldName, trimmed)
+        syncFieldNameInInitialData(table, oldName, trimmed)
         undoComment = moveFieldCommentBefore(table, oldName, trimmed)
       },
       revert() {
         field.field_name = oldName
         syncFieldNameInIndexes(table, trimmed, oldName)
+        syncFieldNameInInitialData(table, trimmed, oldName)
         undoComment?.()
         undoComment = null
       },
       affectedFiles() {
-        return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
+        const files: AffectedFile[] = [affectedTable(schemaName, table.name), affectedSql()]
+        if (hasInitialRows) files.push(affectedInitialData(schemaName, table.name))
+        return files
       },
     })
   }
@@ -1247,6 +1253,35 @@ export function createCrudActions(deps: CrudDeps) {
         return [affectedTable(currentSchemaName(table), table.name), affectedSql()]
       },
     })
+  }
+
+  /** 就地重命名对象的键，保持原有键顺序（重命名后的值覆盖同名目标键） */
+  function renameRecordKey<T>(record: Record<string, T> | undefined, oldKey: string, newKey: string) {
+    if (!record || oldKey === newKey || !(oldKey in record)) return
+    const next: Record<string, T> = {}
+    for (const key of Object.keys(record)) {
+      if (key === oldKey) {
+        next[newKey] = record[oldKey]!
+      } else if (key === newKey) {
+        continue
+      } else {
+        next[key] = record[key]!
+      }
+    }
+    for (const key of Object.keys(record)) delete record[key]
+    Object.assign(record, next)
+  }
+
+  /** 当字段名变更时，同步更新该表初始数据中的字段名键（data / field_comments / expr_fields） */
+  function syncFieldNameInInitialData(table: Table, oldName: string, newName: string) {
+    if (!oldName || !newName || oldName === newName) return
+    const data = initialDataMap.get(initialDataKey(currentSchemaName(table), table.name))
+    if (!data?.rows) return
+    for (const row of data.rows) {
+      renameRecordKey(row.data, oldName, newName)
+      renameRecordKey(row.field_comments, oldName, newName)
+      renameRecordKey(row.expr_fields, oldName, newName)
+    }
   }
 
   /** 当字段名变更时，同步更新所有索引中引用的列名 */

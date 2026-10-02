@@ -268,7 +268,7 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
 // ===== Initial Data INSERT 语句生成 =====
 
 /** 将 JS 值格式化为 SQL 字面量，根据方言处理差异 */
-export function formatSqlValue(val: unknown): string {
+export function formatSqlValue(val: unknown, isExpr = false): string {
   if (val === null || val === undefined) return 'NULL'
   if (typeof val === 'boolean') {
     return val ? 'TRUE' : 'FALSE'
@@ -278,6 +278,8 @@ export function formatSqlValue(val: unknown): string {
     return String(val)
   }
   if (typeof val === 'string') {
+    // 标记为 SQL 表达式（如 CURRENT_TIMESTAMP()）：原样输出，不加引号
+    if (isExpr) return val
     // 转义单引号：' → ''
     return `'${val.replace(/'/g, "''")}'`
   }
@@ -291,7 +293,8 @@ export function generateInitialDataPostgreSQL(
   schemaName: string,
   rows: Record<string, any>[], // rows 应为已过滤掉 skip 行的有效数据
   rowComments: (string | null)[] | undefined,
-  commonConfig: CommonConfig | null
+  commonConfig: CommonConfig | null,
+  exprFields?: Record<string, boolean>[], // 与 rows 索引对齐：标记某字段值为 SQL 表达式（不加引号）
 ): string {
   const cols = getTableColumnNames(table, null)
   if (cols.length === 0 || rows.length === 0) return ''
@@ -310,8 +313,9 @@ export function generateInitialDataPostgreSQL(
     }
   }
 
-  const valueRows = rows.map(row => {
-    const vals = cols.map(col => formatSqlValue(row[col]))
+  const valueRows = rows.map((row, i) => {
+    const expr = exprFields?.[i]
+    const vals = cols.map(col => formatSqlValue(row[col], !!expr?.[col]))
     return `  (${vals.join(', ')})`
   })
 
@@ -370,7 +374,7 @@ export function generateInitialDataAllPostgreSQL(
         const qSchema = quoteIdent(schema.schema, commonConfig)
         const qTable = quoteIdent(table.name, commonConfig)
         sql += `-- Insert data into ${qSchema}.${qTable}\n`
-        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig)
+        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields)
         sql += '\n'
       }
 

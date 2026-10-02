@@ -4,7 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { parseDefaultInput } from '@/utils/file-helpers'
 import { normalizeInitialData } from '@/utils/initial-data-io'
-import { getInitialDataPreSql, getInitialDataPostSql, type SqlDialect } from '@/utils/sql-generator/shared'
+import { getInitialDataPreSql, getInitialDataPostSql, resolveField, isStringTypeField, type SqlDialect } from '@/utils/sql-generator/shared'
+import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import { confirmDialog } from '@/composables/useConfirm'
 import type { InitialData, InitialDataRow } from '@/types/schema'
 import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
@@ -12,6 +13,7 @@ import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
 const store = useEditorStore()
 const { t } = useI18n()
+const { activeDialect } = useEnabledDialect()
 
 const editorMode = ref<'json' | 'table'>('table')
 const jsonText = ref('')
@@ -23,6 +25,17 @@ const fieldNames = computed(() => {
   return store.currentTable.fields
     .filter(f => !f.is_commented_out)
     .map(f => f.field_name)
+})
+
+// 字符串类型字段名集合（仅这些字段显示「表达式」复选框）
+const stringFieldSet = computed(() => {
+  if (!store.currentTable) return new Set<string>()
+  return new Set(
+    store.currentTable.fields
+      .filter(f => !f.is_commented_out)
+      .filter(f => isStringTypeField(resolveField(f, store.commonConfig), activeDialect.value, store.commonConfig))
+      .map(f => f.field_name)
+  )
 })
 
 // 当前初始数据（wrapper）
@@ -265,6 +278,16 @@ function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
   if (!store.currentSchema || !store.currentTable) return
   store.setInitialDataFieldComment(store.currentSchema.schema, store.currentTable.name, row, fieldName, val)
 }
+
+// ===== Field Expression (值作为 SQL 表达式原样输出，不加引号) =====
+function isExprField(row: InitialDataRow, fieldName: string): boolean {
+  return row.expr_fields?.[fieldName] === true
+}
+
+function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) {
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataCellExpr(store.currentSchema.schema, store.currentTable.name, row, fieldName, checked)
+}
 </script>
 
 <template>
@@ -335,6 +358,13 @@ function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
                     <input class="field-comment-input" :value="getFieldComment(row, fname)"
                       @change="setFieldComment(row, fname, ($event.target as HTMLInputElement).value)"
                       placeholder="" />
+                    <label v-if="stringFieldSet.has(fname)" class="expr-toggle"
+                      :class="{ active: isExprField(row, fname) }" :title="$t('initialData.exprTitle')">
+                      <input type="checkbox" class="expr-checkbox"
+                        :checked="isExprField(row, fname)"
+                        @change="setExprField(row, fname, ($event.target as HTMLInputElement).checked)" />
+                      <span>{{ $t('initialData.expr') }}</span>
+                    </label>
                   </td>
                   <td>
                     <input class="comment-input" :value="getRowComment(row)"
@@ -628,6 +658,44 @@ function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
 
 .field-comment-input::placeholder {
   color: var(--border);
+}
+
+/* Field Expression toggle (仅字符串类型字段显示) */
+.expr-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 10px;
+  color: #999;
+  cursor: pointer;
+  user-select: none;
+  transition: all .15s;
+}
+
+.expr-toggle:hover {
+  border-color: var(--accent);
+  color: #666;
+}
+
+.expr-toggle.active {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.expr-toggle.active .expr-checkbox {
+  accent-color: var(--accent);
+}
+
+.expr-checkbox {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
 }
 
 /* Buttons */

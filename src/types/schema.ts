@@ -260,6 +260,8 @@ export interface InitialDataRow {
   data: Record<string, any>
   /** 该行的字段级注释（仅有注释的字段才出现） */
   field_comments?: Record<string, string>
+  /** 标记为「SQL 表达式」的字段：值为任意 SQL 表达式，生成 INSERT 时不加引号原样输出（如 CURRENT_TIMESTAMP()），仅字符串类字段有意义 */
+  expr_fields?: Record<string, boolean>
   /** 是否跳过该行（true 时该行不生成 INSERT 语句，语义同旧 skip_rows[i]===true） */
   is_skip?: boolean
   /** 行级注释（可选） */

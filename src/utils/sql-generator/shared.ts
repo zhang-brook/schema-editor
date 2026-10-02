@@ -298,6 +298,27 @@ export function renderCommentBeforeField(comment: string | (string | null)[]): s
 
 // ===== Initial Data INSERT 语句生成 =====
 
+/**
+ * 判断字段是否为「字符串类」类型：在 INSERT 中通常以字符串字面量（带引号）存储。
+ * 覆盖字符类型（char/varchar/text…）、 temporal 类型（date/time/timestamp/datetime…）、
+ * 以及 uuid/json/enum 等以文本形式写入的类型。用于 initial-data 表达式中「表达式」复选框的可见性。
+ */
+const STRING_TYPE_KEYWORDS = [
+  'char', 'varchar', 'text', 'nchar', 'nvarchar', 'string', 'uuid', 'json',
+  'clob', 'bpchar', 'name', 'date', 'time', 'timestamp', 'datetime', 'year',
+  'enum', 'set', 'inet', 'cidr', 'macaddr', 'xml',
+]
+export function isStringTypeField(
+  field: Field,
+  dialect: SqlDialect,
+  commonConfig: CommonConfig | null,
+): boolean {
+  const { type } = resolveFieldTypeForDialect(field, dialect, commonConfig)
+  if (!type) return false
+  const t = type.toLowerCase()
+  return STRING_TYPE_KEYWORDS.some(k => t.includes(k))
+}
+
 /** 获取 Table 的有效字段名列表（排除 is_commented_out 的字段），解析 common fields */
 export function getTableColumnNames(table: Table, commonConfig: CommonConfig | null): string[] {
   return table.fields
@@ -367,19 +388,23 @@ export function filterInitialDataRows(
 ): {
   rows: Record<string, any>[]
   rowComments: (string | null)[]
+  exprFields: Record<string, boolean>[]
   hasRows: boolean
 } {
   const srcRows = rows ?? []
   const result: Record<string, any>[] = []
   const resultComments: (string | null)[] = []
+  const resultExprFields: Record<string, boolean>[] = []
   for (const row of srcRows) {
     if (row.is_skip === true) continue
     result.push(row.data ?? {})
     resultComments.push(row.row_comment ?? null)
+    resultExprFields.push(row.expr_fields ?? {})
   }
   return {
     rows: result,
     rowComments: resultComments,
+    exprFields: resultExprFields,
     hasRows: result.length > 0,
   }
 }

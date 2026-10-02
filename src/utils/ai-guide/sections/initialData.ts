@@ -9,6 +9,7 @@ export const initialDataBody = `### initial-data.json（初始数据）
     {
       "data": { "id": 1, "name": "Alice", "status": "active" },
       "field_comments": { "name": "姓名" },  // 可选：字段级注释
+      "expr_fields": { "status": true },  // 可选：标记字段值为 SQL 表达式（不加引号），如 CURRENT_TIMESTAMP()
       "is_skip": false,               // true → 该行不生成 INSERT
       "row_comment": "示例行"          // 可选：行级注释
     }

@@ -241,6 +241,46 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     })
   }
 
+  /** 切换某行某字段值是否为「SQL 表达式」（不加引号原样输出），支持 undo/redo */
+  function setInitialDataCellExpr(
+    schemaName: string,
+    tableName: string,
+    row: { expr_fields?: Record<string, boolean> },
+    fieldName: string,
+    checked: boolean,
+  ) {
+    const oldVal = row.expr_fields?.[fieldName]
+    const oldObj = row.expr_fields ? { ...row.expr_fields } : undefined
+    executeCommand({
+      label: t('history.toggleInitialDataExpr', { name: fieldName }),
+      apply() {
+        if (!row.expr_fields) row.expr_fields = {}
+        if (checked) {
+          row.expr_fields[fieldName] = true
+        } else {
+          delete row.expr_fields[fieldName]
+          if (Object.keys(row.expr_fields).length === 0) {
+            delete row.expr_fields
+          }
+        }
+      },
+      revert() {
+        if (oldVal === undefined) {
+          if (row.expr_fields && Object.keys(oldObj ?? {}).length === 0) {
+            delete row.expr_fields
+          } else if (row.expr_fields) {
+            delete row.expr_fields[fieldName]
+          }
+        } else if (oldObj) {
+          row.expr_fields = { ...oldObj }
+        }
+      },
+      affectedFiles() {
+        return [affectedInitialData(schemaName, tableName), affectedSql()]
+      },
+    })
+  }
+
   // ===== Initial Data Pre/Post SQL =====
 
   function setInitialDataPreSql(initialData: InitialData, dialect: SqlDialect, val: string) {
@@ -322,6 +362,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     setInitialDataFieldComment,
     setInitialDataCell,
     setInitialDataRowComment,
+    setInitialDataCellExpr,
     setInitialDataPreSql,
     setInitialDataPostSql,
   }

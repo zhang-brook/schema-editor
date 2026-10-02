@@ -157,6 +157,7 @@ function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
       ? {
           data: (raw.data ?? {}) as Record<string, any>,
           ...(raw.field_comments ? { field_comments: raw.field_comments } : {}),
+          ...(raw.expr_fields ? { expr_fields: raw.expr_fields } : {}),
           ...(raw.is_skip === true ? { is_skip: true } : {}),
           ...(raw.row_comment ? { row_comment: raw.row_comment } : {}),
         }
@@ -188,6 +189,9 @@ export function buildInitialDataExport(data: InitialData): Record<string, any> {
       const out: Record<string, any> = { data: toRaw(row.data) }
       if (row.field_comments && Object.keys(row.field_comments).length > 0) {
         out.field_comments = toRaw(row.field_comments)
+      }
+      if (row.expr_fields && Object.keys(row.expr_fields).length > 0) {
+        out.expr_fields = toRaw(row.expr_fields)
       }
       if (row.is_skip === true) out.is_skip = true
       if (row.row_comment) out.row_comment = row.row_comment

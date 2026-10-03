@@ -13,6 +13,7 @@ import {
   writeCommonToHandle,
   deleteSqlFromOutput,
   deleteSqlDialectFromOutput,
+  cleanupStaleOutputSql,
   writeSqlToOutput,
   // ===== 新结构（current/）读写 =====
   openProjectFolderNew,
@@ -958,6 +959,14 @@ export const useEditorStore = defineStore('editor', () => {
       const enabled = enabledDialects.value
       const disabled = ALL_SQL_DIALECTS.filter(d => !enabled.includes(d))
 
+      // 当前应保留的 output SQL 文件名集合：每个 schema 的 `<schema>.sql` + 两个汇总文件。
+      // 用于清理「磁盘存在、但内存态已不存在」的残留同名 sql（如删除/重命名 schema 后）。
+      const keepSqlNames = new Set<string>([
+        ...schemas.map(s => `${s.schema}.sql`),
+        '__all_schemas__.sql',
+        '__initial_data__.sql',
+      ])
+
       for (const dialect of enabled) {
         const generators = DIALECT_GENERATORS[dialect]
         const allSchemaSql: { name: string; sql: string }[] = []
@@ -988,6 +997,9 @@ export const useEditorStore = defineStore('editor', () => {
         if (initialDataSql.trim()) {
           await writeSqlToOutput(rootDirHandle.value, dialect, '__initial_data__.sql', initialDataSql)
         }
+
+        // 清理当前方言下残留的 per-schema SQL（已被删除/重命名的 schema）
+        await cleanupStaleOutputSql(rootDirHandle.value, dialect, keepSqlNames)
       }
 
       // 未启用的方言：删除其 output/<dialect>/ 下已生成的 SQL，保证与勾选状态一致

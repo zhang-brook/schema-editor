@@ -617,6 +617,32 @@ export async function deleteSqlDialectFromOutput(
   }
 }
 
+/**
+ * 清理 output/<dialect>/ 下「磁盘存在、但内存态已不存在」的 per-schema SQL 文件，
+ * 避免删除/重命名 schema 后同名 sql 文件残留。
+ *
+ * @param validNames 当前应保留的文件名集合（含每个 schema 的 `<schema>.sql` 以及
+ *                    `__all_schemas__.sql`、`__initial_data__.sql`）
+ */
+export async function cleanupStaleOutputSql(
+  rootHandle: FileSystemDirectoryHandle,
+  dialect: string,
+  validNames: Set<string>,
+): Promise<void> {
+  try {
+    const outputHandle = await getOutputDir(rootHandle, false)
+    const dialectHandle = await getOutputDialectDir(outputHandle, dialect, false)
+    for await (const entry of dialectHandle.values()) {
+      if (entry.kind !== 'file') continue
+      if (!entry.name.endsWith('.sql')) continue
+      if (validNames.has(entry.name)) continue
+      await removeEntry(dialectHandle, entry.name)
+    }
+  } catch {
+    // output/ 或该方言目录不存在，忽略
+  }
+}
+
 // ===== 业务无关的工具函数 =====
 
 

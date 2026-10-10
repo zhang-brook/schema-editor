@@ -8,6 +8,7 @@ import type { SqlDialect } from '@/utils/sql-generator/shared'
 import { getTableColumnNames } from '@/utils/sql-generator/shared'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
 import { buildMysqlActiveExpression, mergeLogicalDelete, resolveIndexLogicalDelete } from '@/utils/logical-delete'
+import { isColumnDragging } from '@/utils/column-drag-flag'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -150,6 +151,8 @@ function onDragStart(e: DragEvent, idx: number) {
 }
 
 function onDragOver(e: DragEvent) {
+  // 正在拖拽索引列项时，忽略行级拖拽高亮
+  if (isColumnDragging.value) return
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
@@ -158,10 +161,12 @@ function onDragOver(e: DragEvent) {
 }
 
 function onDragLeave(e: DragEvent) {
+  if (isColumnDragging.value) return
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
 }
 
 function onDrop(e: DragEvent, toIdx: number) {
+  if (isColumnDragging.value) return
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
   const fromIdx = dragIndexIdx.value
@@ -178,6 +183,7 @@ function onDragEnd(e: DragEvent) {
 }
 
 function onDropTailOver(e: DragEvent) {
+  if (isColumnDragging.value) return
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
@@ -186,10 +192,12 @@ function onDropTailOver(e: DragEvent) {
 }
 
 function onDropTailLeave(e: DragEvent) {
+  if (isColumnDragging.value) return
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-tail')
 }
 
 function onDropTail(e: DragEvent) {
+  if (isColumnDragging.value) return
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-tail')
   const fromIdx = dragIndexIdx.value

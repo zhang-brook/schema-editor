@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { watch, reactive } from 'vue'
+import { watch, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { IndexColumn } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { isColumnDragging } from '@/utils/column-drag-flag'
 
 const props = defineProps<{
   modelValue: IndexColumn[]
   availableFields: string[]
 }>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:modelValue': [value: IndexColumn[]]
@@ -14,6 +18,109 @@ const emit = defineEmits<{
 
 // Per-column expanded state for db overrides
 const expandedOverrides = reactive(new Set<number>())
+
+// ===== 列拖拽排序 =====
+const dragColIdx = ref(-1)
+
+function onColDragStart(e: DragEvent, idx: number) {
+  e.stopPropagation()
+  dragColIdx.value = idx
+  isColumnDragging.value = true
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  ;(e.currentTarget as HTMLElement).classList.add('col-dragging')
+}
+
+function onColDragOver(e: DragEvent) {
+  // 仅在拖拽列时响应，避免污染外层索引行的拖拽
+  if (dragColIdx.value < 0) return
+  // 阻止冒泡，避免触发外层索引行的拖拽排序
+  e.stopPropagation()
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  ;(e.currentTarget as HTMLElement).classList.add('col-drag-over')
+}
+
+function onColDragLeave(e: DragEvent) {
+  // 仅在拖拽列时响应，避免污染外层索引行
+  if (dragColIdx.value < 0) return
+  // 阻止冒泡，避免联动外层索引行
+  e.stopPropagation()
+  ;(e.currentTarget as HTMLElement).classList.remove('col-drag-over')
+}
+
+function onColDrop(e: DragEvent, toIdx: number) {
+  e.stopPropagation()
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.remove('col-drag-over')
+  const fromIdx = dragColIdx.value
+  dragColIdx.value = -1
+  isColumnDragging.value = false
+  moveColumn(fromIdx, toIdx)
+}
+
+function onColDragEnd(e: DragEvent) {
+  e.stopPropagation()
+  isColumnDragging.value = false
+  document.querySelectorAll('.col-dragging, .col-drag-over, .col-drag-over-tail').forEach(el =>
+    el.classList.remove('col-dragging', 'col-drag-over', 'col-drag-over-tail'),
+  )
+  dragColIdx.value = -1
+}
+
+// 末尾投放区：把某项拖到最后一列
+function onColDragOverTail(e: DragEvent) {
+  if (dragColIdx.value < 0) return
+  e.stopPropagation()
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.add('col-drag-over-tail')
+}
+
+function onColDragLeaveTail(e: DragEvent) {
+  if (dragColIdx.value < 0) return
+  e.stopPropagation()
+  ;(e.currentTarget as HTMLElement).classList.remove('col-drag-over-tail')
+}
+
+function onColDropTail(e: DragEvent) {
+  e.stopPropagation()
+  e.preventDefault()
+  ;(e.currentTarget as HTMLElement).classList.remove('col-drag-over-tail')
+  const fromIdx = dragColIdx.value
+  dragColIdx.value = -1
+  isColumnDragging.value = false
+  moveColumn(fromIdx, props.modelValue.length)
+}
+
+function moveColumn(fromIdx: number, toIdx: number) {
+  const arr = [...props.modelValue]
+  if (
+    fromIdx < 0 ||
+    fromIdx >= arr.length ||
+    toIdx < 0 ||
+    toIdx > arr.length ||
+    fromIdx === toIdx
+  ) {
+    return
+  }
+  const moved = arr.splice(fromIdx, 1)[0]
+  if (!moved) return
+  arr.splice(toIdx, 0, moved)
+  // 同步迁移每列的覆盖展开状态，避免展开错位
+  const remapped = new Set<number>()
+  for (const oldIdx of expandedOverrides) {
+    if (oldIdx === fromIdx) remapped.add(toIdx)
+    else if (oldIdx > fromIdx && oldIdx <= toIdx) remapped.add(oldIdx - 1)
+    else if (oldIdx < fromIdx && oldIdx >= toIdx) remapped.add(oldIdx + 1)
+    else remapped.add(oldIdx)
+  }
+  expandedOverrides.clear()
+  remapped.forEach(i => expandedOverrides.add(i))
+  emit('update:modelValue', arr)
+}
 
 function toggleOverride(idx: number) {
   if (expandedOverrides.has(idx)) {
@@ -77,8 +184,19 @@ watch(() => props.modelValue, () => {
 
 <template>
   <div class="index-columns-editor">
-    <div class="column-row" v-for="(col, idx) in modelValue" :key="idx">
+    <div
+      class="column-row"
+      v-for="(col, idx) in modelValue"
+      :key="idx"
+      :draggable="modelValue.length > 1"
+      @dragstart="onColDragStart($event, idx)"
+      @dragover="onColDragOver"
+      @dragleave="onColDragLeave"
+      @drop="onColDrop($event, idx)"
+      @dragend="onColDragEnd"
+    >
       <div class="column-main">
+        <span v-if="modelValue.length > 1" class="col-drag-handle" :title="t('commonConfig.dragToSort')">⋮⋮</span>
         <select
           class="form-input column-name-select"
           v-model="col.name"
@@ -162,6 +280,14 @@ watch(() => props.modelValue, () => {
         </div>
       </div>
     </div>
+    <!-- 末尾投放区：仅在拖拽列时显示，支持把某项拖到最后一列 -->
+    <div
+      v-if="modelValue.length > 1 && dragColIdx >= 0"
+      class="col-drop-tail"
+      @dragover="onColDragOverTail"
+      @dragleave="onColDragLeaveTail"
+      @drop="onColDropTail"
+    ></div>
     <button class="btn btn-sm btn-add-col" @click="addColumn">
       + {{ $t('indexColumnsEditor.addColumn') }}
     </button>
@@ -188,6 +314,37 @@ watch(() => props.modelValue, () => {
   display: flex;
   align-items: center;
   gap: 3px;
+}
+
+.col-drag-handle {
+  flex: none;
+  color: var(--border);
+  font-size: 12px;
+  letter-spacing: -2px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  transition: color .15s;
+}
+
+.column-row:hover .col-drag-handle {
+  color: #999;
+}
+
+.col-dragging {
+  opacity: 0.4;
+}
+
+.col-drag-over {
+  border-top: 2px solid var(--accent);
+}
+
+.col-drop-tail {
+  height: 6px;
+}
+
+.col-drag-over-tail {
+  border-top: 2px solid var(--accent);
 }
 
 .column-name-select {

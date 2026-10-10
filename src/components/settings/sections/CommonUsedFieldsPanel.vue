@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import type { Field } from '@/types/schema'
 import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
-import { confirmDialog } from '@/composables/useConfirm'
 
 const store = useEditorStore()
 const { t } = useI18n()
@@ -162,20 +161,9 @@ function onCommonFieldDropTail(e: DragEvent) {
 
 // ===== Delete =====
 async function handleDelete(name: string) {
-  const refs: string[] = []
-  for (const schema of store.schemas) {
-    for (const table of schema.tables) {
-      if (table.fields.some(f => f.use_common_used_fields && f.field_name === name)) {
-        refs.push(`${schema.schema}.${table.name}`)
-      }
-    }
-  }
-  if (refs.length > 0) {
-    if (!(await confirmDialog({ title: t('confirm.title'), message: t('confirm.deleteCommonField', { name, refs: refs.join('\n') }), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }))) return
-  }
-  localFields.value = localFields.value.filter(f => f.field_name !== name)
-  store.rebuildCommonUsedFieldsFromArray(localFields.value)
-  store.showToast(t('toast.commonFieldDeleted'))
+  await store.deleteCommonUsedField(name)
+  // store 内部为原地变更，watch 不会触发，手动重新派生本地数组
+  localFields.value = [...store.getOrderedCommonUsedFields()]
 }
 
 /** 选择统一类型时仅清除 field_type，长度和小数位由用户决定是否覆盖 */

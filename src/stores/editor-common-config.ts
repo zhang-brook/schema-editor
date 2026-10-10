@@ -1,8 +1,9 @@
 import type { Ref } from 'vue'
 import type { CommonConfig, Schema, Table, Field, UnifiedTypeDefinition, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from '@/types/schema'
-import { affectedCommon, affectedSql, type Command } from '@/core/history/command'
+import { affectedCommon, affectedTable, affectedSql, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
-import { moveFieldCommentBefore } from '@/utils/table-comment-utils'
+import { moveFieldCommentBefore, removeFieldCommentBefore } from '@/utils/table-comment-utils'
+import { createIndexFieldRemoval } from '@/utils/index-column-utils'
 import { confirmDialog } from '@/composables/useConfirm'
 
 export interface CommonConfigDeps {
@@ -324,12 +325,36 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
   async function deleteCommonUsedField(name: string) {
     if (!commonConfig.value) return
     if (!commonConfig.value.common_used_fields[name]) return
-    // 检查是否有表正在引用此 common field
+    // 收集所有引用此公共字段的表字段，删除公共字段时同步删除并支持回滚
+    interface RefFieldSnapshot {
+      schemaName: string
+      table: Table
+      field: Field
+      indexInTable: number
+      indexRemoval: ReturnType<typeof createIndexFieldRemoval>
+      undoComment: (() => void) | null
+    }
+    const refSnapshots: RefFieldSnapshot[] = []
     const referencingTables: string[] = []
+    const seenTables = new Set<string>()
     for (const schema of schemas) {
       for (const table of schema.tables) {
-        if (table.fields.some(f => f.use_common_used_fields && f.field_name === name)) {
-          referencingTables.push(`${schema.schema}.${table.name}`)
+        const idx = table.fields.findIndex(f => f.use_common_used_fields && f.field_name === name)
+        if (idx >= 0) {
+          const field = table.fields[idx]!
+          refSnapshots.push({
+            schemaName: schema.schema,
+            table,
+            field,
+            indexInTable: idx,
+            indexRemoval: createIndexFieldRemoval(table.indexes, field.field_name),
+            undoComment: null,
+          })
+          const key = `${schema.schema}.${table.name}`
+          if (!seenTables.has(key)) {
+            seenTables.add(key)
+            referencingTables.push(key)
+          }
         }
       }
     }
@@ -342,6 +367,15 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     executeCommand({
       label: t('history.deleteCommonField'),
       apply() {
+        // 同步删除引用此公共字段的表字段（含索引、字段前注释清理）
+        for (const snap of refSnapshots) {
+          const i = snap.table.fields.indexOf(snap.field)
+          if (i >= 0) snap.table.fields.splice(i, 1)
+          snap.indexRemoval.apply()
+          snap.undoComment?.()
+          snap.undoComment = removeFieldCommentBefore(snap.table, snap.field.field_name)
+        }
+        // 删除公共字段定义
         delete commonConfig.value!.common_used_fields[name]
         if (commonConfig.value!.common_used_field_order) {
           commonConfig.value!.common_used_field_order =
@@ -352,15 +386,24 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
         }
       },
       revert() {
+        // 恢复公共字段定义
         commonConfig.value!.common_used_fields[name] = { ...deletedField }
         if (hadOrder) {
           commonConfig.value!.common_used_field_order = [...oldOrder!]
         } else {
           commonConfig.value!.common_used_field_order = undefined
         }
+        // 还原被同步删除的表字段（回到原位置，并恢复索引与字段前注释）
+        for (const snap of refSnapshots) {
+          const i = Math.min(snap.indexInTable, snap.table.fields.length)
+          snap.table.fields.splice(i, 0, snap.field)
+          snap.indexRemoval.restore()
+          snap.undoComment?.()
+          snap.undoComment = null
+        }
       },
       affectedFiles() {
-        return [affectedCommon()]
+        return [affectedCommon(), ...refSnapshots.map(s => affectedTable(s.schemaName, s.table.name)), affectedSql()]
       },
     })
     showToast(t('toast.commonFieldDeleted'))

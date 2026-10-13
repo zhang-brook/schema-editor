@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.6.1
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.6.0...v0.6.1)
+
+### 🚀 新功能
+
+- **structure:** 索引多选列时支持拖拽排序 ([078e5eb](https://github.com/zhang-brook/schema-editor/commit/078e5eb))
+
+### 🩹 问题修复
+
+- **structure:** 清理删除或重命名 schema 后残留的输出 SQL 文件 ([413985e](https://github.com/zhang-brook/schema-editor/commit/413985e))
+- **common-field:** 删除公共字段时同步删除引用它的表字段 ([69a32d9](https://github.com/zhang-brook/schema-editor/commit/69a32d9))
+
+### 📖 文档
+
+- 更新待办事项 ([4b61d8c](https://github.com/zhang-brook/schema-editor/commit/4b61d8c))
+
+### 📦 构建
+
+- **deps:** 更新依赖版本 ([76f24e0](https://github.com/zhang-brook/schema-editor/commit/76f24e0))
+
+### 🏡 杂项
+
+- Release v0.6.1 ([c6ce20e](https://github.com/zhang-brook/schema-editor/commit/c6ce20e))
 
 ## v0.6.0
 

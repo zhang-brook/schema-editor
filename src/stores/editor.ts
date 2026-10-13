@@ -965,6 +965,7 @@ export const useEditorStore = defineStore('editor', () => {
         ...schemas.map(s => `${s.schema}.sql`),
         '__all_schemas__.sql',
         '__initial_data__.sql',
+        '__all__.sql',
       ])
 
       for (const dialect of enabled) {
@@ -978,17 +979,19 @@ export const useEditorStore = defineStore('editor', () => {
           allSchemaSql.push({ name: schema.schema, sql })
         }
 
+        // 全局前/后置 SQL
+        const globalPreSql = getGlobalPreSql(commonConfig.value, dialect)
+        const globalPostSql = getGlobalPostSql(commonConfig.value, dialect)
+
+        // 全部 schema 的建表 SQL（含全局前/后置 SQL）
+        const finalAllSchemaSql = [
+          globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
+          allSchemaSql.map(s => s.sql).join('\n\n'),
+          globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
+        ].join('')
+
         // 生成包含所有 schema 的汇总文件（按 schema_order 顺序排列）
         if (allSchemaSql.length > 0) {
-          // 全局前/后置 SQL
-          const globalPreSql = getGlobalPreSql(commonConfig.value, dialect)
-          const globalPostSql = getGlobalPostSql(commonConfig.value, dialect)
-
-          const finalAllSchemaSql = [
-            globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
-            allSchemaSql.map(s => s.sql).join('\n\n'),
-            globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
-          ].join('')
           await writeSqlToOutput(rootDirHandle.value, dialect, '__all_schemas__.sql', finalAllSchemaSql)
         }
 
@@ -996,6 +999,16 @@ export const useEditorStore = defineStore('editor', () => {
         const initialDataSql = generators.initialData(schemas, initialDataMap, commonConfig.value)
         if (initialDataSql.trim()) {
           await writeSqlToOutput(rootDirHandle.value, dialect, '__initial_data__.sql', initialDataSql)
+        }
+
+        // 生成合并文件：全局前/后置 SQL + 全部 schema DDL + initial data INSERT，
+        // 形成一个可直接整体提交的完整 SQL。
+        if (allSchemaSql.length > 0 || initialDataSql.trim()) {
+          const finalAllSql = [
+            finalAllSchemaSql,
+            initialDataSql.trim() ? '\n\n' + initialDataSql.trim() : '',
+          ].join('')
+          await writeSqlToOutput(rootDirHandle.value, dialect, '__all__.sql', finalAllSql)
         }
 
         // 清理当前方言下残留的 per-schema SQL（已被删除/重命名的 schema）

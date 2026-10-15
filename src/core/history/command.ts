@@ -30,9 +30,9 @@ export interface AffectedFile {
 
 export interface Command {
   label: string
-  /** 合并键：相同且时间窗口内的命令合并为单条 undo 记录 */
+  /** 合并键：仅用于同一对象的终态赋值操作；结构操作不应设置此键 */
   coalesceKey?: string
-  /** 应用：修改内存态 */
+  /** 应用：修改内存态；可合并命令必须能直接恢复最终态，而非累加增量 */
   apply(): void
   /** 回滚：恢复原内存态 */
   revert(): void
@@ -45,11 +45,24 @@ export type PersistHook = (files: AffectedFile[]) => void
 
 const COALESCE_WINDOW_MS = 800
 
+interface HistoryEntry extends Command {
+  /** 执行时的文件集合：身份比较不能依赖随后可能变化的内存态 */
+  files: AffectedFile[]
+}
+
+/** 比较目标文件身份；旧路径仅用于清理，合并时另行保留。 */
+function sameAffectedTargets(left: AffectedFile[], right: AffectedFile[]): boolean {
+  const targetKey = (file: AffectedFile) => JSON.stringify([file.kind, file.schema, file.table])
+  const leftKeys = new Set(left.map(targetKey))
+  const rightKeys = new Set(right.map(targetKey))
+  return leftKeys.size === rightKeys.size && [...leftKeys].every(key => rightKeys.has(key))
+}
+
 export class CommandManager {
-  private undoStack: Command[] = []
-  private redoStack: Command[] = []
+  private undoStack: HistoryEntry[] = []
+  private redoStack: HistoryEntry[] = []
   private persistHook: PersistHook | null = null
-  private lastExecuteTime = 0
+  private lastExecuteTime: number | null = null
 
   /** 注册按需写盘回调（由 editor store 注入） */
   setPersistHook(hook: PersistHook) {
@@ -72,22 +85,23 @@ export class CommandManager {
     return this.redoStack.length > 0 ? this.redoStack[this.redoStack.length - 1]!.label : null
   }
 
+  /** 打断连续输入合并（如手动保存边界），不改变历史或触发写盘。 */
+  breakCoalescing() {
+    this.lastExecuteTime = null
+  }
+
   /** 清空所有历史（如关闭项目、重新加载时） */
   clear() {
     this.undoStack = []
     this.redoStack = []
+    this.breakCoalescing()
   }
 
-  /**
-   * 执行一个命令：
-   * 1. 应用内存态（apply）
-   * 2. 若与栈顶 coalesceKey 相同且在时间窗口内，则合并（不压新栈，终态已随 apply 刷新）
-   * 3. 否则压入 undo 栈、清空 redo 栈
-   * 4. 触发按需写盘
-   */
   execute(cmd: Command) {
     cmd.apply()
+    this.redoStack = []
 
+    const files = mergeAffectedFiles(cmd.affectedFiles()).map(file => ({ ...file }))
     const now = Date.now()
     const top = this.undoStack[this.undoStack.length - 1]
     const canCoalesce =
@@ -95,19 +109,40 @@ export class CommandManager {
       top.coalesceKey !== undefined &&
       cmd.coalesceKey !== undefined &&
       top.coalesceKey === cmd.coalesceKey &&
-      now - this.lastExecuteTime <= COALESCE_WINDOW_MS
+      this.lastExecuteTime !== null &&
+      now >= this.lastExecuteTime &&
+      now - this.lastExecuteTime <= COALESCE_WINDOW_MS &&
+      sameAffectedTargets(top.files, files)
 
-    if (!canCoalesce) {
-      this.undoStack.push(cmd)
-      this.redoStack = []
+    if (canCoalesce) {
+      const mergedFiles = mergeAffectedFiles([...top.files, ...files])
+      this.undoStack[this.undoStack.length - 1] = {
+        label: cmd.label,
+        coalesceKey: cmd.coalesceKey,
+        apply: cmd.apply.bind(cmd),
+        // 直接复用首个闭包，不包装前一条合并命令，避免保留整条打字链。
+        revert: top.revert,
+        affectedFiles: () => mergedFiles,
+        files: mergedFiles,
+      }
+    } else {
+      this.undoStack.push({
+        label: cmd.label,
+        coalesceKey: cmd.coalesceKey,
+        apply: cmd.apply.bind(cmd),
+        revert: cmd.revert.bind(cmd),
+        affectedFiles: cmd.affectedFiles.bind(cmd),
+        files,
+      })
     }
     this.lastExecuteTime = now
 
-    this.persistHook?.(cmd.affectedFiles())
+    this.persistHook?.(files)
   }
 
   /** 撤销上一步 */
   undo() {
+    this.breakCoalescing()
     const cmd = this.undoStack.pop()
     if (!cmd) return
     cmd.revert()
@@ -117,6 +152,7 @@ export class CommandManager {
 
   /** 重做下一步 */
   redo() {
+    this.breakCoalescing()
     const cmd = this.redoStack.pop()
     if (!cmd) return
     cmd.apply()
@@ -155,9 +191,7 @@ export function mergeAffectedFiles(files: AffectedFile[]): AffectedFile[] {
   const seen = new Set<string>()
   const result: AffectedFile[] = []
   for (const f of files) {
-    const key = f.kind === 'table' || f.kind === 'initial-data' || f.kind === 'schema'
-      ? `${f.kind}:${f.schema}:${f.table ?? ''}`
-      : f.kind
+    const key = JSON.stringify([f.kind, f.schema, f.table, f.oldSchema, f.oldTable])
     if (seen.has(key)) continue
     seen.add(key)
     result.push(f)

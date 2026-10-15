@@ -69,7 +69,9 @@ export class SaveCoordinator {
     this.desired = new Map(options.initialFiles)
     this.baseline = new Map(options.initialFiles)
     this.classify = options.classify ?? (() => 'docs')
-    this.autoSave = this.resolveAutoSave(options.autoSave)
+    const requested = options.autoSave ?? {}
+    const docs = requested.docs ?? true
+    this.autoSave = this.gate({ docs, outputs: (requested.outputs ?? true) && docs })
   }
 
   get state(): SaveState {
@@ -97,9 +99,13 @@ export class SaveCoordinator {
     this.schedule()
   }
 
-  /** 按组切换自动写入；未传入的组保持原状 */
+  /**
+   * 按组切换自动写入；未传入的组保持原状。
+   * 派生文件依赖项目文档：勾选同步 SQL 连带开启项目文件保存，取消项目文件保存连带关闭同步 SQL，
+   * 避免磁盘上的 output/ 领先于 JSON。
+   */
   setAutoSave(options: Partial<AutoSaveOptions>) {
-    this.autoSave = this.resolveAutoSave({ ...this.autoSave, ...options })
+    this.autoSave = this.resolveAutoSave({ ...this.autoSave, ...options }, options)
     this.cancelTimers()
     this.schedule()
   }
@@ -139,9 +145,17 @@ export class SaveCoordinator {
     if (!this.disposed) this.options.onStateChange?.(this.state)
   }
 
-  private resolveAutoSave(requested: Partial<AutoSaveOptions> = {}): AutoSaveOptions {
-    if (!this.writer.supportsAutoSave) return { docs: false, outputs: false }
-    return { docs: requested.docs ?? true, outputs: requested.outputs ?? true }
+  /** 写入器不支持自动保存时，两组开关恒为关闭 */
+  private gate(options: AutoSaveOptions): AutoSaveOptions {
+    return this.writer.supportsAutoSave ? options : { docs: false, outputs: false }
+  }
+
+  /** 合并本次请求与现有开关，并落实「派生写入依赖文档写入」的连带关系 */
+  private resolveAutoSave(merged: AutoSaveOptions, requested: Partial<AutoSaveOptions> = {}): AutoSaveOptions {
+    const next = { ...merged }
+    if (requested.outputs === true) next.docs = true
+    if (!next.docs) next.outputs = false
+    return this.gate(next)
   }
 
   /** 与磁盘不一致、且当前开关允许自动写入的文件 */
@@ -150,14 +164,12 @@ export class SaveCoordinator {
   }
 
   /**
-   * 是否有值得自动处理的工作：启用组里有脏文件即算有；
-   * 派生组启用时，文档的改动也要走一次 prepare 才能知道要不要重写 SQL，同样算有。
+   * 是否有值得自动处理的工作：存在归属已启用组、且与磁盘不一致的文件。
+   * 派生内容要经 prepare 才算出，但「同步 SQL 必然开启项目文件保存」，
+   * 因此文档一脏就已经命中这里，不会漏掉派生文件的同步。
    */
   private hasAutoWork(): boolean {
-    if (this.dirtyPaths.size === 0) return false
-    const docsDirty = [...this.dirtyPaths].some(path => this.classify(path) === 'docs')
-    if (docsDirty) return this.autoSave.docs || this.autoSave.outputs
-    return this.autoSave.outputs
+    return [...this.dirtyPaths].some(path => this.autoSave[this.classify(path)])
   }
 
   private schedule() {

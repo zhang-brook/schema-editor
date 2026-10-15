@@ -88,11 +88,11 @@ export const useEditorStore = defineStore('editor', () => {
 
   /**
    * 实时保存项目文件（浏览器本地偏好，默认开启）。关闭后改动只留在内存，等用户点保存。
-   * 派生文件（output/ 下的 SQL）由 autoSyncOutputsEnabled 独立控制。
+   * 派生文件（output/ 下的 SQL）由 autoSyncOutputsEnabled 控制，且依赖本项目文件开关。
    */
   const autoSaveEnabled = ref(readBoolPref(AUTO_SAVE_PREF, true))
-  /** 变更后同步更新 SQL：未单独设置过时跟随「实时保存」，避免老用户被意外改成自动生成 */
-  const autoSyncOutputsEnabled = ref(readBoolPref(AUTO_SYNC_OUTPUTS_PREF, autoSaveEnabled.value))
+  /** 变更后同步更新 SQL：未单独设置过时跟随「实时保存」，项目文件开关关闭时恒为关闭 */
+  const autoSyncOutputsEnabled = ref(autoSaveEnabled.value && readBoolPref(AUTO_SYNC_OUTPUTS_PREF, autoSaveEnabled.value))
   const saveState = ref<SaveState>({ dirty: false, saving: false, error: null, pendingFiles: 0 })
   const hasUnsavedChanges = computed(() => saveState.value.dirty)
   let session: WorkspaceSession | null = null
@@ -688,17 +688,28 @@ export const useEditorStore = defineStore('editor', () => {
     if (!hasUnsavedChanges.value) showToast(t('toast.saved'))
   }
 
-  /** 切换「实时保存项目文件」：对当前会话立即生效，并记入浏览器偏好 */
-  function setAutoSave(enabled: boolean) {
+  /** 只改状态与偏好，不触碰会话；供两个开关互相连带时复用 */
+  function writeAutoSavePref(enabled: boolean) {
     autoSaveEnabled.value = enabled
     writeBoolPref(AUTO_SAVE_PREF, enabled)
+  }
+
+  function writeAutoSyncOutputsPref(enabled: boolean) {
+    autoSyncOutputsEnabled.value = enabled
+    writeBoolPref(AUTO_SYNC_OUTPUTS_PREF, enabled)
+  }
+
+  /** 切换「实时保存项目文件」：派生文件依赖它，关闭时连带关闭「同步 SQL」 */
+  function setAutoSave(enabled: boolean) {
+    writeAutoSavePref(enabled)
+    if (!enabled) writeAutoSyncOutputsPref(false)
     session?.coordinator.setAutoSave({ docs: enabled })
   }
 
-  /** 切换「变更后同步更新 SQL」：只覆盖 output/ 下的派生文件，与项目文件的保存互不依赖 */
+  /** 切换「变更后同步更新 SQL」：只覆盖 output/ 下的派生文件，开启时连带开启项目文件保存 */
   function setAutoSyncOutputs(enabled: boolean) {
-    autoSyncOutputsEnabled.value = enabled
-    writeBoolPref(AUTO_SYNC_OUTPUTS_PREF, enabled)
+    writeAutoSyncOutputsPref(enabled)
+    if (enabled) writeAutoSavePref(true)
     session?.coordinator.setAutoSave({ outputs: enabled })
   }
 

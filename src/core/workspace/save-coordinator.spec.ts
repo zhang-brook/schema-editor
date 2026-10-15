@@ -113,20 +113,19 @@ describe('SaveCoordinator', () => {
     expect(coordinator.state.dirty).toBe(false)
   })
 
-  it('writes only derived files while project auto save is off', async () => {
-    const { coordinator, save, disk } = fixture({
-      autoSave: { docs: false, outputs: true },
-      classify: isDerived,
-      initialFiles: new Map([['table.json', 'original'], ['output/app.sql', 'old sql']]),
-    })
-    coordinator.update([
-      { path: 'table.json', content: 'edited' },
-      { path: 'output/app.sql', content: 'new sql' },
-    ])
-    await vi.advanceTimersByTimeAsync(400)
-    expect(save).toHaveBeenCalledExactlyOnceWith([{ path: 'output/app.sql', content: 'new sql' }], 'auto')
-    expect(coordinator.state).toMatchObject({ dirty: true, pendingFiles: 1 })
-    expect(disk.get('table.json')).toBe('original')
+  it('ties SQL sync to project-file saving so output never leads the documents', () => {
+    // 不一致的初始值收敛为「两者都关」，不存在只同步 SQL 的状态
+    const { coordinator } = fixture({ autoSave: { docs: false, outputs: true } })
+    expect(coordinator.autoSaveOptions).toEqual(manual)
+
+    coordinator.setAutoSave(allAuto)
+    expect(coordinator.autoSaveOptions).toEqual(allAuto)
+    // 取消项目文件保存 → 连带关闭 SQL 同步
+    coordinator.setAutoSave({ docs: false })
+    expect(coordinator.autoSaveOptions).toEqual(manual)
+    // 勾选 SQL 同步 → 连带开启项目文件保存
+    coordinator.setAutoSave({ outputs: true })
+    expect(coordinator.autoSaveOptions).toEqual(allAuto)
   })
 
   it('schedules nothing when both groups are manual and still writes everything on demand', async () => {

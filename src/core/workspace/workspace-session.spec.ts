@@ -234,17 +234,22 @@ describe('createWorkspaceSession', () => {
     expect(coordinator.state).toMatchObject({ dirty: false, pendingFiles: 0 })
   })
 
-  it('writes only the derived SQL when project auto save is off', async () => {
-    const { writer, project, changed, coordinator } = await open({ autoSave: { docs: false, outputs: true } })
-    project.schemas[0]!.tables[1]!.comment = '仅同步 SQL'
+  it('keeps SQL sync dependent on project-file saving and flushes the backlog when enabled', async () => {
+    const { writer, project, changed, coordinator } = await open({ autoSave: { docs: true, outputs: false } })
+    project.schemas[0]!.tables[1]!.comment = '仅保存项目文件'
     changed([affectedTable('app', 'users')])
 
     await coordinator.saveChanges()
-    const paths = writer.saved.flat().map(change => change.path)
-    expect(paths).not.toContain(editedTable())
-    expect(paths).toContain('output/mysql/app.sql')
-    expect(writer.tree.get(editedTable())).not.toContain('仅同步 SQL')
+    expect(writer.saved.flat().map(change => change.path)).toEqual([editedTable()])
     expect(coordinator.state.dirty).toBe(true)
+
+    // 勾选同步 SQL 会连带开启项目文件保存，并补齐此前积压的派生文件
+    coordinator.setAutoSave({ outputs: true })
+    expect(coordinator.autoSaveOptions).toEqual({ docs: true, outputs: true })
+    await coordinator.saveChanges()
+    expect(writer.saved.flat().map(change => change.path)).toContain('output/mysql/app.sql')
+    expect(writer.tree.get('output/mysql/app.sql')).toContain('users')
+    expect(coordinator.state).toMatchObject({ dirty: false, pendingFiles: 0 })
   })
 
   it('coalesces a burst of edits into one auto save that only carries the touched documents', async () => {

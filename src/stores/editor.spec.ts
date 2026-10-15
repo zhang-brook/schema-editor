@@ -50,11 +50,13 @@ describe('toolbar save controls', () => {
     expect(toolbarSource).toContain("window.addEventListener('beforeunload', onBeforeUnload)")
   })
 
-  it('controls project files and derived SQL with two independent switches', () => {
+  it('controls project files and derived SQL with a dependency between the two switches', () => {
     expect(editorSource).toContain('const autoSyncOutputsEnabled = ref(')
     expect(editorSource).toContain('function setAutoSyncOutputs(enabled: boolean)')
-    expect(editorSource).toContain('session?.coordinator.setAutoSave({ outputs: enabled })')
+    expect(editorSource).toContain('if (!enabled) writeAutoSyncOutputsPref(false)')
+    expect(editorSource).toContain('if (enabled) writeAutoSavePref(true)')
     expect(editorSource).toContain('session?.coordinator.setAutoSave({ docs: enabled })')
+    expect(editorSource).toContain('session?.coordinator.setAutoSave({ outputs: enabled })')
     expect(editorSource).toContain('autoSave: { docs: autoSaveEnabled.value, outputs: autoSyncOutputsEnabled.value }')
     expect(toolbarSource).toContain('store.setAutoSyncOutputs(($event.target as HTMLInputElement).checked)')
     expect(toolbarSource).toContain("$t('toolbar.autoSyncSql')")

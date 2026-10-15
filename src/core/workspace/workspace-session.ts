@@ -1,10 +1,11 @@
 import type { CommonConfig, Schema, Table } from '@/types/schema'
 import { normalizeInitialData } from '@/utils/initial-data-io'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
-import { COMMON_FILE, CURRENT_STRUCT_VERSION, ENVIRONMENTS_DIR, INITIAL_DATA_FILE, MIGRATIONS_DIR, VERSIONS_DIR } from './layout'
+import { COMMON_FILE, CURRENT_STRUCT_VERSION, ENVIRONMENTS_DIR, INITIAL_DATA_FILE, MIGRATIONS_DIR, OUTPUT_DIR, VERSIONS_DIR } from './layout'
 import type { BrowserWorkspaceWriter } from './browser-workspace'
-import { SaveCoordinator, type FileChange, type SaveState, type WorkspaceWriter } from './save-coordinator'
+import { SaveCoordinator, type AutoSaveOptions, type FileChange, type SaveState, type WorkspaceWriter } from './save-coordinator'
 import { affectedSourceChanges, databasePath, fullSourceChanges, generatedFileChanges, projectOutputPaths, projectSourceFiles, schemaDirectory, schemaPrefix, tableDirectory, type ProjectDocuments } from './project-documents'
+import { AI_GUIDE_FILE } from '@/utils/ai-guide'
 import type { AffectedFile } from '@/core/history/command'
 
 export function createDefaultCommonConfig(): CommonConfig {
@@ -99,7 +100,7 @@ export function createWorkspaceSession(options: {
   writer: SessionWriter
   files: ReadonlyMap<string, string>
   project: () => ProjectDocuments
-  autoSave: boolean
+  autoSave: Partial<AutoSaveOptions>
   onStateChange: (state: SaveState) => void
 }) {
   const coordinator: SaveCoordinator = new SaveCoordinator({
@@ -107,6 +108,8 @@ export function createWorkspaceSession(options: {
     initialFiles: options.files,
     autoSave: options.autoSave,
     onStateChange: options.onStateChange,
+    // 项目文档与派生文件（output/ 下的 SQL、AI 指南）分开控制自动写入
+    classify: path => path.startsWith(`${OUTPUT_DIR}/`) || path === AI_GUIDE_FILE ? 'outputs' : 'docs',
     prepare: (changed, mode): FileChange[] => generatedFileChanges(options.project(), changed, coordinator.files, mode),
   })
   return {

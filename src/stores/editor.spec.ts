@@ -50,6 +50,16 @@ describe('toolbar save controls', () => {
     expect(toolbarSource).toContain("window.addEventListener('beforeunload', onBeforeUnload)")
   })
 
+  it('controls project files and derived SQL with two independent switches', () => {
+    expect(editorSource).toContain('const autoSyncOutputsEnabled = ref(')
+    expect(editorSource).toContain('function setAutoSyncOutputs(enabled: boolean)')
+    expect(editorSource).toContain('session?.coordinator.setAutoSave({ outputs: enabled })')
+    expect(editorSource).toContain('session?.coordinator.setAutoSave({ docs: enabled })')
+    expect(editorSource).toContain('autoSave: { docs: autoSaveEnabled.value, outputs: autoSyncOutputsEnabled.value }')
+    expect(toolbarSource).toContain('store.setAutoSyncOutputs(($event.target as HTMLInputElement).checked)')
+    expect(toolbarSource).toContain("$t('toolbar.autoSyncSql')")
+  })
+
   it('marks the tab title and hands the three-way choice to the store', () => {
     expect(toolbarSource).toContain('document.title = store.hasUnsavedChanges')
     expect(appSource).toContain("resolveConfirm('secondary')")

@@ -4,7 +4,7 @@ import { affectedSql, affectedTable } from '@/core/history/command'
 import { buildInitialDataExport } from '@/utils/initial-data-io'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
 import { COMMON_FILE, CURRENT_STRUCT_VERSION, ENVIRONMENTS_DIR, MIGRATIONS_DIR, VERSIONS_DIR } from './layout'
-import type { FileChange, SaveMode, SaveState } from './save-coordinator'
+import type { AutoSaveOptions, FileChange, SaveMode, SaveState } from './save-coordinator'
 import { databasePath, jsonContent, projectSourceFiles, tableDirectory } from './project-documents'
 import { buildSchemaWriteData, buildTableExportData } from './serialization'
 import { createDefaultCommonConfig, createWorkspaceSession, loadWorkspaceDocuments } from './workspace-session'
@@ -161,8 +161,10 @@ describe('loadWorkspaceDocuments', () => {
   })
 })
 
+const manual = { docs: false, outputs: false }
+
 describe('createWorkspaceSession', () => {
-  async function open(options: { autoSave?: boolean } = {}) {
+  async function open(options: { autoSave?: Partial<AutoSaveOptions> } = {}) {
     const { writer } = fixture()
     const { project, files } = await loadWorkspaceDocuments(writer)
     const states: SaveState[] = []
@@ -170,7 +172,7 @@ describe('createWorkspaceSession', () => {
       writer,
       files,
       project: () => project,
-      autoSave: options.autoSave ?? true,
+      autoSave: options.autoSave ?? {},
       onStateChange: state => states.push(state),
     })
     return { writer, project, states, ...session }
@@ -215,6 +217,36 @@ describe('createWorkspaceSession', () => {
     expect(writer.saved).toHaveLength(0)
   })
 
+  it('writes project files but leaves SQL pending while output sync is off', async () => {
+    const { writer, project, changed, saveAll, coordinator } = await open({ autoSave: { docs: true, outputs: false } })
+    project.schemas[0]!.tables[1]!.comment = '只保存文档'
+    changed([affectedTable('app', 'users')])
+
+    await coordinator.saveChanges()
+    expect(writer.saved).toHaveLength(1)
+    expect(writer.saved[0]!.map(change => change.path)).toEqual([editedTable()])
+    expect(writer.tree.get(editedTable())).toContain('只保存文档')
+    expect(coordinator.state.dirty).toBe(true)
+    expect(coordinator.state.pendingFiles).toBeGreaterThan(0)
+
+    await saveAll()
+    expect(writer.saved.flat().map(change => change.path)).toContain('output/mysql/app.sql')
+    expect(coordinator.state).toMatchObject({ dirty: false, pendingFiles: 0 })
+  })
+
+  it('writes only the derived SQL when project auto save is off', async () => {
+    const { writer, project, changed, coordinator } = await open({ autoSave: { docs: false, outputs: true } })
+    project.schemas[0]!.tables[1]!.comment = '仅同步 SQL'
+    changed([affectedTable('app', 'users')])
+
+    await coordinator.saveChanges()
+    const paths = writer.saved.flat().map(change => change.path)
+    expect(paths).not.toContain(editedTable())
+    expect(paths).toContain('output/mysql/app.sql')
+    expect(writer.tree.get(editedTable())).not.toContain('仅同步 SQL')
+    expect(coordinator.state.dirty).toBe(true)
+  })
+
   it('coalesces a burst of edits into one auto save that only carries the touched documents', async () => {
     vi.useFakeTimers()
     try {
@@ -235,7 +267,7 @@ describe('createWorkspaceSession', () => {
   })
 
   it('holds edits in memory while auto save is off and flushes them on manual save', async () => {
-    const { writer, project, changed, saveAll, coordinator } = await open({ autoSave: false })
+    const { writer, project, changed, saveAll, coordinator } = await open({ autoSave: manual })
     project.schemas[0]!.tables[1]!.comment = '待保存'
     changed([affectedTable('app', 'users')])
     await Promise.resolve()
@@ -262,7 +294,7 @@ describe('createWorkspaceSession', () => {
   })
 
   it('regenerates every source and output file on manual save', async () => {
-    const { writer, project, changed, saveAll } = await open({ autoSave: false })
+    const { writer, project, changed, saveAll } = await open({ autoSave: manual })
     project.schemas.push({ schema: 'extra', tables: [] })
     changed([affectedSql()])
     await saveAll()
@@ -283,7 +315,7 @@ describe('createWorkspaceSession', () => {
       writer,
       files,
       project: () => project,
-      autoSave: true,
+      autoSave: {},
       onStateChange: state => states.push(state),
     })
     expect(writer.tree.has('output/mysql/app.sql')).toBe(false)
@@ -301,7 +333,7 @@ describe('createWorkspaceSession', () => {
   })
 
   it('deletes project files that disappeared from memory on manual save', async () => {
-    const { writer, project, saveAll } = await open({ autoSave: false })
+    const { writer, project, saveAll } = await open({ autoSave: manual })
     project.schemas[1]!.tables.pop()
     await saveAll()
     const removed = writer.saved.flat().filter(change => change.content === null).map(change => change.path)
@@ -326,7 +358,7 @@ describe('createWorkspaceSession', () => {
   })
 
   it('ignores changes and rejects saves once disposed', async () => {
-    const { project, changed, coordinator } = await open({ autoSave: false })
+    const { project, changed, coordinator } = await open({ autoSave: manual })
     await coordinator.dispose()
     project.schemas[0]!.tables[1]!.comment = '关闭之后'
     changed([affectedTable('app', 'users')])

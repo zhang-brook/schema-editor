@@ -73,9 +73,26 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== 保存：改动经工作区会话增量落盘 =====
   const AUTO_SAVE_PREF = 'schema-editor.autosave'
+  const AUTO_SYNC_OUTPUTS_PREF = 'schema-editor.autosave-outputs'
 
-  /** 自动保存开关（浏览器本地偏好，默认开启）。关闭后改动只留在内存，等用户点保存 */
-  const autoSaveEnabled = ref(typeof localStorage === 'undefined' ? true : localStorage.getItem(AUTO_SAVE_PREF) !== 'off')
+  function readBoolPref(key: string, fallback: boolean): boolean {
+    if (typeof localStorage === 'undefined') return fallback
+    const stored = localStorage.getItem(key)
+    return stored === null ? fallback : stored !== 'off'
+  }
+
+  function writeBoolPref(key: string, value: boolean) {
+    if (typeof localStorage === 'undefined') return
+    localStorage.setItem(key, value ? 'on' : 'off')
+  }
+
+  /**
+   * 实时保存项目文件（浏览器本地偏好，默认开启）。关闭后改动只留在内存，等用户点保存。
+   * 派生文件（output/ 下的 SQL）由 autoSyncOutputsEnabled 独立控制。
+   */
+  const autoSaveEnabled = ref(readBoolPref(AUTO_SAVE_PREF, true))
+  /** 变更后同步更新 SQL：未单独设置过时跟随「实时保存」，避免老用户被意外改成自动生成 */
+  const autoSyncOutputsEnabled = ref(readBoolPref(AUTO_SYNC_OUTPUTS_PREF, autoSaveEnabled.value))
   const saveState = ref<SaveState>({ dirty: false, saving: false, error: null, pendingFiles: 0 })
   const hasUnsavedChanges = computed(() => saveState.value.dirty)
   let session: WorkspaceSession | null = null
@@ -439,7 +456,7 @@ export const useEditorStore = defineStore('editor', () => {
       writer,
       files,
       project: () => ({ common: commonConfig.value, schemas, initialData: initialDataMap }),
-      autoSave: autoSaveEnabled.value,
+      autoSave: { docs: autoSaveEnabled.value, outputs: autoSyncOutputsEnabled.value },
       onStateChange: state => { saveState.value = state },
     })
 
@@ -671,11 +688,18 @@ export const useEditorStore = defineStore('editor', () => {
     if (!hasUnsavedChanges.value) showToast(t('toast.saved'))
   }
 
-  /** 切换实时保存开关：对当前会话立即生效，并记入浏览器偏好 */
+  /** 切换「实时保存项目文件」：对当前会话立即生效，并记入浏览器偏好 */
   function setAutoSave(enabled: boolean) {
     autoSaveEnabled.value = enabled
-    if (typeof localStorage !== 'undefined') localStorage.setItem(AUTO_SAVE_PREF, enabled ? 'on' : 'off')
-    session?.coordinator.setAutoSave(enabled)
+    writeBoolPref(AUTO_SAVE_PREF, enabled)
+    session?.coordinator.setAutoSave({ docs: enabled })
+  }
+
+  /** 切换「变更后同步更新 SQL」：只覆盖 output/ 下的派生文件，与项目文件的保存互不依赖 */
+  function setAutoSyncOutputs(enabled: boolean) {
+    autoSyncOutputsEnabled.value = enabled
+    writeBoolPref(AUTO_SYNC_OUTPUTS_PREF, enabled)
+    session?.coordinator.setAutoSave({ outputs: enabled })
   }
 
   /**
@@ -971,9 +995,11 @@ export const useEditorStore = defineStore('editor', () => {
     confirmUpgradeStructure,
     cancelUpgradeStructure,
 
-    // 保存：自动保存开关、未保存态与手动全量保存
+    // 保存：项目文件 / 派生 SQL 两个独立开关、未保存态与手动全量保存
     autoSaveEnabled,
     setAutoSave,
+    autoSyncOutputsEnabled,
+    setAutoSyncOutputs,
     saveState,
     hasUnsavedChanges,
     saveProjectWithFeedback,

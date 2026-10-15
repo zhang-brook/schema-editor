@@ -141,6 +141,24 @@ describe('loadWorkspaceDocuments', () => {
     const { project } = await loadWorkspaceDocuments(writer)
     expect(project.schemas[0]!.tables.map(table => table.name)).toEqual(['users', 'roles'])
   })
+
+  it('tolerates documents without SQL, table_order, fields or indexes and ignores orphan directories', async () => {
+    const { writer } = fixture()
+    writer.tree.set('current/schemas/app/schema.json', jsonContent({ schema: 'app' }))
+    writer.tree.set(`${tableDirectory('app', 'users')}/table.json`, jsonContent({ name: 'users', comment: '' }))
+    writer.tree.set(`${tableDirectory('app', 'roles')}/table.json`, jsonContent({ name: 'roles', comment: '' }))
+    writer.tree.set('current/schemas/orphan/ghost/table.json', jsonContent({ name: 'ghost' }))
+    writer.tree.set('current/schemas/unordered/schema.json', jsonContent({ schema: 'unordered' }))
+
+    const { project } = await loadWorkspaceDocuments(writer)
+    expect(project.schemas.map(schema => schema.schema)).toEqual(['app', 'audit', 'unordered'])
+    const app = project.schemas[0]!
+    expect(app.pre_sql).toBeUndefined()
+    expect(app.post_sql).toBeUndefined()
+    expect(app.tables.map(table => table.name)).toEqual(['users', 'roles'])
+    expect(app.tables[0]).toMatchObject({ name: 'users', fields: [], indexes: [] })
+    expect(project.schemas[2]!.tables).toEqual([])
+  })
 })
 
 describe('createWorkspaceSession', () => {

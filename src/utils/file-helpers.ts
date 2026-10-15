@@ -12,9 +12,8 @@ import {
   getSchemaDirUnderCurrent,
   getTableDirUnderSchema,
   getTableFileHandle,
-  getInitialDataFileHandle,
 } from '@/core/workspace/paths'
-import { CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
+import { CURRENT_STRUCT_VERSION, SCHEMA_FILE, sanitizeName } from '@/core/workspace/layout'
 import {
   getOrCreateDir,
   getFileHandleSafe,
@@ -22,13 +21,8 @@ import {
   writeJsonFile,
   removeEntry,
 } from '@/core/workspace/handles'
-import {
-  SCHEMAS_DIR,
-  SCHEMA_FILE,
-  sanitizeName,
-} from '@/core/workspace/layout'
 import { compareStructVersion } from './structure-migrations/version-utils'
-import { normalizeInitialData, writeInitialDataToNewStructure } from './initial-data-io'
+import { writeInitialDataToNewStructure } from './initial-data-io'
 import { buildSchemaWriteData, type SchemaWriteData } from '@/core/workspace/serialization'
 
 const jsonFileIndent = 4
@@ -42,69 +36,6 @@ const jsonFileIndent = 4
  */
 export function isFileSystemAccessSupported(): boolean {
   return typeof window !== 'undefined' && 'showDirectoryPicker' in window
-}
-
-/**
- * 弹出文件夹选择器（或接收已拖入的 handle），读取项目结构：
- *   - common.json（根目录）
- *   - schema/ 子目录下的所有 .json 文件
- * 返回 { rootHandle, schemaHandle, commonData, schemaFiles[] }
- */
-export async function openProjectFolder(rootHandle?: FileSystemDirectoryHandle): Promise<{
-  rootHandle: FileSystemDirectoryHandle
-  schemaHandle: FileSystemDirectoryHandle
-  commonData: unknown | null
-  schemaFiles: { name: string; data: unknown }[]
-}> {
-  const resolvedRootHandle: FileSystemDirectoryHandle = rootHandle ?? await window.showDirectoryPicker()
-  let commonData: unknown | null = null
-  let schemaHandle: FileSystemDirectoryHandle | null = null
-  const schemaFiles: { name: string; data: unknown }[] = []
-
-  // 逐条扫描根目录
-  for await (const entry of resolvedRootHandle.values()) {
-    const handle: FileSystemFileHandle | FileSystemDirectoryHandle = entry
-    const name: string = handle.name
-    console.log(`[openProjectFolder] root entry: "${name}" kind=${handle.kind}`)
-
-    if (name === 'common.json' && handle.kind === 'file') {
-      try {
-        const file = await handle.getFile()
-        commonData = JSON.parse(await file.text())
-        console.log('[openProjectFolder] common.json loaded')
-      } catch (e) { console.warn('[openProjectFolder] common.json parse error:', e) }
-    }
-
-    if (name === SCHEMAS_DIR && handle.kind === 'directory') {
-      schemaHandle = handle
-      console.log('[openProjectFolder] schemas/ directory found')
-    }
-  }
-
-  // 读取 schemas/ 子目录
-  try {
-    const sdHandle = await getSchemasDir(resolvedRootHandle)
-    schemaHandle = sdHandle
-    console.log('[openProjectFolder] iterating schemas/ entries...')
-    for await (const entry of sdHandle.values()) {
-      const fHandle: FileSystemFileHandle | FileSystemDirectoryHandle = entry
-      const fName: string = fHandle.name
-      console.log(`[openProjectFolder]   schemas entry: "${fName}" kind=${fHandle.kind}`)
-      if (fName.endsWith('.json') && fHandle.kind === 'file') {
-        try {
-          const file = await fHandle.getFile()
-          schemaFiles.push({ name: fName, data: JSON.parse(await file.text()) })
-          console.log(`[openProjectFolder]   -> loaded "${fName}"`)
-        } catch (e) { console.warn(`[openProjectFolder]   -> failed "${fName}":`, e) }
-      }
-    }
-    console.log(`[openProjectFolder] schema files found: ${schemaFiles.length}`)
-  } catch {
-    console.log('[openProjectFolder] no schemas/ directory, creating one')
-    schemaHandle = await getSchemasDir(resolvedRootHandle, true)
-  }
-
-  return { rootHandle: resolvedRootHandle, schemaHandle, commonData, schemaFiles }
 }
 
 // ===== 新结构（current/）读写 =====
@@ -121,16 +52,6 @@ export async function openProjectFolder(rootHandle?: FileSystemDirectoryHandle):
 //           initial-data.json       行内化初始数据（对象格式）
 //
 // 旧的 schemas/、initial-data/ 平行目录仅在「从旧结构迁移」(migrateOldToNewStructure) 时读取。
-
-export interface NewStructureProject {
-  rootHandle: FileSystemDirectoryHandle
-  /** current/database.json 内容（含 schema_order） */
-  databaseData: { schema_order?: string[] } | null
-  /** 每个 schema 的元信息（含前后置 SQL）、table 排序、已加载的表定义 */
-  schemas: (SchemaWriteData & { tables: Table[] })[]
-  /** 行内化的初始数据，key 为 `${schemaName}/${tableName}` */
-  initialData: { key: string; data: InitialData }[]
-}
 
 /**
  * 判断根目录是否已是最新结构。
@@ -160,157 +81,6 @@ export async function isEmptyFolder(rootHandle: FileSystemDirectoryHandle): Prom
     return false
   }
   return true
-}
-
-/**
- * 打开新结构项目：读取 current/database.json + 各 table.json + 各 initial-data.json。
- * 调用前不要求 current/ 已存在——若没有则返回一个空项目骨架（由调用方后续写盘创建）。
- */
-export async function openProjectFolderNew(rootHandle?: FileSystemDirectoryHandle): Promise<NewStructureProject> {
-  const resolvedRootHandle: FileSystemDirectoryHandle = rootHandle ?? await window.showDirectoryPicker()
-
-  const result: NewStructureProject = {
-    rootHandle: resolvedRootHandle,
-    databaseData: null,
-    schemas: [],
-    initialData: [],
-  }
-
-  let currentDir: FileSystemDirectoryHandle
-  try {
-    currentDir = await getCurrentDir(resolvedRootHandle, false)
-  } catch {
-    // 尚未有新结构，返回空骨架（首次打开空白项目）
-    return result
-  }
-
-  // 读取 current/database.json
-  try {
-    const dbHandle = await getCurrentDatabaseFileHandle(currentDir, false)
-    result.databaseData = await readJsonFile<{ schema_order?: string[] }>(dbHandle)
-  } catch {
-    result.databaseData = null
-  }
-
-  // 读取 current/schemas/ 下的各 schema 目录
-  let schemasDir: FileSystemDirectoryHandle
-  try {
-    schemasDir = await getCurrentSchemasDir(currentDir, false)
-  } catch {
-    return result
-  }
-
-  // 先收集所有 schema 目录句柄，再批量并行处理（保持「先列出目录、后读文件」的先后约束，
-  // 但同层级的各 schema/各 table/各 json 读取互不依赖，可用 Promise.all 并行加速）
-  const schemaDirs: FileSystemDirectoryHandle[] = []
-  for await (const schemaEntry of schemasDir.values()) {
-    if (schemaEntry.kind !== 'directory') continue
-    schemaDirs.push(schemaEntry as FileSystemDirectoryHandle)
-  }
-
-  const loadedSchemas = await Promise.all(
-    schemaDirs.map(async (schemaDir) => {
-      // 读 schema.json
-      let schemaMeta: Partial<SchemaWriteData> = {}
-      try {
-        const schemaJsonHandle = await getFileHandleSafe(schemaDir, SCHEMA_FILE, false)
-        schemaMeta = await readJsonFile(schemaJsonHandle)
-      } catch {
-        // 无 schema.json 跳过该目录
-        return null
-      }
-      if (!schemaMeta.schema) return null
-
-      const loadedSchema = {
-        schema: schemaMeta.schema,
-        table_order: schemaMeta.table_order ?? [],
-        pre_sql: schemaMeta.pre_sql,
-        post_sql: schemaMeta.post_sql,
-        tables: [] as Table[],
-      }
-
-      // 先收集该 schema 下的所有 table 目录句柄
-      const tableDirs: FileSystemDirectoryHandle[] = []
-      for await (const tableEntry of schemaDir.values()) {
-        if (tableEntry.kind !== 'directory') continue
-        tableDirs.push(tableEntry as FileSystemDirectoryHandle)
-      }
-
-      // 批量并行读取每个 table 的 table.json 与 initial-data.json（两者无依赖，可同时读）
-      await Promise.all(
-        tableDirs.map(async (tableDir) => {
-          // 读 table.json
-          let tableData: Table | null = null
-          try {
-            const tableJsonHandle = await getTableFileHandle(tableDir, false)
-            tableData = await readJsonFile<Table>(tableJsonHandle)
-          } catch {
-            tableData = null
-          }
-          if (!tableData || !tableData.name) return
-
-          // 补全缺省字段（与旧加载逻辑一致）
-          if (!tableData.indexes) tableData.indexes = []
-          if (!tableData.fields) tableData.fields = []
-          loadedSchema.tables.push(tableData)
-
-          // 读 initial-data.json（可选）
-          try {
-            const initHandle = await getInitialDataFileHandle(tableDir, false)
-            const initParsed = await readJsonFile(initHandle)
-            const normalized = normalizeInitialData(initParsed)
-            if (normalized) {
-              result.initialData.push({
-                key: `${schemaMeta.schema}/${tableData.name}`,
-                data: normalized,
-              })
-            }
-          } catch {
-            // 无 initial-data.json，跳过
-          }
-        }),
-      )
-
-      // 按 table_order 排序（不在列表中的保留原位）
-      const order = loadedSchema.table_order
-      if (order.length > 0) {
-        const orderMap = new Map<string, number>()
-        order.forEach((name, i) => orderMap.set(name, i))
-        loadedSchema.tables.sort((a, b) => {
-          const ai = orderMap.get(a.name)
-          const bi = orderMap.get(b.name)
-          if (ai === undefined && bi === undefined) return 0
-          if (ai === undefined) return 1
-          if (bi === undefined) return -1
-          return ai - bi
-        })
-      }
-
-      return loadedSchema
-    }),
-  )
-
-  // 仅保留成功加载的 schema（过滤 null）
-  for (const s of loadedSchemas) {
-    if (s) result.schemas.push(s)
-  }
-
-  // 按 schema_order 排序（不在列表中的保留原位）
-  const schemaOrder = result.databaseData?.schema_order ?? []
-  if (schemaOrder.length > 0) {
-    const orderMap = new Map<string, number>()
-    schemaOrder.forEach((name, i) => orderMap.set(name, i))
-    result.schemas.sort((a, b) => {
-      const ai = orderMap.get(a.schema)
-      const bi = orderMap.get(b.schema)
-      if (ai === undefined && bi === undefined) return 0
-      if (ai === undefined) return 1
-      if (bi === undefined) return -1
-      return ai - bi
-    })
-  }
-
-  return result
 }
 
 /** 将 database.json 写入 current/ */
@@ -475,23 +245,6 @@ export async function writeCommonToHandle(rootHandle: FileSystemDirectoryHandle,
   await writable.close()
 }
 
-/**
- * 将 schema 数据写入 schema/<filename>.json
- */
-export async function writeSchemaToHandle(schemaHandle: FileSystemDirectoryHandle, filename: string, data: unknown): Promise<void> {
-  const handle = await schemaHandle.getFileHandle(filename, { create: true })
-  const writable = await handle.createWritable()
-  await writable.write(JSON.stringify(toRaw(data), null, jsonFileIndent))
-  await writable.close()
-}
-
-/**
- * 从 schema/ 目录删除文件
- */
-export async function deleteSchemaFromHandle(schemaHandle: FileSystemDirectoryHandle, filename: string): Promise<void> {
-  await schemaHandle.removeEntry(filename)
-}
-
 // ===== 业务无关的工具函数 =====
 
 
@@ -547,21 +300,4 @@ export function parseFieldScaleInput(val: string): number | null {
  */
 export function displayFieldScale(val: any): string {
   return displayFieldLength(val)
-}
-
-/**
- * 文本转注释数组
- */
-export function commentTextToArray(text: string): (string | null)[] {
-  return text.split('\n').map(line => line === '' ? null : line)
-}
-
-/**
- * 注释数组转文本
- */
-export function commentArrayToText(arr: string | (string | null)[]): string {
-  if (Array.isArray(arr)) {
-    return arr.map(item => item === null ? '' : item).join('\n')
-  }
-  return arr
 }

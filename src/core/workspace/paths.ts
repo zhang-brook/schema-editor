@@ -44,36 +44,12 @@ export function getSchemasDir(
   return getOrCreateDir(root, SCHEMAS_DIR, create)
 }
 
-/** 旧结构某 schema 的 <name>.json 文件句柄 */
-export function getOldSchemaFileHandle(
-  schemasDir: FileSystemDirectoryHandle,
-  filename: string,
-): Promise<FileSystemFileHandle> {
-  return getFileHandleSafe(schemasDir, filename)
-}
-
-/** 删除旧结构某 schema 的 <name>.json */
-export function removeOldSchemaFile(
-  schemasDir: FileSystemDirectoryHandle,
-  filename: string,
-): Promise<void> {
-  return removeEntry(schemasDir, filename)
-}
-
 /** 旧结构 initial-data/ 目录句柄 */
 export function getInitialDataDir(
   root: FileSystemDirectoryHandle,
   create = true,
 ): Promise<FileSystemDirectoryHandle> {
   return getOrCreateDir(root, INITIAL_DATA_DIR, create)
-}
-
-/** 旧结构 initial-data/<schema>/<table>.json 文件句柄 */
-export function getOldInitialDataFileHandle(
-  schemaDir: FileSystemDirectoryHandle,
-  tableName: string,
-): Promise<FileSystemFileHandle> {
-  return getFileHandleSafe(schemaDir, `${tableName}.json`)
 }
 
 /** 删除旧结构 initial-data/<schema>/<table>.json */

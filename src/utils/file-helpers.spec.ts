@@ -10,11 +10,9 @@ import {
 import {
   isNewStructure,
   migrateOldToNewStructure,
-  openProjectFolderNew,
   writeCommonToHandle,
   writeDatabaseToHandle,
   writeSchemaJsonToHandle,
-  writeSchemaToHandle,
   writeTableToHandle,
 } from './file-helpers'
 import { buildInitialDataExport, writeInitialDataToNewStructure } from './initial-data-io'
@@ -143,34 +141,55 @@ function fixture() {
   return { schemas, common, initialData }
 }
 
-async function expectRoundTrip(root: FileSystemDirectoryHandle, source: ReturnType<typeof fixture>) {
-  const loaded = await openProjectFolderNew(root)
-  expect(loaded.rootHandle).toBe(root)
-  expect(loaded.databaseData).toStrictEqual({ schema_order: source.common.schema_order })
-  expect(loaded.schemas.map(schema => schema.schema)).toStrictEqual(source.common.schema_order)
-  for (const schema of loaded.schemas) {
-    const original = source.schemas.find(item => item.schema === schema.schema)!
-    expect(schema.table_order).toStrictEqual(original.tables.map(table => table.name))
-    expect(schema.tables).toStrictEqual(original.tables.map(buildTableExportData))
-    const metadata = buildSchemaWriteData(original)
-    expect(schema.pre_sql).toStrictEqual(metadata.pre_sql)
-    expect(schema.post_sql).toStrictEqual(metadata.post_sql)
-    expect(await readAt(root, ['current', 'schemas', sanitizeName(schema.schema), 'schema.json'])).toStrictEqual(metadata)
+async function dirAt(root: FileSystemDirectoryHandle, path: string[]): Promise<FileSystemDirectoryHandle> {
+  let dir = root
+  for (const segment of path) dir = await dir.getDirectoryHandle(segment, { create: false })
+  return dir
+}
+
+async function entriesOf(dir: FileSystemDirectoryHandle): Promise<string[]> {
+  const names: string[] = []
+  for await (const entry of dir.values()) names.push(entry.name)
+  return names
+}
+
+/**
+ * 直接读回磁盘上的新布局产物并逐路径比对内存态。
+ * 写入结果即事实来源，不借助任何加载器，避免「写入工具与其读取方一起改坏」。
+ */
+async function expectRoundTrip(
+  root: FileSystemDirectoryHandle,
+  source: ReturnType<typeof fixture>,
+  expectedInitialData = source.initialData,
+) {
+  expect(await readAt(root, ['current', 'database.json'])).toStrictEqual({ schema_order: source.common.schema_order })
+  expect((await entriesOf(await dirAt(root, ['current', 'schemas']))).sort())
+    .toStrictEqual(source.schemas.map(schema => sanitizeName(schema.schema)).sort())
+
+  const initialFiles: string[] = []
+  for (const schema of source.schemas) {
+    const schemaDir = ['current', 'schemas', sanitizeName(schema.schema)]
+    expect(await readAt(root, [...schemaDir, 'schema.json'])).toStrictEqual(buildSchemaWriteData(schema))
     for (const table of schema.tables) {
-      expect(await readAt(root, ['current', 'schemas', sanitizeName(schema.schema), sanitizeName(table.name), 'table.json'])).toStrictEqual(table)
+      const tableDir = [...schemaDir, sanitizeName(table.name)]
+      expect(await readAt(root, [...tableDir, 'table.json'])).toStrictEqual(buildTableExportData(table))
+      initialFiles.push(...(await entriesOf(await dirAt(root, tableDir))).filter(name => name === 'initial-data.json'))
     }
   }
+  expect(initialFiles).toHaveLength(expectedInitialData.length)
+
   const common = await readAt<CommonConfig>(root, ['common.json'])
   expect(common).toStrictEqual(buildCommonWriteData(source.common))
   expect(common).not.toHaveProperty('schema_order')
   expect(common.struct_version).toBe(CURRENT_STRUCT_VERSION)
   expect(await isNewStructure(root)).toBe(true)
-  expect(loaded.initialData).toHaveLength(source.initialData.length)
-  for (const item of source.initialData) {
+
+  for (const item of expectedInitialData) {
+    const [schemaName, tableName] = item.key.split('/')
     const expected = JSON.parse(JSON.stringify(buildInitialDataExport(item.data)))
-    expect(loaded.initialData.find(loaded => loaded.key === item.key)?.data).toStrictEqual(expected)
+    expect(await readAt(root, ['current', 'schemas', sanitizeName(schemaName!), sanitizeName(tableName!), 'initial-data.json']))
+      .toStrictEqual(expected)
   }
-  return loaded
 }
 
 describe('新布局序列化 File System Access API 内存 roundtrip', () => {
@@ -217,35 +236,11 @@ describe('新布局序列化 File System Access API 内存 roundtrip', () => {
     const root = asHandle(new MemoryDirectory(''))
     const source = fixture()
     await writeCommonToHandle(root, { ...buildCommonWriteData(source.common), struct_version: '0.4', schema_order: source.common.schema_order })
-    const legacySchemas = await root.getDirectoryHandle('schemas', { create: true })
-    for (const schema of source.schemas) await writeSchemaToHandle(legacySchemas, `${sanitizeName(schema.schema)}.json`, schema)
-    await runStructureMigrations(root, '0.4', { transformTable: (_schema, table) => buildTableExportData(table) }, CURRENT_STRUCT_VERSION)
-    await expectRoundTrip(root, { ...source, initialData: [] })
-    expect([...((legacySchemas as unknown as MemoryDirectory).children.keys())]).toStrictEqual([])
-  })
-
-  it('无 current 的空目录只读返回空项目，不创建任何文件', async () => {
-    const memory = new MemoryDirectory('')
-    const root = asHandle(memory)
-    expect(await openProjectFolderNew(root)).toStrictEqual({ rootHandle: root, databaseData: null, schemas: [], initialData: [] })
-    expect(memory.children.size).toBe(0)
-  })
-
-  it('兼容缺失 SQL/排序/fields/indexes，忽略无效目录，并将未列入顺序的表置末尾', async () => {
-    const root = asHandle(new MemoryDirectory(''))
-    await writeJsonFile(await fileAt(root, ['current', 'schemas', 'public', 'schema.json'], true), { schema: 'public', table_order: ['b'] })
-    for (const name of ['a', 'b', 'c']) {
-      await writeJsonFile(await fileAt(root, ['current', 'schemas', 'public', name, 'table.json'], true), { name, comment: '' })
+    for (const schema of source.schemas) {
+      await writeJsonFile(await fileAt(root, ['schemas', `${sanitizeName(schema.schema)}.json`], true), schema)
     }
-    await writeJsonFile(await fileAt(root, ['current', 'schemas', 'no_meta', 'orphan', 'table.json'], true), { name: 'orphan' })
-    await writeJsonFile(await fileAt(root, ['current', 'schemas', 'no_name', 'schema.json'], true), {})
-    await writeJsonFile(await fileAt(root, ['current', 'schemas', 'unordered', 'schema.json'], true), { schema: 'unordered' })
-    const loaded = await openProjectFolderNew(root)
-    expect(loaded.databaseData).toBeNull()
-    expect(loaded.schemas.map(schema => schema.schema)).toStrictEqual(['public', 'unordered'])
-    expect(loaded.schemas[0]!.tables).toStrictEqual(['b', 'a', 'c'].map(name => ({ name, comment: '', fields: [], indexes: [] })))
-    expect(loaded.schemas[0]!.pre_sql).toBeUndefined()
-    expect(loaded.schemas[0]!.post_sql).toBeUndefined()
-    expect(loaded.schemas[1]!.table_order).toStrictEqual([])
+    await runStructureMigrations(root, '0.4', { transformTable: (_schema, table) => buildTableExportData(table) }, CURRENT_STRUCT_VERSION)
+    await expectRoundTrip(root, source, [])
+    expect(await entriesOf(await dirAt(root, ['schemas']))).toStrictEqual([])
   })
 })

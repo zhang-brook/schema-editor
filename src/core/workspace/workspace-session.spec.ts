@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Field, InitialData, Schema, Table } from '@/types/schema'
 import { affectedSql, affectedTable } from '@/core/history/command'
 import { buildInitialDataExport } from '@/utils/initial-data-io'
@@ -100,7 +100,7 @@ describe('loadWorkspaceDocuments', () => {
 
   it('seeds the baseline from the loaded documents and skips nested auxiliary files', async () => {
     const { writer } = fixture()
-    const { project, files } = await loadWorkspaceDocuments(writer)
+    const { files } = await loadWorkspaceDocuments(writer)
     expect(files.get(databasePath)).toBe(writer.tree.get(databasePath))
     expect(files.get(`${tableDirectory('app', 'users')}/table.json`)).toBe(writer.tree.get(`${tableDirectory('app', 'users')}/table.json`))
     expect(files.get('output/mysql/app.sql')).toBe('-- 磁盘上的旧 SQL')
@@ -195,6 +195,25 @@ describe('createWorkspaceSession', () => {
     expect(coordinator.state.dirty).toBe(false)
     await coordinator.saveChanges()
     expect(writer.saved).toHaveLength(0)
+  })
+
+  it('coalesces a burst of edits into one auto save that only carries the touched documents', async () => {
+    vi.useFakeTimers()
+    try {
+      const { writer, project, changed, coordinator } = await open()
+      for (let round = 1; round <= 5; round++) {
+        project.schemas[0]!.tables[1]!.comment = `第 ${round} 次编辑`
+        changed([affectedTable('app', 'users')])
+      }
+      await vi.advanceTimersByTimeAsync(400)
+      expect(writer.saved).toHaveLength(1)
+      const paths = writer.saved[0]!.map(change => change.path)
+      expect(paths.filter(path => path === editedTable())).toHaveLength(1)
+      expect(writer.tree.get(editedTable())).toContain('第 5 次编辑')
+      expect(coordinator.state).toMatchObject({ dirty: false, saving: false, pendingFiles: 0 })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('holds edits in memory while auto save is off and flushes them on manual save', async () => {

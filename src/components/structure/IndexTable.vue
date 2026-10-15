@@ -23,8 +23,12 @@ const availableFieldNames = computed(() => {
 /** 项目级逻辑删除字段（作为索引级覆盖的占位提示） */
 const projectDeleteField = computed(() => store.getLogicalDelete().field ?? '')
 
+function updateIndex(index: Index, patch: Partial<Index>, key?: string) {
+  if (store.currentTable) store.updateIndex(store.currentTable, index, patch, key)
+}
+
 function setActiveOnly(index: Index, val: boolean) {
-  index.active_only = val ? true : undefined
+  updateIndex(index, { active_only: val ? true : undefined })
 }
 
 /** 该索引在任一方言下是否为唯一索引（普通索引无唯一性冲突，不提供开关） */
@@ -44,15 +48,10 @@ function ldOverrideValue(index: Index, key: 'field' | 'predicate' | 'mysql_strat
 
 function setLdOverride(index: Index, key: 'field' | 'predicate' | 'mysql_strategy', val: string) {
   const trimmed = val.trim()
-  if (!trimmed) {
-    if (index.logical_delete) {
-      delete index.logical_delete[key]
-      if (Object.keys(index.logical_delete).length === 0) index.logical_delete = undefined
-    }
-    return
-  }
-  if (!index.logical_delete) index.logical_delete = {}
-  ;(index.logical_delete as Record<string, unknown>)[key] = trimmed
+  const next = { ...index.logical_delete }
+  if (trimmed) (next as Record<string, unknown>)[key] = trimmed
+  else delete next[key]
+  updateIndex(index, { logical_delete: Object.keys(next).length ? next : undefined }, `logical-delete:${key}`)
 }
 
 /**
@@ -117,16 +116,16 @@ function composeIndexName(core: string, pre: boolean, post: boolean): string {
 
 // 回写核心名时保留当前前后缀开关状态
 function setIndexCore(index: Index, core: string) {
-  index.name = composeIndexName(core, hasPre(index), hasPost(index))
+  updateIndex(index, { name: composeIndexName(core, hasPre(index), hasPost(index)) })
 }
 
 // 点击徽标：切换是否自动添加前缀 / 后缀
 function togglePre(index: Index) {
-  index.name = composeIndexName(getIndexCore(index), !hasPre(index), hasPost(index))
+  updateIndex(index, { name: composeIndexName(getIndexCore(index), !hasPre(index), hasPost(index)) }, 'name-pre')
 }
 
 function togglePost(index: Index) {
-  index.name = composeIndexName(getIndexCore(index), hasPre(index), !hasPost(index))
+  updateIndex(index, { name: composeIndexName(getIndexCore(index), hasPre(index), !hasPost(index)) }, 'name-post')
 }
 
 /** 未勾选「自定义名称」即使用默认索引名（底层字段 use_default_name 语义相反，此处做翻转） */
@@ -135,7 +134,7 @@ function isDefaultName(index: Index): boolean {
 }
 
 function toggleCustomName(index: Index, custom: boolean) {
-  index.use_default_name = custom ? undefined : true
+  updateIndex(index, { use_default_name: custom ? undefined : true })
 }
 
 // ===== Drag-and-drop for Indexes =====
@@ -284,19 +283,19 @@ function onDropTail(e: DragEvent) {
                 </div>
               </td>
               <td>
-                <select class="form-input" v-model="index.type" style="width:80px;">
+                <select class="form-input" :value="index.type" @change="updateIndex(index, { type: ($event.target as HTMLSelectElement).value })" style="width:80px;">
                   <option value="index">index</option>
                   <option value="unique">unique</option>
                 </select>
               </td>
               <td style="min-width:240px;">
-                <IndexColumnsEditor v-model="index.columns" :available-fields="availableFieldNames" />
+                <IndexColumnsEditor :model-value="index.columns" :available-fields="availableFieldNames" @update:model-value="updateIndex(index, { columns: $event })" />
               </td>
               <td>
-                <input class="table-input" v-model="index.using" style="width:60px;">
+                <input class="table-input" :value="index.using" @input="updateIndex(index, { using: ($event.target as HTMLInputElement).value })" style="width:60px;">
               </td>
               <td>
-                <input class="table-input" v-model="index.comment" :placeholder="$t('indexTable.commentPlaceholder')" style="min-width:100px;">
+                <input class="table-input" :value="index.comment" @input="updateIndex(index, { comment: ($event.target as HTMLInputElement).value })" :placeholder="$t('indexTable.commentPlaceholder')" style="min-width:100px;">
               </td>
               <td>
                 <!-- 逻辑删除感知开关：仅 unique 索引可勾选，直接暴露在行内避免遗漏 -->
@@ -396,7 +395,7 @@ function onDropTail(e: DragEvent) {
                   </div>
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('indexTable.preComment') }}</div>
-                    <input class="form-input" v-model="index.pre_comment" :placeholder="$t('indexTable.preCommentPlaceholder')">
+                    <input class="form-input" :value="index.pre_comment" @input="updateIndex(index, { pre_comment: ($event.target as HTMLInputElement).value })" :placeholder="$t('indexTable.preCommentPlaceholder')">
                   </div>
                 </div>
               </td>

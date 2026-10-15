@@ -59,8 +59,8 @@ watch(() => store.currentInitialDataKey, () => {
   jsonError.value = ''
 }, { immediate: true })
 
-// 监听 store 数据变化（table 模式编辑时），同步到 JSON 文本
-watch(() => rows.value, () => {
+// 同步行及前后置 SQL；监听与切换只读，不隐式创建数据或命令。
+watch(() => initialData.value, () => {
   if (editorMode.value === 'table') {
     syncJsonText()
   }
@@ -91,37 +91,19 @@ function formatJson() {
   }
 }
 
-/** 确保当前表有 initialData 条目，供 pre/post SQL 依附（无条目时创建空对象） */
-function ensureInitialDataEntry(): InitialData | undefined {
-  if (!store.currentSchema || !store.currentTable) return undefined
-  let data = initialData.value
-  if (!data) {
-    const key = store.initialDataKey(store.currentSchema.schema, store.currentTable.name)
-    store.initialDataMap.set(key, {})
-    data = store.currentInitialData
-  }
-  return data
-}
-
 function handlePreSql(dialect: SqlDialect, val: string) {
-  const data = ensureInitialDataEntry()
-  if (data) store.setInitialDataPreSql(data, dialect, val)
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataPreSql(store.currentSchema.schema, store.currentTable.name, dialect, val)
 }
 
 function handlePostSql(dialect: SqlDialect, val: string) {
-  const data = ensureInitialDataEntry()
-  if (data) store.setInitialDataPostSql(data, dialect, val)
+  if (!store.currentSchema || !store.currentTable) return
+  store.setInitialDataPostSql(store.currentSchema.schema, store.currentTable.name, dialect, val)
 }
 
 function clearPrePostSql() {
-  const data = initialData.value
-  if (!data) return
-  store.setInitialDataPreSql(data, 'mysql', '')
-  store.setInitialDataPreSql(data, 'postgresql', '')
-  store.setInitialDataPreSql(data, 'sqlite', '')
-  store.setInitialDataPostSql(data, 'mysql', '')
-  store.setInitialDataPostSql(data, 'postgresql', '')
-  store.setInitialDataPostSql(data, 'sqlite', '')
+  if (!store.currentSchema || !store.currentTable) return
+  store.clearInitialDataPrePostSql(store.currentSchema.schema, store.currentTable.name)
 }
 
 function parseJsonInput(text: string): InitialData | null {
@@ -158,13 +140,8 @@ function switchMode(mode: 'json' | 'table') {
         jsonError.value = t('initialData.jsonError.invalidStructure') + t('initialData.jsonError.fixBeforeSwitch')
         return
       }
+      // 编辑已由 onJsonInput 写入；模式切换仅校验，不重复生成历史。
       jsonError.value = ''
-      // 仅当解析结果包含实际数据时才同步到 store，避免空对象覆盖导致已初始化的条目被误删
-      if ((parsed.rows?.length ?? 0) > 0 || parsed.pre_sql || parsed.post_sql) {
-        if (store.currentSchema && store.currentTable) {
-          store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, parsed)
-        }
-      }
     } catch (e: any) {
       jsonError.value = (e.message || t('initialData.jsonError.invalidSyntax')) + t('initialData.jsonError.fixBeforeSwitch')
       return
@@ -178,52 +155,49 @@ function switchMode(mode: 'json' | 'table') {
   editorMode.value = mode
 }
 
-/** 创建初始数据条目（仅创建空 JSON 文件，不添加 rows 属性；各板块按需写入） */
+/** 显式创建空 JSON 文件，不添加 rows 属性。 */
 function addInitialData() {
   if (!store.currentSchema || !store.currentTable) return
-  const key = store.initialDataKey(store.currentSchema.schema, store.currentTable.name)
-  store.initialDataMap.set(key, {})
+  store.addInitialData(store.currentSchema.schema, store.currentTable.name)
   editorMode.value = 'table'
 }
 
 function addRow() {
-  if (!store.currentSchema || !store.currentTable || !initialData.value) return
-  if (!initialData.value.rows) initialData.value.rows = []
-  initialData.value.rows.push({ data: {} })
+  if (!store.currentSchema || !store.currentTable) return
+  store.addInitialDataRow(store.currentSchema.schema, store.currentTable.name)
   syncJsonText()
 }
 
 function deleteRow(rowIdx: number) {
-  if (!store.currentSchema || !store.currentTable || !initialData.value || !initialData.value.rows) return
-  initialData.value.rows.splice(rowIdx, 1)
-  if (initialData.value.rows.length === 0) {
-    delete initialData.value.rows
-  }
+  if (!store.currentSchema || !store.currentTable) return
+  store.deleteInitialDataRow(store.currentSchema.schema, store.currentTable.name, rowIdx)
 }
 
 function moveRowUp(rowIdx: number) {
-  const wrapper = initialData.value
-  if (!wrapper?.rows || rowIdx <= 0) return
-    ;[wrapper.rows[rowIdx - 1], wrapper.rows[rowIdx]] = [wrapper.rows[rowIdx]!, wrapper.rows[rowIdx - 1]!]
+  if (!store.currentSchema || !store.currentTable) return
+  store.moveInitialDataRow(store.currentSchema.schema, store.currentTable.name, rowIdx, rowIdx - 1)
 }
 
 function moveRowDown(rowIdx: number) {
-  const wrapper = initialData.value
-  if (!wrapper?.rows || rowIdx >= wrapper.rows.length - 1) return
-    ;[wrapper.rows[rowIdx], wrapper.rows[rowIdx + 1]] = [wrapper.rows[rowIdx + 1]!, wrapper.rows[rowIdx]!]
+  if (!store.currentSchema || !store.currentTable) return
+  store.moveInitialDataRow(store.currentSchema.schema, store.currentTable.name, rowIdx, rowIdx + 1)
 }
 
 async function clearRows() {
-  if (!initialData.value) return
+  const schema = store.currentSchema?.schema
+  const table = store.currentTable?.name
+  if (!initialData.value || schema === undefined || table === undefined) return
   if (!(await confirmDialog({ title: t('confirm.title'), message: t('initialData.clearRowsConfirm'), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }))) return
-  delete initialData.value.rows
+  store.clearInitialDataRows(schema, table)
   syncJsonText()
 }
 
 async function clearAllData() {
-  if (!store.currentSchema || !store.currentTable) return
+  const schema = store.currentSchema?.schema
+  const table = store.currentTable?.name
+  if (schema === undefined || table === undefined) return
   if (!(await confirmDialog({ title: t('confirm.title'), message: t('initialData.clearConfirm'), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }))) return
-  store.deleteInitialData(store.currentSchema.schema, store.currentTable.name)
+  store.deleteInitialData(schema, table)
   jsonText.value = '{}'
   jsonError.value = ''
   editorMode.value = 'table'
@@ -243,7 +217,7 @@ function setCellValue(row: InitialDataRow, fieldName: string, val: string) {
     store.currentTable.name,
     row,
     fieldName,
-    parsed as string,
+    parsed,
   )
 }
 

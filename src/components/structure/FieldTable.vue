@@ -64,12 +64,7 @@ function onDrop(e: DragEvent, toIdx: number) {
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
   const fromIdx = dragFieldIdx.value
   if (fromIdx < 0 || fromIdx === toIdx || !store.currentTable) return
-  const arr = store.currentTable.fields
-  const [item] = arr.splice(fromIdx, 1)
-  if (item) {
-    const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
-    arr.splice(insertIdx, 0, item)
-  }
+  store.moveField(store.currentTable, fromIdx, toIdx)
   dragFieldIdx.value = -1
 }
 
@@ -152,10 +147,7 @@ function onDropTail(e: DragEvent) {
   if (fromIdx < 0 || !store.currentTable) return
   const arr = store.currentTable.fields
   if (fromIdx === arr.length - 1) return
-  const [item] = arr.splice(fromIdx, 1)
-  if (item) {
-    arr.push(item)
-  }
+  store.moveField(store.currentTable, fromIdx, arr.length)
   dragFieldIdx.value = -1
 }
 </script>

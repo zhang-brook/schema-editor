@@ -1,683 +1,426 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema, Table, Field, UnifiedTypeDefinition, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from '@/types/schema'
-import { affectedCommon, affectedTable, affectedSql, type Command } from '@/core/history/command'
+import type { CommonConfig, Schema, Field, FieldOverride, InitialData, UnifiedTypeDefinition, UnifiedTypeDbMapping, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from '@/types/schema'
+import { affectedCommon, affectedTable, affectedInitialData, affectedSql, type AffectedFile, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
-import { moveFieldCommentBefore, removeFieldCommentBefore } from '@/utils/table-comment-utils'
-import { createIndexFieldRemoval } from '@/utils/index-column-utils'
+import { parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
 import { confirmDialog } from '@/composables/useConfirm'
 
 export interface CommonConfigDeps {
   commonConfig: Ref<CommonConfig | null>
   schemas: Schema[]
+  initialDataMap: Map<string, InitialData>
   executeCommand: (cmd: Command) => void
   showToast: (msg: string) => void
-  t: (key: string, options?: any) => string
+  t: (key: string, options?: Record<string, unknown>) => string
+}
+
+// Only clone the edited values, never the project or all definitions. This also
+// preserves undefined/null and accepts Vue proxies (unlike structuredClone).
+function clone<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(item => clone(item)) as T
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, clone(item)])) as T
+  }
+  return value
+}
+
+interface Change {
+  apply(): void
+  revert(): void
+  changed: boolean
+}
+
+const owns = (object: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(object, key)
+
+/** Resolve the owner again on replay: other commands may replace fields/rows. */
+function propertyChange<T extends object, K extends keyof T>(get: () => T, key: K, value: T[K] | undefined): Change {
+  const had = owns(get(), key)
+  const before = clone(get()[key])
+  const after = clone(value)
+  const write = (present: boolean, snapshot: T[K] | undefined) => {
+    if (present) get()[key] = clone(snapshot) as T[K]
+    else delete get()[key]
+  }
+  return {
+    changed: had !== (value !== undefined) || JSON.stringify(before) !== JSON.stringify(after),
+    apply: () => write(after !== undefined, after),
+    revert: () => write(had, before),
+  }
+}
+
+function spliceChange<T>(get: () => T[], index: number, count: number, inserted: T[] = []): Change {
+  const before = clone(get().slice(index, index + count))
+  const after = clone(inserted)
+  return {
+    changed: true,
+    apply: () => { get().splice(index, count, ...clone(after)) },
+    revert: () => { get().splice(index, after.length, ...clone(before)) },
+  }
 }
 
 export function createCommonConfigActions(deps: CommonConfigDeps) {
-  const {
-    commonConfig,
-    schemas,
-    executeCommand,
-    showToast,
-    t,
-  } = deps
+  const { commonConfig, schemas, initialDataMap, executeCommand, showToast, t } = deps
+  const config = () => commonConfig.value!
+  const commonSqlFiles = () => [affectedCommon(), affectedSql()]
 
-  // ===== Global Pre/Post SQL =====
-
-  function setGlobalPreSql(dialect: SqlDialect, val: string) {
-    if (!commonConfig.value) return
-    const trimmed = val.trim()
-    const oldDefaultConfig = JSON.parse(JSON.stringify(commonConfig.value.default_config))
+  function commit(label: string, changes: Change[], files = commonSqlFiles(), coalesceKey?: string, options?: { dialect?: SqlDialect; db?: SqlDialect }): boolean {
+    if (!changes.some(change => change.changed)) return false
+    // Retain every final assignment, even unchanged keys of a multi-key patch:
+    // the last apply must stand alone after coalescing with an earlier patch.
+    const effective = changes
     executeCommand({
-      label: t('history.editGlobalPreSql', { dialect }),
-      coalesceKey: `global-pre-sql:${dialect}`,
-      apply() {
-        if (dialect === 'mysql') {
-          commonConfig.value!.default_config.mysql.pre_sql = trimmed || undefined
-        } else if (dialect === 'postgresql') {
-          if (!commonConfig.value!.default_config.postgresql) {
-            commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
-          }
-          commonConfig.value!.default_config.postgresql.pre_sql = trimmed || undefined
-        } else if (dialect === 'sqlite') {
-          if (!commonConfig.value!.default_config.sqlite) {
-            commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
-          }
-          commonConfig.value!.default_config.sqlite.pre_sql = trimmed || undefined
-        }
-      },
-      revert() {
-        commonConfig.value!.default_config = JSON.parse(JSON.stringify(oldDefaultConfig))
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
+      label: t(label, options),
+      coalesceKey,
+      apply: () => { for (const change of effective) change.apply() },
+      revert: () => { for (const change of [...effective].reverse()) change.revert() },
+      affectedFiles: () => files,
     })
+    return true
   }
 
-  function setGlobalPostSql(dialect: SqlDialect, val: string) {
+  function setGlobalSql(dialect: SqlDialect, key: 'pre_sql' | 'post_sql', val: string) {
     if (!commonConfig.value) return
-    const trimmed = val.trim()
-    const oldDefaultConfig = JSON.parse(JSON.stringify(commonConfig.value.default_config))
-    executeCommand({
-      label: t('history.editGlobalPostSql', { dialect }),
-      coalesceKey: `global-post-sql:${dialect}`,
-      apply() {
-        if (dialect === 'mysql') {
-          commonConfig.value!.default_config.mysql.post_sql = trimmed || undefined
-        } else if (dialect === 'sqlite') {
-          if (!commonConfig.value!.default_config.sqlite) {
-            commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
-          }
-          commonConfig.value!.default_config.sqlite.post_sql = trimmed || undefined
-        } else {
-          if (!commonConfig.value!.default_config.postgresql) {
-            commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
-          }
-          commonConfig.value!.default_config.postgresql.post_sql = trimmed || undefined
-        }
-      },
-      revert() {
-        commonConfig.value!.default_config = JSON.parse(JSON.stringify(oldDefaultConfig))
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
+    const value = val.trim() || undefined
+    const change = dialect === 'mysql'
+      ? propertyChange(() => config().default_config.mysql, key, value)
+      : propertyChange(() => config().default_config, dialect, {
+          ...(config().default_config[dialect] ?? { quote_identifiers: true }), [key]: value,
+        })
+    commit(key === 'pre_sql' ? 'history.editGlobalPreSql' : 'history.editGlobalPostSql', [change], commonSqlFiles(), `global-${key}:${dialect}`, { dialect })
   }
-
-  // ===== 项目信息（common.json 的 project_name / project_description） =====
+  function setGlobalPreSql(dialect: SqlDialect, val: string) { setGlobalSql(dialect, 'pre_sql', val) }
+  function setGlobalPostSql(dialect: SqlDialect, val: string) { setGlobalSql(dialect, 'post_sql', val) }
 
   function setProjectName(val: string) {
     if (!commonConfig.value) return
-    const old = commonConfig.value.project_name
-    executeCommand({
-      label: t('history.editProjectName'),
-      coalesceKey: 'project-name',
-      apply() {
-        // 清空视为未设置，避免在 common.json 中留下空字符串
-        commonConfig.value!.project_name = val.trim() ? val : undefined
-      },
-      revert() {
-        commonConfig.value!.project_name = old
-      },
-      affectedFiles() {
-        return [affectedCommon()]
-      },
-    })
+    commit('history.editProjectName', [propertyChange(config, 'project_name', val.trim() ? val : undefined)], [affectedCommon()], 'project-name')
   }
-
   function setProjectDescription(val: string) {
     if (!commonConfig.value) return
-    const old = commonConfig.value.project_description
-    executeCommand({
-      label: t('history.editProjectDescription'),
-      coalesceKey: 'project-description',
-      apply() {
-        commonConfig.value!.project_description = val.trim() ? val : undefined
-      },
-      revert() {
-        commonConfig.value!.project_description = old
-      },
-      affectedFiles() {
-        return [affectedCommon()]
-      },
-    })
+    commit('history.editProjectDescription', [propertyChange(config, 'project_description', val.trim() ? val : undefined)], [affectedCommon()], 'project-description')
   }
 
-  // ===== Common Config Editing =====
-  function getCommonMysqlEngine() {
-    return commonConfig.value?.default_config?.mysql?.table?.mysql_engine || ''
-  }
-  function getCommonMysqlCharset() {
-    return commonConfig.value?.default_config?.mysql?.table?.mysql_charset || ''
-  }
-  function getCommonMysqlCollation() {
-    return commonConfig.value?.default_config?.mysql?.table?.mysql_collation || ''
-  }
-  function setCommonMysqlEngine(val: string) {
+  function getCommonMysqlEngine() { return commonConfig.value?.default_config?.mysql?.table?.mysql_engine || '' }
+  function getCommonMysqlCharset() { return commonConfig.value?.default_config?.mysql?.table?.mysql_charset || '' }
+  function getCommonMysqlCollation() { return commonConfig.value?.default_config?.mysql?.table?.mysql_collation || '' }
+  function setMysqlTableOption(key: 'mysql_engine' | 'mysql_charset' | 'mysql_collation', val: string, label: string) {
     if (!commonConfig.value) return
-    const old = commonConfig.value.default_config.mysql.table.mysql_engine
-    executeCommand({
-      label: t('history.editMysqlEngine'),
-      coalesceKey: 'common-mysql-engine',
-      apply() {
-        commonConfig.value!.default_config.mysql.table.mysql_engine = val
-      },
-      revert() {
-        commonConfig.value!.default_config.mysql.table.mysql_engine = old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
+    commit(label, [propertyChange(() => config().default_config.mysql.table, key, val)], commonSqlFiles(), `common-${key}`)
   }
-  function setCommonMysqlCharset(val: string) {
-    if (!commonConfig.value) return
-    const old = commonConfig.value.default_config.mysql.table.mysql_charset
-    executeCommand({
-      label: t('history.editMysqlCharset'),
-      coalesceKey: 'common-mysql-charset',
-      apply() {
-        commonConfig.value!.default_config.mysql.table.mysql_charset = val
-      },
-      revert() {
-        commonConfig.value!.default_config.mysql.table.mysql_charset = old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
-  function setCommonMysqlCollation(val: string) {
-    if (!commonConfig.value) return
-    const old = commonConfig.value.default_config.mysql.table.mysql_collation
-    executeCommand({
-      label: t('history.editMysqlCollation'),
-      coalesceKey: 'common-mysql-collation',
-      apply() {
-        commonConfig.value!.default_config.mysql.table.mysql_collation = val
-      },
-      revert() {
-        commonConfig.value!.default_config.mysql.table.mysql_collation = old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
+  function setCommonMysqlEngine(val: string) { setMysqlTableOption('mysql_engine', val, 'history.editMysqlEngine') }
+  function setCommonMysqlCharset(val: string) { setMysqlTableOption('mysql_charset', val, 'history.editMysqlCharset') }
+  function setCommonMysqlCollation(val: string) { setMysqlTableOption('mysql_collation', val, 'history.editMysqlCollation') }
 
-  function getCommonPostgresqlQuoteIdentifiers(): boolean {
-    return commonConfig.value?.default_config?.postgresql?.quote_identifiers ?? true
-  }
-  function setCommonPostgresqlQuoteIdentifiers(val: boolean) {
+  function getCommonPostgresqlQuoteIdentifiers() { return commonConfig.value?.default_config?.postgresql?.quote_identifiers ?? true }
+  function getCommonSqliteQuoteIdentifiers() { return commonConfig.value?.default_config?.sqlite?.quote_identifiers ?? true }
+  function setQuoteIdentifiers(dialect: 'postgresql' | 'sqlite', val: boolean) {
     if (!commonConfig.value) return
-    const old = getCommonPostgresqlQuoteIdentifiers()
-    executeCommand({
-      label: t('history.editPgQuoteIdentifiers'),
-      apply() {
-        if (!commonConfig.value!.default_config.postgresql) {
-          commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
-        }
-        commonConfig.value!.default_config.postgresql.quote_identifiers = val
-      },
-      revert() {
-        if (!commonConfig.value!.default_config.postgresql) {
-          commonConfig.value!.default_config.postgresql = { quote_identifiers: true }
-        }
-        commonConfig.value!.default_config.postgresql.quote_identifiers = old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
+    commit(dialect === 'sqlite' ? 'history.editSqliteQuoteIdentifiers' : 'history.editPgQuoteIdentifiers', [
+      propertyChange(() => config().default_config, dialect, { ...config().default_config[dialect], quote_identifiers: val }),
+    ])
   }
-
-  function getCommonSqliteQuoteIdentifiers(): boolean {
-    return commonConfig.value?.default_config?.sqlite?.quote_identifiers ?? true
-  }
-  function setCommonSqliteQuoteIdentifiers(val: boolean) {
-    if (!commonConfig.value) return
-    const old = getCommonSqliteQuoteIdentifiers()
-    executeCommand({
-      label: t('history.editSqliteQuoteIdentifiers'),
-      apply() {
-        if (!commonConfig.value!.default_config.sqlite) {
-          commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
-        }
-        commonConfig.value!.default_config.sqlite.quote_identifiers = val
-      },
-      revert() {
-        if (!commonConfig.value!.default_config.sqlite) {
-          commonConfig.value!.default_config.sqlite = { quote_identifiers: true }
-        }
-        commonConfig.value!.default_config.sqlite.quote_identifiers = old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
-
-  function getTableDdlMode(): TableDdlMode {
-    return commonConfig.value?.default_config?.table_ddl_mode ?? 'drop_and_create'
-  }
+  function setCommonPostgresqlQuoteIdentifiers(val: boolean) { setQuoteIdentifiers('postgresql', val) }
+  function setCommonSqliteQuoteIdentifiers(val: boolean) { setQuoteIdentifiers('sqlite', val) }
+  function getTableDdlMode(): TableDdlMode { return commonConfig.value?.default_config?.table_ddl_mode ?? 'drop_and_create' }
   function setTableDdlMode(val: TableDdlMode) {
     if (!commonConfig.value) return
-    const old = getTableDdlMode()
-    executeCommand({
-      label: t('history.editTableDdlMode'),
-      apply() {
-        commonConfig.value!.default_config.table_ddl_mode = val === 'drop_and_create' ? undefined : val
-      },
-      revert() {
-        commonConfig.value!.default_config.table_ddl_mode = old === 'drop_and_create' ? undefined : old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
+    commit('history.editTableDdlMode', [propertyChange(() => config().default_config, 'table_ddl_mode', val === 'drop_and_create' ? undefined : val)])
   }
-
-  function getCommonTypeCase(): TypeCaseMode {
-    return commonConfig.value?.type_case ?? 'keep'
-  }
+  function getCommonTypeCase(): TypeCaseMode { return commonConfig.value?.type_case ?? 'keep' }
   function setCommonTypeCase(val: TypeCaseMode) {
     if (!commonConfig.value) return
-    const old = getCommonTypeCase()
-    executeCommand({
-      label: t('history.editTypeCase'),
-      apply() {
-        commonConfig.value!.type_case = val
-      },
-      revert() {
-        commonConfig.value!.type_case = old
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
+    commit('history.editTypeCase', [propertyChange(config, 'type_case', val)])
   }
-
-  // ===== Common Used Fields CRUD =====
-  function addCommonUsedField(name: string) {
-    if (!commonConfig.value) return
-    if (!name.trim()) { showToast(t('toast.pleaseEnterFieldName')); return }
-    const key = name.trim()
-    if (commonConfig.value.common_used_fields[key]) {
-      showToast(t('toast.commonFieldExists', { name: key }))
-      return
-    }
-    const hadOrder = commonConfig.value.common_used_field_order !== undefined
-    const oldOrder = hadOrder ? [...commonConfig.value.common_used_field_order!] : undefined
-    executeCommand({
-      label: t('history.addCommonField'),
-      apply() {
-        commonConfig.value!.common_used_fields[key] = {
-          field_name: key,
-          field_type: 'varchar',
-          field_length: 255,
-          not_null: false,
-          primary_key: false,
-          comment: ''
-        }
-        if (!commonConfig.value!.common_used_field_order) {
-          commonConfig.value!.common_used_field_order = []
-        }
-        commonConfig.value!.common_used_field_order.push(key)
-      },
-      revert() {
-        delete commonConfig.value!.common_used_fields[key]
-        if (hadOrder) {
-          commonConfig.value!.common_used_field_order = [...oldOrder!]
-        } else {
-          commonConfig.value!.common_used_field_order = undefined
-        }
-      },
-      affectedFiles() {
-        return [affectedCommon()]
-      },
-    })
-    showToast(t('toast.commonFieldAdded'))
-  }
-
-  async function deleteCommonUsedField(name: string) {
-    if (!commonConfig.value) return
-    if (!commonConfig.value.common_used_fields[name]) return
-    // 收集所有引用此公共字段的表字段，删除公共字段时同步删除并支持回滚
-    interface RefFieldSnapshot {
-      schemaName: string
-      table: Table
-      field: Field
-      indexInTable: number
-      indexRemoval: ReturnType<typeof createIndexFieldRemoval>
-      undoComment: (() => void) | null
-    }
-    const refSnapshots: RefFieldSnapshot[] = []
-    const referencingTables: string[] = []
-    const seenTables = new Set<string>()
-    for (const schema of schemas) {
-      for (const table of schema.tables) {
-        const idx = table.fields.findIndex(f => f.use_common_used_fields && f.field_name === name)
-        if (idx >= 0) {
-          const field = table.fields[idx]!
-          refSnapshots.push({
-            schemaName: schema.schema,
-            table,
-            field,
-            indexInTable: idx,
-            indexRemoval: createIndexFieldRemoval(table.indexes, field.field_name),
-            undoComment: null,
-          })
-          const key = `${schema.schema}.${table.name}`
-          if (!seenTables.has(key)) {
-            seenTables.add(key)
-            referencingTables.push(key)
-          }
-        }
-      }
-    }
-    if (referencingTables.length > 0) {
-      if (!(await confirmDialog({ title: t('confirm.title'), message: t('confirm.deleteCommonField', { name, refs: referencingTables.join('\n') }), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }))) return
-    }
-    const deletedField = { ...commonConfig.value.common_used_fields[name] }
-    const hadOrder = commonConfig.value.common_used_field_order !== undefined
-    const oldOrder = hadOrder ? [...commonConfig.value.common_used_field_order!] : undefined
-    executeCommand({
-      label: t('history.deleteCommonField'),
-      apply() {
-        // 同步删除引用此公共字段的表字段（含索引、字段前注释清理）
-        for (const snap of refSnapshots) {
-          const i = snap.table.fields.indexOf(snap.field)
-          if (i >= 0) snap.table.fields.splice(i, 1)
-          snap.indexRemoval.apply()
-          snap.undoComment?.()
-          snap.undoComment = removeFieldCommentBefore(snap.table, snap.field.field_name)
-        }
-        // 删除公共字段定义
-        delete commonConfig.value!.common_used_fields[name]
-        if (commonConfig.value!.common_used_field_order) {
-          commonConfig.value!.common_used_field_order =
-            commonConfig.value!.common_used_field_order.filter(k => k !== name)
-          if (commonConfig.value!.common_used_field_order.length === 0) {
-            commonConfig.value!.common_used_field_order = undefined
-          }
-        }
-      },
-      revert() {
-        // 恢复公共字段定义
-        commonConfig.value!.common_used_fields[name] = { ...deletedField }
-        if (hadOrder) {
-          commonConfig.value!.common_used_field_order = [...oldOrder!]
-        } else {
-          commonConfig.value!.common_used_field_order = undefined
-        }
-        // 还原被同步删除的表字段（回到原位置，并恢复索引与字段前注释）
-        for (const snap of refSnapshots) {
-          const i = Math.min(snap.indexInTable, snap.table.fields.length)
-          snap.table.fields.splice(i, 0, snap.field)
-          snap.indexRemoval.restore()
-          snap.undoComment?.()
-          snap.undoComment = null
-        }
-      },
-      affectedFiles() {
-        return [affectedCommon(), ...refSnapshots.map(s => affectedTable(s.schemaName, s.table.name)), affectedSql()]
-      },
-    })
-    showToast(t('toast.commonFieldDeleted'))
-  }
-
-  function updateCommonUsedFieldName(oldName: string, newName: string) {
-    const trimmed = newName.trim()
-    if (!trimmed || oldName === trimmed) return
-    // 捕获命令执行前所有引用此 common field 的表的字段快照，用于完整回滚
-    const affectedFields: { table: Table; field: Field; oldName: string }[] = []
-    for (const schema of schemas) {
-      for (const table of schema.tables) {
-        for (const field of table.fields) {
-          if (field.use_common_used_fields && field.field_name === oldName) {
-            affectedFields.push({ table, field, oldName: field.field_name })
-          }
-        }
-      }
-    }
-    const hadOrder = commonConfig.value?.common_used_field_order !== undefined
-    const oldOrder = hadOrder ? [...commonConfig.value!.common_used_field_order!] : undefined
-    let undoComments: (() => void)[] = []
-    executeCommand({
-      label: t('history.renameCommonField'),
-      apply() {
-        for (const undo of undoComments) undo()
-        undoComments = []
-        for (const { table, field } of affectedFields) {
-          field.field_name = trimmed
-          const undo = moveFieldCommentBefore(table, oldName, trimmed)
-          if (undo) undoComments.push(undo)
-        }
-        if (commonConfig.value?.common_used_field_order) {
-          const idx = commonConfig.value.common_used_field_order.indexOf(oldName)
-          if (idx !== -1) commonConfig.value.common_used_field_order[idx] = trimmed
-        }
-      },
-      revert() {
-        for (const undo of undoComments) undo()
-        undoComments = []
-        for (const { field, oldName: prev } of affectedFields) {
-          field.field_name = prev
-        }
-        if (hadOrder) {
-          commonConfig.value!.common_used_field_order = [...oldOrder!]
-        } else {
-          commonConfig.value!.common_used_field_order = undefined
-        }
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
-
-  /** 从有序数组重建 record，用于面板编辑后同步 */
-  function rebuildCommonUsedFieldsFromArray(fields: Field[]) {
-    if (!commonConfig.value) return
-    const oldRecord = { ...commonConfig.value.common_used_fields }
-    const oldOrder = commonConfig.value.common_used_field_order
-      ? [...commonConfig.value.common_used_field_order] : undefined
-    executeCommand({
-      label: t('history.editCommonFields'),
-      coalesceKey: 'rebuild-common-fields',
-      apply() {
-        const newRecord: Record<string, Field> = {}
-        for (const field of fields) {
-          newRecord[field.field_name] = field
-        }
-        commonConfig.value!.common_used_fields = newRecord
-        commonConfig.value!.common_used_field_order = fields.map(f => f.field_name)
-      },
-      revert() {
-        commonConfig.value!.common_used_fields = { ...oldRecord }
-        commonConfig.value!.common_used_field_order = oldOrder ? [...oldOrder] : undefined
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
-
-  /** 获取有序的公共字段列表（遵循 common_used_field_order，回退到 Object.keys） */
-  function getOrderedCommonUsedFields(): Field[] {
-    if (!commonConfig.value) return []
-    const record = commonConfig.value.common_used_fields
-    const order = commonConfig.value.common_used_field_order
-    if (order && order.length > 0) {
-      return order.filter(k => record[k]).map(k => record[k]!)
-    }
-    // 回退：Object.keys（老数据无 order 数组时）
-    return Object.keys(record).map(k => record[k]!)
-  }
-
-  // ===== Unified Types CRUD =====
-
-  function addUnifiedType(name: string) {
-    if (!commonConfig.value) return
-    if (!name.trim()) { showToast(t('toast.unifiedTypeNameEmpty')); return }
-    const key = name.trim()
-    if (!commonConfig.value.unified_types) commonConfig.value.unified_types = []
-    if (commonConfig.value.unified_types.some(ut => ut.name === key)) {
-      showToast(t('toast.unifiedTypeExists', { name: key }))
-      return
-    }
-    executeCommand({
-      label: t('history.addUnifiedType'),
-      apply() {
-        if (!commonConfig.value!.unified_types) commonConfig.value!.unified_types = []
-        commonConfig.value!.unified_types.push({
-          name: key,
-          description: '',
-          quote_default: false,
-          mysql: { type: 'VARCHAR', length: 255 },
-          postgresql: { type: 'VARCHAR', length: 255 },
-          sqlite: { type: 'VARCHAR', length: 255 },
-        })
-      },
-      revert() {
-        const list = commonConfig.value?.unified_types
-        if (list) {
-          const idx = list.findIndex(ut => ut.name === key)
-          if (idx !== -1) list.splice(idx, 1)
-        }
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-    showToast(t('toast.unifiedTypeAdded'))
-  }
-
-  function deleteUnifiedType(idx: number) {
-    if (!commonConfig.value?.unified_types) return
-    const ut = commonConfig.value.unified_types[idx]
-    if (!ut) return
-    const removed = { ...ut }
-    executeCommand({
-      label: t('history.deleteUnifiedType'),
-      apply() {
-        if (commonConfig.value?.unified_types) {
-          commonConfig.value.unified_types.splice(idx, 1)
-        }
-      },
-      revert() {
-        if (!commonConfig.value!.unified_types) commonConfig.value!.unified_types = []
-        commonConfig.value!.unified_types.splice(idx, 0, { ...removed })
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-    showToast(t('toast.unifiedTypeDeleted'))
-  }
-
-  /** 重命名统一类型时同步更新所有引用该类型的字段 */
-  function renameUnifiedType(oldName: string, newName: string) {
-    if (oldName === newName || !oldName || !newName) return
-    // 捕获命令执行前所有引用该统一类型的字段快照，用于完整回滚
-    const affectedTableFields: { field: Field; oldName: string }[] = []
-    for (const schema of schemas) {
-      for (const table of schema.tables) {
-        for (const field of table.fields) {
-          if (field.unified_type === oldName) {
-            affectedTableFields.push({ field, oldName: field.unified_type! })
-          }
-        }
-      }
-    }
-    const affectedCommonFields: { field: Field; oldName: string }[] = []
-    if (commonConfig.value?.common_used_fields) {
-      for (const key of Object.keys(commonConfig.value.common_used_fields)) {
-        const field = commonConfig.value.common_used_fields[key]!
-        if (field?.unified_type === oldName) {
-          affectedCommonFields.push({ field, oldName: field.unified_type! })
-        }
-      }
-    }
-    executeCommand({
-      label: t('history.renameUnifiedType'),
-      apply() {
-        for (const { field } of affectedTableFields) field.unified_type = newName
-        for (const { field } of affectedCommonFields) field.unified_type = newName
-      },
-      revert() {
-        for (const { field, oldName: prev } of affectedTableFields) field.unified_type = prev
-        for (const { field, oldName: prev } of affectedCommonFields) field.unified_type = prev
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
-
-  function rebuildUnifiedTypesFromArray(types: UnifiedTypeDefinition[]) {
-    if (!commonConfig.value) return
-    const oldTypes = commonConfig.value.unified_types ? [...commonConfig.value.unified_types] : undefined
-    executeCommand({
-      label: t('history.editUnifiedTypes'),
-      coalesceKey: 'rebuild-unified-types',
-      apply() {
-        commonConfig.value!.unified_types = types
-      },
-      revert() {
-        commonConfig.value!.unified_types = oldTypes ? [...oldTypes] : undefined
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
-    })
-  }
-
-  // ===== 逻辑删除配置（项目级） =====
-  function getLogicalDelete(): LogicalDeleteConfig {
-    return commonConfig.value?.logical_delete ?? {}
-  }
-
-  /**
-   * 局部更新项目级逻辑删除配置（逐键 patch）。
-   * 空串 / undefined 的键会被移除；配置整体为空时移除 logical_delete，避免污染 common.json。
-   */
+  function getLogicalDelete(): LogicalDeleteConfig { return commonConfig.value?.logical_delete ?? {} }
   function setLogicalDelete(patch: Partial<LogicalDeleteConfig>) {
     if (!commonConfig.value) return
-    const old = commonConfig.value.logical_delete
-      ? { ...commonConfig.value.logical_delete }
-      : undefined
-    executeCommand({
-      label: t('history.editLogicalDelete'),
-      coalesceKey: 'logical-delete',
-      apply() {
-        const next: LogicalDeleteConfig = { ...commonConfig.value!.logical_delete, ...patch }
-        for (const k of Object.keys(next) as (keyof LogicalDeleteConfig)[]) {
-          if (next[k] === undefined || next[k] === '') delete next[k]
+    const next = { ...config().logical_delete, ...clone(patch) }
+    for (const key of Object.keys(next) as (keyof LogicalDeleteConfig)[]) {
+      if (next[key] === undefined || next[key] === '') delete next[key]
+    }
+    commit('history.editLogicalDelete', [propertyChange(config, 'logical_delete', Object.keys(next).length ? next : undefined)], commonSqlFiles(), JSON.stringify(['logical-delete', Object.keys(patch).sort()]))
+  }
+
+  // ===== Common fields =====
+  function getOrderedCommonUsedFields(): Field[] {
+    if (!commonConfig.value) return []
+    const record = config().common_used_fields
+    // Keep legacy/incomplete order lists usable without losing unlisted fields.
+    const keys = [...new Set([...(config().common_used_field_order ?? []), ...Object.keys(record)])]
+    return keys.filter(key => owns(record, key)).map(key => record[key]!)
+  }
+
+  function addCommonUsedField(name: string): boolean {
+    if (!commonConfig.value) return false
+    const key = name.trim()
+    if (!key) { showToast(t('toast.pleaseEnterFieldName')); return false }
+    if (owns(config().common_used_fields, key)) { showToast(t('toast.commonFieldExists', { name: key })); return false }
+    const added = commit('history.addCommonField', [
+      propertyChange(() => config().common_used_fields, key, {
+        field_name: key, field_type: 'varchar', field_length: 255, not_null: false, primary_key: false, comment: '',
+      }),
+      propertyChange(config, 'common_used_field_order', [...getOrderedCommonUsedFields().map(field => field.field_name), key]),
+    ], [affectedCommon()])
+    if (added) showToast(t('toast.commonFieldAdded'))
+    return added
+  }
+
+  /** Preserve record insertion order without snapshotting unrelated definitions. */
+  function commonDefinitionChange(oldName: string, newName?: string): Change {
+    const beforeKeys = Object.keys(config().common_used_fields)
+    const before = clone(config().common_used_fields[oldName]!)
+    const after = newName === undefined ? undefined : { ...clone(before), field_name: newName }
+    const afterKeys = beforeKeys.flatMap(key => key === oldName ? (newName === undefined ? [] : [newName]) : [key])
+    const write = (keys: string[], name: string | undefined, field: Field | undefined) => {
+      const current = config().common_used_fields
+      config().common_used_fields = Object.fromEntries(keys.map(key => [key, key === name ? clone(field!) : current[key]!]))
+    }
+    return {
+      changed: true,
+      apply: () => write(afterKeys, newName, after),
+      revert: () => write(beforeKeys, oldName, before),
+    }
+  }
+
+  function commonFieldTables(name: string) {
+    return schemas.flatMap(schema => schema.tables
+      .filter(table => table.fields.some(field => field.use_common_used_fields && field.field_name === name))
+      .map(table => {
+        const schemaName = schema.schema
+        const tableName = table.name
+        return {
+          schemaName, tableName,
+          get: () => schemas.find(item => item.schema === schemaName)!.tables.find(item => item.name === tableName)!,
         }
-        commonConfig.value!.logical_delete = Object.keys(next).length > 0 ? next : undefined
-      },
-      revert() {
-        commonConfig.value!.logical_delete = old ? { ...old } : undefined
-      },
-      affectedFiles() {
-        return [affectedCommon(), affectedSql()]
-      },
+      }))
+  }
+
+  /** Move/remove only the referenced keys, including false/null values. */
+  function keyedChanges<T>(get: () => Record<string, T>, oldName: string, newName?: string): Change[] {
+    if (!owns(get(), oldName)) return []
+    const changes: Change[] = []
+    if (newName !== undefined) changes.push(propertyChange(get, newName, get()[oldName]))
+    changes.push(propertyChange(get, oldName, undefined))
+    return changes
+  }
+
+  function initialDataChanges(schema: string, table: string, oldName: string, newName?: string): Change[] {
+    const key = `${schema}/${table}`
+    return (initialDataMap.get(key)?.rows ?? []).flatMap((row, index) => {
+      return (['data', 'field_comments', 'expr_fields'] as const).flatMap(property => {
+        if (!row[property] || !owns(row[property], oldName)) return []
+        return keyedChanges(() => initialDataMap.get(key)!.rows![index]![property]! as Record<string, unknown>, oldName, newName)
+      })
     })
+  }
+
+  async function deleteCommonUsedField(name: string): Promise<boolean> {
+    if (!commonConfig.value || !owns(config().common_used_fields, name)) return false
+    const originalConfig = config()
+    const references = commonFieldTables(name)
+    if (references.length && !(await confirmDialog({
+      title: t('confirm.title'), message: t('confirm.deleteCommonField', { name, refs: references.map(ref => `${ref.schemaName}.${ref.tableName}`).join('\n') }),
+      confirmText: t('confirm.ok'), cancelText: t('confirm.cancel'),
+    }))) return false
+    // Confirmation is asynchronous: do not capture old snapshots before it, or
+    // apply them to a project opened while the dialog was pending.
+    if (commonConfig.value !== originalConfig || !owns(config().common_used_fields, name)) return false
+    const changes: Change[] = [commonDefinitionChange(name)]
+    const files: AffectedFile[] = commonSqlFiles()
+    if (config().common_used_field_order !== undefined) {
+      const order = config().common_used_field_order!.filter(key => key !== name)
+      changes.push(propertyChange(config, 'common_used_field_order', order.length ? order : undefined))
+    }
+    for (const ref of commonFieldTables(name)) {
+      const table = ref.get()
+      // Descending removal, ascending restoration; snapshots are only the
+      // removed fields and indexes that actually reference them.
+      for (let index = table.fields.length - 1; index >= 0; index--) {
+        const field = table.fields[index]!
+        if (field.use_common_used_fields && field.field_name === name) changes.push(spliceChange(() => ref.get().fields, index, 1))
+      }
+      for (let index = table.indexes.length - 1; index >= 0; index--) {
+        const item = table.indexes[index]!
+        if (!item.columns.some(column => column.name === name)) continue
+        const columns = item.columns.filter(column => column.name !== name)
+        changes.push(spliceChange(() => ref.get().indexes, index, 1, columns.length ? [{ ...item, columns }] : []))
+      }
+      if (table.comment_before_fields && owns(table.comment_before_fields, name)) {
+        const next = clone(table.comment_before_fields)
+        delete next[name]
+        changes.push(propertyChange(ref.get, 'comment_before_fields', Object.keys(next).length ? next : undefined))
+      }
+      const dataChanges = initialDataChanges(ref.schemaName, ref.tableName, name)
+      changes.push(...dataChanges)
+      files.push(affectedTable(ref.schemaName, ref.tableName))
+      if (dataChanges.length) files.push(affectedInitialData(ref.schemaName, ref.tableName))
+    }
+    commit('history.deleteCommonField', changes, files)
+    showToast(t('toast.commonFieldDeleted'))
+    return true
+  }
+
+  function updateCommonUsedFieldName(oldName: string, newName: string): boolean {
+    if (!commonConfig.value || !owns(config().common_used_fields, oldName)) return false
+    const name = newName.trim()
+    if (!name) { showToast(t('toast.fieldNameEmpty')); return false }
+    if (oldName === name) return false
+    const references = commonFieldTables(oldName)
+    if (owns(config().common_used_fields, name) || references.some(ref => ref.get().fields.some(field => field.field_name === name))) {
+      showToast(t('toast.commonFieldExists', { name })); return false
+    }
+    const changes = [commonDefinitionChange(oldName, name)]
+    const files: AffectedFile[] = commonSqlFiles()
+    if (config().common_used_field_order !== undefined) changes.push(propertyChange(config, 'common_used_field_order', config().common_used_field_order!.map(key => key === oldName ? name : key)))
+    for (const ref of references) {
+      const table = ref.get()
+      table.fields.forEach((field, index) => {
+        if (field.use_common_used_fields && field.field_name === oldName) changes.push(propertyChange(() => ref.get().fields[index]!, 'field_name', name))
+      })
+      table.indexes.forEach((index, indexPosition) => index.columns.forEach((column, columnPosition) => {
+        if (column.name === oldName) changes.push(propertyChange(() => ref.get().indexes[indexPosition]!.columns[columnPosition]!, 'name', name))
+      }))
+      if (table.comment_before_fields) changes.push(...keyedChanges(() => ref.get().comment_before_fields!, oldName, name))
+      const dataChanges = initialDataChanges(ref.schemaName, ref.tableName, oldName, name)
+      changes.push(...dataChanges)
+      files.push(affectedTable(ref.schemaName, ref.tableName))
+      if (dataChanges.length) files.push(affectedInitialData(ref.schemaName, ref.tableName))
+    }
+    const renamed = commit('history.renameCommonField', changes, files)
+    if (renamed) showToast(t('toast.commonFieldRenamed'))
+    return renamed
+  }
+
+  function updateCommonUsedField(name: string, patch: Partial<Omit<Field, 'field_name'>>, coalesce = false): boolean {
+    if (!commonConfig.value || !owns(config().common_used_fields, name) || owns(patch, 'field_name')) return false
+    const next = clone(patch)
+    if (next.unified_type) { next.field_type = undefined; next.quote_default = undefined }
+    const keys = Object.keys(next) as (keyof typeof next)[]
+    return commit('history.editCommonFields', keys.map(key => propertyChange(() => config().common_used_fields[name]!, key, next[key])), commonSqlFiles(), coalesce ? JSON.stringify(['common-field', name, keys.sort()]) : undefined)
+  }
+
+  function setCommonUsedFieldOverrideValue(name: string, db: SqlDialect, key: keyof FieldOverride, raw: string): boolean {
+    if (!commonConfig.value || !owns(config().common_used_fields, name)) return false
+    const next = clone(config().common_used_fields[name]![db] ?? {})
+    const value = raw === '' ? undefined : key === 'field_length' || key === 'field_scale' ? parseFieldLengthInput(raw) : raw
+    if (value === undefined) delete next[key]
+    else Object.assign(next, { [key]: value })
+    return commit('history.editFieldOverride', [propertyChange(() => config().common_used_fields[name]!, db, Object.keys(next).length ? next : undefined)], commonSqlFiles(), JSON.stringify(['common-field-override', name, db, key]), { db })
+  }
+
+  function validMove(length: number, from: number, to: number) {
+    return Number.isInteger(from) && Number.isInteger(to) && from >= 0 && to >= 0 && from < length && to < length && from !== to
+  }
+  function moveCommonUsedField(from: number, to: number): boolean {
+    if (!commonConfig.value) return false
+    const order = getOrderedCommonUsedFields().map(field => field.field_name)
+    if (!validMove(order.length, from, to)) return false
+    order.splice(to, 0, order.splice(from, 1)[0]!)
+    return commit('history.editCommonFields', [propertyChange(config, 'common_used_field_order', order)], [affectedCommon()])
+  }
+
+  // ===== Unified types =====
+  function addUnifiedType(name: string): boolean {
+    if (!commonConfig.value) return false
+    const key = name.trim()
+    if (!key) { showToast(t('toast.unifiedTypeNameEmpty')); return false }
+    if (config().unified_types?.some(type => type.name === key)) { showToast(t('toast.unifiedTypeExists', { name: key })); return false }
+    const changes: Change[] = []
+    if (!config().unified_types) changes.push(propertyChange(config, 'unified_types', []))
+    // Capture an empty slice without creating the optional list outside apply.
+    changes.push(spliceChange(() => config().unified_types ?? [], config().unified_types?.length ?? 0, 0, [{
+      name: key, description: '', quote_default: false,
+      mysql: { type: 'VARCHAR', length: 255 }, postgresql: { type: 'VARCHAR', length: 255 }, sqlite: { type: 'VARCHAR', length: 255 },
+    }]))
+    commit('history.addUnifiedType', changes)
+    showToast(t('toast.unifiedTypeAdded'))
+    return true
+  }
+
+  function deleteUnifiedType(index: number): boolean {
+    if (!commonConfig.value?.unified_types || !Number.isInteger(index) || !config().unified_types![index]) return false
+    // Preserve the existing semantics: deleting a type does not delete fields.
+    commit('history.deleteUnifiedType', [spliceChange(() => config().unified_types!, index, 1)])
+    showToast(t('toast.unifiedTypeDeleted'))
+    return true
+  }
+
+  function renameUnifiedType(oldName: string, newName: string): boolean {
+    if (!commonConfig.value) return false
+    const index = config().unified_types?.findIndex(type => type.name === oldName) ?? -1
+    if (index < 0) return false
+    const name = newName.trim()
+    if (!name) { showToast(t('toast.unifiedTypeNameEmpty')); return false }
+    if (oldName === name) return false
+    if (config().unified_types!.some(type => type.name === name)) { showToast(t('toast.unifiedTypeExists', { name })); return false }
+    const changes = [propertyChange(() => config().unified_types![index]!, 'name', name)]
+    const files: AffectedFile[] = commonSqlFiles()
+    for (const schema of schemas) {
+      for (const table of schema.tables) {
+        const schemaName = schema.schema
+        const tableName = table.name
+        const get = () => schemas.find(item => item.schema === schemaName)!.tables.find(item => item.name === tableName)!
+        let affected = false
+        table.fields.forEach((field, position) => {
+          if (field.unified_type !== oldName) return
+          changes.push(propertyChange(() => get().fields[position]!, 'unified_type', name))
+          affected = true
+        })
+        if (affected) files.push(affectedTable(schemaName, tableName))
+      }
+    }
+    for (const key of Object.keys(config().common_used_fields)) {
+      if (config().common_used_fields[key]!.unified_type === oldName) changes.push(propertyChange(() => config().common_used_fields[key]!, 'unified_type', name))
+    }
+    return commit('history.renameUnifiedType', changes, files)
+  }
+
+  function updateUnifiedType(name: string, patch: Partial<Omit<UnifiedTypeDefinition, 'name' | SqlDialect>>, coalesce = false): boolean {
+    if (!commonConfig.value?.unified_types?.some(type => type.name === name)) return false
+    if (['name', 'mysql', 'postgresql', 'sqlite'].some(key => owns(patch, key))) return false
+    const get = () => config().unified_types!.find(type => type.name === name)!
+    const keys = Object.keys(patch) as (keyof typeof patch)[]
+    return commit('history.editUnifiedTypes', keys.map(key => propertyChange(get, key, patch[key])), commonSqlFiles(), coalesce ? JSON.stringify(['unified-type', name, keys.sort()]) : undefined)
+  }
+
+  function setUnifiedTypeMappingValue(name: string, db: SqlDialect, key: keyof UnifiedTypeDbMapping, raw: string): boolean {
+    if (!commonConfig.value?.unified_types?.some(type => type.name === name)) return false
+    const get = () => config().unified_types!.find(type => type.name === name)!
+    const next = clone(get()[db] ?? { type: '' })
+    if (key === 'type') next.type = raw
+    else {
+      const value = key === 'length' ? parseFieldLengthInput(raw) : parseFieldScaleInput(raw)
+      if (value === null || value === undefined) delete next[key]
+      else next[key] = value
+    }
+    const after = db === 'sqlite' && !next.type && next.length == null && next.scale == null ? undefined : next
+    return commit('history.editUnifiedTypes', [propertyChange(get, db, after)], commonSqlFiles(), JSON.stringify(['unified-type-mapping', name, db, key]))
+  }
+
+  function moveUnifiedType(from: number, to: number): boolean {
+    if (!commonConfig.value?.unified_types) return false
+    const before = config().unified_types!.map(type => type.name)
+    if (!validMove(before.length, from, to)) return false
+    const after = [...before]
+    after.splice(to, 0, after.splice(from, 1)[0]!)
+    const write = (order: string[]) => {
+      const types = new Map(config().unified_types!.map(type => [type.name, type]))
+      config().unified_types = order.map(name => types.get(name)!)
+    }
+    return commit('history.editUnifiedTypes', [{ changed: true, apply: () => write(after), revert: () => write(before) }], [affectedCommon()])
   }
 
   return {
-    setGlobalPreSql,
-    setGlobalPostSql,
-    setProjectName,
-    setProjectDescription,
-    getCommonMysqlEngine,
-    getCommonMysqlCharset,
-    getCommonMysqlCollation,
-    setCommonMysqlEngine,
-    setCommonMysqlCharset,
-    setCommonMysqlCollation,
-    getCommonPostgresqlQuoteIdentifiers,
-    setCommonPostgresqlQuoteIdentifiers,
-    getCommonSqliteQuoteIdentifiers,
-    setCommonSqliteQuoteIdentifiers,
-    getTableDdlMode,
-    setTableDdlMode,
-    getLogicalDelete,
-    setLogicalDelete,
-    getCommonTypeCase,
-    setCommonTypeCase,
-    addCommonUsedField,
-    deleteCommonUsedField,
-    updateCommonUsedFieldName,
-    rebuildCommonUsedFieldsFromArray,
-    getOrderedCommonUsedFields,
-    addUnifiedType,
-    deleteUnifiedType,
-    renameUnifiedType,
-    rebuildUnifiedTypesFromArray,
+    setGlobalPreSql, setGlobalPostSql, setProjectName, setProjectDescription,
+    getCommonMysqlEngine, getCommonMysqlCharset, getCommonMysqlCollation,
+    setCommonMysqlEngine, setCommonMysqlCharset, setCommonMysqlCollation,
+    getCommonPostgresqlQuoteIdentifiers, setCommonPostgresqlQuoteIdentifiers,
+    getCommonSqliteQuoteIdentifiers, setCommonSqliteQuoteIdentifiers,
+    getTableDdlMode, setTableDdlMode, getLogicalDelete, setLogicalDelete,
+    getCommonTypeCase, setCommonTypeCase,
+    addCommonUsedField, deleteCommonUsedField, updateCommonUsedFieldName,
+    updateCommonUsedField, setCommonUsedFieldOverrideValue, moveCommonUsedField, getOrderedCommonUsedFields,
+    addUnifiedType, deleteUnifiedType, renameUnifiedType,
+    updateUnifiedType, setUnifiedTypeMappingValue, moveUnifiedType,
   }
 }

@@ -96,7 +96,7 @@ function onColDropTail(e: DragEvent) {
 }
 
 function moveColumn(fromIdx: number, toIdx: number) {
-  const arr = [...props.modelValue]
+  const arr = copyColumns()
   if (
     fromIdx < 0 ||
     fromIdx >= arr.length ||
@@ -108,6 +108,7 @@ function moveColumn(fromIdx: number, toIdx: number) {
   }
   const moved = arr.splice(fromIdx, 1)[0]
   if (!moved) return
+  toIdx = Math.min(toIdx, arr.length)
   arr.splice(toIdx, 0, moved)
   // 同步迁移每列的覆盖展开状态，避免展开错位
   const remapped = new Set<number>()
@@ -119,66 +120,84 @@ function moveColumn(fromIdx: number, toIdx: number) {
   }
   expandedOverrides.clear()
   remapped.forEach(i => expandedOverrides.add(i))
-  emit('update:modelValue', arr)
+  emitColumns(arr)
+}
+
+function copyColumns(): IndexColumn[] {
+  return props.modelValue.map(col => {
+    const next = { ...col }
+    for (const db of ['mysql', 'postgresql', 'sqlite'] as const) {
+      if (col[db]) next[db] = { ...col[db] }
+    }
+    return next
+  })
+}
+
+let ownUpdate = false
+function emitColumns(columns: IndexColumn[]) {
+  ownUpdate = true
+  emit('update:modelValue', columns)
 }
 
 function toggleOverride(idx: number) {
   if (expandedOverrides.has(idx)) {
-    // 收起时清理空的 override 对象
-    const col = props.modelValue[idx]
-    if (col) {
-      if (col.mysql && Object.keys(col.mysql).length === 0) delete col.mysql
-      if (col.postgresql && Object.keys(col.postgresql).length === 0) delete col.postgresql
-      if (col.sqlite && Object.keys(col.sqlite).length === 0) delete col.sqlite
+    const columns = copyColumns()
+    const col = columns[idx]
+    let changed = false
+    for (const db of ['mysql', 'postgresql', 'sqlite'] as const) {
+      if (col?.[db] && Object.keys(col[db]!).length === 0) {
+        delete col[db]
+        changed = true
+      }
     }
+    if (changed) emitColumns(columns)
     expandedOverrides.delete(idx)
   } else {
-    // 展开时确保 override 对象存在
-    const col = props.modelValue[idx]
-    if (col) {
-      if (!col.mysql) col.mysql = {}
-      if (!col.postgresql) col.postgresql = {}
-      if (!col.sqlite) col.sqlite = {}
-    }
+    // Expansion is UI state only; missing dialect overrides read as empty.
     expandedOverrides.add(idx)
   }
 }
 
 function addColumn() {
-  const newCols = [...props.modelValue, { name: '' }]
-  emit('update:modelValue', newCols)
+  emitColumns([...copyColumns(), { name: '' }])
 }
 
 function removeColumn(idx: number) {
-  const newCols = props.modelValue.filter((_, i) => i !== idx)
-  if (newCols.length === 0) {
-    newCols.push({ name: '' })
-  }
-  expandedOverrides.delete(idx)
-  emit('update:modelValue', newCols)
-}
-
-function emitChange() {
-  // Trigger parent update when any column property changes
-  emit('update:modelValue', [...props.modelValue])
-}
-
-function setDbSortOrder(col: IndexColumn, db: SqlDialect, val: string) {
-  if (val) {
-    if (!col[db]) col[db] = {}
-    col[db]!.sort_order = val as 'ASC' | 'DESC'
-  } else {
-    if (col[db]) {
-      delete col[db]!.sort_order
-      if (Object.keys(col[db]!).length === 0) delete col[db]
-    }
-  }
-  emitChange()
-}
-
-// Watch for external prop changes (e.g. when table switches)
-watch(() => props.modelValue, () => {
+  const newCols = copyColumns().filter((_, i) => i !== idx)
+  if (newCols.length === 0) newCols.push({ name: '' })
+  const remapped = [...expandedOverrides].filter(i => i !== idx).map(i => i > idx ? i - 1 : i)
   expandedOverrides.clear()
+  remapped.forEach(i => expandedOverrides.add(i))
+  emitColumns(newCols)
+}
+
+function updateColumn(idx: number, key: 'name' | 'sort_order', value: string) {
+  const columns = copyColumns()
+  const col = columns[idx]
+  if (!col) return
+  if (key === 'name') col.name = value
+  else if (value) col.sort_order = value as 'ASC' | 'DESC'
+  else delete col.sort_order
+  emitColumns(columns)
+}
+
+function setDbSortOrder(idx: number, db: SqlDialect, val: string) {
+  const columns = copyColumns()
+  const col = columns[idx]
+  if (!col) return
+  if (val) {
+    col[db] = { ...col[db], sort_order: val as 'ASC' | 'DESC' }
+  } else if (col[db]) {
+    delete col[db]!.sort_order
+    if (Object.keys(col[db]!).length === 0) delete col[db]
+  }
+  emitColumns(columns)
+}
+
+// Preserve expansion for our own immutable patches; reset on external undo/table changes.
+watch(() => props.modelValue, () => {
+  if (!ownUpdate) expandedOverrides.clear()
+  ownUpdate = false
 })
 </script>
 
@@ -199,8 +218,8 @@ watch(() => props.modelValue, () => {
         <span v-if="modelValue.length > 1" class="col-drag-handle" :title="t('commonConfig.dragToSort')">⋮⋮</span>
         <select
           class="form-input column-name-select"
-          v-model="col.name"
-          @change="emitChange"
+          :value="col.name"
+          @change="updateColumn(idx, 'name', ($event.target as HTMLSelectElement).value)"
         >
           <option value="">{{ $t('indexColumnsEditor.selectColumn') }}</option>
           <option
@@ -221,7 +240,7 @@ watch(() => props.modelValue, () => {
         <select
           class="form-input sort-select"
           :value="col.sort_order ?? ''"
-          @change="col.sort_order = (($event.target as HTMLSelectElement).value || undefined) as any; emitChange()"
+          @change="updateColumn(idx, 'sort_order', ($event.target as HTMLSelectElement).value)"
         >
           <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
           <option value="ASC">{{ $t('indexColumnsEditor.asc') }}</option>
@@ -246,7 +265,7 @@ watch(() => props.modelValue, () => {
             <select
               class="form-input"
               :value="col.mysql?.sort_order ?? ''"
-              @change="setDbSortOrder(col, 'mysql', ($event.target as HTMLSelectElement).value)"
+              @change="setDbSortOrder(idx, 'mysql', ($event.target as HTMLSelectElement).value)"
             >
               <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
               <option value="ASC">ASC</option>
@@ -258,7 +277,7 @@ watch(() => props.modelValue, () => {
             <select
               class="form-input"
               :value="col.postgresql?.sort_order ?? ''"
-              @change="setDbSortOrder(col, 'postgresql', ($event.target as HTMLSelectElement).value)"
+              @change="setDbSortOrder(idx, 'postgresql', ($event.target as HTMLSelectElement).value)"
             >
               <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
               <option value="ASC">ASC</option>
@@ -270,7 +289,7 @@ watch(() => props.modelValue, () => {
             <select
               class="form-input"
               :value="col.sqlite?.sort_order ?? ''"
-              @change="setDbSortOrder(col, 'sqlite', ($event.target as HTMLSelectElement).value)"
+              @change="setDbSortOrder(idx, 'sqlite', ($event.target as HTMLSelectElement).value)"
             >
               <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
               <option value="ASC">ASC</option>

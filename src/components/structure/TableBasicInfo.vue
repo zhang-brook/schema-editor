@@ -115,7 +115,7 @@ const partitionExpression = computed({
         </div>
         <div class="form-group">
           <label class="form-label">{{ $t('tableEditor.comment') }}</label>
-          <input class="form-input" v-model="store.currentTable!.comment">
+          <input class="form-input" :value="store.currentTable!.comment" @input="store.updateTable(store.currentTable!, { comment: ($event.target as HTMLInputElement).value })">
         </div>
       </div>
       <div v-show="showMore" class="more-settings">

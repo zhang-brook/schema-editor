@@ -1,4 +1,4 @@
-import type { Ref } from 'vue'
+import { toRaw, type Ref } from 'vue'
 import type { CommonConfig, Schema } from '@/types/schema'
 import type { Table, Field, Index } from '@/types/schema'
 import type { UnifiedTypeDefinition } from '@/types/schema'
@@ -6,6 +6,9 @@ import type { SqlDialect } from '@/utils/sql-generator/shared'
 import { parseCreateTableStatements, detectDialect, convertColumnToField } from '@/utils/sql-parser'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
+import { affectedDatabase, affectedSchema, affectedSql, affectedTable, type Command } from '@/core/history/command'
+import { sanitizeName } from '@/core/workspace/layout'
+import { captureValue, cloneValue, diskName } from './editor-action-utils'
 
 export interface ImportSqlDeps {
   showImportSqlModal: Ref<boolean>
@@ -23,7 +26,7 @@ export interface ImportSqlDeps {
   selectedSchemaIdx: Ref<number>
   selectedTableIdx: Ref<number>
   syncSchemaOrder: () => void
-  syncAllToDisk: () => Promise<void>
+  executeCommand: (cmd: Command) => void
   showToast: (msg: string) => void
   t: (key: string, options?: any) => string
 }
@@ -45,7 +48,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     selectedSchemaIdx,
     selectedTableIdx,
     syncSchemaOrder,
-    syncAllToDisk,
+    executeCommand,
     showToast,
     t,
   } = deps
@@ -63,18 +66,6 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     })
 
     const indexes: Index[] = []
-
-    // 处理单列主键：已在列上设置了 primary_key，多列主键作为索引
-    const pkColumns = parsed.columns.filter(c => c.primaryKey)
-    if (pkColumns.length > 1) {
-      indexes.push({
-        type: 'index',
-        columns: pkColumns.map(c => ({ name: c.name })),
-        mysql: { type: 'primary' },
-        postgresql: { type: 'primary' },
-        sqlite: { type: 'primary' },
-      })
-    }
 
     // 处理列级 UNIQUE：转为表级索引
     for (const col of parsed.columns) {
@@ -97,6 +88,18 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     for (const constraint of parsed.constraints) {
       if (constraint.columns.length === 0) continue
 
+      // 主键只由字段标记承载：SQL 生成器一律从 field.primary_key 输出 PRIMARY KEY 子句
+      if (constraint.type === 'PRIMARY_KEY') {
+        for (const col of constraint.columns) {
+          const field = fields.find(f => f.field_name === col.name)
+          if (field) {
+            field.primary_key = true
+            field.not_null = true
+          }
+        }
+        continue
+      }
+
       const index: Index = {
         type: 'index',
         columns: constraint.columns.map(c => ({
@@ -118,15 +121,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       }
 
       // 根据约束类型设置方言覆盖
-      if (constraint.type === 'PRIMARY_KEY') {
-        if (constraint.columns.length === 1) {
-          // 单列主键：已在列上设置，跳过
-          continue
-        }
-        index.mysql = { type: 'primary' }
-        index.postgresql = { type: 'primary' }
-        index.sqlite = { type: 'primary' }
-      } else if (constraint.type === 'UNIQUE') {
+      if (constraint.type === 'UNIQUE') {
         index.type = 'unique'
       } else if (constraint.type === 'FULLTEXT') {
         index.mysql = { type: 'fulltext' }
@@ -231,19 +226,29 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     }
   }
 
-  async function confirmImportSql() {
+  /** 同时规避原名、sanitize 后磁盘名和大小写碰撞；保留可用的原始 SQL 名称。 */
+  function importName(name: string, used: Set<string>, fallback: string): string {
+    let base = name.trim() || fallback
+    const disk = sanitizeName(base)
+    if (!disk || disk === '.' || disk === '..' || /[. ]$/.test(disk)
+      || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(disk)) base = fallback
+    let candidate = base
+    for (let suffix = 1; used.has(diskName(candidate)); suffix++) candidate = `${base}_${suffix}`
+    used.add(diskName(candidate))
+    return candidate
+  }
+
+  function confirmImportSql() {
     const dialect: SqlDialect = importSqlDialect.value === 'auto' ? 'mysql' : importSqlDialect.value
     const unifiedTypes = commonConfig.value?.unified_types ?? DEFAULT_UNIFIED_TYPES
 
-    // 转换每个解析后的表（应用用户编辑的表名）
+    // 先使用原始解析索引读取改名，再过滤无效表，避免前方空表造成编辑索引错位。
     const tables = importSqlParsedTables.value
-      .filter(pt => pt.columns.length > 0 || pt.constraints.length > 0)
-      .map((pt, i) => {
+      .map((pt, index) => ({ pt, editedName: importSqlTableNameEdits[index]?.trim() }))
+      .filter(({ pt }) => pt.columns.length > 0 || pt.constraints.length > 0)
+      .map(({ pt, editedName }) => {
         const table = parsedTableToTable(pt, dialect, unifiedTypes)
-        const editedName = importSqlTableNameEdits[i]
-        if (editedName && editedName.trim()) {
-          table.name = editedName.trim()
-        }
+        if (editedName) table.name = editedName
         return table
       })
 
@@ -252,41 +257,69 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       return
     }
 
-    // 确定目标 schema
-    if (importSqlTargetMode.value === 'new') {
-      const name = importSqlNewSchemaName.value.trim() || 'imported'
-      let finalName = name
-      let counter = 1
-      while (schemas.some(s => s.schema === finalName)) {
-        finalName = `${name}_${counter}`
-        counter++
-      }
-      schemas.push({ schema: finalName, tables })
-      syncSchemaOrder()
-      selectedSchemaIdx.value = schemas.length - 1
-      selectedTableIdx.value = tables.length > 0 ? 0 : -1
-    } else {
-      const schema = schemas[importSqlTargetSchemaIdx.value]
-      if (schema) {
-        for (const table of tables) {
-          let finalName = table.name
-          let counter = 1
-          while (schema.tables.some(t => t.name === finalName)) {
-            finalName = `${table.name}_${counter}`
-            counter++
-          }
-          table.name = finalName
-          schema.tables.push(table)
-        }
-        selectedSchemaIdx.value = importSqlTargetSchemaIdx.value
-        selectedTableIdx.value = schema.tables.length - tables.length
-      }
+    const isNew = importSqlTargetMode.value === 'new'
+    const targetIndex = importSqlTargetSchemaIdx.value
+    const target = !isNew && Number.isInteger(targetIndex) ? schemas[targetIndex] : undefined
+    if (!isNew && !target) {
+      showToast(t('importSqlModal.selectSchema'))
+      return
     }
+
+    const schemaName = isNew
+      ? importName(importSqlNewSchemaName.value, new Set(schemas.map(schema => diskName(schema.schema))), 'imported')
+      : target!.schema
+    // schema.json 已占用同级路径，不能作为表目录名。
+    const used = new Set(['schema.json', ...(target?.tables.map(table => diskName(table.name)) ?? [])])
+    for (const table of tables) table.name = importName(table.name, used, 'table')
+
+    const schemaIndex = isNew ? schemas.length : targetIndex
+    const tableIndex = target?.tables.length ?? 0
+    const oldSchemaIndex = selectedSchemaIdx.value
+    const oldTableIndex = selectedTableIdx.value
+    // 解析结果、编辑输入、导入后的对象都不能污染 redo 快照；保留身份供后续表命令使用。
+    const imported = cloneValue(tables)
+    const restoreTables = captureValue(imported)
+    const newSchema: Schema = { schema: schemaName, tables: imported }
+    const restoreSchema = captureValue(newSchema)
+    const affected = [
+      ...(isNew ? [affectedDatabase()] : []),
+      affectedSchema(schemaName),
+      ...imported.map(table => affectedTable(schemaName, table.name)),
+      affectedSql(),
+    ]
+
+    executeCommand({
+      label: t('importSqlModal.title'),
+      // 批量结构命令禁止 coalesce。
+      apply() {
+        if (isNew) {
+          schemas.splice(schemaIndex, 0, restoreSchema())
+          syncSchemaOrder()
+        } else {
+          target!.tables.splice(tableIndex, 0, ...restoreTables())
+        }
+        selectedSchemaIdx.value = schemaIndex
+        selectedTableIdx.value = tableIndex
+      },
+      revert() {
+        if (isNew) {
+          const index = schemas.findIndex(schema => toRaw(schema) === newSchema)
+          if (index >= 0) schemas.splice(index, 1)
+          syncSchemaOrder()
+        } else {
+          for (const table of imported) {
+            const index = target!.tables.findIndex(candidate => toRaw(candidate) === toRaw(table))
+            if (index >= 0) target!.tables.splice(index, 1)
+          }
+        }
+        selectedSchemaIdx.value = oldSchemaIndex
+        selectedTableIdx.value = oldTableIndex
+      },
+      affectedFiles: () => affected,
+    })
 
     showImportSqlModal.value = false
     showToast(t('importSqlModal.imported', { count: tables.length }))
-    // 导入为低频批量操作，显式全量写盘（命令式按需写未覆盖此路径）
-    await syncAllToDisk()
   }
 
   return {

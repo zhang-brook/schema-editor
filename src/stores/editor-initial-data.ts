@@ -1,7 +1,8 @@
-import { computed, type ComputedRef } from 'vue'
-import type { Schema, Table, InitialData } from '@/types/schema'
+import { computed, toRaw, type ComputedRef } from 'vue'
+import type { Schema, Table, InitialData, InitialDataRow } from '@/types/schema'
 import { affectedInitialData, affectedSql, type Command } from '@/core/history/command'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { captureProps, captureValue, cloneValue } from './editor-action-utils'
 
 export interface InitialDataDeps {
   initialDataMap: Map<string, InitialData>
@@ -14,25 +15,17 @@ export interface InitialDataDeps {
 }
 
 export function createInitialDataActions(deps: InitialDataDeps) {
-  const {
-    initialDataMap,
-    initialDataDeletedKeys,
-    // schemas,
-    currentSchema,
-    currentTable,
-    executeCommand,
-    t,
-  } = deps
+  const { initialDataMap, initialDataDeletedKeys, currentSchema, currentTable, executeCommand, t } = deps
+  const rowIds = new WeakMap<object, number>()
+  let nextRowId = 0
 
-  // ===== Initial Data Helpers =====
   function initialDataKey(schemaName: string, tableName: string): string {
     return `${schemaName}/${tableName}`
   }
 
-  /** 反查某个 InitialData 对象所属的 schema/table（用于命令 affectedFiles） */
   function findInitialDataOwner(data: InitialData): { schema: string; table: string } | null {
-    for (const [key, value] of initialDataMap.entries()) {
-      if (value === data) {
+    for (const [key, value] of initialDataMap) {
+      if (toRaw(value) === toRaw(data)) {
         const sep = key.indexOf('/')
         return { schema: key.substring(0, sep), table: key.substring(sep + 1) }
       }
@@ -44,311 +37,218 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     if (!currentSchema.value || !currentTable.value) return null
     return initialDataKey(currentSchema.value.schema, currentTable.value.name)
   })
-
   const currentInitialData = computed(() => {
     if (!currentInitialDataKey.value) return undefined
     return initialDataMap.get(currentInitialDataKey.value)
   })
 
-  // ===== Initial Data CRUD =====
+  function restoreDeleted(key: string, deleted: boolean) {
+    if (deleted) initialDataDeletedKeys.add(key)
+    else initialDataDeletedKeys.delete(key)
+  }
 
-  /** JSON 模式：直接设置完整 InitialData 对象 */
-  function setInitialDataObject(schemaName: string, tableName: string, data: InitialData) {
-    const key = initialDataKey(schemaName, tableName)
-    const oldData = initialDataMap.get(key)
+  function files(schema: string, table: string) {
+    return [affectedInitialData(schema, table), affectedSql()]
+  }
+
+  /** 快照恢复原对象身份；JSON 替换撤销后，之前捕获行对象的命令仍然有效。 */
+  function replaceEntry(schema: string, table: string, next: InitialData | undefined, label: string) {
+    const key = initialDataKey(schema, table)
     const oldDeleted = initialDataDeletedKeys.has(key)
+    const restoreBefore = captureValue(initialDataMap.get(key))
+    // 输入必须与调用者隔离，apply/redo 也不能读取已被外部修改的对象内容。
+    const restoreAfter = captureValue(cloneValue(next))
+    function install(data: InitialData | undefined, deleted: boolean) {
+      if (data === undefined) initialDataMap.delete(key)
+      else initialDataMap.set(key, data)
+      restoreDeleted(key, deleted)
+    }
+    executeCommand({
+      label,
+      apply: () => install(restoreAfter(), next === undefined),
+      revert: () => install(restoreBefore(), oldDeleted),
+      affectedFiles: () => files(schema, table),
+    })
+  }
+
+  /** 显式初始化保留 {}；不同于 JSON 空对象（删除）及 rows: []（空行集合）。 */
+  function addInitialData(schema: string, table: string) {
+    if (initialDataMap.has(initialDataKey(schema, table))) return
+    replaceEntry(schema, table, {}, t('initialData.init'))
+  }
+
+  function setInitialDataObject(schema: string, table: string, data: InitialData) {
     const willDelete = (data.rows?.length ?? 0) === 0 && !data.pre_sql && !data.post_sql
-    executeCommand({
-      label: t('history.editInitialDataObject'),
-      apply() {
-        if (willDelete) {
-          initialDataMap.delete(key)
-          initialDataDeletedKeys.add(key)
-        } else {
-          initialDataMap.set(key, data)
-          initialDataDeletedKeys.delete(key)
-        }
-      },
-      revert() {
-        if (oldData) {
-          initialDataMap.set(key, oldData)
-        } else {
-          initialDataMap.delete(key)
-        }
-        if (oldDeleted) {
-          initialDataDeletedKeys.add(key)
-        } else {
-          initialDataDeletedKeys.delete(key)
-        }
-      },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
-    })
+    replaceEntry(schema, table, willDelete ? undefined : data, t('history.editInitialDataObject'))
   }
 
-  function deleteInitialData(schemaName: string, tableName: string) {
-    const key = initialDataKey(schemaName, tableName)
-    const oldData = initialDataMap.get(key)
+  function deleteInitialData(schema: string, table: string) {
+    const key = initialDataKey(schema, table)
+    if (!initialDataMap.has(key) && initialDataDeletedKeys.has(key)) return
+    replaceEntry(schema, table, undefined, t('history.deleteInitialData'))
+  }
+
+  /** 局部快照同时保存属性存在性及行身份，不把整表复制成新的行对象。 */
+  function patchEntry(
+    schema: string,
+    table: string,
+    next: Partial<InitialData>,
+    label: string,
+    coalesceKey?: string,
+  ) {
+    const key = initialDataKey(schema, table)
+    const before = initialDataMap.get(key)
+    const data = before ?? {}
     const oldDeleted = initialDataDeletedKeys.has(key)
+    const keys = Object.keys(next) as (keyof InitialData)[]
+    const restoreBefore = captureProps(data, keys)
+    const restoreAfter = captureValue(next)
     executeCommand({
-      label: t('history.deleteInitialData'),
+      label,
+      coalesceKey,
       apply() {
-        initialDataMap.delete(key)
-        initialDataDeletedKeys.add(key)
+        const patch = restoreAfter()
+        for (const prop of keys) {
+          if (patch[prop] === undefined) delete data[prop]
+          else Object.assign(data, { [prop]: patch[prop] })
+        }
+        // 每次 apply 都安装条目：首次 SQL 输入与随后的输入合并后 redo 仍可原子创建。
+        initialDataMap.set(key, data)
+        initialDataDeletedKeys.delete(key)
       },
       revert() {
-        if (oldData) {
-          initialDataMap.set(key, oldData)
-        }
-        if (oldDeleted) {
-          initialDataDeletedKeys.add(key)
-        } else {
-          initialDataDeletedKeys.delete(key)
-        }
+        restoreBefore()
+        if (before === undefined) initialDataMap.delete(key)
+        else initialDataMap.set(key, before)
+        restoreDeleted(key, oldDeleted)
       },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
+      affectedFiles: () => files(schema, table),
     })
   }
 
-  /** 切换某行是否跳过（不生成 INSERT），支持 undo/redo */
-  function setInitialDataRowSkip(
-    schemaName: string,
-    tableName: string,
-    row: { is_skip?: boolean },
-    checked: boolean,
+  function addInitialDataRow(schema: string, table: string, row: InitialDataRow = { data: {} }) {
+    const rows = initialDataMap.get(initialDataKey(schema, table))?.rows ?? []
+    patchEntry(schema, table, { rows: [...rows, cloneValue(row)] }, t('initialData.addRow'))
+  }
+
+  function deleteInitialDataRow(schema: string, table: string, index: number) {
+    const rows = initialDataMap.get(initialDataKey(schema, table))?.rows
+    if (!rows || !Number.isInteger(index) || index < 0 || index >= rows.length) return
+    const next = rows.slice()
+    next.splice(index, 1)
+    patchEntry(schema, table, { rows: next.length ? next : undefined }, t('history.deleteInitialData'))
+  }
+
+  function moveInitialDataRow(schema: string, table: string, from: number, to: number) {
+    const rows = initialDataMap.get(initialDataKey(schema, table))?.rows
+    if (!rows || !Number.isInteger(from) || !Number.isInteger(to)
+      || from < 0 || to < 0 || from >= rows.length || to >= rows.length || from === to) return
+    const next = rows.slice()
+    next.splice(to, 0, next.splice(from, 1)[0]!)
+    patchEntry(schema, table, { rows: next }, t('history.editInitialDataObject'))
+  }
+
+  function clearInitialDataRows(schema: string, table: string) {
+    const data = initialDataMap.get(initialDataKey(schema, table))
+    if (!data || !Object.hasOwn(data, 'rows')) return
+    patchEntry(schema, table, { rows: undefined }, t('initialData.clear'))
+  }
+
+  function rowKey(schema: string, table: string, row: InitialDataRow, property: string, field?: string) {
+    const raw = toRaw(row)
+    if (!rowIds.has(raw)) rowIds.set(raw, ++nextRowId)
+    return JSON.stringify(['initial-data', schema, table, rowIds.get(raw), property, field])
+  }
+
+  function patchRow(
+    schema: string,
+    table: string,
+    row: InitialDataRow,
+    next: Partial<InitialDataRow>,
+    label: string,
+    coalesceKey?: string,
   ) {
-    const oldSkip = row.is_skip
+    const data = initialDataMap.get(initialDataKey(schema, table))
+    if (!data?.rows?.some(candidate => toRaw(candidate) === toRaw(row))) return
+    const patch = cloneValue(next)
+    const keys = Object.keys(patch) as (keyof InitialDataRow)[]
+    const restoreBefore = captureProps(row, keys)
     executeCommand({
-      label: t('history.toggleSkipRow'),
+      label,
+      coalesceKey,
       apply() {
-        if (checked) {
-          row.is_skip = true
-        } else {
-          delete row.is_skip
+        for (const prop of keys) {
+          if (patch[prop] === undefined) delete row[prop]
+          else Object.assign(row, { [prop]: cloneValue(patch[prop]) })
         }
       },
-      revert() {
-        if (oldSkip === undefined) {
-          delete row.is_skip
-        } else {
-          row.is_skip = oldSkip
-        }
-      },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
+      revert: restoreBefore,
+      affectedFiles: () => files(schema, table),
     })
   }
 
-  /** 设置某行某字段的注释，支持 undo/redo */
-  function setInitialDataFieldComment(
-    schemaName: string,
-    tableName: string,
-    row: { field_comments?: Record<string, string> },
-    fieldName: string,
-    val: string,
-  ) {
+  function setInitialDataCell(schema: string, table: string, row: InitialDataRow, field: string, val: unknown) {
+    if (val === undefined ? !Object.hasOwn(row.data, field) : Object.hasOwn(row.data, field) && Object.is(row.data[field], val)) return
+    const data = { ...row.data }
+    if (val === undefined) delete data[field]
+    else Object.defineProperty(data, field, { value: val, writable: true, enumerable: true, configurable: true })
+    patchRow(schema, table, row, { data }, t('history.editInitialDataCell', { name: field }), rowKey(schema, table, row, 'data', field))
+  }
+
+  function setInitialDataRowSkip(schema: string, table: string, row: InitialDataRow, checked: boolean) {
+    if (checked ? row.is_skip === true : !Object.hasOwn(row, 'is_skip')) return
+    patchRow(schema, table, row, { is_skip: checked ? true : undefined }, t('history.toggleSkipRow'))
+  }
+
+  function setInitialDataRowComment(schema: string, table: string, row: InitialDataRow, val: string) {
+    const comment = val.trim() || undefined
+    if (comment === undefined ? !Object.hasOwn(row, 'row_comment') : row.row_comment === comment) return
+    patchRow(schema, table, row, { row_comment: comment }, t('history.editInitialDataRowComment'), rowKey(schema, table, row, 'row_comment'))
+  }
+
+  function setInitialDataFieldComment(schema: string, table: string, row: InitialDataRow, field: string, val: string) {
+    const comment = val.trim()
+    if (comment ? row.field_comments?.[field] === comment : !row.field_comments || !Object.hasOwn(row.field_comments, field)) return
+    const comments = { ...row.field_comments }
+    if (comment) Object.defineProperty(comments, field, { value: comment, writable: true, enumerable: true, configurable: true })
+    else delete comments[field]
+    patchRow(schema, table, row, { field_comments: Object.keys(comments).length ? comments : undefined },
+      t('history.editInitialDataComment', { name: field }), rowKey(schema, table, row, 'field_comments', field))
+  }
+
+  function setInitialDataCellExpr(schema: string, table: string, row: InitialDataRow, field: string, checked: boolean) {
+    if (checked ? row.expr_fields?.[field] === true : !row.expr_fields || !Object.hasOwn(row.expr_fields, field)) return
+    const expressions = { ...row.expr_fields }
+    if (checked) Object.defineProperty(expressions, field, { value: true, writable: true, enumerable: true, configurable: true })
+    else delete expressions[field]
+    patchRow(schema, table, row, { expr_fields: Object.keys(expressions).length ? expressions : undefined },
+      t('history.toggleInitialDataExpr', { name: field }))
+  }
+
+  function setSql(schema: string, table: string, property: 'pre_sql' | 'post_sql', dialect: SqlDialect, val: string) {
+    const sql = initialDataMap.get(initialDataKey(schema, table))?.[property]
     const trimmed = val.trim()
-    const oldVal = row.field_comments?.[fieldName]
-    const oldObj = row.field_comments ? { ...row.field_comments } : undefined
-    executeCommand({
-      label: t('history.editInitialDataComment', { name: fieldName }),
-      apply() {
-        if (!trimmed) {
-          if (row.field_comments) {
-            delete row.field_comments[fieldName]
-            if (Object.keys(row.field_comments).length === 0) {
-              delete row.field_comments
-            }
-          }
-        } else {
-          if (!row.field_comments) row.field_comments = {}
-          row.field_comments[fieldName] = trimmed
-        }
-      },
-      revert() {
-        if (oldVal === undefined) {
-          if (row.field_comments && Object.keys(oldObj ?? {}).length === 0) {
-            delete row.field_comments
-          } else if (row.field_comments) {
-            delete row.field_comments[fieldName]
-          }
-        } else if (oldObj) {
-          row.field_comments = { ...oldObj }
-        }
-      },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
-    })
+    if (trimmed ? sql?.[dialect] === trimmed : !sql || !Object.hasOwn(sql, dialect)) return
+    const next = { ...sql }
+    if (trimmed) next[dialect] = trimmed
+    else delete next[dialect]
+    patchEntry(schema, table, { [property]: Object.keys(next).length ? next : undefined },
+      t(property === 'pre_sql' ? 'history.editInitialDataPreSql' : 'history.editInitialDataPostSql', { dialect }),
+      JSON.stringify(['initial-data', schema, table, property, dialect]))
   }
 
-  /** 设置某行某字段的数据值，支持 undo/redo（连续编辑合并） */
-  function setInitialDataCell(
-    schemaName: string,
-    tableName: string,
-    row: { data: Record<string, any> },
-    fieldName: string,
-    val: string,
-  ) {
-    const oldVal = row.data[fieldName]
-    if (oldVal === val) return
-    executeCommand({
-      label: t('history.editInitialDataCell', { name: fieldName }),
-      apply() {
-        row.data[fieldName] = val
-      },
-      revert() {
-        row.data[fieldName] = oldVal
-      },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
-    })
+  function setInitialDataPreSql(schema: string, table: string, dialect: SqlDialect, val: string) {
+    setSql(schema, table, 'pre_sql', dialect, val)
   }
 
-  /** 设置整行注释，支持 undo/redo */
-  function setInitialDataRowComment(
-    schemaName: string,
-    tableName: string,
-    row: { row_comment?: string },
-    val: string,
-  ) {
-    const trimmed = val.trim()
-    const oldVal = row.row_comment
-    executeCommand({
-      label: t('history.editInitialDataRowComment'),
-      apply() {
-        if (trimmed) {
-          row.row_comment = trimmed
-        } else {
-          delete row.row_comment
-        }
-      },
-      revert() {
-        if (oldVal === undefined) {
-          delete row.row_comment
-        } else {
-          row.row_comment = oldVal
-        }
-      },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
-    })
+  function setInitialDataPostSql(schema: string, table: string, dialect: SqlDialect, val: string) {
+    setSql(schema, table, 'post_sql', dialect, val)
   }
 
-  /** 切换某行某字段值是否为「SQL 表达式」（不加引号原样输出），支持 undo/redo */
-  function setInitialDataCellExpr(
-    schemaName: string,
-    tableName: string,
-    row: { expr_fields?: Record<string, boolean> },
-    fieldName: string,
-    checked: boolean,
-  ) {
-    const oldVal = row.expr_fields?.[fieldName]
-    const oldObj = row.expr_fields ? { ...row.expr_fields } : undefined
-    executeCommand({
-      label: t('history.toggleInitialDataExpr', { name: fieldName }),
-      apply() {
-        if (!row.expr_fields) row.expr_fields = {}
-        if (checked) {
-          row.expr_fields[fieldName] = true
-        } else {
-          delete row.expr_fields[fieldName]
-          if (Object.keys(row.expr_fields).length === 0) {
-            delete row.expr_fields
-          }
-        }
-      },
-      revert() {
-        if (oldVal === undefined) {
-          if (row.expr_fields && Object.keys(oldObj ?? {}).length === 0) {
-            delete row.expr_fields
-          } else if (row.expr_fields) {
-            delete row.expr_fields[fieldName]
-          }
-        } else if (oldObj) {
-          row.expr_fields = { ...oldObj }
-        }
-      },
-      affectedFiles() {
-        return [affectedInitialData(schemaName, tableName), affectedSql()]
-      },
-    })
-  }
-
-  // ===== Initial Data Pre/Post SQL =====
-
-  function setInitialDataPreSql(initialData: InitialData, dialect: SqlDialect, val: string) {
-    const trimmed = val.trim()
-    if (!trimmed && !initialData.pre_sql) return
-    const oldPreSql = initialData.pre_sql ? { ...initialData.pre_sql } : undefined
-    const owner = findInitialDataOwner(initialData)
-    executeCommand({
-      label: t('history.editInitialDataPreSql', { dialect }),
-      coalesceKey: `initial-pre-sql:${dialect}`,
-      apply() {
-        if (!initialData.pre_sql) initialData.pre_sql = {}
-        if (trimmed) {
-          initialData.pre_sql[dialect] = trimmed
-        } else {
-          delete initialData.pre_sql[dialect]
-        }
-        if (initialData.pre_sql && Object.keys(initialData.pre_sql).length === 0) {
-          delete initialData.pre_sql
-        }
-      },
-      revert() {
-        if (oldPreSql) {
-          initialData.pre_sql = { ...oldPreSql }
-        } else {
-          delete initialData.pre_sql
-        }
-      },
-      affectedFiles() {
-        return owner
-          ? [affectedInitialData(owner.schema, owner.table), affectedSql()]
-          : [affectedSql()]
-      },
-    })
-  }
-
-  function setInitialDataPostSql(initialData: InitialData, dialect: SqlDialect, val: string) {
-    const trimmed = val.trim()
-    if (!trimmed && !initialData.post_sql) return
-    const oldPostSql = initialData.post_sql ? { ...initialData.post_sql } : undefined
-    const owner = findInitialDataOwner(initialData)
-    executeCommand({
-      label: t('history.editInitialDataPostSql', { dialect }),
-      coalesceKey: `initial-post-sql:${dialect}`,
-      apply() {
-        if (!initialData.post_sql) initialData.post_sql = {}
-        if (trimmed) {
-          initialData.post_sql[dialect] = trimmed
-        } else {
-          delete initialData.post_sql[dialect]
-        }
-        if (initialData.post_sql && Object.keys(initialData.post_sql).length === 0) {
-          delete initialData.post_sql
-        }
-      },
-      revert() {
-        if (oldPostSql) {
-          initialData.post_sql = { ...oldPostSql }
-        } else {
-          delete initialData.post_sql
-        }
-      },
-      affectedFiles() {
-        return owner
-          ? [affectedInitialData(owner.schema, owner.table), affectedSql()]
-          : [affectedSql()]
-      },
-    })
+  function clearInitialDataPrePostSql(schema: string, table: string) {
+    const data = initialDataMap.get(initialDataKey(schema, table))
+    if (!data || (!Object.hasOwn(data, 'pre_sql') && !Object.hasOwn(data, 'post_sql'))) return
+    patchEntry(schema, table, { pre_sql: undefined, post_sql: undefined }, t('initialData.clear'))
   }
 
   return {
@@ -356,8 +256,13 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     findInitialDataOwner,
     currentInitialDataKey,
     currentInitialData,
+    addInitialData,
     setInitialDataObject,
     deleteInitialData,
+    addInitialDataRow,
+    deleteInitialDataRow,
+    moveInitialDataRow,
+    clearInitialDataRows,
     setInitialDataRowSkip,
     setInitialDataFieldComment,
     setInitialDataCell,
@@ -365,5 +270,6 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     setInitialDataCellExpr,
     setInitialDataPreSql,
     setInitialDataPostSql,
+    clearInitialDataPrePostSql,
   }
 }

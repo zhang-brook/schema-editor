@@ -101,6 +101,21 @@ describe('BrowserWorkspaceWriter', () => {
       .toEqual({ savedPaths: ['current/schemas/public/users/table.json'] })
   })
 
+  it('detects content that changed outside the tracked snapshot', async () => {
+    const disk = memoryDisk({ 'a.json': 'a', 'b.json': 'b' })
+    const writer = new BrowserWorkspaceWriter(disk.root)
+    await writer.load(['a.json'])
+    expect(await writer.hasExternalChanges(['a.json'])).toBe(false)
+    expect(await writer.hasExternalChanges(['a.json', 'missing.json'])).toBe(false)
+    disk.files.set('a.json', 'external')
+    disk.files.set('missing.json', 'created')
+    expect(await writer.hasExternalChanges(['a.json', 'missing.json'])).toBe(true)
+    await writer.save([{ path: 'a.json', content: 'external' }, { path: 'missing.json', content: 'created' }])
+    expect(await writer.hasExternalChanges(['a.json', 'missing.json'])).toBe(false)
+    disk.files.delete('missing.json')
+    expect(await writer.hasExternalChanges(['a.json', 'missing.json'])).toBe(true)
+  })
+
   it('rejects external edits before any operation in the batch is written', async () => {
     const disk = memoryDisk({ 'a.json': 'a', 'b.json': 'b' })
     const writer = new BrowserWorkspaceWriter(disk.root)

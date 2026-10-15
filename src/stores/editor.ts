@@ -488,7 +488,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
     if (!common) common = _createDefaultCommonConfig()
     commonConfig.value = common
-    // 从 common.json 恢复 AI 指南开关（缺省 true）
+    // 从 common.json 恢复 AI 指南开关（缺省 false）
     generateAiGuide.value = loadGenerateAiGuide(commonConfig.value)
 
     // commonConfig.value 已确定非 null，使用本地常量避免 TS 窄化失败

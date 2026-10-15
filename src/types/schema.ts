@@ -289,7 +289,7 @@ export interface CommonConfig {
   unified_types?: UnifiedTypeDefinition[]
   /** 字段类型大小写：keep=保持原样, lowercase=全小写, uppercase=全大写, pascal=大驼峰 */
   type_case?: TypeCaseMode
-  /** 是否在当前项目文件夹中生成 AI JSON 结构指南（AI_JSON_STRUCTURE_GUIDE.md）；缺省视为 true */
+  /** 是否在当前项目文件夹中生成 AI JSON 结构指南（AI_JSON_STRUCTURE_GUIDE.md）；缺省视为 false */
   generate_ai_guide?: boolean
   /** 项目级逻辑删除配置：声明逻辑删除字段与唯一索引的落地策略，索引级可覆盖 */
   logical_delete?: LogicalDeleteConfig

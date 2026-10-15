@@ -68,6 +68,13 @@ export class BrowserWorkspaceWriter implements WorkspaceWriter {
     return result
   }
 
+  async hasExternalChanges(paths: readonly string[]): Promise<boolean> {
+    for (const path of paths) {
+      if (await this.read(path) !== (this.expected.get(path) ?? null)) return true
+    }
+    return false
+  }
+
   async save(changes: readonly FileChange[]): Promise<SaveResult> {
     const savedPaths: string[] = []
     const ordered = [

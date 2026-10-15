@@ -6,7 +6,7 @@ import { buildCommonWriteData, buildSchemaWriteData, buildTableExportData } from
 import { buildInitialDataExport } from '@/utils/initial-data-io'
 import { DIALECT_GENERATORS } from '@/utils/sql-generator'
 import { ALL_SQL_DIALECTS, fmtPrePostSql, getGlobalPreSql, getGlobalPostSql } from '@/utils/sql-generator/shared'
-import { AI_GUIDE_FILE, generateAiGuideMarkdown } from '@/utils/ai-guide'
+import { AI_GUIDE_FILE, generateAiGuideMarkdown, loadGenerateAiGuide } from '@/utils/ai-guide'
 
 export interface ProjectDocuments {
   common: CommonConfig | null
@@ -93,6 +93,17 @@ export function affectedSourceChanges(project: ProjectDocuments, affected: reado
   return [...changes].map(([path, content]) => ({ path, content }))
 }
 
+/** 手动全量保存：把内存里的每一份源文档都写入，并清掉已消失的项目文件。 */
+export function fullSourceChanges(project: ProjectDocuments, previous: ReadonlyMap<string, string>): FileChange[] {
+  const files = projectSourceFiles(project)
+  const changes: FileChange[] = [...files].map(([path, content]) => ({ path, content }))
+  for (const path of previous.keys()) {
+    if (files.has(path) || path === AI_GUIDE_FILE || path.startsWith(`${OUTPUT_DIR}/`)) continue
+    if (path === COMMON_FILE || path.startsWith(`${CURRENT_DIR}/`)) changes.push({ path, content: null })
+  }
+  return changes
+}
+
 export function projectOutputPaths(project: ProjectDocuments): string[] {
   return ALL_SQL_DIALECTS.flatMap(dialect => [
     ...project.schemas.map(schema => `${OUTPUT_DIR}/${dialect}/${sanitizeName(schema.schema)}.sql`),
@@ -151,7 +162,7 @@ export function generatedFileChanges(project: ProjectDocuments, changedPaths: re
     }
   }
   if (all || changedPaths.includes(AI_GUIDE_FILE)) {
-    changes.set(AI_GUIDE_FILE, project.common && project.common.generate_ai_guide !== false ? generateAiGuideMarkdown() : null)
+    changes.set(AI_GUIDE_FILE, loadGenerateAiGuide(project.common) ? generateAiGuideMarkdown() : null)
   }
   return [...changes].map(([path, content]) => ({ path, content }))
 }

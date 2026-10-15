@@ -5,7 +5,7 @@ import { DIALECT_GENERATORS } from '@/utils/sql-generator'
 import { ALL_SQL_DIALECTS, fmtPrePostSql, getGlobalPostSql, getGlobalPreSql } from '@/utils/sql-generator/shared'
 import { AI_GUIDE_FILE } from '@/utils/ai-guide'
 import { SaveCoordinator, type FileChange } from './save-coordinator'
-import { affectedSourceChanges, databasePath, generatedFileChanges, jsonContent, projectOutputPaths, projectSourceFiles, schemaDirectory, tableDirectory, type ProjectDocuments } from './project-documents'
+import { affectedSourceChanges, databasePath, fullSourceChanges, generatedFileChanges, jsonContent, projectOutputPaths, projectSourceFiles, schemaDirectory, tableDirectory, type ProjectDocuments } from './project-documents'
 
 const table = (name: string): Table => ({ name, comment: '', fields: [{ field_name: 'id', field_type: 'int' }], indexes: [] })
 const tablePath = (schema: string, name: string) => `${tableDirectory(schema, name)}/table.json`
@@ -172,6 +172,28 @@ describe('project source documents', () => {
     apply(previous, affectedSourceChanges(project, [affectedSchema('app'), affectedSchema('audit')], previous))
     expect(previous.get('versions/v1.json')).toBe('{}')
   })
+
+  it('full save writes every in-memory document and removes only project json', () => {
+    const project = fixture()
+    const previous = projectSourceFiles(project)
+    previous.set('versions/v1.json', '{}')
+    previous.set('output/mysql/app.sql', '-- 旧')
+    project.schemas[1]!.tables.length = 0
+    project.initialData.clear()
+    const changes = asMap(fullSourceChanges(project, previous))
+    expect(changes.get(schemaPath('audit'))).toContain('"table_order": []')
+    expect(changes.get(tablePath('audit', 'events'))).toBeNull()
+    expect(changes.get(initialPath('app', 'users'))).toBeNull()
+    expect([...changes.keys()].filter(path => path !== 'versions/v1.json' && !path.startsWith('output/'))).toHaveLength(8)
+    expect(changes.has('output/mysql/app.sql')).toBe(false)
+    expect(changes.has('versions/v1.json')).toBe(false)
+    project.schemas.length = 0
+    const emptied = asMap(fullSourceChanges(project, previous))
+    expect(emptied.get(databasePath)).toContain('"schema_order": []')
+    expect(emptied.get(schemaPath('app'))).toBeNull()
+    expect(emptied.get(tablePath('app', 'roles'))).toBeNull()
+    expect(emptied.get('common.json')).toBeTypeOf('string')
+  })
 })
 
 describe('derived document invalidation', () => {
@@ -269,14 +291,16 @@ describe('derived document invalidation', () => {
     expect(outputs.get('output/mysql/__all__.sql')).toBe(previous.get('output/mysql/__all__.sql'))
   })
 
-  it('manual save generates missing files and the AI guide defaults to enabled', () => {
+  it('manual save generates missing files and follows the AI guide switch', () => {
     const project = fixture()
-    delete project.common!.generate_ai_guide
+    project.common!.generate_ai_guide = true
     const outputs = asMap(generatedFileChanges(project, [], new Map(), 'manual'))
     expect(outputs.get(AI_GUIDE_FILE)).toContain('JSON')
     expect(outputs.get('output/mysql/app.sql')).toBeTypeOf('string')
     project.common!.generate_ai_guide = false
     expect(asMap(generatedFileChanges(project, ['common.json'], new Map(), 'auto')).get(AI_GUIDE_FILE)).toBeNull()
+    delete project.common!.generate_ai_guide
+    expect(asMap(generatedFileChanges(project, [], new Map(), 'manual')).get(AI_GUIDE_FILE)).toBeNull()
   })
 
   it('lists only owned generated paths for initial loading', () => {
@@ -291,9 +315,9 @@ describe('derived document invalidation', () => {
     const project = fixture()
     const initialFiles = withOutputs(project)
     const save = vi.fn(async (changes: readonly FileChange[]) => ({ savedPaths: changes.map(change => change.path) }))
-    const coordinator = new SaveCoordinator({
+    const coordinator: SaveCoordinator = new SaveCoordinator({
       writer: { supportsAutoSave: true, save }, initialFiles,
-      prepare: (changed, mode) => generatedFileChanges(project, changed, coordinator.files, mode),
+      prepare: (changed, mode): FileChange[] => generatedFileChanges(project, changed, coordinator.files, mode),
     })
     project.initialData.get('app/users')!.rows![0]!.data.id = 2
     coordinator.update(affectedSourceChanges(project, [affectedInitialData('app', 'users')], coordinator.files))

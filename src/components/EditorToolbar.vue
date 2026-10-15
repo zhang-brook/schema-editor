@@ -173,8 +173,7 @@ onUnmounted(() => {
         </div>
         <div
           class="menu-dropdown-item"
-          :class="{ disabled: !store.hasUnsavedChanges }"
-          @click="store.hasUnsavedChanges && menuAction(() => store.saveProjectWithFeedback())"
+          @click="menuAction(() => store.saveProjectWithFeedback())"
         >
           <span>{{ $t('toolbar.save') }}</span>
           <span class="menu-shortcut">{{ isMac ? '⌘S' : 'Ctrl+S' }}</span>
@@ -301,7 +300,7 @@ onUnmounted(() => {
         v-if="store.projectOpened"
         class="toolbar-btn"
         :class="{ 'toolbar-btn--primary': store.hasUnsavedChanges }"
-        :disabled="!store.hasUnsavedChanges || store.saveState.saving"
+        :disabled="store.saveState.saving"
         :title="$t('toolbar.saveTitle')"
         @click="store.saveProjectWithFeedback()"
       >

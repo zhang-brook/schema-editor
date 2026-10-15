@@ -650,7 +650,10 @@ export const useEditorStore = defineStore('editor', () => {
     session?.changed(files)
   }
 
-  /** 手动保存：把内存里的每一份源文档整批写入磁盘 */
+  /**
+   * 手动保存：整批写出内存里的项目文档，并重建全部派生文件（output/ 下的 SQL、AI 指南）。
+   * 因此即使当前没有改动也可以保存——磁盘上的派生文件被外部删除后，靠它恢复。
+   */
   async function saveProject() {
     if (!session) return
     try {
@@ -661,12 +664,11 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 点击保存按钮：落盘成功后给出提示；失败时保持未保存态并提示 */
+  /** 点击保存按钮：保存完成后提示结果（失败时 saveProject 已提示，且未保存态保持不变） */
   async function saveProjectWithFeedback() {
     if (!session) return
-    if (!hasUnsavedChanges.value) return
     await saveProject()
-    showToast(hasUnsavedChanges.value ? t('toast.failedSaveChanges') : t('toast.saved'))
+    if (!hasUnsavedChanges.value) showToast(t('toast.saved'))
   }
 
   /** 切换实时保存开关：对当前会话立即生效，并记入浏览器偏好 */

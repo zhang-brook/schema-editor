@@ -82,7 +82,7 @@
     "openFolder": "開啟資料夾",
     "closeFolder": "關閉資料夾",
     "save": "儲存",
-    "saveTitle": "將全部變更寫入本機檔案（Ctrl+S）",
+    "saveTitle": "將全部內容寫入本機檔案並重新產生 SQL（Ctrl+S）",
     "autoSave": "即時儲存",
     "autoSaveTitle": "編輯時自動將發生變更的檔案寫入本機",
     "saving": "儲存中…",

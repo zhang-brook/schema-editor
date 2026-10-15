@@ -82,7 +82,7 @@
     "openFolder": "Open Folder",
     "closeFolder": "Close Folder",
     "save": "Save",
-    "saveTitle": "Write all changes to disk (Ctrl+S)",
+    "saveTitle": "Write everything to disk and regenerate the SQL files (Ctrl+S)",
     "autoSave": "Auto-save",
     "autoSaveTitle": "Write changed files to disk as you edit",
     "saving": "Saving…",

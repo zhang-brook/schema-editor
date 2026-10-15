@@ -28,6 +28,13 @@ describe('editor store save wiring', () => {
     expect(editorSource).toMatch(/async function reloadFromDisk\(\) \{[\s\S]*?confirmLeaveUnsaved\(\)/)
     expect(editorSource).toMatch(/async function requestCloseProject\(silent = false\): Promise<boolean> \{[\s\S]*?confirmLeaveUnsaved\(\)/)
   })
+  it('keeps the save action available even when nothing changed', () => {
+    // 磁盘上的派生文件可能被外部删除：无改动时也要能点保存重建
+    expect(editorSource).toMatch(/async function saveProjectWithFeedback\(\) \{\s*if \(!session\) return\s*await saveProject\(\)/)
+    expect(toolbarSource).not.toContain(':disabled="!store.hasUnsavedChanges')
+    expect(toolbarSource).toContain(':disabled="store.saveState.saving"')
+    expect(toolbarSource).not.toContain('store.hasUnsavedChanges && menuAction')
+  })
 })
 
 describe('toolbar save controls', () => {

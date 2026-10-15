@@ -272,6 +272,34 @@ describe('createWorkspaceSession', () => {
     expect(writer.tree.get('output/mysql/app.sql')).not.toBe('-- 磁盘上的旧 SQL')
   })
 
+  it('regenerates missing derived SQL on manual save even without any edit', async () => {
+    const { writer } = fixture()
+    // 打开前 output/ 已被删除：派生文件不在内存基线里，只能靠「保存」重建
+    const staleOutput = [...writer.tree.keys()].filter(path => path.startsWith('output/'))
+    for (const path of staleOutput) writer.tree.delete(path)
+    const { project, files } = await loadWorkspaceDocuments(writer)
+    const states: SaveState[] = []
+    const session = createWorkspaceSession({
+      writer,
+      files,
+      project: () => project,
+      autoSave: true,
+      onStateChange: state => states.push(state),
+    })
+    expect(writer.tree.has('output/mysql/app.sql')).toBe(false)
+    expect(states).toHaveLength(0)
+
+    await session.saveAll()
+
+    const paths = writer.saved.flat().map(change => change.path)
+    expect(paths).toContain('output/mysql/app.sql')
+    expect(paths).toContain('output/postgresql/app.sql')
+    expect(paths).toContain('output/sqlite/app.sql')
+    expect(paths).toContain('output/mysql/__all__.sql')
+    expect(writer.tree.get('output/mysql/app.sql')).toContain('users')
+    expect(session.coordinator.state).toMatchObject({ dirty: false, saving: false, pendingFiles: 0 })
+  })
+
   it('deletes project files that disappeared from memory on manual save', async () => {
     const { writer, project, saveAll } = await open({ autoSave: false })
     project.schemas[1]!.tables.pop()

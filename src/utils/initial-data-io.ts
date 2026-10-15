@@ -8,14 +8,8 @@ import {
   getInitialDataFileHandle,
   getInitialDataDir,
 } from '@/core/workspace/paths'
-import {
-  writeJsonFile,
-  removeEntry,
-} from '@/core/workspace/handles'
-import {
-  INITIAL_DATA_FILE,
-  sanitizeName,
-} from '@/core/workspace/layout'
+import { writeJsonFile } from '@/core/workspace/handles'
+import { sanitizeName } from '@/core/workspace/layout'
 
 // ===== Initial Data 文件读写 =====
 
@@ -39,23 +33,6 @@ export async function writeInitialDataToNewStructure(
   const exportData = buildInitialDataExport(data)
 
   await writeJsonFile(handle, exportData)
-}
-
-/** 删除 current/schemas/<schema>/<table>/initial-data.json */
-export async function deleteInitialDataFromNewStructure(
-  rootHandle: FileSystemDirectoryHandle,
-  schemaName: string,
-  tableName: string,
-): Promise<void> {
-  try {
-    const currentDir = await getCurrentDir(rootHandle, false)
-    const schemasDir = await getCurrentSchemasDir(currentDir, false)
-    const schemaDir = await getSchemaDirUnderCurrent(schemasDir, sanitizeName(schemaName), false)
-    const tableDir = await getTableDirUnderSchema(schemaDir, sanitizeName(tableName), false)
-    await removeEntry(tableDir, INITIAL_DATA_FILE)
-  } catch {
-    // 文件或目录不存在，静默忽略
-  }
 }
 
 // ===== Initial Data 文件读取与归一化 =====

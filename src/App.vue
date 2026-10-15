@@ -52,10 +52,12 @@ const confirmState = useConfirmState()
       :title="confirmState.title"
       :message="confirmState.message"
       :confirm-text="confirmState.confirmText"
+      :secondary-text="confirmState.secondaryText"
       :cancel-text="confirmState.cancelText"
       :primary-confirm="confirmState.primaryConfirm"
-      @confirm="resolveConfirm(true)"
-      @cancel="resolveConfirm(false)"
+      @confirm="resolveConfirm('confirm')"
+      @secondary="resolveConfirm('secondary')"
+      @cancel="resolveConfirm('cancel')"
     />
 
     <!-- 全局加载遮罩 -->

@@ -12,18 +12,22 @@ const props = withDefaults(defineProps<{
   message: string
   /** 确认按钮文本 */
   confirmText?: string
+  /** 次按钮文本；为空则不显示（如「不保存」） */
+  secondaryText?: string
   /** 取消按钮文本；为空则不显示取消按钮 */
   cancelText?: string
   /** 确认按钮是否使用主色调（默认 true） */
   primaryConfirm?: boolean
 }>(), {
   confirmText: 'OK',
+  secondaryText: '',
   cancelText: '',
   primaryConfirm: true,
 })
 
 const emit = defineEmits<{
   (e: 'confirm'): void
+  (e: 'secondary'): void
   (e: 'cancel'): void
 }>()
 
@@ -53,6 +57,7 @@ useEnterConfirm(visibleFlag, () => emit('confirm'), confirmBtn)
       <p class="confirm-message">{{ message }}</p>
       <div class="modal-actions">
         <button v-if="showCancel" class="btn" @click="emit('cancel')">{{ cancelText }}</button>
+        <button v-if="secondaryText" class="btn" @click="emit('secondary')">{{ secondaryText }}</button>
         <button class="btn" :class="{ 'btn-primary': primaryConfirm }" ref="confirmBtn" @click="emit('confirm')">{{ confirmText }}</button>
       </div>
     </div>

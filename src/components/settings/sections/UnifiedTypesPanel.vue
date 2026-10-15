@@ -1,26 +1,19 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type { UnifiedTypeDefinition } from '@/types/schema'
-import { displayFieldLength, displayFieldScale, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
+import { displayFieldLength, displayFieldScale } from '@/utils/file-helpers'
 
 const store = useEditorStore()
-const { t } = useI18n()
+const localUnifiedTypes = computed(() => store.commonConfig?.unified_types ?? [])
 
 // ===== Unified Types sort (move up/down) =====
 function moveUnifiedTypeUp(idx: number) {
-  if (idx <= 0) return
-  const arr = localUnifiedTypes.value;
-  [arr[idx - 1], arr[idx]] = [arr[idx]!, arr[idx - 1]!]
-  syncUnifiedTypes()
+  store.moveUnifiedType(idx, idx - 1)
 }
 
 function moveUnifiedTypeDown(idx: number) {
-  if (idx >= localUnifiedTypes.value.length - 1) return
-  const arr = localUnifiedTypes.value;
-  [arr[idx], arr[idx + 1]] = [arr[idx + 1]!, arr[idx]!]
-  syncUnifiedTypes()
+  store.moveUnifiedType(idx, idx + 1)
 }
 
 // ===== Drag-and-drop for Unified Types =====
@@ -52,13 +45,7 @@ function onUnifiedTypeDrop(e: DragEvent, toIdx: number) {
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
   const fromIdx = dragUnifiedTypeIdx.value
   if (fromIdx < 0 || fromIdx === toIdx) return
-  const arr = localUnifiedTypes.value
-  const [item] = arr.splice(fromIdx, 1)
-  if (item) {
-    const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
-    arr.splice(insertIdx, 0, item)
-    syncUnifiedTypes()
-  }
+  store.moveUnifiedType(fromIdx, toIdx > fromIdx ? toIdx - 1 : toIdx)
   dragUnifiedTypeIdx.value = -1
 }
 
@@ -85,107 +72,32 @@ function onUnifiedTypeDropTail(e: DragEvent) {
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-tail')
   const fromIdx = dragUnifiedTypeIdx.value
-  if (fromIdx < 0) return
-  const arr = localUnifiedTypes.value
-  if (fromIdx === arr.length - 1) return
-  const [item] = arr.splice(fromIdx, 1)
-  if (item) {
-    arr.push(item)
-    syncUnifiedTypes()
-  }
+  store.moveUnifiedType(fromIdx, localUnifiedTypes.value.length - 1)
   dragUnifiedTypeIdx.value = -1
 }
 
-// ===== Unified Types 本地数组 =====
-// 用对象身份（而非数组下标）记录每个类型上一次同步时的名称：
-// 拖拽排序只移动对象、不改名称，因此不会误判为改名，
-// 从而避免把所有引用该类型的字段错误地改名。
-const unifiedTypeNameById = new WeakMap<UnifiedTypeDefinition, string>()
-
-function readUnifiedTypes(): UnifiedTypeDefinition[] {
-  if (!store.commonConfig?.unified_types) return []
-  // 深拷贝避免 v-model 编辑直接污染 store，确保 sync 时能检测到名称变更
-  return store.commonConfig.unified_types.map(ut => {
-    const copy: UnifiedTypeDefinition = {
-      name: ut.name,
-      description: ut.description,
-      quote_default: ut.quote_default,
-      default_input: ut.default_input,
-      mysql: { type: ut.mysql.type, length: ut.mysql.length, scale: ut.mysql.scale },
-      postgresql: { type: ut.postgresql.type, length: ut.postgresql.length, scale: ut.postgresql.scale },
-      sqlite: ut.sqlite
-        ? { type: ut.sqlite.type, length: ut.sqlite.length, scale: ut.sqlite.scale }
-        : undefined,
-    }
-    unifiedTypeNameById.set(copy, copy.name)
-    return copy
-  })
-}
-
-const localUnifiedTypes = ref<UnifiedTypeDefinition[]>(readUnifiedTypes())
-
-watch(() => store.commonConfig, () => {
-  localUnifiedTypes.value = readUnifiedTypes()
-})
-
-// 同步回 store
-function syncUnifiedTypes() {
-  // 基于对象身份检测类型名变更：仅当某条类型自身名称改变时才触发改名同步，
-  // 拖拽排序只移动对象、不改名称，故不会误改全局表/公共字段中对该类型的引用。
-  const newTypes = localUnifiedTypes.value
-  for (const ut of newTypes) {
-    const prevName = unifiedTypeNameById.get(ut) ?? ut.name
-    if (prevName !== ut.name) {
-      store.renameUnifiedType(prevName, ut.name)
-    }
-    unifiedTypeNameById.set(ut, ut.name)
-  }
-  store.rebuildUnifiedTypesFromArray([...newTypes])
+// Names are committed on change, never mutated before the atomic rename.
+function finishRename(ut: UnifiedTypeDefinition, event: Event) {
+  const input = event.target as HTMLInputElement
+  const oldName = ut.name
+  const requested = input.value.trim()
+  input.value = store.renameUnifiedType(oldName, requested) ? requested : oldName
 }
 
 const newUnifiedTypeName = ref('')
 
 function handleAddUnifiedType() {
-  const name = newUnifiedTypeName.value.trim()
-  if (!name) { store.showToast(''); return }
-  store.addUnifiedType(name)
-  localUnifiedTypes.value = readUnifiedTypes()
-  newUnifiedTypeName.value = ''
+  if (store.addUnifiedType(newUnifiedTypeName.value)) newUnifiedTypeName.value = ''
 }
 
 function handleDeleteUnifiedType(idx: number) {
   store.deleteUnifiedType(idx)
-  localUnifiedTypes.value = readUnifiedTypes()
 }
-
-// ===== SQLite 映射编辑（sqlite 可选，未配置时才惰性创建） =====
 
 /** 读取 SQLite 映射值（未配置时返回空串） */
 function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'): string {
-  const v = ut.sqlite?.[key]
-  return v === undefined || v === null ? '' : String(v)
-}
-
-/** 写入 SQLite 映射值；全部清空时移除整个 sqlite 对象，避免写出空对象 */
-function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale', raw: string) {
-  if (!ut.sqlite) {
-    if (raw === '') return
-    ut.sqlite = { type: '' }
-  }
-  if (key === 'type') {
-    ut.sqlite.type = raw
-  } else {
-    const parsed = key === 'length' ? parseFieldLengthInput(raw) : parseFieldScaleInput(raw)
-    if (parsed === null || parsed === undefined) {
-      delete ut.sqlite[key]
-    } else {
-      ut.sqlite[key] = parsed
-    }
-  }
-  if (!ut.sqlite.type && ut.sqlite.length == null && ut.sqlite.scale == null) {
-    delete ut.sqlite
-  }
-  syncUnifiedTypes()
+  const value = ut.sqlite?.[key]
+  return value === undefined || value === null ? '' : String(value)
 }
 </script>
 
@@ -231,7 +143,7 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
           <tbody>
             <tr
               v-for="(ut, idx) in localUnifiedTypes"
-              :key="idx"
+              :key="ut.name"
               @dragover="onUnifiedTypeDragOver"
               @dragleave="onUnifiedTypeDragLeave"
               @drop="onUnifiedTypeDrop($event, idx)"
@@ -249,24 +161,24 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
               <td>
                 <input
                   class="table-input"
-                  v-model="ut.name"
-                  @change="syncUnifiedTypes()"
+                  :value="ut.name"
+                  @change="finishRename(ut, $event)"
                   style="min-width:80px;"
                 />
               </td>
               <td>
                 <input
                   class="table-input"
-                  v-model="ut.description"
-                  @change="syncUnifiedTypes()"
+                  :value="ut.description"
+                  @input="store.updateUnifiedType(ut.name, { description: ($event.target as HTMLInputElement).value }, true)"
                   style="min-width:100px;"
                 />
               </td>
               <td>
                 <input
                   class="table-input"
-                  v-model="ut.mysql.type"
-                  @change="syncUnifiedTypes()"
+                  :value="ut.mysql.type"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'mysql', 'type', ($event.target as HTMLInputElement).value)"
                   style="min-width:80px;"
                 />
               </td>
@@ -274,7 +186,7 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="displayFieldLength(ut.mysql.length)"
-                  @input="ut.mysql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'mysql', 'length', ($event.target as HTMLInputElement).value)"
                   style="width:60px;"
                 />
               </td>
@@ -282,15 +194,15 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="displayFieldScale(ut.mysql.scale)"
-                  @input="ut.mysql.scale = parseFieldScaleInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'mysql', 'scale', ($event.target as HTMLInputElement).value)"
                   style="width:50px;"
                 />
               </td>
               <td>
                 <input
                   class="table-input"
-                  v-model="ut.postgresql.type"
-                  @change="syncUnifiedTypes()"
+                  :value="ut.postgresql.type"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'postgresql', 'type', ($event.target as HTMLInputElement).value)"
                   style="min-width:80px;"
                 />
               </td>
@@ -298,7 +210,7 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="displayFieldLength(ut.postgresql.length)"
-                  @input="ut.postgresql.length = parseFieldLengthInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'postgresql', 'length', ($event.target as HTMLInputElement).value)"
                   style="width:60px;"
                 />
               </td>
@@ -306,7 +218,7 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="displayFieldScale(ut.postgresql.scale)"
-                  @input="ut.postgresql.scale = parseFieldScaleInput(($event.target as HTMLInputElement).value); syncUnifiedTypes()"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'postgresql', 'scale', ($event.target as HTMLInputElement).value)"
                   style="width:50px;"
                 />
               </td>
@@ -314,7 +226,7 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="sqliteValue(ut, 'type')"
-                  @change="setSqliteValue(ut, 'type', ($event.target as HTMLInputElement).value)"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'sqlite', 'type', ($event.target as HTMLInputElement).value)"
                   style="min-width:80px;"
                 />
               </td>
@@ -322,7 +234,7 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="sqliteValue(ut, 'length')"
-                  @input="setSqliteValue(ut, 'length', ($event.target as HTMLInputElement).value)"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'sqlite', 'length', ($event.target as HTMLInputElement).value)"
                   style="width:60px;"
                 />
               </td>
@@ -330,15 +242,15 @@ function setSqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'sca
                 <input
                   class="table-input"
                   :value="sqliteValue(ut, 'scale')"
-                  @input="setSqliteValue(ut, 'scale', ($event.target as HTMLInputElement).value)"
+                  @input="store.setUnifiedTypeMappingValue(ut.name, 'sqlite', 'scale', ($event.target as HTMLInputElement).value)"
                   style="width:50px;"
                 />
               </td>
               <td style="text-align:center;">
-                <input type="checkbox" class="table-checkbox" v-model="ut.quote_default" @change="syncUnifiedTypes()" />
+                <input type="checkbox" class="table-checkbox" :checked="!!ut.quote_default" @change="store.updateUnifiedType(ut.name, { quote_default: ($event.target as HTMLInputElement).checked })" />
               </td>
               <td style="text-align:center;">
-                <select class="table-input" :value="ut.default_input ?? ''" @change="ut.default_input = ($event.target as HTMLSelectElement).value === 'boolean' ? 'boolean' : undefined; syncUnifiedTypes()" style="min-width:100px;">
+                <select class="table-input" :value="ut.default_input ?? ''" @change="store.updateUnifiedType(ut.name, { default_input: ($event.target as HTMLSelectElement).value === 'boolean' ? 'boolean' : undefined })" style="min-width:100px;">
                   <option value="">{{ $t('commonConfig.unifiedTypes.defaultInputText') }}</option>
                   <option value="boolean">{{ $t('commonConfig.unifiedTypes.defaultInputBoolean') }}</option>
                 </select>

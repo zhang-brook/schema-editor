@@ -1,8 +1,6 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema } from '@/types/schema'
-import type { InitialData } from '@/types/schema'
+import type { CommonConfig, Schema, InitialData } from '@/types/schema'
 import { newVersionId, newMigrationId, newEnvironmentId } from '@/core/ids'
-import { listVersions, readVersion, writeVersion, deleteVersion } from '@/core/version/storage'
 import { computeStructureDiff } from '@/core/version/diff'
 import { buildRenameLookup, buildRenameMap, suggestRenames } from '@/core/version/identity'
 import type { RenameSuggestion } from '@/core/version/identity'
@@ -13,23 +11,19 @@ import type {
   MigrationDdlPreview,
   RenameEntry,
   StructureDiff,
+  Environment,
 } from '@/core/version/types'
-import {
-  listMigrations,
-  writeMigration,
-  deleteMigration,
-} from '@/core/version/migration-storage'
-import {
-  listEnvironments,
-  writeEnvironment,
-  deleteEnvironment,
-} from '@/core/version/environment-storage'
-import type { Environment } from '@/core/version/types'
 import { generateMigrationDdl } from '@/core/version/migration-ddl'
-import { CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
+import { CURRENT_STRUCT_VERSION, VERSIONS_DIR, MIGRATIONS_DIR, ENVIRONMENTS_DIR } from '@/core/workspace/layout'
+import type { FileChange } from '@/core/workspace/save-coordinator'
+import { jsonContent } from '@/core/workspace/project-documents'
+import { buildCommonWriteData } from '@/core/workspace/serialization'
 
 export interface VersionDeps {
-  rootDirHandle: Ref<any>
+  getDocuments: () => {
+    readonly files: ReadonlyMap<string, string>
+    update(changes: readonly FileChange[]): void
+  } | null
   versions: Ref<VersionSummary[]>
   migrations: Ref<Migration[]>
   environments: Ref<Environment[]>
@@ -42,9 +36,136 @@ export interface VersionDeps {
   t: (key: string, options?: any) => string
 }
 
+type Documents = NonNullable<ReturnType<VersionDeps['getDocuments']>>
+type Decoder<T> = (value: unknown) => T | null
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+const isString = (value: unknown): value is string => typeof value === 'string'
+const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every(isString)
+const hasMetadata = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) && isString(value.id) && value.id.length > 0
+  && isString(value.name) && isString(value.created_at) && value.created_at.length > 0
+
+// Check the shapes used by lists, diff and DDL without rewriting malformed raw documents.
+const decodeVersion: Decoder<VersionSnapshot> = value => {
+  if (!hasMetadata(value) || !isString(value.struct_version)
+    || (value.parent_id !== undefined && !isString(value.parent_id))
+    || !isStringArray(value.schema_order) || !isRecord(value.initial_data)
+    || (value.common !== null && !isRecord(value.common))
+    || !Array.isArray(value.schemas)) return null
+  for (const schema of value.schemas) {
+    if (!isRecord(schema) || !isString(schema.schema) || !Array.isArray(schema.tables)) return null
+    for (const table of schema.tables) {
+      if (!isRecord(table) || !isString(table.name)
+        || !Array.isArray(table.fields) || !Array.isArray(table.indexes)
+        || !table.fields.every(field => isRecord(field) && isString(field.field_name))
+        || !table.indexes.every(index => isRecord(index) && isString(index.type)
+          && Array.isArray(index.columns) && index.columns.every(column => isRecord(column) && isString(column.name)))) return null
+    }
+  }
+  return value as unknown as VersionSnapshot
+}
+
+const decodeMigration: Decoder<Migration> = value => {
+  if (!hasMetadata(value) || !isString(value.from_version) || !isString(value.to_version)
+    || !isString(value.updated_at) || !Array.isArray(value.steps)
+    || (value.note !== undefined && !isString(value.note))) return null
+  // Older migrations did not contain renames. Normalize in memory only.
+  const renames = value.renames ?? []
+  if (!Array.isArray(renames) || !renames.every(rename => isRecord(rename)
+    && ['schema', 'table', 'field', 'index'].includes(String(rename.kind))
+    && isString(rename.from) && isString(rename.to)
+    && ['editor', 'auto', 'manual'].includes(String(rename.source)))) return null
+  for (const step of value.steps) {
+    if (!isRecord(step)) return null
+    switch (step.type) {
+      case 'auto_diff':
+        if (step.only_tables !== undefined && !isStringArray(step.only_tables)) return null
+        break
+      case 'clear_column':
+        if (![step.schema, step.table, step.column].every(isString)) return null
+        break
+      case 'sql_transform':
+      case 'custom_sql':
+        if (![step.mysql, step.postgresql, step.sqlite].every(sql => sql === undefined || isString(sql))) return null
+        break
+      default:
+        return null
+    }
+  }
+  if (value.env_status !== undefined && (!isRecord(value.env_status)
+    || !Object.values(value.env_status).every(status => isRecord(status) && typeof status.executed === 'boolean'
+      && (status.executed_at === undefined || isString(status.executed_at))
+      && (status.note === undefined || isString(status.note))))) return null
+  return { ...value, renames } as unknown as Migration
+}
+
+const decodeEnvironment: Decoder<Environment> = value => {
+  if (!hasMetadata(value) || !isString(value.version_id) || !isString(value.updated_at)
+    || (value.note !== undefined && !isString(value.note))) return null
+  return value as unknown as Environment
+}
+
+function documentPath(directory: string, id: string): string | null {
+  return id && !/[/\\]/.test(id) && id !== '.' && id !== '..' ? `${directory}/${id}.json` : null
+}
+
+function readDocument<T extends { id: string }>(documents: Documents, directory: string, id: string, decode: Decoder<T>): T | null {
+  const path = documentPath(directory, id)
+  const content = path ? documents.files.get(path) : undefined
+  if (content === undefined) return null
+  try {
+    const value = decode(JSON.parse(content))
+    return value?.id === id ? value : null
+  } catch {
+    return null
+  }
+}
+
+function listDocuments<T extends { id: string; created_at: string }>(documents: Documents, directory: string, decode: Decoder<T>): T[] {
+  const result: T[] = []
+  const prefix = `${directory}/`
+  for (const path of documents.files.keys()) {
+    if (!path.startsWith(prefix) || !path.endsWith('.json')) continue
+    const id = path.slice(prefix.length, -5)
+    if (documentPath(directory, id) !== path) continue
+    const value = readDocument(documents, directory, id, decode)
+    if (value) result.push(value)
+  }
+  return result.sort((a, b) => a.created_at.localeCompare(b.created_at))
+}
+
+function stageDocument<T extends { id: string }>(documents: Documents, directory: string, value: T, decode: Decoder<T>, create = false): T {
+  const path = documentPath(directory, value.id)
+  if (!path) throw new Error('Invalid document id')
+  if (documents.files.has(path) && (create || !readDocument(documents, directory, value.id, decode))) {
+    throw new Error(`Cannot overwrite existing document: ${path}`)
+  }
+  const content = jsonContent(value)
+  const stored = decode(JSON.parse(content))
+  if (!stored) throw new Error(`Invalid document: ${path}`)
+  documents.update([{ path, content }])
+  return stored
+}
+
+function removeDocument(documents: Documents, directory: string, id: string): void {
+  const path = documentPath(directory, id)
+  if (path && documents.files.has(path)) documents.update([{ path, content: null }])
+}
+
+function versionSummary(snapshot: VersionSnapshot): VersionSummary {
+  const { id, name, created_at, parent_id } = snapshot
+  return { id, name, created_at, ...(parent_id ? { parent_id } : {}) }
+}
+
+function listVersionSummaries(documents: Documents): VersionSummary[] {
+  return listDocuments(documents, VERSIONS_DIR, decodeVersion).map(versionSummary)
+}
+
 export function createVersionActions(deps: VersionDeps) {
   const {
-    rootDirHandle,
+    getDocuments,
     versions,
     migrations,
     environments,
@@ -57,61 +178,40 @@ export function createVersionActions(deps: VersionDeps) {
     t,
   } = deps
 
-  // ===== Versions / Migrations =====
-
-  /** 加载版本列表与迁移脚本列表（仅元数据） */
+  // Public APIs remain async for callers, but all reads/staging finish before yielding.
+  // Each action captures one document session; it never resumes against another project.
   async function loadVersionsAndMigrations() {
-    if (!rootDirHandle.value) return
-    try {
-      versions.value = await listVersions(rootDirHandle.value)
-    } catch (e) {
-      console.error('[loadVersionsAndMigrations] versions failed:', e)
-      versions.value = []
-    }
-    try {
-      migrations.value = await listMigrations(rootDirHandle.value)
-    } catch (e) {
-      console.error('[loadVersionsAndMigrations] migrations failed:', e)
-      migrations.value = []
-    }
-    try {
-      environments.value = await listEnvironments(rootDirHandle.value)
-    } catch (e) {
-      console.error('[loadVersionsAndMigrations] environments failed:', e)
-      environments.value = []
-    }
+    const documents = getDocuments()
+    if (!documents) return
+    versions.value = listVersionSummaries(documents)
+    migrations.value = listDocuments(documents, MIGRATIONS_DIR, decodeMigration)
+    environments.value = listDocuments(documents, ENVIRONMENTS_DIR, decodeEnvironment)
   }
 
-  /**
-   * 创建版本：将当前内存态深拷贝快照为 versions/<id>.json 并刷新版本列表。
-   * 结构对象本身不携带 id，跨版本识别 rename 依赖迁移脚本上累积的改名记录。
-   */
+  /** 将当前内存态序列化为不可变的版本文档，保存时才写入磁盘。 */
   async function createVersion(name?: string): Promise<VersionSummary | null> {
-    if (!rootDirHandle.value) return null
-    const id = newVersionId()
-    const displayName = name?.trim() || `v${versions.value.length + 1}.0`
-    // 基线取时间上最新的已有版本，使版本串成链
-    const parentId = [...versions.value]
-      .sort((a, b) => a.created_at.localeCompare(b.created_at))
-      .at(-1)?.id
-
-    const snapshot: VersionSnapshot = {
-      id,
-      name: displayName,
-      created_at: new Date().toISOString(),
-      struct_version: CURRENT_STRUCT_VERSION,
-      ...(parentId ? { parent_id: parentId } : {}),
-      common: JSON.parse(JSON.stringify(commonConfig.value)),
-      schema_order: commonConfig.value?.schema_order ?? schemas.map((s) => s.schema),
-      initial_data: JSON.parse(JSON.stringify(Object.fromEntries(initialDataMap.entries()))),
-      schemas: JSON.parse(JSON.stringify(schemas)),
-    }
-
+    const documents = getDocuments()
+    if (!documents) return null
     try {
-      await writeVersion(rootDirHandle.value, snapshot)
-      await loadVersionsAndMigrations()
+      const existing = listVersionSummaries(documents)
+      const id = newVersionId()
+      const displayName = name?.trim() || `v${existing.length + 1}.0`
+      const parentId = existing.at(-1)?.id
+      const snapshot = stageDocument<VersionSnapshot>(documents, VERSIONS_DIR, {
+        id,
+        name: displayName,
+        created_at: new Date().toISOString(),
+        struct_version: CURRENT_STRUCT_VERSION,
+        ...(parentId ? { parent_id: parentId } : {}),
+        common: buildCommonWriteData(commonConfig.value) as CommonConfig,
+        schema_order: schemas.map(schema => schema.schema),
+        initial_data: Object.fromEntries(initialDataMap),
+        schemas,
+      }, decodeVersion, true)
+      versions.value = [...existing, versionSummary(snapshot)]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
       showToast(t('version.created', { name: displayName }))
-      return { id, name: displayName, created_at: snapshot.created_at }
+      return versionSummary(snapshot)
     } catch (e) {
       console.error('[createVersion] failed:', e)
       showToast(t('toast.failedSaveChanges'))
@@ -119,22 +219,19 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** 重命名版本：仅改 name 并持久化快照，同步刷新列表缓存 */
+  /** 仅修改暂存快照的 name，并立即同步列表和预览缓存。 */
   async function renameVersion(id: string, name: string): Promise<void> {
-    if (!rootDirHandle.value) return
+    const documents = getDocuments()
+    if (!documents) return
     const displayName = name.trim()
     if (!displayName) return
-    const snap = await readVersion(rootDirHandle.value, id)
-    if (!snap) return
-    if (displayName === snap.name) return
-    snap.name = displayName
+    const snapshot = readDocument(documents, VERSIONS_DIR, id, decodeVersion)
+    if (!snapshot || displayName === snapshot.name) return
     try {
-      await writeVersion(rootDirHandle.value, snap)
-      const idx = versions.value.findIndex((v) => v.id === id)
-      if (idx >= 0) {
-        const cur = versions.value[idx]!
-        versions.value[idx] = { ...cur, name: displayName }
-      }
+      snapshot.name = displayName
+      const stored = stageDocument(documents, VERSIONS_DIR, snapshot, decodeVersion)
+      versions.value = listVersionSummaries(documents)
+      if (selectedVersionSnapshot.value?.id === id) selectedVersionSnapshot.value = stored
       showToast(t('version.renamed', { name: displayName }))
     } catch (e) {
       console.error('[renameVersion] failed:', e)
@@ -142,155 +239,100 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** 删除版本 */
   async function deleteVersionById(id: string): Promise<void> {
-    if (!rootDirHandle.value) return
+    const documents = getDocuments()
+    if (!documents) return
     try {
-      await deleteVersion(rootDirHandle.value, id)
-      await loadVersionsAndMigrations()
+      removeDocument(documents, VERSIONS_DIR, id)
+      versions.value = listVersionSummaries(documents)
+      if (selectedVersionSnapshot.value?.id === id) selectedVersionSnapshot.value = null
     } catch (e) {
       console.error('[deleteVersionById] failed:', e)
     }
   }
 
-  /** 读取版本完整快照（供 diff / 迁移使用） */
   async function getVersionSnapshot(id: string): Promise<VersionSnapshot | null> {
-    if (!rootDirHandle.value) return null
-    return readVersion(rootDirHandle.value, id)
+    const documents = getDocuments()
+    return documents ? readDocument(documents, VERSIONS_DIR, id, decodeVersion) : null
   }
 
-  /** 预览版本：加载完整快照到预览面板 */
   async function previewVersionById(id: string): Promise<void> {
-    if (!rootDirHandle.value) return
+    const documents = getDocuments()
+    if (!documents) return
     versionPreviewLoading.value = true
     try {
-      selectedVersionSnapshot.value = await readVersion(rootDirHandle.value, id)
-    } catch (e) {
-      console.error('[previewVersionById] failed:', e)
-      selectedVersionSnapshot.value = null
+      selectedVersionSnapshot.value = readDocument(documents, VERSIONS_DIR, id, decodeVersion)
     } finally {
       versionPreviewLoading.value = false
     }
   }
 
-  /** 关闭版本预览 */
   function clearVersionPreview(): void {
     selectedVersionSnapshot.value = null
   }
 
-  /** 汇总所有迁移上记录的改名事实（跨迁移复用，配合传递闭包可跨版本识别） */
-  function collectRenameEntries(): RenameEntry[] {
-    const out: RenameEntry[] = []
-    for (const m of migrations.value) {
-      if (Array.isArray(m.renames)) out.push(...m.renames)
-    }
-    return out
+  /** 历史改名事实同样取自暂存文档，而不是调用方可能正在编辑的缓存。 */
+  function buildLookup(documents: Documents): ReturnType<typeof buildRenameLookup> {
+    const entries: RenameEntry[] = listDocuments(documents, MIGRATIONS_DIR, decodeMigration)
+      .flatMap(migration => migration.renames)
+    return buildRenameLookup(buildRenameMap(entries).map)
   }
 
-  /** 由历史改名事实构造反查表，供 diff 匹配使用 */
-  function buildLookup(): ReturnType<typeof buildRenameLookup> {
-    return buildRenameLookup(buildRenameMap(collectRenameEntries()).map)
+  function loadDiffSides(documents: Documents, fromId: string | null, toId: string | null, toCurrent: boolean) {
+    const from = fromId === null ? null : readDocument(documents, VERSIONS_DIR, fromId, decodeVersion)
+    // Only an explicitly null source means the empty structure, never an unreadable version.
+    if (fromId !== null && !from) return null
+    const to = toCurrent || toId === null ? null : readDocument(documents, VERSIONS_DIR, toId, decodeVersion)
+    if (!toCurrent && !to) return null
+    const fromRef: StructureDiff['from'] = from ? { kind: 'version', id: from.id, name: from.name } : null
+    const toRef: StructureDiff['to'] = to ? { kind: 'version', id: to.id, name: to.name } : { kind: 'current' }
+    return {
+      fromSchemas: from?.schemas ?? null,
+      toSchemas: to ? to.schemas : clone(schemas),
+      toCommon: to ? to.common : clone(commonConfig.value),
+      fromRef,
+      toRef,
+    }
   }
 
-  /** 读取 diff 的源/目标两侧结构 */
-  async function loadDiffSides(
-    fromId: string | null,
-    toId: string | null,
-    toCurrent: boolean,
-  ): Promise<{
-    fromSchemas: import('@/types/schema').Schema[] | null
-    toSchemas: import('@/types/schema').Schema[]
-    fromRef: StructureDiff['from']
-    toRef: StructureDiff['to']
-  } | null> {
-    if (!rootDirHandle.value) return null
-    let fromSchemas: import('@/types/schema').Schema[] | null = null
-    if (fromId) {
-      const fromSnap = await readVersion(rootDirHandle.value, fromId)
-      fromSchemas = fromSnap?.schemas ?? null
-    }
-    let toSchemas: import('@/types/schema').Schema[]
-    let toRef: StructureDiff['to']
-    if (toCurrent) {
-      toSchemas = JSON.parse(JSON.stringify(schemas))
-      toRef = { kind: 'current' }
-    } else if (toId) {
-      const toSnap = await readVersion(rootDirHandle.value, toId)
-      toSchemas = toSnap?.schemas ?? []
-      toRef = { kind: 'version', id: toId, name: toSnap?.name ?? toId }
-    } else {
-      return null
-    }
-    const fromRef: StructureDiff['from'] = fromId
-      ? {
-          kind: 'version',
-          id: fromId,
-          name: versions.value.find((b) => b.id === fromId)?.name ?? fromId,
-        }
-      : null
-    return { fromSchemas, toSchemas, fromRef, toRef }
-  }
-
-  /**
-   * 计算两版本（或 当前 vs 版本）之间的结构 diff。
-   * @param fromId 源版本 id；为 null 表示与「空结构」对比（即首次全量）
-   * @param toCurrent true 时目标取当前内存态；否则取 toId 版本
-   */
-  async function computeDiff(
-    fromId: string | null,
-    toId: string | null,
-    toCurrent: boolean,
-  ): Promise<StructureDiff | null> {
-    const sides = await loadDiffSides(fromId, toId, toCurrent)
+  /** fromId 为 null 时才与空结构对比；toCurrent 时目标取当前内存态。 */
+  async function computeDiff(fromId: string | null, toId: string | null, toCurrent: boolean): Promise<StructureDiff | null> {
+    const documents = getDocuments()
+    if (!documents) return null
+    const sides = loadDiffSides(documents, fromId, toId, toCurrent)
     if (!sides) return null
-    return computeStructureDiff(
-      sides.fromSchemas,
-      sides.toSchemas,
-      sides.fromRef,
-      sides.toRef,
-      buildLookup(),
-    )
+    return computeStructureDiff(sides.fromSchemas, sides.toSchemas, sides.fromRef, sides.toRef, buildLookup(documents))
   }
 
-  /**
-   * 推断两版本之间的改名候选。
-   * 仅在缺少改名记录时作为补充手段，结论需经用户确认后写入迁移的 renames 才生效。
-   */
-  async function suggestRenameEntries(
-    fromId: string | null,
-    toId: string | null,
-    toCurrent: boolean,
-  ): Promise<RenameSuggestion[]> {
-    const sides = await loadDiffSides(fromId, toId, toCurrent)
-    if (!sides || !sides.fromSchemas) return []
+  async function suggestRenameEntries(fromId: string | null, toId: string | null, toCurrent: boolean): Promise<RenameSuggestion[]> {
+    const documents = getDocuments()
+    if (!documents) return []
+    const sides = loadDiffSides(documents, fromId, toId, toCurrent)
+    if (!sides?.fromSchemas) return []
     return suggestRenames(sides.fromSchemas, sides.toSchemas)
   }
 
   // ===== Migrations =====
 
-  /** 创建迁移脚本（选两版本），默认带一个 auto_diff 步骤 */
-  async function createMigration(
-    fromVersion: string,
-    toVersion: string,
-    name?: string,
-  ): Promise<Migration | null> {
-    if (!rootDirHandle.value) return null
-    const id = newMigrationId()
-    const fromName = versions.value.find((b) => b.id === fromVersion)?.name ?? fromVersion
-    const toName = versions.value.find((b) => b.id === toVersion)?.name ?? toVersion
-    const migration: Migration = {
-      id,
-      name: name?.trim() || `${fromName} → ${toName}`,
-      from_version: fromVersion,
-      to_version: toVersion,
-      renames: [],
-      steps: [{ type: 'auto_diff' }],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
+  async function createMigration(fromVersion: string, toVersion: string, name?: string): Promise<Migration | null> {
+    const documents = getDocuments()
+    if (!documents) return null
+    const from = readDocument(documents, VERSIONS_DIR, fromVersion, decodeVersion)
+    const to = readDocument(documents, VERSIONS_DIR, toVersion, decodeVersion)
+    if (!from || !to) return null
     try {
-      await writeMigration(rootDirHandle.value, migration)
-      await loadVersionsAndMigrations()
+      const now = new Date().toISOString()
+      const migration = stageDocument<Migration>(documents, MIGRATIONS_DIR, {
+        id: newMigrationId(),
+        name: name?.trim() || `${from.name} → ${to.name}`,
+        from_version: fromVersion,
+        to_version: toVersion,
+        renames: [],
+        steps: [{ type: 'auto_diff' }],
+        created_at: now,
+        updated_at: now,
+      }, decodeMigration, true)
+      migrations.value = listDocuments(documents, MIGRATIONS_DIR, decodeMigration)
       showToast(t('migration.created', { name: migration.name }))
       return migration
     } catch (e) {
@@ -300,16 +342,12 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** 更新迁移脚本（持久化 steps 等） */
   async function updateMigration(migration: Migration): Promise<void> {
-    if (!rootDirHandle.value) return
-    migration.updated_at = new Date().toISOString()
+    const documents = getDocuments()
+    if (!documents) return
     try {
-      await writeMigration(rootDirHandle.value, migration)
-      // 刷新缓存（保留引用顺序）
-      const idx = migrations.value.findIndex((m) => m.id === migration.id)
-      if (idx >= 0) migrations.value[idx] = migration
-      else migrations.value.push(migration)
+      stageDocument(documents, MIGRATIONS_DIR, { ...migration, updated_at: new Date().toISOString() }, decodeMigration)
+      migrations.value = listDocuments(documents, MIGRATIONS_DIR, decodeMigration)
     } catch (e) {
       console.error('[updateMigration] failed:', e)
       showToast(t('toast.failedSaveChanges'))
@@ -317,10 +355,11 @@ export function createVersionActions(deps: VersionDeps) {
   }
 
   async function deleteMigrationById(id: string): Promise<void> {
-    if (!rootDirHandle.value) return
+    const documents = getDocuments()
+    if (!documents) return
     try {
-      await deleteMigration(rootDirHandle.value, id)
-      await loadVersionsAndMigrations()
+      removeDocument(documents, MIGRATIONS_DIR, id)
+      migrations.value = listDocuments(documents, MIGRATIONS_DIR, decodeMigration)
     } catch (e) {
       console.error('[deleteMigrationById] failed:', e)
     }
@@ -328,27 +367,24 @@ export function createVersionActions(deps: VersionDeps) {
 
   // ===== Environments =====
 
-  /** 创建环境，关联到指定版本 */
-  async function createEnvironment(
-    name: string,
-    versionId: string,
-    note?: string,
-  ): Promise<Environment | null> {
-    if (!rootDirHandle.value) return null
-    const displayName = name?.trim() || t('environment.defaultName', { n: environments.value.length + 1 })
-    const env: Environment = {
-      id: newEnvironmentId(),
-      name: displayName,
-      version_id: versionId,
-      ...(note?.trim() ? { note: note.trim() } : {}),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
+  async function createEnvironment(name: string, versionId: string, note?: string): Promise<Environment | null> {
+    const documents = getDocuments()
+    if (!documents) return null
+    const existing = listDocuments(documents, ENVIRONMENTS_DIR, decodeEnvironment)
+    const displayName = name?.trim() || t('environment.defaultName', { n: existing.length + 1 })
     try {
-      await writeEnvironment(rootDirHandle.value, env)
-      await loadVersionsAndMigrations()
+      const now = new Date().toISOString()
+      const environment = stageDocument<Environment>(documents, ENVIRONMENTS_DIR, {
+        id: newEnvironmentId(),
+        name: displayName,
+        version_id: versionId,
+        ...(note?.trim() ? { note: note.trim() } : {}),
+        created_at: now,
+        updated_at: now,
+      }, decodeEnvironment, true)
+      environments.value = listDocuments(documents, ENVIRONMENTS_DIR, decodeEnvironment)
       showToast(t('environment.created', { name: displayName }))
-      return env
+      return environment
     } catch (e) {
       console.error('[createEnvironment] failed:', e)
       showToast(t('toast.failedSaveChanges'))
@@ -356,16 +392,13 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** 更新环境（名称 / 关联版本 / 备注） */
-  async function updateEnvironment(env: Environment): Promise<void> {
-    if (!rootDirHandle.value) return
-    env.updated_at = new Date().toISOString()
+  async function updateEnvironment(environment: Environment): Promise<void> {
+    const documents = getDocuments()
+    if (!documents) return
     try {
-      await writeEnvironment(rootDirHandle.value, env)
-      const idx = environments.value.findIndex(e => e.id === env.id)
-      if (idx >= 0) environments.value[idx] = env
-      else environments.value.push(env)
-      showToast(t('environment.saved', { name: env.name }))
+      const stored = stageDocument(documents, ENVIRONMENTS_DIR, { ...environment, updated_at: new Date().toISOString() }, decodeEnvironment)
+      environments.value = listDocuments(documents, ENVIRONMENTS_DIR, decodeEnvironment)
+      showToast(t('environment.saved', { name: stored.name }))
     } catch (e) {
       console.error('[updateEnvironment] failed:', e)
       showToast(t('toast.failedSaveChanges'))
@@ -373,23 +406,24 @@ export function createVersionActions(deps: VersionDeps) {
   }
 
   async function deleteEnvironmentById(id: string): Promise<void> {
-    if (!rootDirHandle.value) return
+    const documents = getDocuments()
+    if (!documents) return
     try {
-      await deleteEnvironment(rootDirHandle.value, id)
-      await loadVersionsAndMigrations()
+      removeDocument(documents, ENVIRONMENTS_DIR, id)
+      environments.value = listDocuments(documents, ENVIRONMENTS_DIR, decodeEnvironment)
     } catch (e) {
       console.error('[deleteEnvironmentById] failed:', e)
     }
   }
 
-  /** 预览迁移脚本合并后的最终 DDL（两方言） */
+  /** 两个版本和目标 common 均来自同一暂存会话，不依赖当前工作区配置。 */
   async function previewMigrationDdl(migration: Migration): Promise<MigrationDdlPreview | null> {
-    if (!rootDirHandle.value) return null
-    const diff = await computeDiff(migration.from_version, migration.to_version, false)
-    if (!diff) return null
-    const targetSnap = await readVersion(rootDirHandle.value, migration.to_version)
-    const targetSchemas = targetSnap?.schemas ?? []
-    return generateMigrationDdl(migration, diff, targetSchemas, commonConfig.value)
+    const documents = getDocuments()
+    if (!documents) return null
+    const sides = loadDiffSides(documents, migration.from_version, migration.to_version, false)
+    if (!sides) return null
+    const diff = computeStructureDiff(sides.fromSchemas, sides.toSchemas, sides.fromRef, sides.toRef, buildLookup(documents))
+    return generateMigrationDdl(clone(migration), diff, sides.toSchemas, sides.toCommon)
   }
 
   return {

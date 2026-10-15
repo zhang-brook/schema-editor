@@ -19,11 +19,21 @@ const openMenu = ref<string | null>(null)
 /** 顶部菜单栏居中标题：显示项目名称，未设置时留空 */
 const displayTitle = computed(() => store.projectName.trim())
 
-/** 网页标题：项目名称 - 应用名；未设置项目名时仅应用名 */
+/** 网页标题：项目名称 - 应用名；未设置项目名时仅应用名。有未保存改动时加圆点标记 */
 watchEffect(() => {
-  document.title = displayTitle.value
+  const base = displayTitle.value
     ? `${displayTitle.value} - ${t('app.title')}`
     : t('app.title')
+  document.title = store.hasUnsavedChanges ? `● ${base}` : base
+})
+
+/** 右上角保存状态：保存中 / 保存失败 / 未保存 N 处 / 已保存 */
+const saveBadge = computed(() => {
+  const state = store.saveState
+  if (state.saving) return t('toolbar.saving')
+  if (state.error) return t('toolbar.saveFailed')
+  if (state.dirty) return t('toolbar.unsaved', { n: state.pendingFiles })
+  return t('toolbar.saved')
 })
 
 function toggleMenu(menu: string) {
@@ -91,11 +101,19 @@ function onKeydown(e: KeyboardEvent) {
     }
     return
   }
+  // 保存到磁盘（Ctrl/Cmd+S，覆盖浏览器「保存网页」快捷键）
+  if (mod && !e.altKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
+    if (store.projectOpened) {
+      e.preventDefault()
+      void store.saveProjectWithFeedback()
+    }
+    return
+  }
   // 关闭文件夹（Ctrl/Cmd+E，避开浏览器保留的 Ctrl+W / Ctrl+Shift+W）
   if (mod && (e.key === 'e' || e.key === 'E')) {
     if (store.projectOpened) {
       e.preventDefault()
-      store.closeProject()
+      void store.requestCloseProject()
     }
     return
   }
@@ -114,14 +132,24 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+// 关闭标签页/刷新前：有未保存改动时交给浏览器原生确认
+// （自动保存关闭后磁盘上的内容落后于网页，静默离开会丢改动）
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (!store.hasUnsavedChanges) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+
 onMounted(() => {
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onKeydown)
+  window.addEventListener('beforeunload', onBeforeUnload)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('beforeunload', onBeforeUnload)
 })
 </script>
 
@@ -145,8 +173,15 @@ onUnmounted(() => {
         </div>
         <div
           class="menu-dropdown-item"
+          @click="menuAction(() => store.saveProjectWithFeedback())"
+        >
+          <span>{{ $t('toolbar.save') }}</span>
+          <span class="menu-shortcut">{{ isMac ? '⌘S' : 'Ctrl+S' }}</span>
+        </div>
+        <div
+          class="menu-dropdown-item"
           :class="{ disabled: !store.projectOpened }"
-          @click="store.projectOpened && menuAction(() => store.closeProject())"
+          @click="store.projectOpened && menuAction(() => store.requestCloseProject())"
         >
           <span>{{ $t('toolbar.closeFolder') }}</span>
           <span class="menu-shortcut">{{ isMac ? '⌘E' : 'Ctrl+E' }}</span>
@@ -245,9 +280,32 @@ onUnmounted(() => {
 
     <!-- Right Side -->
     <div class="menu-bar-right">
-      <span v-if="store.projectOpened" class="sync-badge" :title="$t('toolbar.autoSavingTitle')">
-        &#128190;&#xFE0E; {{ $t('toolbar.autoSaving') }}
-      </span>
+      <label v-if="store.projectOpened" class="autosave-toggle" :title="$t('toolbar.autoSaveTitle')">
+        <input
+          type="checkbox"
+          :checked="store.autoSaveEnabled"
+          @change="store.setAutoSave(($event.target as HTMLInputElement).checked)"
+        />
+        <span>{{ $t('toolbar.autoSave') }}</span>
+      </label>
+
+      <span
+        v-if="store.projectOpened"
+        class="save-badge"
+        :class="{ 'is-dirty': store.hasUnsavedChanges, 'is-error': !!store.saveState.error }"
+        :title="saveBadge"
+      >{{ saveBadge }}</span>
+
+      <button
+        v-if="store.projectOpened"
+        class="toolbar-btn"
+        :class="{ 'toolbar-btn--primary': store.hasUnsavedChanges }"
+        :disabled="store.saveState.saving"
+        :title="$t('toolbar.saveTitle')"
+        @click="store.saveProjectWithFeedback()"
+      >
+        &#128190;&#xFE0E; {{ $t('toolbar.save') }}
+      </button>
 
       <select
         class="locale-select"
@@ -424,14 +482,51 @@ onUnmounted(() => {
   cursor: default;
 }
 
-.sync-badge {
+.save-badge {
   font-size: 11px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  opacity: 0.75;
+  opacity: 0.85;
   white-space: nowrap;
   color: var(--fg-muted);
+}
+
+.save-badge.is-dirty {
+  color: var(--warning);
+  opacity: 1;
+}
+
+.save-badge.is-error {
+  color: var(--danger);
+  opacity: 1;
+}
+
+.autosave-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.autosave-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.toolbar-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+.toolbar-btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .locale-select {

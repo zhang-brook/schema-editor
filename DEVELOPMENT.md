@@ -7,7 +7,7 @@
 - **Vue 3** + **TypeScript** + **Vite**
 - **Pinia** 状态管理
 - **vue-i18n** 国际化（en / zh-CN / zh-TW）
-- **File System Access API** — 打开本地文件夹，编辑内容实时同步保存
+- **File System Access API** — 直接读写用户选定的本地文件夹，改动经工作区会话按需落盘
 - 纯前端运行，无需后端服务
 
 ## 项目结构
@@ -19,7 +19,7 @@ src/
 ├── assets/
 │   └── style/                   # 按功能拆分的 .css（base / layout / table / modal / form 等），由各组件 <style scoped src> 引入
 ├── components/
-│   ├── EditorToolbar.vue        # 顶部工具栏：Open Folder / Reload from Disk / Undo / Redo
+│   ├── EditorToolbar.vue        # 顶部工具栏：项目 / 编辑 / 帮助菜单、保存按钮、实时保存开关、撤改重做
 │   ├── UpgradingOverlay.vue     # 旧版本项目升级遮罩
 │   ├── ui/                      # 无业务语义的基础组件
 │   │   ├── PageTabs.vue         # 下划线式页面级 tab
@@ -55,17 +55,22 @@ src/
 ├── composables/
 │   ├── useDropFolder.ts         # 拖拽文件夹打开的组合式函数
 │   ├── useEscClose.ts           # Esc 关闭弹窗的组合式函数
-│   ├── useConfirm.ts            # 全局确认 / 提示弹窗队列（confirmDialog / alertDialog）
+│   ├── useConfirm.ts            # 全局弹窗队列（confirmDialog / chooseDialog 三选一 / alertDialog）
 │   ├── useEnterConfirm.ts       # 弹窗回车确认
 │   └── useEnabledDialect.ts     # 当前启用的方言
 ├── core/                        # 与 UI 无关的核心领域层
 │   ├── ids.ts                   # 唯一 id 生成（仅版本 / 迁移等存储实体使用）
 │   ├── history/
 │   │   └── command.ts           # 命令模式 + 结构化 patch（undo/redo 底层）
-│   ├── workspace/               # 统一路径层（路径单一事实来源）
+│   ├── workspace/               # 统一路径层与工作区读写
 │   │   ├── layout.ts            # 路径常量 + CURRENT_STRUCT_VERSION + 文件名友好化
 │   │   ├── handles.ts           # File System Access API 原语封装
-│   │   └── paths.ts             # 业务路径解析（新旧结构兼容）
+│   │   ├── paths.ts             # 业务路径解析（新旧结构兼容）
+│   │   ├── serialization.ts     # 内存态 → 磁盘文档的序列化（common / schema / table）
+│   │   ├── project-documents.ts # 项目文档规划：由变更范围算出待写文件与派生 SQL
+│   │   ├── browser-workspace.ts # 批量写入、路径白名单校验与外部改动冲突检测
+│   │   ├── save-coordinator.ts  # 串行保存队列：脏文件追踪 + 防抖 + 手动整批保存
+│   │   └── workspace-session.ts # 工作区会话：加载项目、声明变更、手动保存
 │   └── version/                 # 版本与迁移
 │       ├── types.ts             # 版本 / 迁移脚本类型定义
 │       ├── storage.ts           # versions/<id>.json 读写
@@ -83,7 +88,12 @@ src/
 │   └── locales/                 # en / zh-CN / zh-TW 语言包
 ├── stores/                      # Pinia：主 store + 按职责拆分的 action 工厂
 │   ├── editor.ts                # 主 store：持有状态，组合下列 action 并对组件暴露统一 API
-│   ├── editor-crud.ts           # schema / table / field / index 增删改与拖拽
+│   ├── editor-action-utils.ts   # action 工厂共用工具（快照捕获、名称校验、数组增删移）
+│   ├── editor-crud.ts           # 组合 schema / table / field / index 四个动作模块
+│   ├── editor-schema-actions.ts # schema 增删改与排序
+│   ├── editor-table-actions.ts  # table 增删改、基础信息与前后置 SQL
+│   ├── editor-field-actions.ts  # 字段增删改、统一类型解析与方言覆盖
+│   ├── editor-index-actions.ts  # 索引增删改与索引列
 │   ├── editor-common-config.ts  # 公共配置（统一类型 / 常用字段 / 方言配置等）
 │   ├── editor-initial-data.ts   # 初始数据编辑
 │   ├── editor-import-sql.ts     # 导入 SQL 解析与落库
@@ -94,7 +104,7 @@ src/
 │   └── global.d.ts              # 全局类型声明
 └── utils/
     ├── constants.ts             # 全局常量
-    ├── file-helpers.ts          # 项目读写（新旧结构），基于 core/workspace
+    ├── file-helpers.ts          # 旧结构 → 新结构的迁移写入入口，以及字段长度/默认值的输入解析
     ├── initial-data-io.ts       # 初始数据（行内结构）读写
     ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
     ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
@@ -124,22 +134,23 @@ src/
 本地工作目录 (common.json + current/ + versions/ + migrations/)
         │ File System Access API（core/workspace）
         ▼
-  file-helpers.ts  ←→  Pinia Store (editor.ts + 5 个 action 工厂)
-        │                    │
-        │                    ▼
-        │          Vue Components (响应式渲染)
-        │                    │
-        ▼                    ▼
-  按需写回受影响文件    SQL 生成器 (sql-generator/)
-                           │
-                           ▼
-                      SQL 预览面板
+  workspace-session.ts  ←→  Pinia Store (editor.ts + 5 个 action 工厂)
+   （加载 + 变更范围 + 手动保存）        │
+        │                              ▼
+        │                    Vue Components (响应式渲染)
+        │                              │
+        ▼                              ▼
+  save-coordinator.ts            SQL 生成器 (sql-generator/)
+   （脏文件追踪 + 防抖 + 整批写入）        │
+        │  project-documents.ts         ▼
+        ▼  （由变更范围算出待写文件）   SQL 预览面板
+  browser-workspace.ts（逐文件写入 + 冲突检测）
 ```
 
 ### 核心设计
 
-1. **组合式 Store**：`stores/editor.ts` 持有状态并组合 5 个 action 工厂（crud / 公共配置 / 初始数据 / 导入 SQL / 版本），组件只面对单一 `useEditorStore()`
-2. **命令模式 undo/redo + 按需写盘**：每次改动生成一个命令（apply / revert / affectedFiles），撤销只回滚该命令并只写回受影响的 JSON 文件
+1. **组合式 Store**：`stores/editor.ts` 持有状态并组合 5 个 action 工厂（crud / 公共配置 / 初始数据 / 导入 SQL / 版本；crud 内部再拆为 schema / table / field / index 四个模块），组件只面对单一 `useEditorStore()`
+2. **命令模式 undo/redo + 按需落盘**：每次改动生成一个命令（apply / revert / affectedFiles）；命令执行后把受影响文件集合交给工作区会话，由 `project-documents.ts` 展开成真正需要写入的文档集合（含派生 SQL），`save-coordinator.ts` 防抖后只写内容确有变化的文件。自动保存关闭时改动只留在内存，由「保存」按钮整批写入，并有未保存提醒与离开保护
 3. **方言覆盖解析**：字段类型、索引等属性统一经 `resolveDialectOverride` 读取（方言值 → 顶层同名属性 → 默认值），生成 MySQL / PostgreSQL / SQLite 三种 DDL
 
 ## 脚本

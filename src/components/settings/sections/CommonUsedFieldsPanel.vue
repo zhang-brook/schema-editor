@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref, reactive } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import type { Field } from '@/types/schema'
+import type { Field, UnifiedTypeDefinition } from '@/types/schema'
 import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
 
 const store = useEditorStore()
-const { t } = useI18n()
 
-// ===== 本地数组：从 store 有序方法派生 =====
-const localFields = ref<Field[]>([...store.getOrderedCommonUsedFields()])
+// Read-only projection, including command undo/redo and project switches.
+const localFields = computed(() => store.getOrderedCommonUsedFields())
 
-// 切换项目时重新读取
-watch(() => store.commonConfig, () => {
-  localFields.value = [...store.getOrderedCommonUsedFields()]
-})
+function updateField(field: Field, patch: Partial<Omit<Field, 'field_name'>>, coalesce = false) {
+  store.updateCommonUsedField(field.field_name, patch, coalesce)
+}
 
 // ===== Rename =====
 const editingFieldName = ref('')
@@ -27,63 +24,26 @@ function startRename(oldName: string) {
 
 function finishRename() {
   const oldName = editingOldName.value
-  const newName = editingFieldName.value.trim()
+  const newName = editingFieldName.value
   editingOldName.value = ''
-
-  if (!newName) { store.showToast(t('toast.fieldNameEmpty')); return }
-  if (oldName === newName) return
-  if (localFields.value.some(f => f.field_name === newName)) {
-    store.showToast(t('toast.commonFieldExists', { name: newName }))
-    editingFieldName.value = ''
-    return
-  }
-
-  const field = localFields.value.find(f => f.field_name === oldName)
-  if (!field) return
-  field.field_name = newName
-  store.updateCommonUsedFieldName(oldName, newName)
-  store.rebuildCommonUsedFieldsFromArray(localFields.value)
-  store.showToast(t('toast.commonFieldRenamed'))
   editingFieldName.value = ''
+  if (oldName) store.updateCommonUsedFieldName(oldName, newName)
 }
 
 // ===== Add =====
 const newCommonFieldName = ref('')
 
 function handleAdd() {
-  const name = newCommonFieldName.value.trim()
-  if (!name) { store.showToast(t('toast.pleaseEnterFieldName')); return }
-  if (localFields.value.some(f => f.field_name === name)) {
-    store.showToast(t('toast.commonFieldExists', { name }))
-    return
-  }
-  const newField: Field = {
-    field_name: name,
-    field_type: 'varchar',
-    field_length: 255,
-    not_null: false,
-    primary_key: false,
-    comment: ''
-  }
-  localFields.value.push(newField)
-  store.rebuildCommonUsedFieldsFromArray(localFields.value)
-  newCommonFieldName.value = ''
-  store.showToast(t('toast.commonFieldAdded'))
+  if (store.addCommonUsedField(newCommonFieldName.value)) newCommonFieldName.value = ''
 }
 
 // ===== Sort (move up/down) =====
 function moveCommonFieldUp(idx: number) {
-  if (idx <= 0) return
-  const arr = localFields.value;
-  [arr[idx - 1], arr[idx]] = [arr[idx]!, arr[idx - 1]!]
-  store.rebuildCommonUsedFieldsFromArray(arr)
+  store.moveCommonUsedField(idx, idx - 1)
 }
 
 function moveCommonFieldDown(idx: number) {
-  if (idx >= localFields.value.length - 1) return
-  const arr = localFields.value;
-  [arr[idx], arr[idx + 1]] = [arr[idx + 1]!, arr[idx]!]
-  store.rebuildCommonUsedFieldsFromArray(arr)
+  store.moveCommonUsedField(idx, idx + 1)
 }
 
 // ===== Drag-and-drop for Common Fields =====
@@ -115,13 +75,7 @@ function onCommonFieldDrop(e: DragEvent, toIdx: number) {
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-row')
   const fromIdx = dragCommonFieldIdx.value
   if (fromIdx < 0 || fromIdx === toIdx) return
-  const arr = localFields.value
-  const [item] = arr.splice(fromIdx, 1)
-  if (item) {
-    const insertIdx = toIdx > fromIdx ? toIdx - 1 : toIdx
-    arr.splice(insertIdx, 0, item)
-    store.rebuildCommonUsedFieldsFromArray(arr)
-  }
+  store.moveCommonUsedField(fromIdx, toIdx > fromIdx ? toIdx - 1 : toIdx)
   dragCommonFieldIdx.value = -1
 }
 
@@ -148,41 +102,24 @@ function onCommonFieldDropTail(e: DragEvent) {
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over-tail')
   const fromIdx = dragCommonFieldIdx.value
-  if (fromIdx < 0) return
-  const arr = localFields.value
-  if (fromIdx === arr.length - 1) return
-  const [item] = arr.splice(fromIdx, 1)
-  if (item) {
-    arr.push(item)
-    store.rebuildCommonUsedFieldsFromArray(arr)
-  }
+  store.moveCommonUsedField(fromIdx, localFields.value.length - 1)
   dragCommonFieldIdx.value = -1
 }
 
 // ===== Delete =====
 async function handleDelete(name: string) {
   await store.deleteCommonUsedField(name)
-  // store 内部为原地变更，watch 不会触发，手动重新派生本地数组
-  localFields.value = [...store.getOrderedCommonUsedFields()]
 }
 
-/** 选择统一类型时仅清除 field_type，长度和小数位由用户决定是否覆盖 */
+/** 类型选择与清理自定义类型/默认值引号在同一命令内完成。 */
 function handleUnifiedTypeChange(field: Field, value: string) {
-  if (value) {
-    field.unified_type = value
-    // 置 undefined 而非空串：common.json 直写内存对象，空串会残留成 "field_type": ""
-    field.field_type = undefined
-    // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
-    field.quote_default = undefined
-  } else {
-    field.unified_type = undefined
-  }
+  updateField(field, { unified_type: value || undefined })
 }
 
 /** 获取统一类型定义中配置的 placeholder 值（优先取 MySQL 的值） */
 function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
-  const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
+  const def = store.commonConfig.unified_types.find((ut: UnifiedTypeDefinition) => ut.name === field.unified_type)
   if (!def) return ''
   const val = def.mysql[key]
   return val !== undefined && val !== null ? String(val) : ''
@@ -190,12 +127,9 @@ function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): strin
 
 /** 切换字段是否有默认值 */
 function toggleHasDefault(field: Field) {
-  if (field.default !== undefined) {
-    field.default = undefined
-    field.quote_default = undefined
-  } else {
-    field.default = ''
-  }
+  updateField(field, field.default !== undefined
+    ? { default: undefined, quote_default: undefined }
+    : { default: '' })
 }
 
 /** ON UPDATE 勾选时按字段长度预填小数秒精度（datetime(3) → 3），非 0-6 的长度不作数 */
@@ -206,19 +140,16 @@ function defaultOnUpdatePrecision(field: Field): number | undefined {
 
 /** 切换 MySQL 的 ON UPDATE CURRENT_TIMESTAMP */
 function toggleOnUpdate(field: Field, checked: boolean) {
-  if (checked) {
-    field.on_update_current_timestamp = true
-    field.on_update_current_timestamp_precision = defaultOnUpdatePrecision(field)
-  } else {
-    field.on_update_current_timestamp = undefined
-    field.on_update_current_timestamp_precision = undefined
-  }
+  updateField(field, {
+    on_update_current_timestamp: checked || undefined,
+    on_update_current_timestamp_precision: checked ? defaultOnUpdatePrecision(field) : undefined,
+  })
 }
 
 /** 获取统一类型定义的默认值输入组件类型 */
 function getDefaultInputType(field: Field): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
-  const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
+  const def = store.commonConfig.unified_types.find((ut: UnifiedTypeDefinition) => ut.name === field.unified_type)
   return def?.default_input || ''
 }
 
@@ -333,7 +264,7 @@ function toggleCommonFieldExpand(fieldName: string) {
                   <input
                     v-if="!field.unified_type"
                     class="table-input type-free-input"
-                    v-model="field.field_type"
+                    :value="field.field_type" @input="updateField(field, { field_type: ($event.target as HTMLInputElement).value }, true)"
                     :placeholder="$t('fieldTable.typePlaceholder')"
                     style="min-width:60px;"
                   />
@@ -348,16 +279,16 @@ function toggleCommonFieldExpand(fieldName: string) {
                     class="table-input"
                     :value="displayFieldLength(field.field_length)"
                     :placeholder="getUnifiedTypePlaceholder(field, 'length')"
-                    @input="field.field_length = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                    @input="updateField(field, { field_length: parseFieldLengthInput(($event.target as HTMLInputElement).value) }, true)"
                     style="width:38px;"
                   />
-                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="field.field_length_disabled = undefined">—</span>
+                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="updateField(field, { field_length_disabled: undefined })">—</span>
                   <label class="mini-checkbox-label" title="不设置长度">
                     <input
                       type="checkbox"
                       class="mini-checkbox"
                       :checked="!!field.field_length_disabled"
-                      @change="field.field_length_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                      @change="updateField(field, { field_length_disabled: ($event.target as HTMLInputElement).checked || undefined })"
                     />{{ $t('fieldTable.notSet') }}
                   </label>
                 </div>
@@ -370,27 +301,27 @@ function toggleCommonFieldExpand(fieldName: string) {
                     class="table-input"
                     :value="displayFieldScale(field.field_scale)"
                     :placeholder="getUnifiedTypePlaceholder(field, 'scale')"
-                    @input="field.field_scale = parseFieldScaleInput(($event.target as HTMLInputElement).value)"
+                    @input="updateField(field, { field_scale: parseFieldScaleInput(($event.target as HTMLInputElement).value) }, true)"
                     style="width:38px;"
                   />
-                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="field.field_scale_disabled = undefined">—</span>
+                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="updateField(field, { field_scale_disabled: undefined })">—</span>
                   <label class="mini-checkbox-label" title="不设置小数位">
                     <input
                       type="checkbox"
                       class="mini-checkbox"
                       :checked="!!field.field_scale_disabled"
-                      @change="field.field_scale_disabled = ($event.target as HTMLInputElement).checked || undefined"
+                      @change="updateField(field, { field_scale_disabled: ($event.target as HTMLInputElement).checked || undefined })"
                     />{{ $t('fieldTable.notSet') }}
                   </label>
                 </div>
               </td>
               <!-- not_null -->
               <td>
-                <input type="checkbox" class="table-checkbox" v-model="field.not_null" />
+                <input type="checkbox" class="table-checkbox" :checked="!!field.not_null" @change="updateField(field, { not_null: ($event.target as HTMLInputElement).checked })" />
               </td>
               <!-- primary_key -->
               <td>
-                <input type="checkbox" class="table-checkbox" v-model="field.primary_key" />
+                <input type="checkbox" class="table-checkbox" :checked="!!field.primary_key" @change="updateField(field, { primary_key: ($event.target as HTMLInputElement).checked })" />
               </td>
               <!-- default -->
               <td>
@@ -406,7 +337,7 @@ function toggleCommonFieldExpand(fieldName: string) {
                     v-if="field.default !== undefined && getDefaultInputType(field) === 'boolean'"
                     class="table-input"
                     :value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
-                    @change="field.default = ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined"
+                    @change="updateField(field, { default: ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined })"
                     style="min-width:80px;"
                   >
                     <option value=""></option>
@@ -417,7 +348,7 @@ function toggleCommonFieldExpand(fieldName: string) {
                     v-else-if="field.default !== undefined"
                     class="table-input"
                     :value="displayDefault(field.default)"
-                    @input="field.default = parseDefaultInput(($event.target as HTMLInputElement).value)"
+                    @input="updateField(field, { default: parseDefaultInput(($event.target as HTMLInputElement).value) }, true)"
                     style="min-width:60px;"
                   >
                 </div>
@@ -429,7 +360,7 @@ function toggleCommonFieldExpand(fieldName: string) {
                 <template v-else-if="field.unified_type">
                   <span v-if="store.quoteDefaultForField(field)" style="color:var(--accent); font-size:11px;">✓</span>
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" v-model="field.quote_default">
+                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.quote_default" @change="updateField(field, { quote_default: ($event.target as HTMLInputElement).checked })">
               </td>
               <!-- on_update_current_timestamp -->
               <td>
@@ -447,7 +378,7 @@ function toggleCommonFieldExpand(fieldName: string) {
                     min="0"
                     max="6"
                     :value="field.on_update_current_timestamp_precision ?? ''"
-                    @input="field.on_update_current_timestamp_precision = parseFieldLengthInput(($event.target as HTMLInputElement).value)"
+                    @input="updateField(field, { on_update_current_timestamp_precision: parseFieldLengthInput(($event.target as HTMLInputElement).value) }, true)"
                     :title="$t('fieldTable.onUpdatePrecisionHint')"
                     placeholder="0-6"
                     style="width:44px;"
@@ -456,7 +387,7 @@ function toggleCommonFieldExpand(fieldName: string) {
               </td>
               <!-- comment -->
               <td>
-                <input class="table-input" v-model="field.comment" style="min-width:80px;" />
+                <input class="table-input" :value="field.comment" @input="updateField(field, { comment: ($event.target as HTMLInputElement).value }, true)" style="min-width:80px;" />
               </td>
               <!-- delete / move -->
               <td style="min-width: 80px;">
@@ -490,17 +421,17 @@ function toggleCommonFieldExpand(fieldName: string) {
                     <div class="db-override-grid">
                       <div class="db-override-group">
                         <div class="db-label">{{ $t('fieldTable.mysql') }}</div>
-                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'mysql', 'field_type')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_type', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'mysql', 'field_length')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_length', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'mysql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'mysql', 'field_scale', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'mysql', 'default')" @input="store.setFieldOverrideValue(field, 'mysql', 'default', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'mysql', 'field_type')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'mysql', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'mysql', 'field_length')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'mysql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'mysql', 'field_scale')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'mysql', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'mysql', 'default')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'mysql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                       <div class="db-override-group">
                         <div class="db-label">{{ $t('fieldTable.postgresql') }}</div>
-                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_type')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_type', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_length')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_length', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_scale')" @input="store.setFieldOverrideValue(field, 'postgresql', 'field_scale', ($event.target as HTMLInputElement).value)">
-                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'postgresql', 'default')" @input="store.setFieldOverrideValue(field, 'postgresql', 'default', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_type" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_type')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'postgresql', 'field_type', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_length" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_length')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'postgresql', 'field_length', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="field_scale" :value="store.getFieldOverrideValue(field, 'postgresql', 'field_scale')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'postgresql', 'field_scale', ($event.target as HTMLInputElement).value)">
+                        <input class="form-input" placeholder="default" :value="store.getFieldOverrideValue(field, 'postgresql', 'default')" @input="store.setCommonUsedFieldOverrideValue(field.field_name, 'postgresql', 'default', ($event.target as HTMLInputElement).value)">
                       </div>
                     </div>
                   </div>

@@ -33,7 +33,7 @@ import { checklistBody } from './sections/checklist'
 /** 生成的文档文件名（写入用户打开的文件夹根目录） */
 export const AI_GUIDE_FILE = 'AI_JSON_STRUCTURE_GUIDE.md'
 
-/** 从 commonConfig 读取「是否生成 AI 指南」（缺失视为 true） */
+/** 从 commonConfig 读取「是否生成 AI 指南」（缺失视为 false） */
 export function loadGenerateAiGuide(commonConfig: { generate_ai_guide?: boolean } | null | undefined): boolean {
   return commonConfig?.generate_ai_guide ?? false
 }

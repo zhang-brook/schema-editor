@@ -1,57 +1,28 @@
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type {
   CommonConfig,
-  Field,
   Schema,
   InitialData,
 } from '@/types/schema'
 import type { SettingsTab } from '@/types/settings'
-import {
-  isFileSystemAccessSupported,
-  writeCommonToHandle,
-  deleteSqlFromOutput,
-  deleteSqlDialectFromOutput,
-  cleanupStaleOutputSql,
-  writeSqlToOutput,
-  // ===== 新结构（current/）读写 =====
-  openProjectFolderNew,
-  isNewStructure,
-  isEmptyFolder,
-  writeDatabaseToHandle,
-  writeSchemaJsonToHandle,
-  writeTableToHandle,
-  deleteTableDirFromHandle,
-  deleteSchemaDirFromHandle,
-  pruneTableDirsFromHandle,
-} from '@/utils/file-helpers'
-import {
-  writeInitialDataToNewStructure,
-  deleteInitialDataFromNewStructure,
-} from '@/utils/initial-data-io'
-import { DIALECT_GENERATORS } from '@/utils/sql-generator'
-import { stripDisabledFieldMetrics } from '@/utils/field-utils'
+import { isFileSystemAccessSupported, isNewStructure, isEmptyFolder } from '@/utils/file-helpers'
 import { checkVersion } from '@/utils/structure-migrations/version-utils'
 import { runStructureMigrations } from '@/utils/structure-migrations'
 import {
   CommandManager,
-  mergeAffectedFiles,
+  affectedCommon,
   type Command,
   type AffectedFile,
 } from '@/core/history/command'
-import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
-import { getCommonFileHandle, getCurrentDir } from '@/core/workspace/paths'
-import { readJsonFile } from '@/core/workspace/handles'
-import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION, sanitizeName } from '@/core/workspace/layout'
-import {
-  AI_GUIDE_FILE,
-  loadGenerateAiGuide,
-  saveGenerateAiGuide,
-  generateAiGuideMarkdown,
-} from '@/utils/ai-guide'
-import { writeTextFile, removeEntry, getFileHandleSafe } from '@/core/workspace/handles'
-import { fmtPrePostSql, getGlobalPostSql, getGlobalPreSql } from '@/utils/sql-generator/shared'
+import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
+import { buildSchemaExportData } from '@/core/workspace/serialization'
+import { BrowserWorkspaceWriter } from '@/core/workspace/browser-workspace'
+import { createDefaultCommonConfig, createWorkspaceSession, loadWorkspaceDocuments, type WorkspaceSession } from '@/core/workspace/workspace-session'
+import type { SaveState } from '@/core/workspace/save-coordinator'
+import { jsonContent } from '@/core/workspace/project-documents'
+import { loadGenerateAiGuide, saveGenerateAiGuide } from '@/utils/ai-guide'
 import { ALL_SQL_DIALECTS, type SqlDialect } from '@/utils/sql-generator/shared'
 import type { UnifiedTypeDefinition } from '@/types/schema'
 import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
@@ -67,7 +38,7 @@ import type {
   Migration,
   Environment,
 } from '@/core/version/types'
-import { confirmDialog, alertDialog } from '@/composables/useConfirm'
+import { confirmDialog, chooseDialog, alertDialog } from '@/composables/useConfirm'
 
 export const useEditorStore = defineStore('editor', () => {
   const { t } = useI18n()
@@ -94,12 +65,20 @@ export const useEditorStore = defineStore('editor', () => {
 
   // File System Access API handles (in-memory, same session)
   const rootDirHandle = ref<any>(null)
-  const currentDirHandle = ref<any>(null)
   const projectOpened = ref(false)
 
   // ===== 项目设置：是否在用户打开的文件夹中生成/更新 AI JSON 结构指南 =====
   // 该设置随项目保存到 common.json（commonConfig.generate_ai_guide），缺省为 false
   const generateAiGuide = ref<boolean>(false)
+
+  // ===== 保存：改动经工作区会话增量落盘 =====
+  const AUTO_SAVE_PREF = 'schema-editor.autosave'
+
+  /** 自动保存开关（浏览器本地偏好，默认开启）。关闭后改动只留在内存，等用户点保存 */
+  const autoSaveEnabled = ref(typeof localStorage === 'undefined' ? true : localStorage.getItem(AUTO_SAVE_PREF) !== 'off')
+  const saveState = ref<SaveState>({ dirty: false, saving: false, error: null, pendingFiles: 0 })
+  const hasUnsavedChanges = computed(() => saveState.value.dirty)
+  let session: WorkspaceSession | null = null
 
   // ===== Versions / Migrations =====
   const versions = ref<VersionSummary[]>([])
@@ -212,10 +191,10 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 切换方言启用状态：写入 common.json 并立即同步。
+   * 切换方言启用状态：写入 common.json 并声明受影响文件。
    * 取消勾选会删除 output/ 下该方言已生成的 SQL（json 中的方言配置保留）；至少保留一种方言。
    */
-  async function setDialectEnabled(dialect: SqlDialect, enabled: boolean) {
+  function setDialectEnabled(dialect: SqlDialect, enabled: boolean) {
     if (!commonConfig.value) return
     const stored = commonConfig.value.enabled_dialects
     const list = stored && stored.length ? [...stored] : [...ALL_SQL_DIALECTS]
@@ -231,7 +210,7 @@ export const useEditorStore = defineStore('editor', () => {
       list.splice(idx, 1)
     }
     commonConfig.value.enabled_dialects = list
-    if (projectOpened.value) await syncAllToDisk()
+    markChanged([affectedCommon()])
   }
 
   // ===== Toast =====
@@ -262,13 +241,14 @@ export const useEditorStore = defineStore('editor', () => {
     overlayText.value = ''
   }
 
-  /** 选择项目文件夹并加载内容，之后所有编辑实时自动同步 */
+  /** 选择项目文件夹并加载内容，之后按自动保存设置增量落盘 */
   async function openProject() {
     if (!isFileSystemAccessSupported()) {
       // showToast(t('toast.browserNotSupported'))
       await alertDialog({ title: t('alertTitle'), message: t('toast.browserNotSupported') })
       return
     }
+    if (projectOpened.value && !(await confirmLeaveUnsaved())) return
     try {
       const rootHandle: FileSystemDirectoryHandle = await window.showDirectoryPicker()
       showOverlay(t('app.loadingOpenProject'))
@@ -286,6 +266,7 @@ export const useEditorStore = defineStore('editor', () => {
       await alertDialog({ title: t('alertTitle'), message: t('toast.browserNotSupported') })
       return
     }
+    if (projectOpened.value && !(await confirmLeaveUnsaved())) return
     try {
       showOverlay(t('app.loadingOpenProject'))
       await _openRootHandle(handle)
@@ -309,8 +290,8 @@ export const useEditorStore = defineStore('editor', () => {
 
     // 空文件夹：视作全新项目，直接以新结构初始化（写入默认 common.json），不提示升级
     if (await isEmptyFolder(rootHandle)) {
-      const defaultCommon = _createDefaultCommonConfig()
-      await writeCommonToHandle(rootHandle, defaultCommon)
+      const writer = new BrowserWorkspaceWriter(rootHandle)
+      await writer.save([{ path: COMMON_FILE, content: jsonContent(createDefaultCommonConfig()) }])
       await _loadNewStructure(rootHandle)
       return
     }
@@ -351,17 +332,26 @@ export const useEditorStore = defineStore('editor', () => {
   /** 取消升级：关闭项目，返回空状态（不再保留旧结构打开态，不弹关闭提示） */
   function cancelUpgradeStructure() {
     pendingUpgradeRootHandle.value = null
-    closeProject(true)
+    void closeProject(true)
   }
 
   // ===== Close Project =====
 
   /** 关闭当前项目文件夹，清空所有编辑状态。silent=true 时不弹「项目已关闭」提示（如取消升级场景） */
-  function closeProject(silent = false) {
+  async function closeProject(silent = false) {
     _stopFileObserver()
+    const closing = session
+    session = null
     rootDirHandle.value = null
-    currentDirHandle.value = null
     projectOpened.value = false
+    _resetMemory()
+    saveState.value = { dirty: false, saving: false, error: null, pendingFiles: 0 }
+    await closing?.coordinator.dispose()
+    if (!silent) showToast(t('toast.projectClosed'))
+  }
+
+  /** 换项目或关闭时丢弃当前内存态；调用前必须已确认未保存改动 */
+  function _resetMemory() {
     commonConfig.value = null
     generateAiGuide.value = false
     schemas.length = 0
@@ -369,19 +359,15 @@ export const useEditorStore = defineStore('editor', () => {
     initialDataDeletedKeys.clear()
     versions.value = []
     migrations.value = []
+    environments.value = []
+    selectedVersionSnapshot.value = null
     selectedSchemaIdx.value = -1
     selectedTableIdx.value = -1
     settingsTab.value = 'structure'
     expandedFields.clear()
     expandedIndexes.clear()
-    if (_syncTimer) {
-      clearTimeout(_syncTimer)
-      _syncTimer = null
-    }
-    _autoSyncSetup = false
     history.clear()
     refreshHistoryFlags()
-    if (!silent) showToast(t('toast.projectClosed'))
   }
 
   // ===== Versions / Migrations (extracted) =====
@@ -403,7 +389,7 @@ export const useEditorStore = defineStore('editor', () => {
     updateEnvironment,
     deleteEnvironmentById,
   } = createVersionActions({
-    rootDirHandle,
+    getDocuments: () => session ? { files: session.coordinator.files, update: changes => session?.coordinator.update(changes) } : null,
     versions,
     migrations,
     environments,
@@ -416,86 +402,18 @@ export const useEditorStore = defineStore('editor', () => {
     t,
   })
 
-  // ===== Load New Structure (current/) =====
-
-  /** 构造默认根 common.json（新结构） */
-  function _createDefaultCommonConfig(): any {
-    return {
-      struct_version: CURRENT_STRUCT_VERSION,
-      default_config: {
-        mysql: {
-          database: {},
-          table: {
-            mysql_engine: 'InnoDB',
-            mysql_charset: 'utf8mb4',
-            mysql_collation: 'utf8mb4_0900_ai_ci',
-          }
-        },
-        postgresql: {
-          quote_identifiers: true,
-        },
-        sqlite: {
-          quote_identifiers: true,
-        }
-      },
-      common_used_fields: {},
-      type_case: 'keep',
-      generate_ai_guide: false,
-    }
-  }
+  // ===== Load Project (current/) =====
 
   /**
-   * 加载新结构项目：从 current/database.json + 各 table.json + 各 initial-data.json 还原内存态。
-   * 同时完成 projectOpened / toast / auto-sync / observer 的收尾。
+   * 加载项目：一次性读出 common.json / database.json / 各 schema、table、initial-data 文档，
+   * 用读到的原文建立保存基线，之后由工作区会话只写真正变化的文件。
    * 返回 false 表示版本检查未通过。
    */
   async function _loadNewStructure(rootHandle: FileSystemDirectoryHandle): Promise<boolean> {
-    const newProj = await openProjectFolderNew(rootHandle)
-    currentDirHandle.value = await getCurrentDir(rootHandle)
+    const writer = new BrowserWorkspaceWriter(rootHandle)
+    const { project, files } = await loadWorkspaceDocuments(writer)
 
-    // 清空内存状态
-    commonConfig.value = null
-    schemas.length = 0
-    initialDataMap.clear()
-    initialDataDeletedKeys.clear()
-    selectedSchemaIdx.value = -1
-    selectedTableIdx.value = -1
-    expandedFields.clear()
-    expandedIndexes.clear()
-
-    // 加载根 common.json（与版本无关的配置）
-    let common: any = null
-    try {
-      const commonHandle = await getCommonFileHandle(rootHandle, false)
-      const data = await readJsonFile(commonHandle) as any
-      if (data?.default_config && data?.common_used_fields) {
-        if (!data.default_config.postgresql) {
-          data.default_config.postgresql = { quote_identifiers: true }
-        }
-        // sqlite 为后加方言，旧 common.json 无此键时补齐默认配置
-        if (!data.default_config.sqlite) {
-          data.default_config.sqlite = { quote_identifiers: true }
-        }
-        // 统一类型字段可能残留历史写入的空 field_type（common.json 直写内存对象），
-        // 加载时清除，否则下次写盘又把它带回去
-        for (const field of Object.values(data.common_used_fields) as Field[]) {
-          if (field && field.field_type === '') field.field_type = undefined
-        }
-        common = data
-      }
-    } catch {
-      common = null
-    }
-    if (!common) common = _createDefaultCommonConfig()
-    commonConfig.value = common
-    // 从 common.json 恢复 AI 指南开关（缺省 true）
-    generateAiGuide.value = loadGenerateAiGuide(commonConfig.value)
-
-    // commonConfig.value 已确定非 null，使用本地常量避免 TS 窄化失败
-    const cc = commonConfig.value!
-
-    // 版本检查
-    const versionResult = checkVersion(cc)
+    const versionResult = checkVersion(project.common)
     if (!versionResult.ok) {
       await alertDialog({ title: t('alertTitle'), message: versionResult.error ?? '' })
       return false
@@ -504,22 +422,11 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    // 加载 schema_order 与各表定义
-    cc.schema_order = newProj.databaseData?.schema_order
-    for (const s of newProj.schemas) {
-      schemas.push({ schema: s.schema, tables: s.tables } as Schema)
-    }
-    applySchemaOrder()
-
-    // 初始化 unified_types（若缺失或为空，则填充内置默认集）
-    if (!cc.unified_types || cc.unified_types.length === 0) {
-      cc.unified_types = JSON.parse(JSON.stringify(DEFAULT_UNIFIED_TYPES))
-    }
-
-    // 加载 initial-data（行内化在各 table 目录）
-    for (const { key, data } of newProj.initialData) {
-      initialDataMap.set(key, data)
-    }
+    _resetMemory()
+    commonConfig.value = project.common
+    schemas.push(...project.schemas)
+    for (const [key, data] of project.initialData) initialDataMap.set(key, data)
+    generateAiGuide.value = loadGenerateAiGuide(commonConfig.value)
 
     // 自动选中第一个 schema
     if (schemas.length > 0) {
@@ -528,10 +435,14 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     projectOpened.value = true
-    // 打开项目后确保 AI 指南按需生成（空文件夹未触发任何写盘时也要生成）
-    await syncAiGuideToDisk()
-    // 打开项目后默认选中「库结构设计」tab
-    settingsTab.value = 'structure'
+    session = createWorkspaceSession({
+      writer,
+      files,
+      project: () => ({ common: commonConfig.value, schemas, initialData: initialDataMap }),
+      autoSave: autoSaveEnabled.value,
+      onStateChange: state => { saveState.value = state },
+    })
+
     // 加载版本/迁移列表（只读元数据，不加载完整快照）
     await loadVersionsAndMigrations()
     const parts: string[] = []
@@ -539,7 +450,6 @@ export const useEditorStore = defineStore('editor', () => {
     if (commonConfig.value) parts.push('common.json')
     showToast(t('toast.opened', { summary: parts.join(' + ') }))
 
-    setupAutoSync()
     await _startFileObserver()
     return true
   }
@@ -552,8 +462,8 @@ export const useEditorStore = defineStore('editor', () => {
     // 读取根 common.json 用于版本判定
     let oldCommon: any = null
     try {
-      const commonHandle = await getCommonFileHandle(rootHandle, false)
-      oldCommon = await readJsonFile(commonHandle)
+      const commonText = await new BrowserWorkspaceWriter(rootHandle).read(COMMON_FILE)
+      oldCommon = commonText === null ? null : JSON.parse(commonText)
     } catch {
       oldCommon = null
     }
@@ -589,26 +499,32 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== Reload from Disk =====
 
-  /** 放弃网页中的编辑，从本地文件重新读取所有数据 */
+  /** 用户入口：放弃网页中的编辑，从本地文件重新读取所有数据（未保存改动先经离开保护） */
   async function reloadFromDisk() {
-    if (!rootDirHandle.value || !currentDirHandle.value) return
+    if (!rootDirHandle.value) return
+    if (!(await confirmLeaveUnsaved())) return
+    await _reloadFromDisk()
+  }
 
+  let _reloading = false
+
+  async function _reloadFromDisk() {
     const rootH = rootDirHandle.value
+    if (!rootH) return
 
-    _enterWriteScope()
     _reloading = true
-    if (_syncTimer) {
-      clearTimeout(_syncTimer)
-      _syncTimer = null
-    }
+    _stopFileObserver()
+    const closing = session
+    session = null
 
     try {
+      await closing?.coordinator.dispose()
       const ok = await _loadNewStructure(rootH)
       if (!ok) {
         // 版本不匹配（磁盘结构版本高于/低于当前编辑器支持版本）：
         // 重新加载本质等价于「关闭项目后重新打开」，因此关闭后重新走打开流程，
         // 由 _openRootHandle 自然分流——旧结构弹升级窗、版本过高则提示升级编辑器。
-        closeProject(true)
+        await closeProject(true)
         await _openRootHandle(rootH)
         return
       }
@@ -618,25 +534,13 @@ export const useEditorStore = defineStore('editor', () => {
       showToast(t('toast.failedReloadFromDisk'))
     } finally {
       _reloading = false
-      _leaveWriteScope()
     }
   }
 
   // ===== External file change detection (FileSystemObserver) =====
   let _fileObserver: FileSystemObserver | null = null
   let _observerSetup = false
-  let _writeDepth = 0
   let _popupDebounceTimer: ReturnType<typeof setTimeout> | null = null
-
-  /** 进入写保护作用域：observer 检查此计数器，大于 0 时忽略所有文件变更事件 */
-  function _enterWriteScope() {
-    _writeDepth++
-  }
-
-  /** 离开写保护作用域 */
-  function _leaveWriteScope() {
-    if (_writeDepth > 0) _writeDepth--
-  }
 
   /** 启动 FileSystemObserver 监听根目录文件变化 */
   async function _startFileObserver() {
@@ -650,28 +554,19 @@ export const useEditorStore = defineStore('editor', () => {
 
     try {
       _fileObserver = new FileSystemObserver((records) => {
-        if (_reloading || !projectOpened.value || !rootDirHandle.value) return
-        // 自身写入期间忽略所有文件变更
-        if (_writeDepth > 0) return
+        if (_reloading || !projectOpened.value || !session) return
 
-        // 只关注 common.json 与新结构 current/ 下的文件，忽略 output/ 等
-        const relevantRecords = records.filter(r => {
-          const path = r.relativePathComponents.join('/')
-          return path === COMMON_FILE || path.startsWith(`${CURRENT_DIR}/`)
-        })
-        if (relevantRecords.length === 0) return
-
-        const changedNames = relevantRecords.map(r => r.relativePathComponents.join('/'))
-        console.log('[FileSystemObserver] relevant changes:', changedNames.join(', '))
+        // 只关注 common.json 与 current/ 下的源文档，忽略 output/ 等派生文件
+        const paths = [...new Set(records.map(r => r.relativePathComponents.join('/')))]
+          .filter(path => path === COMMON_FILE || path.startsWith(`${CURRENT_DIR}/`))
+        if (paths.length === 0) return
+        // 自身写入尚未结束时忽略：写完后的内容与基线一致，不构成外部改动
+        if (session.coordinator.state.saving) return
+        console.log('[FileSystemObserver] relevant changes:', paths.join(', '))
 
         // 防抖：同一次外部修改可能触发多次回调，只弹一次窗
         if (_popupDebounceTimer) clearTimeout(_popupDebounceTimer)
-        _popupDebounceTimer = setTimeout(() => {
-          if (_writeDepth > 0 || _reloading || !projectOpened.value) return
-          confirmDialog({ title: t('confirm.title'), message: t('toast.diskFileChanged'), confirmText: t('confirm.ok'), cancelText: t('confirm.cancel') }).then((ok) => {
-            if (ok) reloadFromDisk()
-          })
-        }, 400)
+        _popupDebounceTimer = setTimeout(() => { void _handleExternalChanges(paths) }, 400)
       })
 
       // recursive: true 确保监听 schemas/ 等子目录下的文件变更
@@ -683,6 +578,28 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  /** 比对磁盘内容与保存基线，确认确有外部改动后再提示重新加载 */
+  async function _handleExternalChanges(paths: string[]) {
+    const current = session
+    if (_reloading || !projectOpened.value || !current) return
+    if (current.coordinator.state.saving) return
+    if (!(await current.hasExternalChanges(paths))) return
+
+    if (hasUnsavedChanges.value) {
+      // 磁盘和内存同时有改动：先决定内存改动是否保留，再重新加载
+      if (!(await confirmLeaveUnsaved())) return
+      await _reloadFromDisk()
+      return
+    }
+    const ok = await confirmDialog({
+      title: t('confirm.title'),
+      message: t('toast.diskFileChanged'),
+      confirmText: t('confirm.ok'),
+      cancelText: t('confirm.cancel'),
+    })
+    if (ok) await _reloadFromDisk()
+  }
+
   /** 停止 FileSystemObserver */
   function _stopFileObserver() {
     if (_fileObserver) {
@@ -690,19 +607,16 @@ export const useEditorStore = defineStore('editor', () => {
       _fileObserver = null
     }
     _observerSetup = false
-    _writeDepth = 0
     if (_popupDebounceTimer) {
       clearTimeout(_popupDebounceTimer)
       _popupDebounceTimer = null
     }
   }
 
-  // ===== Undo/Redo 接入 & 按需写盘 =====
+  // ===== Undo/Redo 接入 =====
 
-  /** 注入命令写盘回调：命令执行/undo/redo 后只写受影响文件 */
-  history.setPersistHook((files) => {
-    void persistAffectedFiles(files)
-  })
+  /** 命令执行/撤销/重做后声明受影响文件，由工作区会话按需落盘 */
+  history.setPersistHook((files) => { markChanged(files) })
 
   /** 经命令管理器执行一个命令（apply + 入栈 + 按需写盘） */
   function executeCommand(cmd: Command) {
@@ -726,353 +640,89 @@ export const useEditorStore = defineStore('editor', () => {
     showToast(t('toast.redo'))
   }
 
+  // ===== Save =====
+
   /**
-   * common.json 的落盘数据：不携带 schema_order（已迁入 database.json），
-   * 公共字段同样省略被禁用/清空为 null 的长度与小数位（见 stripDisabledFieldMetrics）。
+   * 声明本次改动涉及的文件集合，交由工作区会话增量落盘。
+   * 自动保存开启时协调器防抖后只写这些文件（及其派生 SQL）；关闭时仅标记为未保存。
    */
-  function buildCommonWriteData(): any {
-    const data: any = { ...commonConfig.value }
-    delete data.schema_order
-    const fields = data.common_used_fields as Record<string, Field> | undefined
-    if (fields) {
-      const cleaned: Record<string, Field> = {}
-      for (const key of Object.keys(fields)) {
-        cleaned[key] = stripDisabledFieldMetrics(fields[key]!)
-      }
-      data.common_used_fields = cleaned
-    }
-    return data
+  function markChanged(files: AffectedFile[]) {
+    session?.changed(files)
   }
 
   /**
-   * 按需写盘：仅对命令声明的受影响文件集合写盘，不再全量遍历所有 schema。
-   * SQL 因暂无部分更新能力，仍全量重新生成并写 output/（行为保持与重构前一致）。
+   * 手动保存：整批写出内存里的项目文档，并重建全部派生文件（output/ 下的 SQL、AI 指南）。
+   * 因此即使当前没有改动也可以保存——磁盘上的派生文件被外部删除后，靠它恢复。
    */
-  async function persistAffectedFiles(files: AffectedFile[]) {
-    if (!rootDirHandle.value || !currentDirHandle.value) return
-    const merged = mergeAffectedFiles(files)
-    const needSql = merged.some(f => f.kind === 'sql')
-
-    _enterWriteScope()
+  async function saveProject() {
+    if (!session) return
     try {
-      // common / database 仅当相关命令时写
-      if (merged.some(f => f.kind === 'common')) {
-        await writeCommonToHandle(rootDirHandle.value, buildCommonWriteData())
-      }
-      if (merged.some(f => f.kind === 'database')) {
-        await writeDatabaseToHandle(rootDirHandle.value, {
-          schema_order: commonConfig.value?.schema_order ?? schemas.map(s => s.schema),
-        })
-      }
-
-      // schema 级：写 schema.json（含表顺序）+ 清理失效表目录；schema 已删除则清理整个目录
-      for (const f of merged.filter(x => x.kind === 'schema')) {
-        const schema = schemas.find(s => s.schema === f.schema)
-        if (schema) {
-          const tableNames = schema.tables.map(t => t.name)
-          await pruneTableDirsFromHandle(rootDirHandle.value, schema.schema, tableNames)
-          await writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, {
-            schema: schema.schema,
-            table_order: tableNames,
-          })
-          // 重命名 schema：清理旧名目录（旧名经 sanitize 不同于新名时）
-          if (f.oldSchema && sanitizeName(f.oldSchema) !== sanitizeName(schema.schema)) {
-            await deleteSchemaDirFromHandle(rootDirHandle.value, f.oldSchema)
-          }
-        } else if (rootDirHandle.value && f.schema) {
-          // schema 已从内存移除：清理整个 schema 目录 + 其 initial-data + SQL output
-          await deleteSchemaDirFromHandle(rootDirHandle.value, f.schema)
-          // oxlint-disable-next-line unicorn/no-useless-spread
-          for (const key of [...initialDataDeletedKeys]) {
-            if (key.startsWith(`${f.schema}/`)) {
-              const sep = key.indexOf('/')
-              const tableName = key.substring(sep + 1)
-              await deleteInitialDataFromNewStructure(rootDirHandle.value, f.schema, tableName)
-              initialDataDeletedKeys.delete(key)
-            }
-          }
-          for (const dialect of ALL_SQL_DIALECTS) {
-            try {
-              await deleteSqlFromOutput(rootDirHandle.value, dialect, `${f.schema}.sql`)
-            } catch { /* 忽略 */ }
-          }
-        }
-      }
-
-      // table 级：表存在则写 table.json；表已被删除（如 undo 后的重做）则清理磁盘目录
-      for (const f of merged.filter(x => x.kind === 'table')) {
-        const schema = schemas.find(s => s.schema === f.schema)
-        const table = schema?.tables.find(tb => tb.name === f.table)
-        if (table) {
-          await writeTableToHandle(rootDirHandle.value, schema!.schema, buildTableExportData(table))
-        } else if (rootDirHandle.value && f.schema && f.table) {
-          // 表已从内存移除（删除命令生效）：清理磁盘对应目录 + initial-data + SQL output
-          await deleteTableDirFromHandle(rootDirHandle.value, f.schema, f.table)
-          await deleteInitialDataFromNewStructure(rootDirHandle.value, f.schema, f.table)
-          for (const dialect of ALL_SQL_DIALECTS) {
-            try {
-              await deleteSqlFromOutput(rootDirHandle.value, dialect, `${f.schema}.sql`)
-            } catch { /* 忽略 */ }
-          }
-        }
-      }
-
-      // initial-data 级：写对应 initial-data.json + 清理已标记删除的文件
-      for (const f of merged.filter(x => x.kind === 'initial-data')) {
-        const key = initialDataKey(f.schema!, f.table!)
-        const data = initialDataMap.get(key)
-        if (data) {
-          await writeInitialDataToNewStructure(rootDirHandle.value, f.schema!, f.table!, data)
-        }
-      }
-      for (const key of initialDataDeletedKeys) {
-        const sep = key.indexOf('/')
-        const schemaName = key.substring(0, sep)
-        const tableName = key.substring(sep + 1)
-        await deleteInitialDataFromNewStructure(rootDirHandle.value, schemaName, tableName)
-      }
-      initialDataDeletedKeys.clear()
-
-      // SQL：全量重新生成并写 output/（保持与重构前一致）
-      if (needSql) {
-        await syncSqlToOutput()
-      }
+      await session.saveAll()
     } catch (e) {
-      console.error('[persistAffectedFiles] failed:', e)
+      console.error('[saveProject] failed:', e)
       showToast(t('toast.failedSaveChanges'))
-    } finally {
-      _leaveWriteScope()
     }
-    // 标记命令写盘完成，抑制随后 watcher 触发的全量写（避免双写）
-    _lastCommandPersist = Date.now()
   }
 
-  // ===== Auto-sync (实时同步到本地文件) =====
-
-  let _syncTimer: ReturnType<typeof setTimeout> | null = null
-  let _autoSyncSetup = false
-  let _reloading = false
-
-  /** 命令写盘时间戳：命令执行后会经 persistAffectedFiles 按需写盘，
-   *  此时抑制短时间内 watcher 触发全量写盘，避免双写与性能回归。 */
-  let _lastCommandPersist = 0
-
-  function debouncedSync(delay = 400) {
-    if (_reloading) return
-    if (_syncTimer) clearTimeout(_syncTimer)
-    _syncTimer = setTimeout(() => {
-      // 命令刚按需写盘，跳过本次全量写，避免双写
-      if (Date.now() - _lastCommandPersist < 800) return
-      void syncAllToDisk()
-    }, delay)
+  /** 点击保存按钮：保存完成后提示结果（失败时 saveProject 已提示，且未保存态保持不变） */
+  async function saveProjectWithFeedback() {
+    if (!session) return
+    await saveProject()
+    if (!hasUnsavedChanges.value) showToast(t('toast.saved'))
   }
 
-  async function syncAllToDisk() {
-    if (!rootDirHandle.value || !currentDirHandle.value) return
-    _enterWriteScope()
-    try {
-      if (commonConfig.value) {
-        // 根 common.json：不再携带 schema_order（已迁入 current/database.json）
-        await writeCommonToHandle(rootDirHandle.value, buildCommonWriteData())
-        // current/database.json：schema 排序
-        await writeDatabaseToHandle(rootDirHandle.value, {
-          schema_order: commonConfig.value.schema_order ?? schemas.map(s => s.schema),
-        })
-      }
-      // 每 schema 目录 + 每表目录
-      const schemaWriteTasks = schemas.map(async (schema) => {
-        const tableNames = schema.tables.map(t => t.name)
-        // 先清理磁盘上已失效的旧表目录（如改名后残留的旧 table.json 目录），避免脏数据累积
-        // prune 必须在同 schema 的 table 写入前完成（同目录操作，不能并发）
-        await pruneTableDirsFromHandle(rootDirHandle.value, schema.schema, tableNames)
-        const tableOrder = tableNames
-        const promiseList = []
-        promiseList.push(
-          writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, {
-            schema: schema.schema,
-            table_order: tableOrder,
-          }),
-        )
-        for (const table of schema.tables) {
-          promiseList.push(
-            writeTableToHandle(rootDirHandle.value, schema.schema, buildTableExportData(table)),
-          )
-        }
-        await Promise.all(promiseList)
-      })
-
-      await Promise.all([
-        ...schemaWriteTasks,
-        // 同时生成 SQL 到 output 目录
-        syncSqlToOutput(),
-        // 同步 initial-data 文件
-        syncInitialDataToDisk(),
-        // 同步 AI JSON 结构指南（生成/更新或删除，取决于全局开关）
-        syncAiGuideToDisk(),
-      ])
-    } catch (e) {
-      console.error('Auto-sync failed:', e)
-      showToast(t('toast.failedSaveChanges'))
-    } finally {
-      _leaveWriteScope()
-    }
+  /** 切换实时保存开关：对当前会话立即生效，并记入浏览器偏好 */
+  function setAutoSave(enabled: boolean) {
+    autoSaveEnabled.value = enabled
+    if (typeof localStorage !== 'undefined') localStorage.setItem(AUTO_SAVE_PREF, enabled ? 'on' : 'off')
+    session?.coordinator.setAutoSave(enabled)
   }
 
   /**
-   * 同步 AI JSON 结构指南到用户打开的文件夹根目录：
-   * - 开关开启 → 写入/更新 AI_JSON_STRUCTURE_GUIDE.md
-   * - 开关关闭 → 删除该文件（若存在）
-   * 失败（如权限不足）静默忽略，不影响正常保存。
+   * 离开保护：有未保存改动时询问「保存 / 不保存 / 取消」。
+   * 返回 false 表示用户取消或保存失败，调用方（关闭项目、换目录、重新加载）应中止。
    */
-  async function syncAiGuideToDisk() {
-    if (!rootDirHandle.value) return
-    if (generateAiGuide.value) {
-      try {
-        const handle = await getFileHandleSafe(rootDirHandle.value, AI_GUIDE_FILE)
-        await writeTextFile(handle, generateAiGuideMarkdown())
-      } catch (e) {
-        console.warn('[syncAiGuideToDisk] failed to write guide:', e)
-      }
-    } else {
-      try {
-        await removeEntry(rootDirHandle.value, AI_GUIDE_FILE)
-      } catch {
-        // 文件不存在，静默忽略
-      }
-    }
+  async function confirmLeaveUnsaved(): Promise<boolean> {
+    if (!hasUnsavedChanges.value) return true
+    const choice = await chooseDialog({
+      title: t('confirm.title'),
+      message: t('confirm.unsavedChanges'),
+      confirmText: t('confirm.save'),
+      secondaryText: t('confirm.discard'),
+      cancelText: t('confirm.cancel'),
+    })
+    if (choice === 'cancel') return false
+    if (choice === 'secondary') return true
+    await saveProject()
+    return !hasUnsavedChanges.value
   }
 
-  /** 切换「是否生成 AI 指南」开关，写入 common.json 并立即同步文件状态 */
-  async function setGenerateAiGuide(enabled: boolean) {
+  /** 用户入口：关闭项目前先处理未保存改动；返回 false 表示用户取消 */
+  async function requestCloseProject(silent = false): Promise<boolean> {
+    if (!(await confirmLeaveUnsaved())) return false
+    await closeProject(silent)
+    return true
+  }
+
+  /** 切换「是否生成 AI 指南」开关：写入 common.json，指南文件随本次改动生成或删除 */
+  function setGenerateAiGuide(enabled: boolean) {
     generateAiGuide.value = enabled
     saveGenerateAiGuide(commonConfig.value, enabled)
-    if (projectOpened.value) {
-      // 立即写盘（common.json 含该开关），随后同步指南文件
-      await syncAllToDisk()
-    }
-  }
-
-  /** 生成各数据库方言的 SQL 并写入 output/<dialect>/<schema>.sql */
-  async function syncSqlToOutput() {
-    if (!rootDirHandle.value) return
-    try {
-      const enabled = enabledDialects.value
-      const disabled = ALL_SQL_DIALECTS.filter(d => !enabled.includes(d))
-
-      // 当前应保留的 output SQL 文件名集合：每个 schema 的 `<schema>.sql` + 两个汇总文件。
-      // 用于清理「磁盘存在、但内存态已不存在」的残留同名 sql（如删除/重命名 schema 后）。
-      const keepSqlNames = new Set<string>([
-        ...schemas.map(s => `${s.schema}.sql`),
-        '__all_schemas__.sql',
-        '__initial_data__.sql',
-        '__all__.sql',
-      ])
-
-      for (const dialect of enabled) {
-        const generators = DIALECT_GENERATORS[dialect]
-        const allSchemaSql: { name: string; sql: string }[] = []
-
-        // 生成每个 Schema 的建表 SQL
-        for (const schema of schemas) {
-          const sql = generators.schema(schema, commonConfig.value)
-          await writeSqlToOutput(rootDirHandle.value, dialect, `${schema.schema}.sql`, sql)
-          allSchemaSql.push({ name: schema.schema, sql })
-        }
-
-        // 全局前/后置 SQL
-        const globalPreSql = getGlobalPreSql(commonConfig.value, dialect)
-        const globalPostSql = getGlobalPostSql(commonConfig.value, dialect)
-
-        // 全部 schema 的建表 SQL（含全局前/后置 SQL）
-        const finalAllSchemaSql = [
-          globalPreSql ? fmtPrePostSql(globalPreSql) + '\n' : '',
-          allSchemaSql.map(s => s.sql).join('\n\n'),
-          globalPostSql ? fmtPrePostSql(globalPostSql) + '\n' : '',
-        ].join('')
-
-        // 生成包含所有 schema 的汇总文件（按 schema_order 顺序排列）
-        if (allSchemaSql.length > 0) {
-          await writeSqlToOutput(rootDirHandle.value, dialect, '__all_schemas__.sql', finalAllSchemaSql)
-        }
-
-        // 生成 Initial Data 的 INSERT 语句汇总文件
-        const initialDataSql = generators.initialData(schemas, initialDataMap, commonConfig.value)
-        if (initialDataSql.trim()) {
-          await writeSqlToOutput(rootDirHandle.value, dialect, '__initial_data__.sql', initialDataSql)
-        }
-
-        // 生成合并文件：全局前/后置 SQL + 全部 schema DDL + initial data INSERT，
-        // 形成一个可直接整体提交的完整 SQL。
-        if (allSchemaSql.length > 0 || initialDataSql.trim()) {
-          const finalAllSql = [
-            finalAllSchemaSql,
-            initialDataSql.trim() ? '\n\n' + initialDataSql.trim() : '',
-          ].join('')
-          await writeSqlToOutput(rootDirHandle.value, dialect, '__all__.sql', finalAllSql)
-        }
-
-        // 清理当前方言下残留的 per-schema SQL（已被删除/重命名的 schema）
-        await cleanupStaleOutputSql(rootDirHandle.value, dialect, keepSqlNames)
-      }
-
-      // 未启用的方言：删除其 output/<dialect>/ 下已生成的 SQL，保证与勾选状态一致
-      for (const dialect of disabled) {
-        await deleteSqlDialectFromOutput(rootDirHandle.value, dialect)
-      }
-    } catch (e) {
-      console.error('SQL output sync failed:', e)
-    }
-  }
-
-  /** 将初始数据同步到 initial-data/<schema>/<table>.json */
-  async function syncInitialDataToDisk() {
-    if (!rootDirHandle.value) return
-    try {
-      // 写入所有有数据的条目（行内化到各 table 目录）
-      for (const [key, initialData] of initialDataMap.entries()) {
-        const sep = key.indexOf('/')
-        const schemaName = key.substring(0, sep)
-        const tableName = key.substring(sep + 1)
-        await writeInitialDataToNewStructure(rootDirHandle.value, schemaName, tableName, initialData)
-      }
-
-      // 删除标记为已删除的文件
-      for (const key of initialDataDeletedKeys) {
-        const sep = key.indexOf('/')
-        const schemaName = key.substring(0, sep)
-        const tableName = key.substring(sep + 1)
-        await deleteInitialDataFromNewStructure(rootDirHandle.value, schemaName, tableName)
-      }
-      initialDataDeletedKeys.clear()
-    } catch (e) {
-      console.error('Initial data sync failed:', e)
-    }
-  }
-
-  function setupAutoSync() {
-    if (_autoSyncSetup) return
-    _autoSyncSetup = true
-
-    watch(commonConfig, () => {
-      if (projectOpened.value) debouncedSync()
-    }, { deep: true })
-
-    watch(schemas, () => {
-      if (projectOpened.value) debouncedSync()
-    }, { deep: true })
-
-    watch(initialDataMap, () => {
-      if (projectOpened.value) debouncedSync()
-    }, { deep: true })
+    markChanged([affectedCommon()])
   }
 
   // ===== Initial Data Actions (extracted) =====
   const {
     initialDataKey,
+    addInitialData,
     currentInitialDataKey,
     currentInitialData,
     setInitialDataObject,
     deleteInitialData,
+    addInitialDataRow,
+    deleteInitialDataRow,
+    moveInitialDataRow,
+    clearInitialDataRows,
     setInitialDataRowSkip,
     setInitialDataFieldComment,
     setInitialDataCell,
@@ -1080,6 +730,7 @@ export const useEditorStore = defineStore('editor', () => {
     setInitialDataCellExpr,
     setInitialDataPreSql,
     setInitialDataPostSql,
+    clearInitialDataPrePostSql,
   } = createInitialDataActions({
     initialDataMap,
     initialDataDeletedKeys,
@@ -1093,7 +744,6 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== CRUD Actions (extracted) =====
   const {
     syncSchemaOrder,
-    applySchemaOrder,
     moveSchema,
     addSchema,
     deleteSchema,
@@ -1108,6 +758,7 @@ export const useEditorStore = defineStore('editor', () => {
     copyTable,
     moveTable,
     moveTableToSchema,
+    updateTable,
     isCommonField,
     getResolvedField,
     getResolvedFieldTypeForDb,
@@ -1130,6 +781,7 @@ export const useEditorStore = defineStore('editor', () => {
     updateFieldProp,
     updateFieldProps,
     updateFieldName,
+    moveField,
     moveFieldUp,
     moveFieldDown,
     addIndex,
@@ -1137,6 +789,7 @@ export const useEditorStore = defineStore('editor', () => {
     moveIndex,
     moveIndexUp,
     moveIndexDown,
+    updateIndex,
     syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,
@@ -1160,8 +813,6 @@ export const useEditorStore = defineStore('editor', () => {
     removeFieldCommentOption,
     getIndexOverrideValue,
     setIndexOverrideValue,
-    buildTableExportData,
-    buildSchemaExportData,
   } = createCrudActions({
     schemas,
     commonConfig,
@@ -1212,15 +863,20 @@ export const useEditorStore = defineStore('editor', () => {
     addCommonUsedField,
     deleteCommonUsedField,
     updateCommonUsedFieldName,
-    rebuildCommonUsedFieldsFromArray,
+    updateCommonUsedField,
+    setCommonUsedFieldOverrideValue,
+    moveCommonUsedField,
     getOrderedCommonUsedFields,
     addUnifiedType,
     deleteUnifiedType,
     renameUnifiedType,
-    rebuildUnifiedTypesFromArray,
+    updateUnifiedType,
+    setUnifiedTypeMappingValue,
+    moveUnifiedType,
   } = createCommonConfigActions({
     commonConfig,
     schemas,
+    initialDataMap,
     executeCommand,
     showToast,
     t,
@@ -1247,7 +903,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectedSchemaIdx,
     selectedTableIdx,
     syncSchemaOrder,
-    syncAllToDisk,
+    executeCommand,
     showToast,
     t,
   })
@@ -1303,23 +959,36 @@ export const useEditorStore = defineStore('editor', () => {
     openProject,
     openProjectFromHandle,
     closeProject,
+    requestCloseProject,
     reloadFromDisk,
     setProjectName,
     setProjectDescription,
     projectInfoTabRequest,
     openProjectInfoSettings,
     consumeProjectInfoTabRequest,
-    syncAllToDisk,
     overlayVisible,
     overlayText,
     confirmUpgradeStructure,
     cancelUpgradeStructure,
 
+    // 保存：自动保存开关、未保存态与手动全量保存
+    autoSaveEnabled,
+    setAutoSave,
+    saveState,
+    hasUnsavedChanges,
+    saveProjectWithFeedback,
+    confirmLeaveUnsaved,
+
     // Initial Data
     initialDataMap,
     initialDataKey,
+    addInitialData,
     setInitialDataObject,
     deleteInitialData,
+    addInitialDataRow,
+    deleteInitialDataRow,
+    moveInitialDataRow,
+    clearInitialDataRows,
     setInitialDataRowSkip,
     setInitialDataFieldComment,
     setInitialDataCell,
@@ -1329,6 +998,7 @@ export const useEditorStore = defineStore('editor', () => {
     // Initial Data Pre/Post SQL
     setInitialDataPreSql,
     setInitialDataPostSql,
+    clearInitialDataPrePostSql,
 
     // Navigation
     selectTable,
@@ -1349,6 +1019,7 @@ export const useEditorStore = defineStore('editor', () => {
     renameTable,
     moveTable,
     moveTableToSchema,
+    updateTable,
 
     // Field Helpers
     isCommonField,
@@ -1376,6 +1047,7 @@ export const useEditorStore = defineStore('editor', () => {
     confirmAddField,
     directAddField,
     deleteField,
+    moveField,
     moveFieldUp,
     moveFieldDown,
     updateFieldProp,
@@ -1396,6 +1068,7 @@ export const useEditorStore = defineStore('editor', () => {
     moveIndex,
     moveIndexUp,
     moveIndexDown,
+    updateIndex,
     syncFieldNameInIndexes,
     indexColumnsText,
     setIndexColumns,
@@ -1458,14 +1131,18 @@ export const useEditorStore = defineStore('editor', () => {
     addCommonUsedField,
     deleteCommonUsedField,
     updateCommonUsedFieldName,
-    rebuildCommonUsedFieldsFromArray,
+    updateCommonUsedField,
+    setCommonUsedFieldOverrideValue,
+    moveCommonUsedField,
     getOrderedCommonUsedFields,
 
     // Unified Types CRUD
     addUnifiedType,
     deleteUnifiedType,
     renameUnifiedType,
-    rebuildUnifiedTypesFromArray,
+    updateUnifiedType,
+    setUnifiedTypeMappingValue,
+    moveUnifiedType,
 
     // Import SQL
     openImportSqlModal,

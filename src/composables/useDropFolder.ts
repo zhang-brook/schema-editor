@@ -87,10 +87,8 @@ export function useDropFolder() {
         return
       }
 
-      // 如果已有项目打开，先关闭再打开新项目
-      if (store.projectOpened) {
-        store.closeProject()
-      }
+      // 已有项目时先关闭（未保存改动由离开保护弹窗决定保存/放弃/取消），再打开新项目
+      if (store.projectOpened && !(await store.requestCloseProject())) return
 
       await store.openProjectFromHandle(handle as FileSystemDirectoryHandle)
     } catch (err) {

@@ -31,7 +31,7 @@ import {
   deleteInitialDataFromNewStructure,
 } from '@/utils/initial-data-io'
 import { DIALECT_GENERATORS } from '@/utils/sql-generator'
-import { stripDisabledFieldMetrics } from '@/utils/field-utils'
+import { buildCommonWriteData as serializeCommonConfig, buildSchemaWriteData } from '@/core/workspace/serialization'
 import { checkVersion } from '@/utils/structure-migrations/version-utils'
 import { runStructureMigrations } from '@/utils/structure-migrations'
 import {
@@ -507,7 +507,7 @@ export const useEditorStore = defineStore('editor', () => {
     // 加载 schema_order 与各表定义
     cc.schema_order = newProj.databaseData?.schema_order
     for (const s of newProj.schemas) {
-      schemas.push({ schema: s.schema, tables: s.tables } as Schema)
+      schemas.push({ schema: s.schema, tables: s.tables, pre_sql: s.pre_sql, post_sql: s.post_sql })
     }
     applySchemaOrder()
 
@@ -730,18 +730,8 @@ export const useEditorStore = defineStore('editor', () => {
    * common.json 的落盘数据：不携带 schema_order（已迁入 database.json），
    * 公共字段同样省略被禁用/清空为 null 的长度与小数位（见 stripDisabledFieldMetrics）。
    */
-  function buildCommonWriteData(): any {
-    const data: any = { ...commonConfig.value }
-    delete data.schema_order
-    const fields = data.common_used_fields as Record<string, Field> | undefined
-    if (fields) {
-      const cleaned: Record<string, Field> = {}
-      for (const key of Object.keys(fields)) {
-        cleaned[key] = stripDisabledFieldMetrics(fields[key]!)
-      }
-      data.common_used_fields = cleaned
-    }
-    return data
+  function buildCommonWriteData() {
+    return serializeCommonConfig(commonConfig.value)
   }
 
   /**
@@ -771,10 +761,7 @@ export const useEditorStore = defineStore('editor', () => {
         if (schema) {
           const tableNames = schema.tables.map(t => t.name)
           await pruneTableDirsFromHandle(rootDirHandle.value, schema.schema, tableNames)
-          await writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, {
-            schema: schema.schema,
-            table_order: tableNames,
-          })
+          await writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, buildSchemaWriteData(schema))
           // 重命名 schema：清理旧名目录（旧名经 sanitize 不同于新名时）
           if (f.oldSchema && sanitizeName(f.oldSchema) !== sanitizeName(schema.schema)) {
             await deleteSchemaDirFromHandle(rootDirHandle.value, f.oldSchema)
@@ -885,13 +872,9 @@ export const useEditorStore = defineStore('editor', () => {
         // 先清理磁盘上已失效的旧表目录（如改名后残留的旧 table.json 目录），避免脏数据累积
         // prune 必须在同 schema 的 table 写入前完成（同目录操作，不能并发）
         await pruneTableDirsFromHandle(rootDirHandle.value, schema.schema, tableNames)
-        const tableOrder = tableNames
         const promiseList = []
         promiseList.push(
-          writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, {
-            schema: schema.schema,
-            table_order: tableOrder,
-          }),
+          writeSchemaJsonToHandle(rootDirHandle.value, schema.schema, buildSchemaWriteData(schema)),
         )
         for (const table of schema.tables) {
           promiseList.push(

@@ -33,6 +33,7 @@ import {
 } from '@/core/workspace/layout'
 import { compareStructVersion } from './structure-migrations/version-utils'
 import { normalizeInitialData, writeInitialDataToNewStructure } from './initial-data-io'
+import { buildSchemaWriteData, type SchemaWriteData } from '@/core/workspace/serialization'
 
 const jsonFileIndent = 4
 
@@ -129,12 +130,8 @@ export interface NewStructureProject {
   rootHandle: FileSystemDirectoryHandle
   /** current/database.json 内容（含 schema_order） */
   databaseData: { schema_order?: string[] } | null
-  /** 每个 schema 的原始名、table 排序、已加载的表定义 */
-  schemas: {
-    schema: string
-    table_order: string[]
-    tables: Table[]
-  }[]
+  /** 每个 schema 的元信息（含前后置 SQL）、table 排序、已加载的表定义 */
+  schemas: (SchemaWriteData & { tables: Table[] })[]
   /** 行内化的初始数据，key 为 `${schemaName}/${tableName}` */
   initialData: { key: string; data: InitialData }[]
 }
@@ -218,7 +215,7 @@ export async function openProjectFolderNew(rootHandle?: FileSystemDirectoryHandl
   const loadedSchemas = await Promise.all(
     schemaDirs.map(async (schemaDir) => {
       // 读 schema.json
-      let schemaMeta: { schema?: string; table_order?: string[] } = {}
+      let schemaMeta: Partial<SchemaWriteData> = {}
       try {
         const schemaJsonHandle = await getFileHandleSafe(schemaDir, SCHEMA_FILE, false)
         schemaMeta = await readJsonFile(schemaJsonHandle)
@@ -231,6 +228,8 @@ export async function openProjectFolderNew(rootHandle?: FileSystemDirectoryHandl
       const loadedSchema = {
         schema: schemaMeta.schema,
         table_order: schemaMeta.table_order ?? [],
+        pre_sql: schemaMeta.pre_sql,
+        post_sql: schemaMeta.post_sql,
         tables: [] as Table[],
       }
 
@@ -332,7 +331,7 @@ export async function writeDatabaseToHandle(
 export async function writeSchemaJsonToHandle(
   rootHandle: FileSystemDirectoryHandle,
   schemaName: string,
-  data: { schema: string; table_order: string[] },
+  data: SchemaWriteData,
 ): Promise<void> {
   const currentDir = await getCurrentDir(rootHandle)
   const schemasDir = await getCurrentSchemasDir(currentDir)
@@ -451,11 +450,7 @@ export async function migrateOldToNewStructure(
 
   // 3. 各 schema 目录与 table 目录
   for (const schema of data.schemas) {
-    const tableOrder = schema.tables.map(t => t.name)
-    await writeSchemaJsonToHandle(rootHandle, schema.schema, {
-      schema: schema.schema,
-      table_order: tableOrder,
-    })
+    await writeSchemaJsonToHandle(rootHandle, schema.schema, buildSchemaWriteData(schema))
     for (const table of schema.tables) {
       const transformed = data.transformTable(schema, table)
       await writeTableToHandle(rootHandle, schema.schema, transformed)

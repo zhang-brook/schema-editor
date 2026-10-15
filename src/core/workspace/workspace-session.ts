@@ -93,6 +93,8 @@ export async function loadWorkspaceDocuments(writer: Pick<BrowserWorkspaceWriter
   return { project, files: new Map([...projectSourceFiles(project), ...auxiliary]) }
 }
 
+export type WorkspaceSession = ReturnType<typeof createWorkspaceSession>
+
 export function createWorkspaceSession(options: {
   writer: SessionWriter
   files: ReadonlyMap<string, string>

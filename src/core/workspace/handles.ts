@@ -52,13 +52,3 @@ export async function writeJsonFile(
   await writable.write(JSON.stringify(data, null, indent))
   await writable.close()
 }
-
-/** 将纯文本写入文件句柄 */
-export async function writeTextFile(
-  handle: FileSystemFileHandle,
-  content: string,
-): Promise<void> {
-  const writable = await handle.createWritable()
-  await writable.write(content)
-  await writable.close()
-}

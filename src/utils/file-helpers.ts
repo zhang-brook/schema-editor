@@ -5,10 +5,6 @@ import {
   getSchemasDir,
   getInitialDataDir,
   removeOldInitialDataFile,
-  getOutputDir,
-  getOutputDialectDir,
-  getOutputSqlFileHandle,
-  removeOutputSqlFile,
   // ===== 新结构（current/）路径解析 =====
   getCurrentDir,
   getCurrentDatabaseFileHandle,
@@ -354,72 +350,6 @@ export async function writeTableToHandle(
   await writeJsonFile(handle, table)
 }
 
-/** 删除整张表目录 current/schemas/<schema>/<table>/ */
-export async function deleteTableDirFromHandle(
-  rootHandle: FileSystemDirectoryHandle,
-  schemaName: string,
-  tableName: string,
-): Promise<void> {
-  try {
-    const currentDir = await getCurrentDir(rootHandle, false)
-    const schemasDir = await getCurrentSchemasDir(currentDir, false)
-    const schemaDir = await getSchemaDirUnderCurrent(schemasDir, sanitizeName(schemaName), false)
-    await removeEntry(schemaDir, sanitizeName(tableName), { recursive: true })
-  } catch {
-    // 目录不存在，静默忽略
-  }
-}
-
-/**
- * 清理某 schema 目录下「磁盘存在、但内存态已不存在」的表目录。
- *
- * 用于修复「表名变更时旧 table.json 未被删除、仅创建了新目录」的问题：
- * 表名经 auto-sync 直接双向绑定改名后，旧目录 current/schemas/<schema>/<oldTable>/
- * 仍残留，本函数依据内存态中的真实表名集合，删除已失效的表目录。
- *
- * 仅删除不在 `currentTableNames`（sanitize 后的磁盘友好名集合）中的表子目录，
- * 不会误删仍在使用的表目录。
- */
-export async function pruneTableDirsFromHandle(
-  rootHandle: FileSystemDirectoryHandle,
-  schemaName: string,
-  currentTableNames: string[],
-): Promise<void> {
-  // 大小写不敏感匹配：Windows 等大小写不敏感文件系统上，磁盘目录名可能与
-  // 表名大小写不同（如 users / Users 指向同一物理目录）。若用大小写敏感的
-  // Set 判断，会误将「正在使用」的目录当作失效目录删掉，进而连带删除其中的
-  // initial-data.json（详见 renameTable 场景）。
-  const validNames = new Set(currentTableNames.map(name => sanitizeName(name).toLowerCase()))
-  try {
-    const currentDir = await getCurrentDir(rootHandle, false)
-    const schemasDir = await getCurrentSchemasDir(currentDir, false)
-    const schemaDir = await getSchemaDirUnderCurrent(schemasDir, sanitizeName(schemaName), false)
-
-    for await (const entry of schemaDir.values()) {
-      if (entry.kind !== 'directory') continue
-      // 跳过 schema.json 之外的非表目录（理论上 schema 目录下只有 table 子目录 + schema.json）
-      if (validNames.has(entry.name.toLowerCase())) continue
-      await removeEntry(schemaDir, entry.name, { recursive: true })
-    }
-  } catch {
-    // schema 目录不存在，静默忽略
-  }
-}
-
-/** 删除整个 schema 目录 current/schemas/<schema>/ */
-export async function deleteSchemaDirFromHandle(
-  rootHandle: FileSystemDirectoryHandle,
-  schemaName: string,
-): Promise<void> {
-  try {
-    const currentDir = await getCurrentDir(rootHandle, false)
-    const schemasDir = await getCurrentSchemasDir(currentDir, false)
-    await removeEntry(schemasDir, sanitizeName(schemaName), { recursive: true })
-  } catch {
-    // 目录不存在，静默忽略
-  }
-}
-
 // ===== 旧结构 → 新结构迁移（打开旧项目时一次性触发） =====
 
 /**
@@ -560,82 +490,6 @@ export async function writeSchemaToHandle(schemaHandle: FileSystemDirectoryHandl
  */
 export async function deleteSchemaFromHandle(schemaHandle: FileSystemDirectoryHandle, filename: string): Promise<void> {
   await schemaHandle.removeEntry(filename)
-}
-
-/**
- * 将 SQL 文件写入 output/<dialect>/<filename>.sql
- * 目录不存在时自动创建
- */
-export async function writeSqlToOutput(
-  rootHandle: FileSystemDirectoryHandle,
-  dialect: string,
-  filename: string,
-  content: string
-): Promise<void> {
-  const outputHandle = await getOutputDir(rootHandle)
-  const dialectHandle = await getOutputDialectDir(outputHandle, dialect)
-  const fileHandle = await getOutputSqlFileHandle(dialectHandle, filename)
-  const writable = await fileHandle.createWritable()
-  await writable.write(content)
-  await writable.close()
-}
-
-/**
- * 从 output/<dialect>/ 目录删除文件
- */
-export async function deleteSqlFromOutput(
-  rootHandle: FileSystemDirectoryHandle,
-  dialect: string,
-  filename: string
-): Promise<void> {
-  try {
-    const outputHandle = await getOutputDir(rootHandle, false)
-    const dialectHandle = await getOutputDialectDir(outputHandle, dialect, false)
-    await removeOutputSqlFile(dialectHandle, filename)
-  } catch {
-    // 文件可能不存在，忽略
-  }
-}
-
-/**
- * 删除 output/<dialect>/ 整个目录（清空该方言已生成的全部 SQL）
- */
-export async function deleteSqlDialectFromOutput(
-  rootHandle: FileSystemDirectoryHandle,
-  dialect: string
-): Promise<void> {
-  try {
-    const outputHandle = await getOutputDir(rootHandle, false)
-    await removeEntry(outputHandle, dialect, { recursive: true })
-  } catch {
-    // output/ 或该方言目录不存在，忽略
-  }
-}
-
-/**
- * 清理 output/<dialect>/ 下「磁盘存在、但内存态已不存在」的 per-schema SQL 文件，
- * 避免删除/重命名 schema 后同名 sql 文件残留。
- *
- * @param validNames 当前应保留的文件名集合（含每个 schema 的 `<schema>.sql` 以及
- *                    `__all_schemas__.sql`、`__initial_data__.sql`）
- */
-export async function cleanupStaleOutputSql(
-  rootHandle: FileSystemDirectoryHandle,
-  dialect: string,
-  validNames: Set<string>,
-): Promise<void> {
-  try {
-    const outputHandle = await getOutputDir(rootHandle, false)
-    const dialectHandle = await getOutputDialectDir(outputHandle, dialect, false)
-    for await (const entry of dialectHandle.values()) {
-      if (entry.kind !== 'file') continue
-      if (!entry.name.endsWith('.sql')) continue
-      if (validNames.has(entry.name)) continue
-      await removeEntry(dialectHandle, entry.name)
-    }
-  } catch {
-    // output/ 或该方言目录不存在，忽略
-  }
 }
 
 // ===== 业务无关的工具函数 =====

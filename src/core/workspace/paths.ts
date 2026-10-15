@@ -4,13 +4,13 @@
  *
  * 同时覆盖「旧结构（重构前）」与「新结构（current/versions/migrations）」两种布局，
  * 旧结构兼容读取经本模块解析，便于「升级项目结构」时做一次性迁移（见 `utils/structure-migrations/`）。
+ * 派生 SQL 不再由本模块解析：output/ 下的文件由工作区会话按路径直接写入。
  */
 
 import {
   COMMON_FILE,
   SCHEMAS_DIR,
   INITIAL_DATA_DIR,
-  OUTPUT_DIR,
   CURRENT_DIR,
   VERSIONS_DIR,
   MIGRATIONS_DIR,
@@ -82,39 +82,6 @@ export function removeOldInitialDataFile(
   tableName: string,
 ): Promise<void> {
   return removeEntry(schemaDir, `${tableName}.json`)
-}
-
-/** 旧结构 output/ 目录句柄 */
-export function getOutputDir(
-  root: FileSystemDirectoryHandle,
-  create = true,
-): Promise<FileSystemDirectoryHandle> {
-  return getOrCreateDir(root, OUTPUT_DIR, create)
-}
-
-/** 旧结构 output/<dialect>/ 目录句柄 */
-export function getOutputDialectDir(
-  outputDir: FileSystemDirectoryHandle,
-  dialect: string,
-  create = true,
-): Promise<FileSystemDirectoryHandle> {
-  return getOrCreateDir(outputDir, dialect, create)
-}
-
-/** 旧结构 output/<dialect>/<filename>.sql 文件句柄 */
-export function getOutputSqlFileHandle(
-  dialectDir: FileSystemDirectoryHandle,
-  filename: string,
-): Promise<FileSystemFileHandle> {
-  return getFileHandleSafe(dialectDir, filename)
-}
-
-/** 删除旧结构 output/<dialect>/<filename>.sql */
-export function removeOutputSqlFile(
-  dialectDir: FileSystemDirectoryHandle,
-  filename: string,
-): Promise<void> {
-  return removeEntry(dialectDir, filename)
 }
 
 // ===== 新结构（current/versions/migrations）路径解析 =====

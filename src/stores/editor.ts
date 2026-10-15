@@ -695,10 +695,11 @@ export const useEditorStore = defineStore('editor', () => {
     return !hasUnsavedChanges.value
   }
 
-  /** 用户入口：关闭项目前先处理未保存改动 */
-  async function requestCloseProject(silent = false) {
-    if (!(await confirmLeaveUnsaved())) return
+  /** 用户入口：关闭项目前先处理未保存改动；返回 false 表示用户取消 */
+  async function requestCloseProject(silent = false): Promise<boolean> {
+    if (!(await confirmLeaveUnsaved())) return false
     await closeProject(silent)
+    return true
   }
 
   /** 切换「是否生成 AI 指南」开关：写入 common.json，指南文件随本次改动生成或删除 */

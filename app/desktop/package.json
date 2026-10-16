@@ -7,14 +7,15 @@
   "license": "MIT",
   "main": "dist/main.cjs",
   "scripts": {
-    "start": "electron .",
+    "start": "cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ electron .",
     "build:main": "vite build && vite build --mode preload",
     "type-check": "tsc --noEmit",
-    "pack": "electron-builder --config electron-builder.yml"
+    "pack": "cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --config electron-builder.yml"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^24.19.2",
+    "cross-env": "^10.0.0",
     "electron": "~44.7.2",
     "electron-builder": "^26.15.3",
     "schema-editor-bridge": "workspace:*",

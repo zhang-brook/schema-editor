@@ -6,7 +6,7 @@ import type {
   DesktopFsErrorCode,
   DesktopFsResult,
   DesktopWatchEvent,
-} from '../../src/platform/bridge'
+} from 'schema-editor-bridge'
 
 function toErrorCode(error: unknown): DesktopFsErrorCode {
   const code = (error as { code?: unknown } | null)?.code

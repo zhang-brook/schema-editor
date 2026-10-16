@@ -6,7 +6,7 @@
  * getFileHandle / values / createWritable / removeEntry），使 core/workspace
  * 下的既有读写、结构升级、外部变更检测逻辑零改动运行。
  */
-import type { DesktopBridge, DesktopFsErrorCode, DesktopFsResult } from './bridge'
+import type { DesktopBridge, DesktopFsErrorCode, DesktopFsResult } from 'schema-editor-bridge'
 
 function notFoundError(): DOMException {
   return new DOMException('The requested file or directory could not be found.', 'NotFoundError')

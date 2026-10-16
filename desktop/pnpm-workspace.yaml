@@ -1,7 +1,0 @@
-# 桌面外壳独立安装（不属于根 workspace），依赖构建策略在此声明
-
-allowBuilds:
-  # Electron 的 postinstall 负责下载运行时二进制
-  electron: true
-  # squirrel 打包辅助包（NSIS/portable 目标不使用）的构建脚本跳过
-  electron-winstaller: false

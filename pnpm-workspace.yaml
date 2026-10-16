@@ -1,7 +1,13 @@
+packages:
+  - 'app/*'
+  - 'packages/*'
+
 dedupePeers: true
 
 allowBuilds:
   esbuild: true
+  # squirrel 打包辅助包（NSIS/portable 目标不使用）的构建脚本跳过
+  electron-winstaller: false
 
 overrides:
   'vue': 'beta'

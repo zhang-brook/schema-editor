@@ -6,7 +6,7 @@ import type {
   DesktopFsErrorCode,
   DesktopFsResult,
   DesktopWatchEvent,
-} from './bridge'
+} from 'schema-editor-bridge'
 import { DesktopDirectoryHandle, DesktopFileSystemObserver, installDesktopFsa } from './desktop-fsa'
 import { BrowserWorkspaceWriter } from '../core/workspace/browser-workspace'
 

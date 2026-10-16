@@ -1,5 +1,5 @@
 // global.d.ts
-import type { DesktopBridge } from '@/platform/bridge'
+import type { DesktopBridge } from 'schema-editor-bridge'
 
 declare global {
   interface Window {

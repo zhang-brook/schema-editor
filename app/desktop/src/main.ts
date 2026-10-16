@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import path from 'node:path'
-import { DESKTOP_CHANNELS } from '../../src/platform/bridge'
+import { DESKTOP_CHANNELS } from 'schema-editor-bridge'
 import { createFsService } from './fs-service'
 
 const DEV_SERVER_URL = 'http://localhost:6842'

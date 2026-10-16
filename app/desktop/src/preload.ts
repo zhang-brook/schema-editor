@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { DESKTOP_CHANNELS, type DesktopBridge, type DesktopWatchEvent } from '../../src/platform/bridge'
+import { DESKTOP_CHANNELS, type DesktopBridge, type DesktopWatchEvent } from 'schema-editor-bridge'
 
 let watchHandler: ((event: DesktopWatchEvent) => void) | null = null
 

@@ -1,6 +1,6 @@
 {
   "name": "schema-editor",
-  "version": "0.7.0",
+  "private": true,
   "author": "zhang-brook",
   "license": "MIT",
   "repository": {
@@ -10,41 +10,31 @@
   "type": "module",
   "packageManager": "pnpm@12.6.0",
   "scripts": {
-    "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
-    "preview": "vite preview",
+    "dev": "pnpm -C app/web dev",
+    "build": "pnpm -C app/web build",
+    "preview": "pnpm -C app/web preview",
     "test:unit": "vitest",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build",
+    "type-check": "run-s type-check:root type-check:web type-check:desktop",
+    "type-check:root": "tsc -p tsconfig.node.json",
+    "type-check:web": "pnpm -C app/web type-check",
+    "type-check:desktop": "pnpm -C app/desktop type-check",
     "lint": "run-s \"lint:*\"",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "oxfmt src/",
+    "format": "oxfmt app/web/src/",
     "changelog": "node scripts/changelog.mjs",
-    "desktop:install": "pnpm -C desktop install",
     "desktop:dev": "run-p dev desktop:start",
-    "desktop:start": "pnpm -C desktop start",
-    "desktop:type-check": "pnpm -C desktop type-check",
+    "desktop:start": "pnpm -C app/desktop start",
     "desktop:build": "run-s desktop:build:renderer desktop:build:main",
-    "desktop:build:renderer": "vite build --outDir desktop/renderer --emptyOutDir",
-    "desktop:build:main": "pnpm -C desktop build:main",
+    "desktop:build:renderer": "pnpm -C app/web exec vite build --outDir ../desktop/renderer --emptyOutDir",
+    "desktop:build:main": "pnpm -C app/desktop build:main",
     "desktop:dist": "run-s desktop:build desktop:pack",
-    "desktop:pack": "pnpm -C desktop run pack"
-  },
-  "dependencies": {
-    "nanoid": "^6.0.2",
-    "pinia": "^4.0.3",
-    "reka-ui": "^2.11.0",
-    "vue": "^3.5.42",
-    "vue-i18n": "^11.4.14"
+    "desktop:pack": "pnpm -C app/desktop run pack"
   },
   "devDependencies": {
-    "@intlify/unplugin-vue-i18n": "^11.2.5",
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^24.19.2",
-    "@vitejs/plugin-vue": "^6.0.10",
     "@vue/eslint-config-typescript": "^14.9.0",
-    "@vue/tsconfig": "^0.9.1",
     "changelogen": "^0.6.2",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
@@ -55,11 +45,8 @@
     "oxfmt": "^0.67.0",
     "oxlint": "~1.82.0",
     "typescript": "~6.0.3",
-    "vite": "^8.3.4",
-    "vite-plugin-vue-devtools": "^8.2.1",
     "vitest": "^4.1.11",
-    "vue-eslint-parser": "^10.4.1",
-    "vue-tsc": "^3.3.13"
+    "vue-eslint-parser": "^10.4.1"
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"

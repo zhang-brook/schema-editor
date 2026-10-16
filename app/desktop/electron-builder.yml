@@ -7,7 +7,7 @@ files:
   - renderer/**
   - package.json
 win:
-  icon: ../public/logo.png
+  icon: ../web/public/logo.png
   target:
     - nsis
     - portable

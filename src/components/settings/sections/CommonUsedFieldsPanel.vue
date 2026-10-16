@@ -450,7 +450,7 @@ function toggleCommonFieldExpand(fieldName: string) {
               <td :colspan="12"></td>
             </tr>
             <tr v-if="localFields.length === 0">
-              <td colspan="12" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="12" style="text-align:center; color:var(--fg-subtle); padding:16px;">
                 {{ $t('commonConfig.emptyFields') }}
               </td>
             </tr>
@@ -502,7 +502,7 @@ function toggleCommonFieldExpand(fieldName: string) {
 .btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -515,7 +515,7 @@ function toggleCommonFieldExpand(fieldName: string) {
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 
@@ -580,7 +580,7 @@ function toggleCommonFieldExpand(fieldName: string) {
 }
 
 .resolved-length {
-  color: #666;
+  color: var(--fg-muted);
   font-size: 12px;
 }
 
@@ -609,7 +609,7 @@ function toggleCommonFieldExpand(fieldName: string) {
 }
 
 .disabled-indicator {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 12px;
   cursor: pointer;
   user-select: none;
@@ -636,7 +636,7 @@ function toggleCommonFieldExpand(fieldName: string) {
 }
 
 .drag-handle-cell:hover .drag-handle {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .row-dragging {

@@ -119,7 +119,7 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
 
 .radio-option:hover {
   border-color: var(--accent);
-  background: #f5f9ff;
+  background: var(--accent-subtle-2);
 }
 
 .radio-option input[type="radio"] {
@@ -132,7 +132,7 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
 
 .radio-label {
   font-size: 12px;
-  color: #444;
+  color: var(--fg);
   font-family: 'Consolas', 'Monaco', monospace;
 }
 

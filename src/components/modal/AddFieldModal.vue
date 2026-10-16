@@ -139,14 +139,14 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
 
 .common-field-type {
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
   white-space: nowrap;
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .common-field-comment {
   font-size: 11px;
-  color: #aaa;
+  color: var(--fg-subtle);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -157,7 +157,7 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
 .common-field-empty {
   padding: 16px;
   text-align: center;
-  color: #aaa;
+  color: var(--fg-subtle);
   font-size: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

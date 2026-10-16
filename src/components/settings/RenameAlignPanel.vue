@@ -150,9 +150,9 @@ function onSelectTarget(row: Row, event: Event) {
 <style scoped>
 .ra {
   padding: 10px 12px;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--bg-soft, #f9fafb);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
 }
 
 .ra-head {
@@ -168,20 +168,20 @@ function onSelectTarget(row: Row, event: Event) {
 
 .ra-loading {
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 .ra-desc {
   margin: 4px 0 8px;
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 .ra-group {
   margin: 8px 0 4px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 .ra-row {
@@ -193,22 +193,22 @@ function onSelectTarget(row: Row, event: Event) {
 }
 
 .ra-row:hover {
-  background: var(--hover-bg, #f3f4f6);
+  background: var(--surface-3);
 }
 
 .ra-row.is-ambiguous {
-  background: #fffbeb;
+  background: var(--warning-subtle);
 }
 
 .ra-row.is-ok {
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 .ra-kind {
   flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: 3px;
-  background: var(--bg-muted, #e5e7eb);
+  background: var(--surface-3);
   font-size: 11px;
 }
 
@@ -223,18 +223,18 @@ function onSelectTarget(row: Row, event: Event) {
 
 .ra-arrow {
   margin: 0 6px;
-  color: var(--primary-color, #2563eb);
+  color: var(--accent);
 }
 
 .ra-score {
   flex: 0 0 auto;
   font-size: 11px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 .ra-warn {
   flex: 0 0 auto;
-  color: #b45309;
+  color: var(--warning);
 }
 
 .ra-select {

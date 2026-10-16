@@ -278,7 +278,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
               <td :colspan="15"></td>
             </tr>
             <tr v-if="localUnifiedTypes.length === 0">
-              <td colspan="15" style="text-align:center; color:#aaa; padding:16px;">
+              <td colspan="15" style="text-align:center; color:var(--fg-subtle); padding:16px;">
                 {{ $t('commonConfig.emptyTypes') }}
               </td>
             </tr>
@@ -314,7 +314,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
 .btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -327,7 +327,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 
@@ -386,7 +386,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
 }
 
 .drag-handle-cell:hover .drag-handle {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .row-dragging {

@@ -90,7 +90,7 @@ useEnterConfirm(visibleFlag, () => emit('confirm'), confirmBtn)
   font-size: 18px;
   font-weight: 700;
   line-height: 1;
-  color: #fff;
+  color: var(--accent-fg);
 }
 
 .confirm-icon--info {
@@ -99,6 +99,7 @@ useEnterConfirm(visibleFlag, () => emit('confirm'), confirmBtn)
 
 .confirm-icon--warn {
   background: var(--warning);
+  color: var(--warning-fg);
 }
 
 /* 覆盖 modal.css 中 .modal-box h3 的默认下边距，交给 header 控制间距 */

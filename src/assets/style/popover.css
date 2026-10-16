@@ -1,0 +1,41 @@
+/* ===== Popover（工具型浮层面板，内容经 Portal 渲染在 body 下）===== */
+
+.appearance-popover {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  min-width: 264px;
+  z-index: 200;
+  padding: 12px 14px;
+  /* 位置由浮层组件内联样式控制，仅做淡入，避免与定位变换冲突 */
+  animation: appearance-popover-in .12s ease;
+}
+
+/* 面板容器默认接收焦点，不显示全局焦点环 */
+.appearance-popover:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-md);
+}
+
+.appearance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.appearance-row + .appearance-row {
+  margin-top: 10px;
+}
+
+.appearance-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+@keyframes appearance-popover-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

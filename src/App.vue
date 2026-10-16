@@ -71,6 +71,7 @@ const confirmState = useConfirmState()
 <!-- 全局基础样式 -->
 <style src="@/assets/style/base.css"></style>
 <style src="@/assets/style/menu.css"></style>
+<style src="@/assets/style/popover.css"></style>
 
 <style scoped src="@/assets/style/layout.css"></style>
 <style scoped src="@/assets/style/toast.css"></style>

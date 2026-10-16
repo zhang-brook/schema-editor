@@ -6,11 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schema Editor</title>
     <script>
-      // 首屏渲染前先套用主题，避免暗色模式闪白（与 composables/useTheme.ts 共用同一存储键）
+      // 首屏渲染前先套用主题与密度，避免暗色闪白与布局跳动（存储键与 composables 中定义一致）
       try {
         const pref = localStorage.getItem('schema-editor.theme')
         const dark = pref === 'dark' || (pref !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
         if (dark) document.documentElement.classList.add('dark')
+
+        const density = localStorage.getItem('schema-editor.density')
+        document.documentElement.dataset.density = density === 'compact' || density === 'relaxed' ? density : 'normal'
       } catch {}
     </script>
   </head>

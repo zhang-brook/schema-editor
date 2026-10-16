@@ -8,28 +8,61 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  PopoverRoot,
+  PopoverTrigger,
+  PopoverPortal,
+  PopoverContent,
 } from 'reka-ui'
 import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import MonitorIcon from '@/components/icon/MonitorIcon.vue'
 import SunIcon from '@/components/icon/SunIcon.vue'
 import MoonIcon from '@/components/icon/MoonIcon.vue'
 import { GITHUB_REPO_URL, GITHUB_ISSUE_URL, changelogUrl } from '@/utils/constants'
 import { version } from '@/../package.json'
 import { useTheme } from '@/composables/useTheme'
+import type { ThemePreference } from '@/composables/useTheme'
+import { useDensity } from '@/composables/useDensity'
+import type { DensityPreference } from '@/composables/useDensity'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
 const { preference: themePreference, setTheme } = useTheme()
+const { preference: densityPreference, setDensity } = useDensity()
 
-/** 外观切换：跟随系统 / 浅色 / 深色 */
+/** 主题三档：跟随系统 / 浅色 / 深色 */
 const themeOptions = [
   { value: 'system' as const, labelKey: 'toolbar.themeSystem', icon: MonitorIcon },
   { value: 'light' as const, labelKey: 'toolbar.themeLight', icon: SunIcon },
   { value: 'dark' as const, labelKey: 'toolbar.themeDark', icon: MoonIcon },
 ]
+
+/** 触发按钮图标随当前主题偏好变化 */
+const activeThemeIcon = computed(
+  () => themeOptions.find(opt => opt.value === themePreference.value)?.icon ?? MonitorIcon,
+)
+
+const themeSegments = computed(() =>
+  themeOptions.map(opt => ({ value: opt.value, label: t(opt.labelKey) })),
+)
+
+/** 密度三档：紧凑 / 正常 / 宽松 */
+const densitySegments = computed(() => [
+  { value: 'compact', label: t('toolbar.densityCompact') },
+  { value: 'normal', label: t('toolbar.densityNormal') },
+  { value: 'relaxed', label: t('toolbar.densityRelaxed') },
+])
+
+function onThemeChange(value: string) {
+  setTheme(value as ThemePreference)
+}
+
+function onDensityChange(value: string) {
+  setDensity(value as DensityPreference)
+}
 
 const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '')
 
@@ -295,19 +328,32 @@ onUnmounted(() => {
         &#128190;&#xFE0E; {{ $t('toolbar.save') }}
       </button>
 
-      <div class="theme-switch" role="group" :title="$t('toolbar.theme')">
-        <button
-          v-for="opt in themeOptions"
-          :key="opt.value"
-          type="button"
-          class="theme-switch-btn"
-          :class="{ active: themePreference === opt.value }"
-          :title="$t(opt.labelKey)"
-          @click="setTheme(opt.value)"
-        >
-          <component :is="opt.icon" />
-        </button>
-      </div>
+      <!-- 外观面板：主题 + 界面密度 -->
+      <PopoverRoot>
+        <PopoverTrigger class="appearance-btn" type="button" :title="$t('toolbar.theme')">
+          <component :is="activeThemeIcon" />
+        </PopoverTrigger>
+        <PopoverPortal>
+          <PopoverContent class="appearance-popover" align="end" :side-offset="6">
+            <div class="appearance-row">
+              <span class="appearance-label">{{ $t('toolbar.theme') }}</span>
+              <SegmentedSwitch
+                :model-value="themePreference"
+                :options="themeSegments"
+                @update:model-value="onThemeChange"
+              />
+            </div>
+            <div class="appearance-row">
+              <span class="appearance-label">{{ $t('toolbar.density') }}</span>
+              <SegmentedSwitch
+                :model-value="densityPreference"
+                :options="densitySegments"
+                @update:model-value="onDensityChange"
+              />
+            </div>
+          </PopoverContent>
+        </PopoverPortal>
+      </PopoverRoot>
 
       <select
         class="locale-select"
@@ -488,41 +534,26 @@ onUnmounted(() => {
   box-shadow: var(--focus-ring);
 }
 
-/* ===== Theme Switch（跟随系统 / 浅色 / 深色） ===== */
-.theme-switch {
-  display: inline-flex;
-  flex-shrink: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  overflow: hidden;
-}
-
-.theme-switch-btn {
+/* ===== 外观按钮（打开主题 / 密度面板） ===== */
+.appearance-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 26px;
-  height: 22px;
+  height: 24px;
   padding: 0;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--fg-muted);
   cursor: pointer;
-  transition: background .12s ease, color .12s ease;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
 }
 
-.theme-switch-btn + .theme-switch-btn {
-  border-left: 1px solid var(--border);
-}
-
-.theme-switch-btn:hover {
+.appearance-btn:hover,
+.appearance-btn[data-state="open"] {
   background: var(--surface-3);
+  border-color: var(--border-strong);
   color: var(--fg);
-}
-
-.theme-switch-btn.active {
-  background: var(--accent);
-  color: var(--accent-fg);
 }
 </style>

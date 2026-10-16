@@ -385,7 +385,7 @@ function cancelRenameSchema() {
 }
 
 .sidebar-item {
-  padding: 7px 10px;
+  padding: var(--pad-row-y) 10px;
   cursor: pointer;
   display: flex;
   align-items: center;

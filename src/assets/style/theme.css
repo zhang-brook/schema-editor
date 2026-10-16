@@ -60,6 +60,10 @@
   --radius-lg: 10px;
   --radius-pill: 999px;
 
+  /* ===== 界面密度（随 html[data-density] 切换）===== */
+  --pad-cell-y: 6px;
+  --pad-row-y: 7px;
+
   /* ===== Shadow ===== */
   --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05), 0 1px 3px rgba(24, 24, 27, 0.05);
   --shadow-md: 0 4px 12px rgba(24, 24, 27, 0.08), 0 12px 28px rgba(24, 24, 27, 0.10);
@@ -74,6 +78,17 @@
     "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
     "Consolas", "Monaco", "Courier New", monospace;
+}
+
+/* ===== 密度档位：紧凑 / 宽松（正常为默认值）===== */
+:root[data-density="compact"] {
+  --pad-cell-y: 4px;
+  --pad-row-y: 4px;
+}
+
+:root[data-density="relaxed"] {
+  --pad-cell-y: 9px;
+  --pad-row-y: 10px;
 }
 
 /* ===== Dark ===== */

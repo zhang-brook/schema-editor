@@ -435,7 +435,7 @@ function onDropTail(e: DragEvent) {
 
 .indexes-table th,
 .indexes-table td {
-  padding: 6px 8px;
+  padding: var(--pad-cell-y) 8px;
   border-bottom: 1px solid var(--border-muted);
   text-align: left;
   vertical-align: middle;

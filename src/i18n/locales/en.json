@@ -109,6 +109,9 @@
     "reportIssue": "Report an Issue",
     "about": "About"
   },
+  "structureTabs": {
+    "close": "Close"
+  },
   "sidebar": {
     "navigation": "Navigation",
     "commonConfig": "Common Config",

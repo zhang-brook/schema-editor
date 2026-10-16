@@ -2,6 +2,7 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import EditorSidebar from '@/components/structure/EditorSidebar.vue'
+import TableTabs from '@/components/structure/TableTabs.vue'
 import SchemaConfigPanel from '@/components/structure/SchemaConfigPanel.vue'
 import TableEditor from '@/components/structure/TableEditor.vue'
 
@@ -55,10 +56,13 @@ onBeforeUnmount(stopResize)
       :title="$t('settings.resizeHint')"
     ></div>
     <div class="ps-structure-content">
-      <SchemaConfigPanel v-if="store.currentSchema && store.selectedTableIdx === -1" />
-      <TableEditor v-else-if="store.currentTable" />
-      <div v-else class="ps-empty">
-        <p>{{ $t('settings.structureEmpty') }}</p>
+      <TableTabs />
+      <div class="ps-structure-body">
+        <SchemaConfigPanel v-if="store.currentSchema && store.selectedTableIdx === -1" />
+        <TableEditor v-else-if="store.currentTable" />
+        <div v-else class="ps-empty">
+          <p>{{ $t('settings.structureEmpty') }}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -69,7 +73,8 @@ onBeforeUnmount(stopResize)
   display: flex;
   flex: 1;
   width: 100%;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 左侧菜单与右侧面板之间的可拖拽分隔条 */
@@ -109,6 +114,16 @@ onBeforeUnmount(stopResize)
 .ps-structure-content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 标签栏固定在顶部，仅内容区滚动 */
+.ps-structure-body {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 16px;
 }

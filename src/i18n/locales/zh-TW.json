@@ -109,6 +109,9 @@
     "reportIssue": "回報問題",
     "about": "關於"
   },
+  "structureTabs": {
+    "close": "關閉"
+  },
   "sidebar": {
     "navigation": "導覽",
     "commonConfig": "公共設定",

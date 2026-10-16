@@ -109,6 +109,9 @@
     "reportIssue": "报告问题",
     "about": "关于"
   },
+  "structureTabs": {
+    "close": "关闭"
+  },
   "sidebar": {
     "navigation": "导航",
     "commonConfig": "公共配置",

@@ -8,6 +8,7 @@
 - **Pinia** 状态管理
 - **vue-i18n** 国际化（en / zh-CN / zh-TW）
 - **File System Access API** — 直接读写用户选定的本地文件夹，改动经工作区会话按需落盘
+- **Git 平台 REST API** — 浏览器直连 GitHub / Gitee / Gitea，把远端仓库的分支子目录挂载为工作区
 - 纯前端运行，无需后端服务；另提供 Electron 桌面外壳（`app/desktop/`），复用同一份前端产物，把文件夹访问接到原生选择器与 Node 文件系统
 
 ## 项目结构
@@ -34,7 +35,7 @@ app/
 │       │   ├── common/                  # 跨页面复用的业务组件
 │       │   │   └── PrePostSqlEditor.vue # 前置 / 后置 SQL 编辑（表 / Schema / 初始数据 / 全局共用）
 │       │   ├── icon/                    # 图标组件
-│       │   ├── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal / ConfirmModal）
+│       │   ├── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal / ConfirmModal / OpenGitRepoModal / CommitDialog）
 │       │   ├── settings/                # 设置区：左侧 rail + 三个页面
 │       │   │   ├── SettingsPanel.vue        # 外壳：SettingsRail + 三个页面组件
 │       │   │   ├── SettingsRail.vue         # 页面切换列（项目设置 / 库结构设计 / 版本管理）
@@ -76,6 +77,12 @@ app/
 │       │   │   ├── serialization.ts     # 内存态 → 磁盘文档的序列化（common / schema / table）
 │       │   │   ├── project-documents.ts # 项目文档规划：由变更范围算出待写文件与派生 SQL
 │       │   │   ├── browser-workspace.ts # 批量写入、路径白名单校验与外部改动冲突检测
+│       │   │   ├── git/                 # Git 远端工作区（地址解析 / 平台 API / 写入器 / 令牌）
+│       │   │   │   ├── url.ts           # 仓库地址 → provider + owner/repo + 分支 + 子目录
+│       │   │   │   ├── types.ts         # GitRepoInfo、GitRepoError 与错误码
+│       │   │   │   ├── providers.ts     # GitHub / Gitee / Gitea 的读快照与提交实现
+│       │   │   │   ├── credentials.ts   # 令牌存会话内存，勾选记住时按站点落本地
+│       │   │   │   └── workspace.ts     # GitWorkspaceWriter：不支持自动保存，分支头变动即拒绝提交
 │       │   │   ├── save-coordinator.ts  # 串行保存队列：脏文件追踪 + 防抖 + 手动整批保存
 │       │   │   └── workspace-session.ts # 工作区会话：加载项目、声明变更、手动保存
 │       │   └── version/                 # 版本与迁移
@@ -169,11 +176,14 @@ app/
   browser-workspace.ts（逐文件写入 + 冲突检测）
 ```
 
+工作目录可以换成分支上的子目录：`workspace/git/` 提供另一个写入器，接在 `save-coordinator.ts` 的同一位置，读快照走平台 API、写出即提交。
+
 ### 核心设计
 
 1. **组合式 Store**：`stores/editor.ts` 持有状态并组合 5 个 action 工厂（crud / 公共配置 / 初始数据 / 导入 SQL / 版本；crud 内部再拆为 schema / table / field / index 四个模块），组件只面对单一 `useEditorStore()`
 2. **命令模式 undo/redo + 按需落盘**：每次改动生成一个命令（apply / revert / affectedFiles）；命令执行后把受影响文件集合交给工作区会话，由 `project-documents.ts` 展开成真正需要写入的文档集合（含派生 SQL），`save-coordinator.ts` 防抖后只写内容确有变化的文件。写入按「项目文档」与「派生文件（output/ 下的 SQL、AI 指南）」两组分别开关，且派生写入依赖项目文档写入（勾选同步保存 SQL 会连带开启项目文件保存），避免 `output/` 领先于 JSON；未启用自动写入的组保持待保存状态，由「保存」按钮整批写入，并有未保存提醒与离开保护
 3. **方言覆盖解析**：字段类型、索引等属性统一经 `resolveDialectOverride` 读取（方言值 → 顶层同名属性 → 默认值），生成 MySQL / PostgreSQL / SQLite 三种 DDL
+4. **写入器可替换**：本地文件夹与 Git 分支共用同一个协调器接口。Git 写入器声明不支持自动保存，协调器据此关掉两组开关、把改动留在内存，「保存」升级为「提交」：先按手动保存的口径算出待提交文件供弹窗预览，确认后一次 commit，内容未变化的文件不会重复提交；提交前比对分支头，与加载时的快照不一致就拒绝，避免盖掉他人推送
 
 ## 脚本
 

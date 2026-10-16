@@ -1,76 +1,10 @@
+@import './theme.css';
+
 /* ===== Reset & Base ===== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-}
-
-:root {
-  /* ===== Accent (calm blue) ===== */
-  --accent: #3a72c4;
-  --accent-hover: #2f5fa8;
-  --accent-active: #29529a;
-  --accent-subtle: #e9f1fb;
-  --accent-subtle-2: #f3f8fe;
-  --accent-border: #b6d0ee;
-  --accent-fg: #ffffff;
-
-  /* ===== Danger ===== */
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-subtle: #fef2f2;
-  --danger-border: #fecaca;
-
-  /* ===== Success ===== */
-  --success: #16a34a;
-  --success-subtle: #f0fdf4;
-
-  /* ===== Warning ===== */
-  --warning: #d97706;
-  --warning-subtle: #fffbeb;
-  --warning-border: #fde68a;
-
-  /* ===== Surfaces ===== */
-  --canvas: #f6f8fa;
-  --surface: #ffffff;
-  --surface-2: #f6f8fa;
-  --surface-3: #eef1f4;
-
-  /* ===== Borders ===== */
-  --border: #d0d7de;
-  --border-muted: #e4e8ec;
-  --border-strong: #b8c0c9;
-
-  /* ===== Text ===== */
-  --fg: #1f2328;
-  --fg-muted: #636c76;
-  --fg-subtle: #848d97;
-
-  /* ===== Code (GitHub dark) ===== */
-  --code-bg: #0d1117;
-  --code-bg-2: #161b22;
-  --code-fg: #c9d1d9;
-  --code-thumb: #30363d;
-
-  /* ===== Radius ===== */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 8px;
-  --radius-pill: 999px;
-
-  /* ===== Shadow ===== */
-  --shadow-sm: 0 1px 2px rgba(27, 31, 36, 0.04), 0 1px 3px rgba(27, 31, 36, 0.06);
-  --shadow-md: 0 4px 12px rgba(27, 31, 36, 0.08), 0 12px 28px rgba(27, 31, 36, 0.10);
-  --shadow-lg: 0 16px 48px rgba(27, 31, 36, 0.16);
-
-  /* ===== Focus ===== */
-  --focus-ring: 0 0 0 3px rgba(58, 114, 196, 0.28);
-
-  /* ===== Typography ===== */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
-    "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
-    "Consolas", "Monaco", "Courier New", monospace;
 }
 
 html,
@@ -89,7 +23,7 @@ body {
 
 /* ===== Global selection ===== */
 ::selection {
-  background: rgba(58, 114, 196, 0.26);
+  background: var(--selection-bg);
   color: var(--fg);
 }
 

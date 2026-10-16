@@ -5,11 +5,23 @@ import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
+import MonitorIcon from '@/components/icon/MonitorIcon.vue'
+import SunIcon from '@/components/icon/SunIcon.vue'
+import MoonIcon from '@/components/icon/MoonIcon.vue'
 import { GITHUB_REPO_URL, GITHUB_ISSUE_URL, changelogUrl } from '@/utils/constants'
 import { version } from '@/../package.json'
+import { useTheme } from '@/composables/useTheme'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
+const { preference: themePreference, setTheme } = useTheme()
+
+/** 外观切换：跟随系统 / 浅色 / 深色 */
+const themeOptions = [
+  { value: 'system' as const, labelKey: 'toolbar.themeSystem', icon: MonitorIcon },
+  { value: 'light' as const, labelKey: 'toolbar.themeLight', icon: SunIcon },
+  { value: 'dark' as const, labelKey: 'toolbar.themeDark', icon: MoonIcon },
+]
 
 const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '')
 
@@ -317,6 +329,20 @@ onUnmounted(() => {
         &#128190;&#xFE0E; {{ $t('toolbar.save') }}
       </button>
 
+      <div class="theme-switch" role="group" :title="$t('toolbar.theme')">
+        <button
+          v-for="opt in themeOptions"
+          :key="opt.value"
+          type="button"
+          class="theme-switch-btn"
+          :class="{ active: themePreference === opt.value }"
+          :title="$t(opt.labelKey)"
+          @click="setTheme(opt.value)"
+        >
+          <component :is="opt.icon" />
+        </button>
+      </div>
+
       <select
         class="locale-select"
         :title="$t('toolbar.language')"
@@ -343,7 +369,7 @@ onUnmounted(() => {
   flex-shrink: 0;
   height: 40px;
   user-select: none;
-  box-shadow: 0 1px 2px rgba(27, 31, 36, 0.04);
+  box-shadow: var(--shadow-sm);
   position: relative;
 }
 
@@ -446,7 +472,7 @@ onUnmounted(() => {
 .menu-shortcut {
   margin-left: 24px;
   font-size: 11px;
-  color: #999;
+  color: var(--fg-subtle);
   font-family: -apple-system, "Segoe UI", sans-serif;
   letter-spacing: 0.3px;
 }
@@ -567,5 +593,43 @@ onUnmounted(() => {
   outline: none;
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
+}
+
+/* ===== Theme Switch（跟随系统 / 浅色 / 深色） ===== */
+.theme-switch {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.theme-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+
+.theme-switch-btn + .theme-switch-btn {
+  border-left: 1px solid var(--border);
+}
+
+.theme-switch-btn:hover {
+  background: var(--surface-3);
+  color: var(--fg);
+}
+
+.theme-switch-btn.active {
+  background: var(--accent);
+  color: var(--accent-fg);
 }
 </style>

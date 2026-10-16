@@ -3,6 +3,9 @@ import { createPinia } from 'pinia'
 
 import { i18n } from './i18n'
 import App from './App.vue'
+import { initTheme } from './composables/useTheme'
+
+initTheme()
 
 const app = createApp(App)
 app.use(createPinia())

@@ -5,6 +5,10 @@ import { i18n } from './i18n'
 import App from './App.vue'
 import { initTheme } from './composables/useTheme'
 import { initDensity } from './composables/useDensity'
+import { installDesktopFsa } from './platform/desktop-fsa'
+
+// 桌面外壳下用桥接实现替换浏览器的目录选择与文件监听
+if (window.schemaEditorDesktop) installDesktopFsa(window.schemaEditorDesktop)
 
 initTheme()
 initDensity()

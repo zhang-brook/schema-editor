@@ -9,10 +9,17 @@ import TableEditor from '@/components/structure/TableEditor.vue'
 const store = useEditorStore()
 
 // ===== 左侧菜单与右侧面板之间的可拖拽分隔 =====
-const sidebarWidth = ref(250)
-const resizing = ref(false)
+const SIDEBAR_WIDTH_KEY = 'schema-editor.structureSidebarWidth'
 const MIN_W = 180
 const MAX_W = 480
+
+function loadSidebarWidth(): number {
+  const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
+  return Number.isFinite(stored) && stored >= MIN_W && stored <= MAX_W ? stored : 250
+}
+
+const sidebarWidth = ref(loadSidebarWidth())
+const resizing = ref(false)
 let startX = 0
 let startW = 0
 
@@ -40,6 +47,7 @@ function stopResize() {
   document.body.style.userSelect = ''
   window.removeEventListener('mousemove', onResizeMove)
   window.removeEventListener('mouseup', stopResize)
+  localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth.value))
 }
 
 onBeforeUnmount(stopResize)

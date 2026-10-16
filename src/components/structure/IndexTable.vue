@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Index } from '@/types/schema'
 import { useEditorStore } from '@/stores/editor'
+import { useColumnResize } from '@/composables/useColumnResize'
 import IndexColumnsEditor from './IndexColumnsEditor.vue'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import { getTableColumnNames } from '@/utils/sql-generator/shared'
@@ -12,6 +13,14 @@ import { isColumnDragging } from '@/utils/column-drag-flag'
 
 const store = useEditorStore()
 const { t } = useI18n()
+
+// 可拖拽列：宽度沿用上次调整结果（未调整过则用默认值）
+const { widthStyle, onResizeStart } = useColumnResize('schema-editor.indexTableColWidths', [
+  { key: 'name', min: 260, defaultWidth: 320 },
+  { key: 'type', min: 96, defaultWidth: 100 },
+  { key: 'columns', min: 250, defaultWidth: 270 },
+  { key: 'comment', min: 120, defaultWidth: 150 },
+])
 
 const availableFieldNames = computed(() => {
   if (!store.currentTable) return []
@@ -221,11 +230,23 @@ function onDropTail(e: DragEvent) {
           <tr>
             <th style="width:24px;"></th>
             <th style="width:30px;"></th>
-            <th>{{ $t('indexTable.name') }}</th>
-            <th>{{ $t('indexTable.type') }}</th>
-            <th>{{ $t('indexTable.columns') }}</th>
-            <th>{{ $t('indexTable.using') }}</th>
-            <th>{{ $t('indexTable.comment') }}</th>
+            <th class="resizable-th" :style="widthStyle('name')">
+              {{ $t('indexTable.name') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'name')"></span>
+            </th>
+            <th class="resizable-th" :style="widthStyle('type')">
+              {{ $t('indexTable.type') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'type')"></span>
+            </th>
+            <th class="resizable-th" :style="widthStyle('columns')">
+              {{ $t('indexTable.columns') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'columns')"></span>
+            </th>
+            <th style="width:96px;">{{ $t('indexTable.using') }}</th>
+            <th class="resizable-th" :style="widthStyle('comment')">
+              {{ $t('indexTable.comment') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'comment')"></span>
+            </th>
             <th style="width:70px;" :title="$t('indexTable.activeOnlyTip')">{{ $t('indexTable.activeOnlyShort') }}</th>
             <th style="width:50px;">{{ $t('indexTable.actions') }}</th>
           </tr>
@@ -288,7 +309,7 @@ function onDropTail(e: DragEvent) {
                   <option value="unique">unique</option>
                 </select>
               </td>
-              <td style="min-width:240px;">
+              <td>
                 <IndexColumnsEditor :model-value="index.columns" :available-fields="availableFieldNames" @update:model-value="updateIndex(index, { columns: $event })" />
               </td>
               <td>
@@ -426,11 +447,14 @@ function onDropTail(e: DragEvent) {
 <style scoped src="@/assets/style/btn.css"></style>
 <style scoped src="@/assets/style/expand.css"></style>
 <style scoped src="@/assets/style/move-btn.css"></style>
+<style scoped src="@/assets/style/resize.css"></style>
 <style scoped>
 .indexes-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  /* 固定布局：列宽完全由表头宽度决定，拖拽收窄才能即时生效 */
+  table-layout: fixed;
 }
 
 .indexes-table th,
@@ -439,6 +463,7 @@ function onDropTail(e: DragEvent) {
   border-bottom: 1px solid var(--border-muted);
   text-align: left;
   vertical-align: middle;
+  overflow: hidden;
 }
 
 .indexes-table th {

@@ -1,12 +1,23 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { useColumnResize } from '@/composables/useColumnResize'
 import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
 import { buildFieldComment, type SqlDialect } from '@/utils/sql-generator/shared'
 import type { Field, CommentOption } from '@/types/schema'
 import FieldCommentInput from './FieldCommentInput.vue'
 
 const store = useEditorStore()
+
+// 可拖拽列：宽度沿用上次调整结果（未调整过则用默认值）
+const { widthStyle, onResizeStart } = useColumnResize('schema-editor.fieldTableColWidths', [
+  { key: 'name', min: 100, defaultWidth: 140 },
+  { key: 'type', min: 165, defaultWidth: 175 },
+  { key: 'length', min: 105, defaultWidth: 115 },
+  { key: 'scale', min: 105, defaultWidth: 115 },
+  { key: 'default', min: 100, defaultWidth: 140 },
+  { key: 'comment', min: 120, defaultWidth: 180 },
+])
 
 function handleFieldNameChange(field: Field, newName: string) {
   store.updateFieldName(store.currentTable!, field, newName)
@@ -168,13 +179,28 @@ function onDropTail(e: DragEvent) {
           <tr>
             <th style="width:24px;"></th>
             <th style="width:30px;"></th>
-            <th>{{ $t('fieldTable.fieldName') }}</th>
-            <th>{{ $t('fieldTable.type') }}</th>
-            <th>{{ $t('fieldTable.length') }}</th>
-            <th>{{ $t('fieldTable.scale') }}</th>
+            <th class="resizable-th" :style="widthStyle('name')">
+              {{ $t('fieldTable.fieldName') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'name')"></span>
+            </th>
+            <th class="resizable-th" :style="widthStyle('type')">
+              {{ $t('fieldTable.type') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'type')"></span>
+            </th>
+            <th class="resizable-th" :style="widthStyle('length')">
+              {{ $t('fieldTable.length') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'length')"></span>
+            </th>
+            <th class="resizable-th" :style="widthStyle('scale')">
+              {{ $t('fieldTable.scale') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'scale')"></span>
+            </th>
             <th style="width:40px;">{{ $t('fieldTable.nn') }}</th>
             <th style="width:40px;">{{ $t('fieldTable.pk') }}</th>
-            <th>{{ $t('fieldTable.default') }}</th>
+            <th class="resizable-th" :style="widthStyle('default')">
+              {{ $t('fieldTable.default') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'default')"></span>
+            </th>
             <th style="width:40px;">
               "?"
               <span class="quote-help-icon" :title="$t('fieldTable.quoteDefaultHint')">?</span>
@@ -183,7 +209,10 @@ function onDropTail(e: DragEvent) {
               {{ $t('fieldTable.onUpdate') }}
               <span class="quote-help-icon" :title="$t('fieldTable.onUpdateHint')">?</span>
             </th>
-            <th>{{ $t('fieldTable.comment') }}</th>
+            <th class="resizable-th" :style="widthStyle('comment')">
+              {{ $t('fieldTable.comment') }}
+              <span class="col-resizer" @pointerdown="onResizeStart($event, 'comment')"></span>
+            </th>
             <th style="width:40px;">{{ $t('fieldTable.removed') }}</th>
             <th style="width:90px;">{{ $t('fieldTable.actions') }}</th>
           </tr>
@@ -534,11 +563,14 @@ function onDropTail(e: DragEvent) {
 <style scoped src="@/assets/style/comment.css"></style>
 <style scoped src="@/assets/style/help.css"></style>
 <style scoped src="@/assets/style/move-btn.css"></style>
+<style scoped src="@/assets/style/resize.css"></style>
 <style scoped>
 .fields-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  /* 固定布局：列宽完全由表头宽度决定，拖拽收窄才能即时生效 */
+  table-layout: fixed;
 }
 
 .fields-table th,
@@ -547,6 +579,7 @@ function onDropTail(e: DragEvent) {
   border-bottom: 1px solid var(--border-muted);
   text-align: left;
   vertical-align: middle;
+  overflow: hidden;
 }
 
 .fields-table th {

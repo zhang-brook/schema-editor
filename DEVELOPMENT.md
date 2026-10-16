@@ -150,7 +150,7 @@ src/
 ### 核心设计
 
 1. **组合式 Store**：`stores/editor.ts` 持有状态并组合 5 个 action 工厂（crud / 公共配置 / 初始数据 / 导入 SQL / 版本；crud 内部再拆为 schema / table / field / index 四个模块），组件只面对单一 `useEditorStore()`
-2. **命令模式 undo/redo + 按需落盘**：每次改动生成一个命令（apply / revert / affectedFiles）；命令执行后把受影响文件集合交给工作区会话，由 `project-documents.ts` 展开成真正需要写入的文档集合（含派生 SQL），`save-coordinator.ts` 防抖后只写内容确有变化的文件。自动保存关闭时改动只留在内存，由「保存」按钮整批写入，并有未保存提醒与离开保护
+2. **命令模式 undo/redo + 按需落盘**：每次改动生成一个命令（apply / revert / affectedFiles）；命令执行后把受影响文件集合交给工作区会话，由 `project-documents.ts` 展开成真正需要写入的文档集合（含派生 SQL），`save-coordinator.ts` 防抖后只写内容确有变化的文件。写入按「项目文档」与「派生文件（output/ 下的 SQL、AI 指南）」两组分别开关，且派生写入依赖项目文档写入（勾选同步保存 SQL 会连带开启项目文件保存），避免 `output/` 领先于 JSON；未启用自动写入的组保持待保存状态，由「保存」按钮整批写入，并有未保存提醒与离开保护
 3. **方言覆盖解析**：字段类型、索引等属性统一经 `resolveDialectOverride` 读取（方言值 → 顶层同名属性 → 默认值），生成 MySQL / PostgreSQL / SQLite 三种 DDL
 
 ## 脚本

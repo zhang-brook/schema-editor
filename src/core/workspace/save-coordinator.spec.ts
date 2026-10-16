@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SaveCoordinator, type SaveResult, type WorkspaceWriter } from './save-coordinator'
+import { SaveCoordinator, type AutoSaveOptions, type SaveGroup, type SaveResult, type WorkspaceWriter } from './save-coordinator'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -7,7 +7,12 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function fixture(autoSave = true, initialFiles = new Map([['table.json', 'original'], ['other.json', 'untouched']])) {
+const allAuto = { docs: true, outputs: true }
+const manual = { docs: false, outputs: false }
+const isDerived = (path: string): SaveGroup => path.startsWith('output/') ? 'outputs' : 'docs'
+
+function fixture(options: { autoSave?: Partial<AutoSaveOptions>; classify?: (path: string) => SaveGroup; initialFiles?: Map<string, string> } = {}) {
+  const initialFiles = options.initialFiles ?? new Map([['table.json', 'original'], ['other.json', 'untouched']])
   const disk = new Map(initialFiles)
   const save = vi.fn<WorkspaceWriter['save']>(async changes => {
     for (const { path, content } of changes) {
@@ -16,7 +21,12 @@ function fixture(autoSave = true, initialFiles = new Map([['table.json', 'origin
     }
     return { savedPaths: changes.map(change => change.path) }
   })
-  const coordinator = new SaveCoordinator({ writer: { supportsAutoSave: true, save }, initialFiles, autoSave })
+  const coordinator = new SaveCoordinator({
+    writer: { supportsAutoSave: true, save },
+    initialFiles,
+    autoSave: options.autoSave,
+    classify: options.classify,
+  })
   return { coordinator, disk, save }
 }
 
@@ -55,7 +65,7 @@ describe('SaveCoordinator', () => {
   })
 
   it('does not write in manual mode and full save writes all documents', async () => {
-    const { coordinator, save } = fixture(false)
+    const { coordinator, save } = fixture({ autoSave: manual })
     coordinator.update([{ path: 'table.json', content: 'edited' }])
     await vi.advanceTimersByTimeAsync(5000)
     expect(save).not.toHaveBeenCalled()
@@ -69,7 +79,7 @@ describe('SaveCoordinator', () => {
   })
 
   it('full save can rewrite a clean workspace', async () => {
-    const { coordinator, save } = fixture(false)
+    const { coordinator, save } = fixture({ autoSave: manual })
     await coordinator.saveAll()
     expect(save.mock.calls[0]![0]).toHaveLength(2)
   })
@@ -77,18 +87,73 @@ describe('SaveCoordinator', () => {
   it('cancels scheduled writes when auto save is disabled and flushes when reenabled', async () => {
     const { coordinator, save } = fixture()
     coordinator.update([{ path: 'table.json', content: 'edited' }])
-    coordinator.setAutoSave(false)
+    coordinator.setAutoSave(manual)
     await vi.advanceTimersByTimeAsync(5000)
     expect(save).not.toHaveBeenCalled()
-    coordinator.setAutoSave(true)
+    coordinator.setAutoSave(allAuto)
     await vi.advanceTimersByTimeAsync(400)
     expect(save).toHaveBeenCalledOnce()
+  })
+
+  it('writes only project documents while SQL sync is off, leaving derived files pending', async () => {
+    const { coordinator, save, disk } = fixture({
+      autoSave: { docs: true, outputs: false },
+      classify: isDerived,
+      initialFiles: new Map([['table.json', 'original'], ['output/app.sql', 'old sql']]),
+    })
+    coordinator.update([{ path: 'table.json', content: 'edited' }])
+    coordinator.update([{ path: 'output/app.sql', content: 'new sql' }])
+    await vi.advanceTimersByTimeAsync(400)
+    expect(save).toHaveBeenCalledExactlyOnceWith([{ path: 'table.json', content: 'edited' }], 'auto')
+    expect(coordinator.state).toMatchObject({ dirty: true, pendingFiles: 1 })
+    expect(disk.get('output/app.sql')).toBe('old sql')
+
+    await coordinator.saveAll()
+    expect(disk.get('output/app.sql')).toBe('new sql')
+    expect(coordinator.state.dirty).toBe(false)
+  })
+
+  it('ties SQL sync to project-file saving so output never leads the documents', () => {
+    // 不一致的初始值收敛为「两者都关」，不存在只同步 SQL 的状态
+    const { coordinator } = fixture({ autoSave: { docs: false, outputs: true } })
+    expect(coordinator.autoSaveOptions).toEqual(manual)
+
+    coordinator.setAutoSave(allAuto)
+    expect(coordinator.autoSaveOptions).toEqual(allAuto)
+    // 取消项目文件保存 → 连带关闭 SQL 同步
+    coordinator.setAutoSave({ docs: false })
+    expect(coordinator.autoSaveOptions).toEqual(manual)
+    // 勾选 SQL 同步 → 连带开启项目文件保存
+    coordinator.setAutoSave({ outputs: true })
+    expect(coordinator.autoSaveOptions).toEqual(allAuto)
+  })
+
+  it('schedules nothing when both groups are manual and still writes everything on demand', async () => {
+    const { coordinator, save, disk } = fixture({ autoSave: manual, classify: isDerived })
+    coordinator.update([{ path: 'table.json', content: 'edited' }, { path: 'output/app.sql', content: 'new sql' }])
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(save).not.toHaveBeenCalled()
+    expect(coordinator.state.pendingFiles).toBe(2)
+    await coordinator.saveAll()
+    expect(disk.get('table.json')).toBe('edited')
+    expect(disk.get('output/app.sql')).toBe('new sql')
+  })
+
+  it('reports the effective switches and honors a provider without auto save', () => {
+    const { coordinator } = fixture({ autoSave: { docs: true, outputs: false } })
+    expect(coordinator.autoSaveOptions).toEqual({ docs: true, outputs: false })
+    coordinator.setAutoSave({ outputs: true })
+    expect(coordinator.autoSaveOptions).toEqual(allAuto)
+
+    const manualOnly = new SaveCoordinator({ writer: { supportsAutoSave: false, save: vi.fn() }, initialFiles: new Map() })
+    manualOnly.setAutoSave(allAuto)
+    expect(manualOnly.autoSaveOptions).toEqual(manual)
   })
 
   it('honors a provider that only supports explicit saves', async () => {
     const save = vi.fn<WorkspaceWriter['save']>(async changes => ({ savedPaths: changes.map(c => c.path) }))
     const coordinator = new SaveCoordinator({ writer: { supportsAutoSave: false, save }, initialFiles: new Map() })
-    coordinator.setAutoSave(true)
+    coordinator.setAutoSave(allAuto)
     coordinator.update([{ path: 'new.json', content: '{}' }])
     await vi.advanceTimersByTimeAsync(5000)
     expect(save).not.toHaveBeenCalled()
@@ -115,7 +180,7 @@ describe('SaveCoordinator', () => {
   })
 
   it('persists deletion and can restore the same path later', async () => {
-    const { coordinator, disk } = fixture(false)
+    const { coordinator, disk } = fixture({ autoSave: manual })
     coordinator.update([{ path: 'table.json', content: null }])
     await coordinator.saveAll()
     expect(disk.has('table.json')).toBe(false)
@@ -159,7 +224,7 @@ describe('SaveCoordinator', () => {
   })
 
   it('queues explicit saves behind the current immutable batch', async () => {
-    const { coordinator, save } = fixture(false)
+    const { coordinator, save } = fixture({ autoSave: manual })
     const pending = deferred<SaveResult>()
     save.mockImplementationOnce(() => pending.promise)
     coordinator.update([{ path: 'table.json', content: 'first' }])
@@ -205,7 +270,7 @@ describe('SaveCoordinator', () => {
   })
 
   it('treats incomplete receipts and rejected writes as failures', async () => {
-    const { coordinator, save } = fixture(false)
+    const { coordinator, save } = fixture({ autoSave: manual })
     coordinator.update([{ path: 'table.json', content: 'edited' }])
     save.mockResolvedValueOnce({ savedPaths: [] })
     await expect(coordinator.saveAll()).rejects.toThrow('Incomplete workspace save')
@@ -237,7 +302,7 @@ describe('SaveCoordinator', () => {
   it('retains dirty state if preparation fails', async () => {
     const save = vi.fn<WorkspaceWriter['save']>()
     const coordinator = new SaveCoordinator({
-      writer: { supportsAutoSave: true, save }, initialFiles: new Map(), autoSave: false,
+      writer: { supportsAutoSave: true, save }, initialFiles: new Map(), autoSave: manual,
       prepare: () => { throw new Error('generation failed') },
     })
     coordinator.update([{ path: 'table.json', content: '{}' }])
@@ -266,7 +331,7 @@ describe('SaveCoordinator', () => {
 
   it('writes one document in a workspace containing ten thousand documents', async () => {
     const files = new Map(Array.from({ length: 10000 }, (_, i) => [`table-${i}.json`, '{}']))
-    const { coordinator, save } = fixture(true, files)
+    const { coordinator, save } = fixture({ initialFiles: files })
     coordinator.update([{ path: 'table-5000.json', content: '{"edited":true}' }])
     await vi.advanceTimersByTimeAsync(400)
     expect(save.mock.calls[0]![0]).toEqual([{ path: 'table-5000.json', content: '{"edited":true}' }])

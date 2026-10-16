@@ -280,14 +280,24 @@ onUnmounted(() => {
 
     <!-- Right Side -->
     <div class="menu-bar-right">
-      <label v-if="store.projectOpened" class="autosave-toggle" :title="$t('toolbar.autoSaveTitle')">
-        <input
-          type="checkbox"
-          :checked="store.autoSaveEnabled"
-          @change="store.setAutoSave(($event.target as HTMLInputElement).checked)"
-        />
-        <span>{{ $t('toolbar.autoSave') }}</span>
-      </label>
+      <div v-if="store.projectOpened" class="save-switches">
+        <label class="autosave-toggle" :title="$t('toolbar.autoSaveTitle')">
+          <input
+            type="checkbox"
+            :checked="store.autoSaveEnabled"
+            @change="store.setAutoSave(($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ $t('toolbar.autoSave') }}</span>
+        </label>
+        <label class="autosave-toggle" :title="$t('toolbar.autoSyncSqlTitle')">
+          <input
+            type="checkbox"
+            :checked="store.autoSyncOutputsEnabled"
+            @change="store.setAutoSyncOutputs(($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ $t('toolbar.autoSyncSql') }}</span>
+        </label>
+      </div>
 
       <span
         v-if="store.projectOpened"
@@ -500,6 +510,12 @@ onUnmounted(() => {
 .save-badge.is-error {
   color: var(--danger);
   opacity: 1;
+}
+
+.save-switches {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .autosave-toggle {

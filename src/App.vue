@@ -70,6 +70,8 @@ const confirmState = useConfirmState()
 
 <!-- 全局基础样式 -->
 <style src="@/assets/style/base.css"></style>
+<style src="@/assets/style/menu.css"></style>
+<style src="@/assets/style/popover.css"></style>
 
 <style scoped src="@/assets/style/layout.css"></style>
 <style scoped src="@/assets/style/toast.css"></style>
@@ -82,7 +84,7 @@ const confirmState = useConfirmState()
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(58, 114, 196, 0.08);
+  background: var(--accent-subtle-2);
   border: 3px dashed var(--accent);
   display: flex;
   align-items: center;

@@ -1,0 +1,80 @@
+/* ===== Menu（下拉菜单：栏内触发器 + 浮层内容）===== */
+
+/* 触发器：菜单栏内的文字项 */
+.menu-item {
+  padding: 5px 11px;
+  margin-right: 2px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+
+.menu-item:hover,
+.menu-item[data-state="open"] {
+  background: var(--surface-3);
+  color: var(--accent);
+}
+
+/* 浮层内容：挂载在 body 下，位置由浮层组件计算 */
+.menu-dropdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  min-width: 200px;
+  z-index: 200;
+  padding: 6px 0;
+}
+
+/* 菜单容器本身接收焦点，不显示全局焦点环，高亮由菜单项承担 */
+.menu-dropdown:focus-visible {
+  box-shadow: var(--shadow-md);
+}
+
+.menu-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 28px 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fg);
+  white-space: nowrap;
+  text-decoration: none;
+  outline: none;
+  transition: background .1s ease, color .1s ease;
+}
+
+.menu-dropdown-item[data-highlighted] {
+  background: var(--accent-subtle);
+  color: var(--accent-active);
+}
+
+.menu-dropdown-item[data-disabled] {
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+.menu-shortcut {
+  margin-left: 24px;
+  font-size: 11px;
+  color: var(--fg-subtle);
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.menu-dropdown-item[data-disabled] .menu-shortcut {
+  color: var(--border);
+}
+
+.menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}

@@ -82,7 +82,7 @@ function isLastEnabled(dialect: SqlDialect): boolean {
 .dialect-hint {
   margin: 10px 0 0;
   font-size: 12px;
-  color: #888;
+  color: var(--fg-muted);
   line-height: 1.6;
 }
 </style>

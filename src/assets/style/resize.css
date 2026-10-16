@@ -1,0 +1,32 @@
+/* ===== 表头列宽拖拽（手柄贴在表头右缘）===== */
+
+.resizable-th {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.col-resizer:hover {
+  background: var(--border-strong);
+}
+
+.col-resizer:active {
+  background: var(--accent);
+}
+
+/* 拖拽期间全局保持列宽光标，避免掠过输入框等元素时光标跳变 */
+body.col-resizing {
+  cursor: col-resize;
+  user-select: none;
+}

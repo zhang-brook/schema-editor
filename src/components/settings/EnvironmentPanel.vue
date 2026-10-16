@@ -293,18 +293,18 @@ async function onDelete(env: Environment) {
 
 .ps-list-meta {
   font-size: 11px;
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .ps-empty-sm {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 13px;
   padding: 16px;
   text-align: center;
 }
 
 .ps-version-empty {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 13px;
   padding: 40px 16px;
   text-align: center;
@@ -326,7 +326,7 @@ async function onDelete(env: Environment) {
 
 .ps-pick-label {
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
 }
 
 .ps-env-actions {

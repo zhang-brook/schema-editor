@@ -722,9 +722,9 @@ onMounted(() => {
 .ps-env-status {
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--border, #e5e7eb);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--bg-soft, #f9fafb);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
 }
 
 .ps-env-status-head {
@@ -755,7 +755,7 @@ onMounted(() => {
 .ps-env-time {
   flex: 0 0 auto;
   font-size: 11px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 /* 版本 tab：时间轴固定在上，下方可滚动的双栏占满剩余高度 */
@@ -787,7 +787,7 @@ onMounted(() => {
 }
 
 .ps-empty-sm {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 13px;
   padding: 16px;
   text-align: center;
@@ -828,7 +828,7 @@ onMounted(() => {
 
 .ps-list-meta {
   font-size: 11px;
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .ps-list-actions {
@@ -844,7 +844,7 @@ onMounted(() => {
   font-size: 13px;
   font-family: inherit;
   padding: 2px 4px;
-  border: 1px solid var(--accent, #2563eb);
+  border: 1px solid var(--accent);
   border-radius: 4px;
   box-sizing: border-box;
 }
@@ -883,7 +883,7 @@ onMounted(() => {
   max-width: 360px;
   text-align: center;
   background: var(--surface-2);
-  border: 1px dashed #d5d5d5;
+  border: 1px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 28px 24px;
 }
@@ -903,7 +903,7 @@ onMounted(() => {
 .ps-guide-card p {
   margin: 0 0 14px;
   font-size: 13px;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   line-height: 1.6;
 }
 
@@ -912,7 +912,7 @@ onMounted(() => {
   margin: 0 0 18px;
   padding-left: 20px;
   font-size: 12px;
-  color: #666;
+  color: var(--fg-muted);
   line-height: 1.9;
 }
 
@@ -933,8 +933,8 @@ onMounted(() => {
 
 /* 选版本表单（新建 / 编辑共用） */
 .ps-mig-pick-form {
-  background: #f7f9fc;
-  border: 1px solid #e3e9f2;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
   align-items: flex-end;
@@ -955,7 +955,7 @@ onMounted(() => {
 
 .ps-pick-label {
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
 }
 
 .ps-pick-arrow {
@@ -1005,7 +1005,7 @@ onMounted(() => {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #444;
+  color: var(--fg);
 }
 
 .ps-step-add {
@@ -1027,7 +1027,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   margin-bottom: 6px;
 }
 
@@ -1057,7 +1057,7 @@ onMounted(() => {
 
 .ps-step-hint {
   font-size: 11px;
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .ps-preview {
@@ -1073,7 +1073,7 @@ onMounted(() => {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #444;
+  color: var(--fg);
 }
 
 .ps-preview-head .btn {
@@ -1135,7 +1135,7 @@ onMounted(() => {
 }
 
 .ps-version-empty {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 13px;
   padding: 40px 16px;
   text-align: center;
@@ -1159,7 +1159,7 @@ onMounted(() => {
 
 .ps-bp-meta {
   font-size: 11px;
-  color: #999;
+  color: var(--fg-subtle);
   margin-top: 2px;
   display: block;
 }
@@ -1167,7 +1167,7 @@ onMounted(() => {
 /* 统计栏 */
 .ps-bp-stats {
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -1208,7 +1208,7 @@ onMounted(() => {
 .ps-bp-table-name {
   font-size: 12px;
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   cursor: pointer;
   padding: 3px 6px;
   border-radius: var(--radius-sm);
@@ -1220,7 +1220,7 @@ onMounted(() => {
 
 .ps-bp-table-comment {
   font-weight: 400;
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 11px;
   margin-left: 8px;
 }
@@ -1236,14 +1236,14 @@ onMounted(() => {
   background: var(--surface-3);
   border-bottom: 1px solid var(--border);
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   border-radius: var(--radius-sm) 3px 0 0;
 }
 
 .ps-bp-field-row {
   display: flex;
   border-bottom: 1px solid var(--surface-3);
-  color: #666;
+  color: var(--fg-muted);
 }
 
 .ps-bp-field-row:last-child {
@@ -1273,7 +1273,7 @@ onMounted(() => {
 .ps-bp-index-title {
   font-size: 11px;
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   padding: 2px 6px;
 }
 
@@ -1281,23 +1281,23 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
   padding: 2px 12px;
 }
 
 .ps-bp-index-name {
   font-weight: 500;
-  color: #666;
+  color: var(--fg-muted);
   min-width: 80px;
 }
 
 .ps-bp-index-type {
-  color: #999;
+  color: var(--fg-subtle);
   min-width: 50px;
 }
 
 .ps-bp-index-cols {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 /* SQL 预览区 */
@@ -1314,6 +1314,6 @@ onMounted(() => {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #444;
+  color: var(--fg);
 }
 </style>

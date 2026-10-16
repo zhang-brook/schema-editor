@@ -89,7 +89,7 @@ function copyToClipboard() {
 .btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -116,7 +116,7 @@ function copyToClipboard() {
   justify-content: center;
   gap: 12px;
   padding: 20px;
-  color: #aaa;
+  color: var(--fg-subtle);
   font-size: 12px;
 }
 

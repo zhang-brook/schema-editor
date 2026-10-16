@@ -3,6 +3,11 @@ import { createPinia } from 'pinia'
 
 import { i18n } from './i18n'
 import App from './App.vue'
+import { initTheme } from './composables/useTheme'
+import { initDensity } from './composables/useDensity'
+
+initTheme()
+initDensity()
 
 const app = createApp(App)
 app.use(createPinia())

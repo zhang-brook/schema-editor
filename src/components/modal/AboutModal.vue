@@ -211,7 +211,7 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
 
 .about-version {
   font-size: 13px;
-  color: #666;
+  color: var(--fg-muted);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
@@ -231,15 +231,15 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
 }
 
 .about-meta-label {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .about-meta-value {
-  color: #666;
+  color: var(--fg-muted);
 }
 
 .about-meta-relative {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 11px;
 }
 

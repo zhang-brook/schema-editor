@@ -2,7 +2,7 @@
 .common-badge {
   display: inline-block;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   font-size: 9px;
   font-weight: 700;
   padding: 1px 5px;
@@ -14,7 +14,7 @@
 .commented-badge {
   display: inline-block;
   background: var(--fg-subtle);
-  color: #fff;
+  color: var(--surface);
   font-size: 9px;
   font-weight: 700;
   padding: 1px 5px;

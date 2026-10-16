@@ -1,20 +1,72 @@
 ﻿<script setup lang="ts">
 import { ref, computed, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import {
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  PopoverRoot,
+  PopoverTrigger,
+  PopoverPortal,
+  PopoverContent,
+} from 'reka-ui'
 import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import AboutModal from '@/components/modal/AboutModal.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
+import MonitorIcon from '@/components/icon/MonitorIcon.vue'
+import SunIcon from '@/components/icon/SunIcon.vue'
+import MoonIcon from '@/components/icon/MoonIcon.vue'
 import { GITHUB_REPO_URL, GITHUB_ISSUE_URL, changelogUrl } from '@/utils/constants'
 import { version } from '@/../package.json'
+import { useTheme } from '@/composables/useTheme'
+import type { ThemePreference } from '@/composables/useTheme'
+import { useDensity } from '@/composables/useDensity'
+import type { DensityPreference } from '@/composables/useDensity'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
+const { preference: themePreference, setTheme } = useTheme()
+const { preference: densityPreference, setDensity } = useDensity()
+
+/** 主题三档：跟随系统 / 浅色 / 深色 */
+const themeOptions = [
+  { value: 'system' as const, labelKey: 'toolbar.themeSystem', icon: MonitorIcon },
+  { value: 'light' as const, labelKey: 'toolbar.themeLight', icon: SunIcon },
+  { value: 'dark' as const, labelKey: 'toolbar.themeDark', icon: MoonIcon },
+]
+
+/** 触发按钮图标随当前主题偏好变化 */
+const activeThemeIcon = computed(
+  () => themeOptions.find(opt => opt.value === themePreference.value)?.icon ?? MonitorIcon,
+)
+
+const themeSegments = computed(() =>
+  themeOptions.map(opt => ({ value: opt.value, label: t(opt.labelKey) })),
+)
+
+/** 密度三档：紧凑 / 正常 / 宽松 */
+const densitySegments = computed(() => [
+  { value: 'compact', label: t('toolbar.densityCompact') },
+  { value: 'normal', label: t('toolbar.densityNormal') },
+  { value: 'relaxed', label: t('toolbar.densityRelaxed') },
+])
+
+function onThemeChange(value: string) {
+  setTheme(value as ThemePreference)
+}
+
+function onDensityChange(value: string) {
+  setDensity(value as DensityPreference)
+}
 
 const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '')
 
 const showAboutModal = ref(false)
-const openMenu = ref<string | null>(null)
 
 /** 顶部菜单栏居中标题：显示项目名称，未设置时留空 */
 const displayTitle = computed(() => store.projectName.trim())
@@ -36,31 +88,10 @@ const saveBadge = computed(() => {
   return t('toolbar.saved')
 })
 
-function toggleMenu(menu: string) {
-  openMenu.value = openMenu.value === menu ? null : menu
-}
-
-function closeMenu() {
-  openMenu.value = null
-}
-
-function menuAction(fn: () => void) {
-  closeMenu()
-  fn()
-}
-
 function switchLocale(newLocale: SupportedLocale) {
   locale.value = newLocale
   persistLocale(newLocale)
   document.documentElement.lang = newLocale
-}
-
-// Close menu when clicking outside the menu bar
-function onDocumentClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (!target.closest('.menu-bar')) {
-    closeMenu()
-  }
 }
 
 /** 判断事件目标是否处于可编辑元素（输入框/文本域/contenteditable），这类场景应使用原生撤销/重做 */
@@ -75,9 +106,6 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 
 function onKeydown(e: KeyboardEvent) {
   const mod = e.ctrlKey || e.metaKey
-  if (e.key === 'Escape' && openMenu.value) {
-    closeMenu()
-  }
 
   // 从磁盘重新加载（Alt/Option+R，仅项目打开时生效）
   if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyR') {
@@ -141,13 +169,11 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 }
 
 onMounted(() => {
-  document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onKeydown)
   window.addEventListener('beforeunload', onBeforeUnload)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('keydown', onKeydown)
   window.removeEventListener('beforeunload', onBeforeUnload)
 })
@@ -160,114 +186,99 @@ onUnmounted(() => {
     <span class="menu-bar-brand">{{ $t('app.title') }}</span>
 
     <!-- File Menu -->
-    <div class="menu-item" :class="{ open: openMenu === 'file' }" @click.stop="toggleMenu('file')">
-      {{ $t('menu.file') }}
-      <div v-if="openMenu === 'file'" class="menu-dropdown" @click.stop>
-        <div
-          class="menu-dropdown-item"
-          :class="{ disabled: store.projectOpened }"
-          @click="menuAction(() => store.openProject())"
-        >
-          <span>{{ $t('toolbar.openFolder') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘O' : 'Ctrl+O' }}</span>
-        </div>
-        <div
-          class="menu-dropdown-item"
-          @click="menuAction(() => store.saveProjectWithFeedback())"
-        >
-          <span>{{ $t('toolbar.save') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘S' : 'Ctrl+S' }}</span>
-        </div>
-        <div
-          class="menu-dropdown-item"
-          :class="{ disabled: !store.projectOpened }"
-          @click="store.projectOpened && menuAction(() => store.requestCloseProject())"
-        >
-          <span>{{ $t('toolbar.closeFolder') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘E' : 'Ctrl+E' }}</span>
-        </div>
-        <div class="menu-separator"></div>
-        <div
-          class="menu-dropdown-item"
-          :class="{ disabled: !store.projectOpened }"
-          @click="store.projectOpened && menuAction(() => store.openImportSqlModal())"
-        >
-          <span>{{ $t('toolbar.importSql') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘I' : 'Ctrl+I' }}</span>
-        </div>
-        <div class="menu-separator"></div>
-        <div
-          class="menu-dropdown-item"
-          :class="{ disabled: !store.projectOpened }"
-          @click="store.projectOpened && menuAction(() => store.reloadFromDisk())"
-        >
-          <span>{{ $t('toolbar.reloadFromDisk') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌥R' : 'Alt+R' }}</span>
-        </div>
-      </div>
-    </div>
+    <DropdownMenuRoot>
+      <DropdownMenuTrigger class="menu-item" type="button">{{ $t('menu.file') }}</DropdownMenuTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuContent class="menu-dropdown" align="start" :side-offset="4">
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="store.projectOpened"
+            @select="store.openProject()"
+          >
+            <span>{{ $t('toolbar.openFolder') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌘O' : 'Ctrl+O' }}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem class="menu-dropdown-item" @select="store.saveProjectWithFeedback()">
+            <span>{{ $t('toolbar.save') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌘S' : 'Ctrl+S' }}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="!store.projectOpened"
+            @select="store.requestCloseProject()"
+          >
+            <span>{{ $t('toolbar.closeFolder') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌘E' : 'Ctrl+E' }}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator class="menu-separator" />
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="!store.projectOpened"
+            @select="store.openImportSqlModal()"
+          >
+            <span>{{ $t('toolbar.importSql') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌘I' : 'Ctrl+I' }}</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator class="menu-separator" />
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="!store.projectOpened"
+            @select="store.reloadFromDisk()"
+          >
+            <span>{{ $t('toolbar.reloadFromDisk') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌥R' : 'Alt+R' }}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenuRoot>
 
     <!-- Edit Menu -->
-    <div class="menu-item" :class="{ open: openMenu === 'edit' }" @click.stop="toggleMenu('edit')">
-      {{ $t('menu.edit') }}
-      <div v-if="openMenu === 'edit'" class="menu-dropdown" @click.stop>
-        <div
-          class="menu-dropdown-item"
-          :class="{ disabled: !store.canUndo }"
-          @click="store.canUndo && menuAction(() => store.undo())"
-        >
-          <span>{{ $t('history.undo') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘Z' : 'Ctrl+Z' }}</span>
-        </div>
-        <div
-          class="menu-dropdown-item"
-          :class="{ disabled: !store.canRedo }"
-          @click="store.canRedo && menuAction(() => store.redo())"
-        >
-          <span>{{ $t('history.redo') }}</span>
-          <span class="menu-shortcut">{{ isMac ? '⌘⇧Z' : 'Ctrl+Shift+Z / Ctrl+Y' }}</span>
-        </div>
-      </div>
-    </div>
+    <DropdownMenuRoot>
+      <DropdownMenuTrigger class="menu-item" type="button">{{ $t('menu.edit') }}</DropdownMenuTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuContent class="menu-dropdown" align="start" :side-offset="4">
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="!store.canUndo"
+            @select="store.undo()"
+          >
+            <span>{{ $t('history.undo') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌘Z' : 'Ctrl+Z' }}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="!store.canRedo"
+            @select="store.redo()"
+          >
+            <span>{{ $t('history.redo') }}</span>
+            <span class="menu-shortcut">{{ isMac ? '⌘⇧Z' : 'Ctrl+Shift+Z / Ctrl+Y' }}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenuRoot>
 
     <!-- Help Menu -->
-    <div class="menu-item" :class="{ open: openMenu === 'help' }" @click.stop="toggleMenu('help')">
-      {{ $t('menu.help') }}
-      <div v-if="openMenu === 'help'" class="menu-dropdown" @click.stop>
-        <a
-          class="menu-dropdown-item"
-          :href="GITHUB_REPO_URL"
-          target="_blank"
-          rel="noopener noreferrer"
-          @click="closeMenu()"
-        >
-          {{ $t('toolbar.github') }}
-        </a>
-        <a
-          class="menu-dropdown-item"
-          :href="GITHUB_ISSUE_URL"
-          target="_blank"
-          rel="noopener noreferrer"
-          @click="closeMenu()"
-        >
-          {{ $t('toolbar.reportIssue') }}
-        </a>
-        <div class="menu-separator"></div>
-        <a
-          class="menu-dropdown-item"
-          :href="changelogUrl(version)"
-          target="_blank"
-          rel="noopener noreferrer"
-          @click="closeMenu()"
-        >
-          {{ $t('toolbar.changelog') }}
-        </a>
-        <div class="menu-separator"></div>
-        <div class="menu-dropdown-item" @click="menuAction(() => { showAboutModal = true })">
-          {{ $t('toolbar.about') }}
-        </div>
-      </div>
-    </div>
+    <DropdownMenuRoot>
+      <DropdownMenuTrigger class="menu-item" type="button">{{ $t('menu.help') }}</DropdownMenuTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuContent class="menu-dropdown" align="start" :side-offset="4">
+          <DropdownMenuItem as-child class="menu-dropdown-item">
+            <a :href="GITHUB_REPO_URL" target="_blank" rel="noopener noreferrer">{{ $t('toolbar.github') }}</a>
+          </DropdownMenuItem>
+          <DropdownMenuItem as-child class="menu-dropdown-item">
+            <a :href="GITHUB_ISSUE_URL" target="_blank" rel="noopener noreferrer">{{ $t('toolbar.reportIssue') }}</a>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator class="menu-separator" />
+          <DropdownMenuItem as-child class="menu-dropdown-item">
+            <a :href="changelogUrl(version)" target="_blank" rel="noopener noreferrer">{{ $t('toolbar.changelog') }}</a>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator class="menu-separator" />
+          <DropdownMenuItem class="menu-dropdown-item" @select="showAboutModal = true">
+            {{ $t('toolbar.about') }}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenuRoot>
 
     <!-- 居中标题：点击进入「项目设置 → 项目信息」 -->
     <button
@@ -317,6 +328,33 @@ onUnmounted(() => {
         &#128190;&#xFE0E; {{ $t('toolbar.save') }}
       </button>
 
+      <!-- 外观面板：主题 + 界面密度 -->
+      <PopoverRoot>
+        <PopoverTrigger class="appearance-btn" type="button" :title="$t('toolbar.theme')">
+          <component :is="activeThemeIcon" />
+        </PopoverTrigger>
+        <PopoverPortal>
+          <PopoverContent class="appearance-popover" align="end" :side-offset="6">
+            <div class="appearance-row">
+              <span class="appearance-label">{{ $t('toolbar.theme') }}</span>
+              <SegmentedSwitch
+                :model-value="themePreference"
+                :options="themeSegments"
+                @update:model-value="onThemeChange"
+              />
+            </div>
+            <div class="appearance-row">
+              <span class="appearance-label">{{ $t('toolbar.density') }}</span>
+              <SegmentedSwitch
+                :model-value="densityPreference"
+                :options="densitySegments"
+                @update:model-value="onDensityChange"
+              />
+            </div>
+          </PopoverContent>
+        </PopoverPortal>
+      </PopoverRoot>
+
       <select
         class="locale-select"
         :title="$t('toolbar.language')"
@@ -343,7 +381,7 @@ onUnmounted(() => {
   flex-shrink: 0;
   height: 40px;
   user-select: none;
-  box-shadow: 0 1px 2px rgba(27, 31, 36, 0.04);
+  box-shadow: var(--shadow-sm);
   position: relative;
 }
 
@@ -386,79 +424,6 @@ onUnmounted(() => {
 .menu-bar-title:hover {
   background: var(--surface-3);
   color: var(--fg);
-}
-
-.menu-item {
-  position: relative;
-  padding: 5px 11px;
-  margin-right: 2px;
-  font-size: 13px;
-  color: var(--fg);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  transition: background .12s ease, color .12s ease;
-}
-
-.menu-item:hover,
-.menu-item.open {
-  background: var(--surface-3);
-  color: var(--accent);
-}
-
-.menu-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  min-width: 200px;
-  z-index: 200;
-  padding: 6px 0;
-}
-
-.menu-dropdown-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 7px 28px 7px 14px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--fg);
-  white-space: nowrap;
-  text-decoration: none;
-  transition: background .1s ease, color .1s ease;
-}
-
-.menu-dropdown-item:hover {
-  background: var(--accent-subtle);
-  color: var(--accent-active);
-}
-
-.menu-dropdown-item.disabled {
-  color: var(--fg-subtle);
-  cursor: default;
-  pointer-events: none;
-}
-
-.menu-shortcut {
-  margin-left: 24px;
-  font-size: 11px;
-  color: #999;
-  font-family: -apple-system, "Segoe UI", sans-serif;
-  letter-spacing: 0.3px;
-}
-
-.menu-dropdown-item.disabled .menu-shortcut {
-  color: var(--border);
-}
-
-.menu-separator {
-  height: 1px;
-  background: var(--border);
-  margin: 4px 0;
 }
 
 .menu-bar-right {
@@ -567,5 +532,28 @@ onUnmounted(() => {
   outline: none;
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
+}
+
+/* ===== 外观按钮（打开主题 / 密度面板） ===== */
+.appearance-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+
+.appearance-btn:hover,
+.appearance-btn[data-state="open"] {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  color: var(--fg);
 }
 </style>

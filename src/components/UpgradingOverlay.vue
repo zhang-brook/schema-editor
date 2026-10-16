@@ -18,7 +18,7 @@ defineProps<{ text?: string }>()
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.75);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,15 +33,15 @@ defineProps<{ text?: string }>()
   align-items: center;
   gap: 16px;
   padding: 36px 56px;
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-lg);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-md);
 }
 
 .upgrading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(58, 114, 196, 0.2);
+  border: 4px solid var(--accent-border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: upgrading-spin 0.8s linear infinite;

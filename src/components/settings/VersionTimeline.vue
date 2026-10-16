@@ -137,7 +137,7 @@ const vFocus = {
 <style scoped>
 .tl {
   padding: 10px 16px 4px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border);
 }
 
 .tl-bar {
@@ -150,15 +150,15 @@ const vFocus = {
 
 .tl-title {
   font-weight: 600;
-  color: var(--text-primary, #111827);
+  color: var(--fg);
 }
 
 .tl-gap-hint {
-  color: #b45309;
+  color: var(--warning);
 }
 
 .tl-branch-hint {
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
 }
 
 .tl-track {
@@ -183,32 +183,31 @@ const vFocus = {
   align-items: center;
   gap: 2px;
   padding: 4px 8px;
-  border: 1px solid var(--border-muted, #e4e8ec);
+  border: 1px solid var(--border-muted);
   border-radius: 6px;
-  background: var(--surface, #fff);
-  /* box-shadow: var(--shadow-sm, 0 1px 2px rgba(27, 31, 36, .06)); */
+  background: var(--surface);
   cursor: pointer;
   font: inherit;
-  color: var(--text-primary, #111827);
+  color: var(--fg);
   transition: border-color .12s ease, background .12s ease;
 }
 
 .tl-node:hover {
-  border-color: var(--border-strong, #c9d4e3);
-  background: var(--hover-bg, #f3f4f6);
+  border-color: var(--border-strong);
+  background: var(--surface-3);
 }
 
 .tl-node.active {
-  border-color: var(--primary-color, #2563eb);
-  background: var(--primary-soft, #eff6ff);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 .tl-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--primary-color, #2563eb);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, .75);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
 }
 
 .tl-name {
@@ -236,7 +235,7 @@ const vFocus = {
   font-size: 12px;
   line-height: 1;
   padding: 0 2px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
   opacity: 0;
   transition: opacity .12s ease;
 }
@@ -247,7 +246,7 @@ const vFocus = {
 }
 
 .tl-rename:hover {
-  color: var(--primary-color, #2563eb);
+  color: var(--accent);
 }
 
 .tl-name-input {
@@ -256,14 +255,14 @@ const vFocus = {
   font-weight: 600;
   font-family: inherit;
   padding: 1px 4px;
-  border: 1px solid var(--primary-color, #2563eb);
+  border: 1px solid var(--accent);
   border-radius: 4px;
   box-sizing: border-box;
 }
 
 .tl-date {
   font-size: 11px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--fg-muted);
   white-space: nowrap;
 }
 
@@ -290,7 +289,7 @@ const vFocus = {
   position: relative;
   flex: 1;
   height: 2px;
-  background: var(--primary-color, #2563eb);
+  background: var(--accent);
 }
 
 /* 左端箭头，指向左侧（更早的）版本 */
@@ -302,15 +301,15 @@ const vFocus = {
   transform: translateY(-50%);
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
-  border-right: 6px solid var(--primary-color, #2563eb);
+  border-right: 6px solid var(--accent);
 }
 
 .tl-link.is-gap .tl-link-line {
-  background: repeating-linear-gradient(to right, #b45309 0 5px, transparent 5px 10px);
+  background: repeating-linear-gradient(to right, var(--warning) 0 5px, transparent 5px 10px);
 }
 
 .tl-link.is-gap .tl-link-line::before {
-  border-right-color: #b45309;
+  border-right-color: var(--warning);
 }
 
 .tl-link-label {
@@ -321,7 +320,7 @@ const vFocus = {
   font-size: 11px;
   line-height: 1;
   white-space: nowrap;
-  color: #b45309;
+  color: var(--warning);
 }
 
 .tl-link.is-gap:hover .tl-link-label {
@@ -329,7 +328,7 @@ const vFocus = {
 }
 
 .tl-link.is-migration .tl-link-label {
-  color: var(--primary-color, #2563eb);
+  color: var(--accent);
 }
 
 .tl-link.is-migration:hover .tl-link-label {

@@ -385,7 +385,7 @@ function cancelRenameSchema() {
 }
 
 .sidebar-item {
-  padding: 7px 10px;
+  padding: var(--pad-row-y) 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -447,7 +447,7 @@ function cancelRenameSchema() {
 }
 
 .table-comment {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -531,7 +531,7 @@ function cancelRenameSchema() {
 
 .item-count {
   font-size: 10px;
-  color: #aaa;
+  color: var(--fg-subtle);
   min-width: 14px;
   text-align: center;
 }
@@ -580,7 +580,7 @@ function cancelRenameSchema() {
 }
 
 .sidebar-tree::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
+  background: var(--fg-subtle);
 }
 
 /* ===== Schema Actions ===== */

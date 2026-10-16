@@ -87,6 +87,14 @@
     "autoSaveTitle": "Write changed project files to disk as you edit (turning this off also stops SQL saving)",
     "autoSyncSql": "Save SQL too",
     "autoSyncSqlTitle": "Rewrite the SQL under output/ after project files change (also turns on Auto-save)",
+    "theme": "Appearance",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "density": "Density",
+    "densityCompact": "Compact",
+    "densityNormal": "Normal",
+    "densityRelaxed": "Relaxed",
     "saving": "Saving…",
     "saved": "All changes saved",
     "unsaved": "{n} change(s) not saved",
@@ -100,6 +108,9 @@
     "changelog": "Changelog",
     "reportIssue": "Report an Issue",
     "about": "About"
+  },
+  "structureTabs": {
+    "close": "Close"
   },
   "sidebar": {
     "navigation": "Navigation",

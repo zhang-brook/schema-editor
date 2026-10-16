@@ -372,7 +372,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   border-radius: var(--radius-sm);
   font-size: 18px;
   line-height: 1;
-  color: #999;
+  color: var(--fg-subtle);
   cursor: pointer;
   transition: all .15s;
   padding: 0;
@@ -403,7 +403,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   cursor: pointer;
 }
 
@@ -444,7 +444,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   font-size: 12px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   line-height: 1.6;
-  color: #b0b0b0;
+  color: var(--fg-subtle);
 }
 
 .sql-textarea {
@@ -462,7 +462,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
 }
 
 .sql-textarea::placeholder {
-  color: #bbb;
+  color: var(--fg-subtle);
 }
 
 /* 解析消息 */
@@ -503,19 +503,19 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background: #f7f7f7;
+  background: var(--surface-2);
   border-bottom: 1px solid var(--border);
 }
 
 .preview-title {
   font-size: 12px;
   font-weight: 600;
-  color: #444;
+  color: var(--fg);
 }
 
 .preview-summary {
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
 }
 
 /* 表卡片列表 */
@@ -547,7 +547,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
 
 .table-card-toggle {
   font-size: 10px;
-  color: #999;
+  color: var(--fg-subtle);
   width: 14px;
   flex-shrink: 0;
 }
@@ -576,19 +576,19 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
 
 .table-name-input:hover {
   border-color: var(--border-strong);
-  background: #fff;
+  background: var(--surface);
 }
 
 .table-name-input:focus {
   outline: none;
   border-color: var(--accent);
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(58, 114, 196, 0.2);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--accent-border);
 }
 
 .table-card-meta {
   font-size: 10px;
-  color: #999;
+  color: var(--fg-subtle);
   margin-left: auto;
 }
 
@@ -609,7 +609,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   text-align: left;
   padding: 3px 6px;
   background: var(--surface-3);
-  color: #666;
+  color: var(--fg-muted);
   font-weight: 500;
   border-bottom: 1px solid var(--border);
 }
@@ -628,17 +628,17 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
 .col-type {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 10px;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
 }
 
 .col-default {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 10px;
-  color: #888;
+  color: var(--fg-muted);
 }
 
 .col-comment {
-  color: #888;
+  color: var(--fg-muted);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -655,13 +655,13 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
 
 .constraint-title {
   font-size: 10px;
-  color: #999;
+  color: var(--fg-subtle);
   font-weight: 500;
 }
 
 .constraint-item {
   font-size: 10px;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   background: var(--surface-3);
   padding: 1px 5px;
   border-radius: 2px;

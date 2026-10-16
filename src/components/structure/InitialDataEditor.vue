@@ -405,14 +405,14 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   border-bottom: 1px solid var(--border-muted);
   font-weight: 600;
   font-size: 13px;
-  color: #444;
+  color: var(--fg);
   gap: 8px;
 }
 
 .section-header .badge {
   font-weight: 400;
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
 }
 
 .header-actions {
@@ -432,10 +432,10 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 .mode-btn {
   padding: 3px 10px;
   border: none;
-  background: #fff;
+  background: var(--surface);
   font-size: 11px;
   cursor: pointer;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   transition: all .15s;
 }
 
@@ -445,7 +445,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 
 .mode-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
 }
 
 .mode-btn:not(.active):hover {
@@ -459,7 +459,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   justify-content: center;
   gap: 12px;
   padding: 20px;
-  color: #aaa;
+  color: var(--fg-subtle);
   font-size: 12px;
 }
 
@@ -526,7 +526,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 .data-table th {
   background: var(--surface-2);
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -537,7 +537,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 
 .row-num {
   text-align: center;
-  color: #aaa;
+  color: var(--fg-subtle);
   font-size: 10px;
   vertical-align: middle !important;
 }
@@ -570,7 +570,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 
 .empty-rows {
   padding: 14px;
-  color: #aaa;
+  color: var(--fg-subtle);
   font-size: 12px;
   text-align: center;
 }
@@ -595,13 +595,13 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   min-width: 110px;
   box-sizing: border-box;
   background: var(--accent-subtle);
-  color: #556;
+  color: var(--fg);
 }
 
 .comment-input:focus {
   outline: none;
   border-color: var(--accent);
-  background: #fff;
+  background: var(--surface);
 }
 
 /* Field Comment (inside cell, below value) */
@@ -616,7 +616,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   min-width: 60px;
   box-sizing: border-box;
   background: transparent;
-  color: #999;
+  color: var(--fg-subtle);
   transition: border-color .15s, background .15s;
 }
 
@@ -625,7 +625,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   border-color: var(--border);
   background: var(--surface-2);
   outline: none;
-  color: #666;
+  color: var(--fg-muted);
 }
 
 .field-comment-input::placeholder {
@@ -642,7 +642,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 10px;
-  color: #999;
+  color: var(--fg-subtle);
   cursor: pointer;
   user-select: none;
   transition: all .15s;
@@ -650,7 +650,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 
 .expr-toggle:hover {
   border-color: var(--accent);
-  color: #666;
+  color: var(--fg-muted);
 }
 
 .expr-toggle.active {
@@ -674,7 +674,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 .btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -691,12 +691,12 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 }
 
 .btn:disabled:hover {
-  background: #fff;
+  background: var(--surface);
 }
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 

@@ -41,7 +41,7 @@ const store = useEditorStore()
 .ai-guide-hint {
   margin: 8px 0 0 24px;
   font-size: 12px;
-  color: #888;
+  color: var(--fg-muted);
   line-height: 1.5;
 }
 </style>

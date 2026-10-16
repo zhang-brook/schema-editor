@@ -87,6 +87,14 @@
     "autoSaveTitle": "编辑时自动把变更的项目文件写入本地（关闭会同时关闭同步保存 SQL）",
     "autoSyncSql": "同步保存 SQL",
     "autoSyncSqlTitle": "项目文件变化后自动重写 output/ 下的 SQL（勾选会同时开启实时保存）",
+    "theme": "外观",
+    "themeSystem": "跟随系统",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "density": "界面密度",
+    "densityCompact": "紧凑",
+    "densityNormal": "正常",
+    "densityRelaxed": "宽松",
     "saving": "保存中…",
     "saved": "已全部保存",
     "unsaved": "有 {n} 处更改未保存",
@@ -100,6 +108,9 @@
     "changelog": "更新日志",
     "reportIssue": "报告问题",
     "about": "关于"
+  },
+  "structureTabs": {
+    "close": "关闭"
   },
   "sidebar": {
     "navigation": "导航",

@@ -87,6 +87,14 @@
     "autoSaveTitle": "編輯時自動將變更的專案檔案寫入本機（關閉會同時關閉同步儲存 SQL）",
     "autoSyncSql": "同步儲存 SQL",
     "autoSyncSqlTitle": "專案檔案變更後自動重寫 output/ 下的 SQL（勾選會同時開啟即時儲存）",
+    "theme": "外觀",
+    "themeSystem": "跟隨系統",
+    "themeLight": "淺色",
+    "themeDark": "深色",
+    "density": "介面密度",
+    "densityCompact": "緊湊",
+    "densityNormal": "正常",
+    "densityRelaxed": "寬鬆",
     "saving": "儲存中…",
     "saved": "已全部儲存",
     "unsaved": "有 {n} 處變更尚未儲存",
@@ -100,6 +108,9 @@
     "changelog": "更新日誌",
     "reportIssue": "回報問題",
     "about": "關於"
+  },
+  "structureTabs": {
+    "close": "關閉"
   },
   "sidebar": {
     "navigation": "導覽",

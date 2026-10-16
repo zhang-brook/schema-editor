@@ -75,8 +75,8 @@ function copyToClipboard() {
   padding: 3px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--code-thumb);
+  background: var(--surface);
+  color: var(--fg-muted);
   font-size: 11px;
   cursor: pointer;
   transition: all .15s;
@@ -84,7 +84,7 @@ function copyToClipboard() {
 
 .btn-copy:hover {
   background: var(--surface-3);
-  border-color: #aaa;
+  border-color: var(--border-strong);
 }
 
 .section-body {

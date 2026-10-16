@@ -1,0 +1,140 @@
+/* ===== Design Tokens（浅色 / 深色 双主题）=====
+   组件的颜色、圆角、阴影、字体一律从这里取值；
+   深色主题通过 html.dark 类切换（见 composables/useTheme.ts）。 */
+
+:root {
+  color-scheme: light;
+
+  /* ===== Accent ===== */
+  --accent: #3a72c4;
+  --accent-hover: #2f5fa8;
+  --accent-active: #29529a;
+  --accent-subtle: #e9f1fb;
+  --accent-subtle-2: #f3f8fe;
+  --accent-border: #b6d0ee;
+  --accent-fg: #ffffff;
+
+  /* ===== Danger ===== */
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-subtle: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-fg: #ffffff;
+
+  /* ===== Success ===== */
+  --success: #16a34a;
+  --success-subtle: #f0fdf4;
+
+  /* ===== Warning ===== */
+  --warning: #d97706;
+  --warning-subtle: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-fg: #ffffff;
+
+  /* ===== Surfaces ===== */
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f7f7f8;
+  --surface-3: #f0f0f2;
+  --overlay-bg: rgba(24, 24, 27, 0.45);
+
+  /* ===== Borders ===== */
+  --border: #e4e4e7;
+  --border-muted: #ededf0;
+  --border-strong: #d4d4d8;
+
+  /* ===== Text ===== */
+  --fg: #18181b;
+  --fg-muted: #71717a;
+  --fg-subtle: #a1a1aa;
+
+  /* ===== Code (GitHub dark) ===== */
+  --code-bg: #0d1117;
+  --code-bg-2: #161b22;
+  --code-fg: #c9d1d9;
+  --code-thumb: #30363d;
+
+  /* ===== Radius ===== */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* ===== 界面密度（随 html[data-density] 切换）===== */
+  --pad-cell-y: 6px;
+  --pad-row-y: 7px;
+
+  /* ===== Shadow ===== */
+  --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.05), 0 1px 3px rgba(24, 24, 27, 0.05);
+  --shadow-md: 0 4px 12px rgba(24, 24, 27, 0.08), 0 12px 28px rgba(24, 24, 27, 0.10);
+  --shadow-lg: 0 16px 48px rgba(24, 24, 27, 0.16);
+
+  /* ===== Focus & Selection ===== */
+  --focus-ring: 0 0 0 3px rgba(58, 114, 196, 0.28);
+  --selection-bg: rgba(58, 114, 196, 0.26);
+
+  /* ===== Typography ===== */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    "Consolas", "Monaco", "Courier New", monospace;
+}
+
+/* ===== 密度档位：紧凑 / 宽松（正常为默认值）===== */
+:root[data-density="compact"] {
+  --pad-cell-y: 4px;
+  --pad-row-y: 4px;
+}
+
+:root[data-density="relaxed"] {
+  --pad-cell-y: 9px;
+  --pad-row-y: 10px;
+}
+
+/* ===== Dark ===== */
+:root.dark {
+  color-scheme: dark;
+
+  --accent: #4d85d5;
+  --accent-hover: #6e9bdd;
+  --accent-active: #8bafe3;
+  --accent-subtle: rgba(77, 133, 213, 0.16);
+  --accent-subtle-2: rgba(77, 133, 213, 0.08);
+  --accent-border: rgba(77, 133, 213, 0.42);
+  --accent-fg: #ffffff;
+
+  --danger: #f87171;
+  --danger-hover: #ef4444;
+  --danger-subtle: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.36);
+  --danger-fg: #450a0a;
+
+  --success: #4ade80;
+  --success-subtle: rgba(74, 222, 128, 0.12);
+
+  --warning: #fbbf24;
+  --warning-subtle: rgba(251, 191, 36, 0.12);
+  --warning-border: rgba(251, 191, 36, 0.36);
+  --warning-fg: #451a03;
+
+  --canvas: #121214;
+  --surface: #18181b;
+  --surface-2: #1c1c20;
+  --surface-3: #26262b;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
+  --border: #27272a;
+  --border-muted: #212125;
+  --border-strong: #3f3f46;
+
+  --fg: #e4e4e7;
+  --fg-muted: #a1a1aa;
+  --fg-subtle: #71717a;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+  --focus-ring: 0 0 0 3px rgba(77, 133, 213, 0.38);
+  --selection-bg: rgba(77, 133, 213, 0.32);
+}

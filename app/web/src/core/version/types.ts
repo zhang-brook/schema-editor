@@ -84,7 +84,7 @@ export interface FieldDiff {
   /** 新字段名（rename / 新增 / 修改后） */
   new_name?: string
   /** 修改项的字段级差异（key → [old, new]） */
-  changes?: Record<string, [any, any]>
+  changes?: Record<string, [unknown, unknown]>
 }
 
 export interface IndexDiff {
@@ -92,7 +92,7 @@ export interface IndexDiff {
   /** 旧索引标识（name 或 列签名） */
   old_name?: string
   new_name?: string
-  changes?: Record<string, [any, any]>
+  changes?: Record<string, [unknown, unknown]>
 }
 
 export interface TableDiff {

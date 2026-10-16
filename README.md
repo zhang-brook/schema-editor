@@ -13,7 +13,7 @@
 - **SQL 实时预览**：编辑时实时预览当前表的建表语句及初始数据 INSERT 语句
 - **初始数据编辑**：支持表格模式 / JSON 模式编辑初始数据，按表存放于 `current/schemas/<schema>/<table>/initial-data.json`
 - **公共配置**：编辑 `common.json` 中的公共字段引用（`common_used_fields`）和默认配置
-- **按需保存**：通过 File System Access API 直接读写本地文件夹，每次改动只写入受影响的文件；「同步保存 SQL」依赖「实时保存」，可以只实时保存项目文件而把 `output/` 下的 SQL 留给手动保存
+- **按需保存**：直接读写本地文件夹，每次改动只写入受影响的文件；「同步保存 SQL」依赖「实时保存」，可以只实时保存项目文件而把 `output/` 下的 SQL 留给手动保存
 - **离开保护**：有未保存改动时，关闭项目、换文件夹或重新加载前会询问「保存 / 不保存 / 取消」
 
 ## 快速开始
@@ -27,6 +27,21 @@ pnpm dev
 
 # 构建生产版本
 pnpm build
+```
+
+## 桌面版（Windows）
+
+除网页版外，还可以本地应用方式运行：桌面版与网页版共用同一套界面与功能，打开项目文件夹时使用系统自带的文件夹选择器。
+
+```sh
+# 安装桌面端依赖（含 Electron 二进制）
+pnpm desktop:install
+
+# 开发模式：开发服务器 + 桌面窗口
+pnpm desktop:dev
+
+# 打包安装包与免安装 exe（输出到 desktop/release）
+pnpm desktop:dist
 ```
 
 ## 使用说明

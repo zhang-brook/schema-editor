@@ -8,7 +8,7 @@
 - **Pinia** 状态管理
 - **vue-i18n** 国际化（en / zh-CN / zh-TW）
 - **File System Access API** — 直接读写用户选定的本地文件夹，改动经工作区会话按需落盘
-- 纯前端运行，无需后端服务
+- 纯前端运行，无需后端服务；另提供 Electron 桌面外壳（`desktop/`），复用同一份前端产物，把文件夹访问接到原生选择器与 Node 文件系统
 
 ## 项目结构
 
@@ -86,6 +86,9 @@ src/
 │   ├── index.ts                 # vue-i18n 初始化
 │   ├── detection.ts             # 浏览器语言检测
 │   └── locales/                 # en / zh-CN / zh-TW 语言包
+├── platform/
+│   ├── bridge.ts                # 桌面桥接协议：IPC 通道名与请求/响应负载（主进程 / preload / 渲染端共用）
+│   └── desktop-fsa.ts           # 桌面端 File System Access 模拟层（目录/文件句柄、FileSystemObserver、showDirectoryPicker）
 ├── stores/                      # Pinia：主 store + 按职责拆分的 action 工厂
 │   ├── editor.ts                # 主 store：持有状态，组合下列 action 并对组件暴露统一 API
 │   ├── editor-action-utils.ts   # action 工厂共用工具（快照捕获、名称校验、数组增删移）
@@ -126,13 +129,25 @@ src/
         └── type-mapper.ts       # 字段类型映射
 ```
 
+桌面外壳是一个独立包（`desktop/`，不参与根工作区，依赖单独安装）：
+
+```
+desktop/
+├── src/
+│   ├── main.ts                  # 主进程：创建窗口、注册 IPC、开发模式加载 Vite 服务
+│   ├── preload.ts               # 通过 contextBridge 暴露 window.schemaEditorDesktop
+│   └── fs-service.ts            # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
+├── vite.config.mts              # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
+└── electron-builder.yml         # Windows 打包配置（NSIS 安装包 + 免安装 exe）
+```
+
 ## 架构概览
 
 ### 数据流
 
 ```
 本地工作目录 (common.json + current/ + versions/ + migrations/)
-        │ File System Access API（core/workspace）
+        │ File System Access API（core/workspace；桌面端由 src/platform 模拟为 IPC 调用）
         ▼
   workspace-session.ts  ←→  Pinia Store (editor.ts + 5 个 action 工厂)
    （加载 + 变更范围 + 手动保存）        │
@@ -159,15 +174,26 @@ src/
 pnpm dev           # 启动 Vite 开发服务器
 pnpm build         # 并行：类型检查 + 生产构建
 pnpm preview       # 预览生产构建
-pnpm test:unit     # Vitest 单元测试
+pnpm test:unit     # Vitest 单元测试（含 desktop/ 下的用例）
 pnpm lint          # 串行：oxlint → eslint
 pnpm format        # oxfmt 格式化 src/
 pnpm type-check    # 单独运行 vue-tsc 类型检查
 pnpm changelog     # 生成 CHANGELOG
 ```
 
+桌面外壳（依赖与构建均独立，首次使用先安装）：
+
+```sh
+pnpm desktop:install      # 安装 desktop/ 依赖（含 Electron 二进制）
+pnpm desktop:dev          # 开发模式：Vite 开发服务器 + Electron 窗口
+pnpm desktop:build        # 构建前端产物与主进程 / preload 脚本
+pnpm desktop:dist         # 构建并打包 Windows 安装包与免安装 exe（desktop/release）
+pnpm desktop:type-check   # desktop/ 的 tsc 类型检查
+```
+
 ## 部署
 
 - 通过 GitHub Actions 自动构建并部署到 GitHub Pages
-- `base` 路径在 CI 环境中自动设为 `/{repo-name}/`，本地开发时为 `/`
+- `base` 固定为相对路径 `./`，产物可部署在任意子路径下，也可被桌面外壳以 `file://` 直接加载
 - 纯前端应用，无后端，构建产物为静态文件
+- Windows 安装包由 `pnpm desktop:dist` 本地打包，未配置代码签名（安装时可能出现 SmartScreen 提示）

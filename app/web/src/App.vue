@@ -6,6 +6,8 @@ import OpenFolderArt from '@/components/icon/OpenFolderArt.vue'
 import ProjectSettingsPanel from '@/components/settings/SettingsPanel.vue'
 import AddFieldModal from '@/components/modal/AddFieldModal.vue'
 import ImportSqlModal from '@/components/modal/ImportSqlModal.vue'
+import OpenGitRepoModal from '@/components/modal/OpenGitRepoModal.vue'
+import CommitDialog from '@/components/modal/CommitDialog.vue'
 import ConfirmModal from '@/components/modal/ConfirmModal.vue'
 import UpgradingOverlay from '@/components/UpgradingOverlay.vue'
 import { useConfirmState, resolveConfirm } from '@/composables/useConfirm'
@@ -45,6 +47,12 @@ const confirmState = useConfirmState()
 
     <!-- 导入 SQL 弹窗 -->
     <ImportSqlModal />
+
+    <!-- 打开 Git 仓库弹窗 -->
+    <OpenGitRepoModal />
+
+    <!-- Git 提交弹窗（手动保存时收集提交信息） -->
+    <CommitDialog />
 
     <!-- 全局唯一确认弹窗：绑定 useConfirm 队列，处理 confirmDialog()/alertDialog() 触发的全部确认/提示 -->
     <ConfirmModal

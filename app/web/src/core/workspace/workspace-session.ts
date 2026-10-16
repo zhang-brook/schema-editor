@@ -3,7 +3,7 @@ import { normalizeInitialData } from '@/utils/initial-data-io'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
 import { COMMON_FILE, CURRENT_STRUCT_VERSION, ENVIRONMENTS_DIR, INITIAL_DATA_FILE, MIGRATIONS_DIR, OUTPUT_DIR, VERSIONS_DIR } from './layout'
 import type { BrowserWorkspaceWriter } from './browser-workspace'
-import { SaveCoordinator, type AutoSaveOptions, type FileChange, type SaveState, type WorkspaceWriter } from './save-coordinator'
+import { SaveCoordinator, type AutoSaveOptions, type FileChange, type SaveState, type StagedChange, type WorkspaceWriter } from './save-coordinator'
 import { affectedSourceChanges, databasePath, fullSourceChanges, generatedFileChanges, projectOutputPaths, projectSourceFiles, schemaDirectory, schemaPrefix, tableDirectory, type ProjectDocuments } from './project-documents'
 import { AI_GUIDE_FILE } from '@/utils/ai-guide'
 import type { AffectedFile } from '@/core/history/command'
@@ -32,7 +32,13 @@ function sortByOrder<T>(items: T[], order: string[], name: (item: T) => string) 
 }
 
 export interface SessionWriter extends WorkspaceWriter {
+  load(paths: readonly string[]): Promise<Map<string, string>>
+  listFiles(directory: string): Promise<string[]>
   hasExternalChanges(paths: readonly string[]): Promise<boolean>
+  /** 远端写入器（Git）：把保存口径的文件集合换算为相对快照的真实差异 */
+  previewCommit?(changes: readonly FileChange[]): StagedChange[]
+  /** 远端写入器（Git）：下一次保存使用的提交信息 */
+  setCommitMessage?(message: string): void
 }
 
 export async function loadWorkspaceDocuments(writer: Pick<BrowserWorkspaceWriter, 'load' | 'listFiles'>): Promise<{ project: ProjectDocuments; files: Map<string, string> }> {
@@ -121,6 +127,14 @@ export function createWorkspaceSession(options: {
     async saveAll() {
       coordinator.update(fullSourceChanges(options.project(), coordinator.files))
       await coordinator.saveAll()
+    },
+    /** 提交预览：Git 模式下待提交的文件差异（其他写入器返回空） */
+    previewCommitChanges(): StagedChange[] {
+      if (!options.writer.previewCommit) return []
+      return options.writer.previewCommit(coordinator.previewAll())
+    },
+    setCommitMessage(message: string) {
+      options.writer.setCommitMessage?.(message)
     },
     async hasExternalChanges(paths: readonly string[]) {
       await coordinator.waitForIdle()

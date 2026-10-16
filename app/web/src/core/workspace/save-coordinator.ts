@@ -3,6 +3,12 @@ export interface FileChange {
   content: string | null
 }
 
+/** 相对写入器基线的文件差异，供远端写入器（Git）预览待提交内容 */
+export interface StagedChange {
+  path: string
+  kind: 'add' | 'update' | 'delete'
+}
+
 export type SaveMode = 'auto' | 'manual'
 
 export interface SaveResult {
@@ -112,6 +118,18 @@ export class SaveCoordinator {
 
   saveAll(): Promise<void> {
     return this.enqueue('manual')
+  }
+
+  /**
+   * 预演一次手动保存：按 run('manual') 的口径把要写出的文件算全（含派生文件重建），
+   * 但不调用写入器；Git 提交弹窗借此展示待提交的文件清单。
+   */
+  previewAll(): FileChange[] {
+    const prepared = this.options.prepare?.([...this.dirtyPaths], 'manual') ?? []
+    this.applyChanges(prepared)
+    this.notify()
+    const paths = new Set([...this.desired.keys(), ...this.dirtyPaths])
+    return [...paths].map(path => ({ path, content: this.desired.get(path) ?? null }))
   }
 
   saveChanges(): Promise<void> {

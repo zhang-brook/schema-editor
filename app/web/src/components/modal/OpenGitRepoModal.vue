@@ -1,0 +1,205 @@
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useEditorStore } from '@/stores/editor'
+import { useEscClose } from '@/composables/useEscClose'
+import { useEnterConfirm } from '@/composables/useEnterConfirm'
+import { parseRepoUrl } from '@/core/workspace/git/url'
+import { GitRepoError } from '@/core/workspace/git/types'
+import { readStoredGitToken } from '@/core/workspace/git/credentials'
+
+const store = useEditorStore()
+const { t } = useI18n()
+
+const url = ref('')
+const branch = ref('')
+const subdir = ref('')
+const token = ref('')
+const remember = ref(false)
+const errorMsg = ref('')
+const busy = ref(false)
+const urlInput = ref<HTMLInputElement | null>(null)
+
+// 输入可解析的地址时，若该站点存过「记住的令牌」则自动预填
+watch(url, value => {
+  if (token.value) return
+  try {
+    const host = parseRepoUrl(value).host
+    const stored = readStoredGitToken(host)
+    if (stored) {
+      token.value = stored
+      remember.value = true
+    }
+  } catch {
+    // 地址尚不完整时忽略
+  }
+})
+
+useEscClose(computed(() => store.showOpenGitModal), () => {
+  if (!busy.value) store.showOpenGitModal = false
+})
+
+const canSubmit = computed(() => !!url.value.trim() && !!token.value.trim() && !busy.value)
+
+useEnterConfirm(computed(() => store.showOpenGitModal), () => {
+  if (canSubmit.value) void submit()
+}, urlInput)
+
+async function submit() {
+  errorMsg.value = ''
+  busy.value = true
+  try {
+    const opened = await store.openGitRepository({
+      url: url.value,
+      branch: branch.value,
+      subdir: subdir.value,
+      token: token.value,
+      remember: remember.value,
+    })
+    if (opened) store.showOpenGitModal = false
+  } catch (e) {
+    errorMsg.value = e instanceof GitRepoError ? t(`gitRepo.openError.${e.code}`) : t('gitRepo.openError.unknown')
+  } finally {
+    busy.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="modal-overlay" v-if="store.showOpenGitModal" @click.self="!busy && (store.showOpenGitModal = false)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>{{ $t('gitRepo.title') }}</h3>
+        <button class="modal-close-btn" @click="store.showOpenGitModal = false">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ $t('gitRepo.url') }}</label>
+        <input
+          ref="urlInput"
+          class="form-input"
+          v-model="url"
+          :placeholder="$t('gitRepo.urlPlaceholder')"
+          spellcheck="false"
+        />
+        <span class="field-hint">{{ $t('gitRepo.urlHint') }}</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">{{ $t('gitRepo.branch') }}</label>
+          <input class="form-input" v-model="branch" :placeholder="$t('gitRepo.branchPlaceholder')" spellcheck="false" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ $t('gitRepo.subdir') }}</label>
+          <input class="form-input" v-model="subdir" :placeholder="$t('gitRepo.subdirPlaceholder')" spellcheck="false" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ $t('gitRepo.token') }}</label>
+        <input
+          class="form-input"
+          type="password"
+          v-model="token"
+          :placeholder="$t('gitRepo.tokenPlaceholder')"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <label class="remember-row">
+          <input type="checkbox" v-model="remember" />
+          <span>{{ $t('gitRepo.remember') }}</span>
+        </label>
+      </div>
+
+      <div v-if="errorMsg" class="repo-error">{{ errorMsg }}</div>
+
+      <div class="modal-actions">
+        <button class="btn" :disabled="busy" @click="store.showOpenGitModal = false">{{ $t('confirm.cancel') }}</button>
+        <button class="btn btn-primary" :disabled="!canSubmit" @click="submit">{{ $t('gitRepo.open') }}</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped src="@/assets/style/modal.css"></style>
+<style scoped src="@/assets/style/btn.css"></style>
+<style scoped src="@/assets/style/form.css"></style>
+<style scoped>
+.modal-box {
+  max-width: 560px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.modal-header h3 {
+  margin-bottom: 0;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--fg-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+
+.modal-close-btn:hover {
+  background: var(--surface-3);
+  color: var(--fg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  margin-bottom: 12px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--fg-subtle);
+}
+
+.remember-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-row input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.repo-error {
+  padding: 8px 10px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--danger-subtle);
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+</style>

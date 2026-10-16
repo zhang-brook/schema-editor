@@ -88,6 +88,13 @@ const saveBadge = computed(() => {
   return t('toolbar.saved')
 })
 
+/** Git 徽章提示：仓库地址 + 作为数据源的子目录 */
+const gitBadgeTitle = computed(() => {
+  const repo = store.gitRepo
+  if (!repo) return ''
+  return repo.subdir ? `${repo.webUrl} (${repo.subdir})` : repo.webUrl
+})
+
 function switchLocale(newLocale: SupportedLocale) {
   locale.value = newLocale
   persistLocale(newLocale)
@@ -198,6 +205,13 @@ onUnmounted(() => {
             <span>{{ $t('toolbar.openFolder') }}</span>
             <span class="menu-shortcut">{{ isMac ? '⌘O' : 'Ctrl+O' }}</span>
           </DropdownMenuItem>
+          <DropdownMenuItem
+            class="menu-dropdown-item"
+            :disabled="store.projectOpened"
+            @select="store.openGitRepoModal()"
+          >
+            <span>{{ $t('toolbar.openGitRepo') }}</span>
+          </DropdownMenuItem>
           <DropdownMenuItem class="menu-dropdown-item" @select="store.saveProjectWithFeedback()">
             <span>{{ $t('toolbar.save') }}</span>
             <span class="menu-shortcut">{{ isMac ? '⌘S' : 'Ctrl+S' }}</span>
@@ -225,7 +239,7 @@ onUnmounted(() => {
             :disabled="!store.projectOpened"
             @select="store.reloadFromDisk()"
           >
-            <span>{{ $t('toolbar.reloadFromDisk') }}</span>
+            <span>{{ store.gitRepo ? $t('toolbar.reloadFromRepo') : $t('toolbar.reloadFromDisk') }}</span>
             <span class="menu-shortcut">{{ isMac ? '⌥R' : 'Alt+R' }}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -291,19 +305,31 @@ onUnmounted(() => {
 
     <!-- Right Side -->
     <div class="menu-bar-right">
+      <!-- Git 仓库模式：显示数据源仓库与分支，点击打开仓库页面 -->
+      <a
+        v-if="store.gitRepo"
+        class="git-badge"
+        :href="store.gitRepo.webUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        :title="gitBadgeTitle"
+      >{{ store.gitRepo.owner }}/{{ store.gitRepo.repo }}@{{ store.gitRepo.branch }}</a>
+
       <div v-if="store.projectOpened" class="save-switches">
-        <label class="autosave-toggle" :title="$t('toolbar.autoSaveTitle')">
+        <label class="autosave-toggle" :title="store.gitRepo ? $t('toolbar.autoSaveUnsupported') : $t('toolbar.autoSaveTitle')">
           <input
             type="checkbox"
-            :checked="store.autoSaveEnabled"
+            :checked="!store.gitRepo && store.autoSaveEnabled"
+            :disabled="!!store.gitRepo"
             @change="store.setAutoSave(($event.target as HTMLInputElement).checked)"
           />
           <span>{{ $t('toolbar.autoSave') }}</span>
         </label>
-        <label class="autosave-toggle" :title="$t('toolbar.autoSyncSqlTitle')">
+        <label class="autosave-toggle" :title="store.gitRepo ? $t('toolbar.autoSaveUnsupported') : $t('toolbar.autoSyncSqlTitle')">
           <input
             type="checkbox"
-            :checked="store.autoSyncOutputsEnabled"
+            :checked="!store.gitRepo && store.autoSyncOutputsEnabled"
+            :disabled="!!store.gitRepo"
             @change="store.setAutoSyncOutputs(($event.target as HTMLInputElement).checked)"
           />
           <span>{{ $t('toolbar.autoSyncSql') }}</span>
@@ -325,7 +351,7 @@ onUnmounted(() => {
         :title="$t('toolbar.saveTitle')"
         @click="store.saveProjectWithFeedback()"
       >
-        &#128190;&#xFE0E; {{ $t('toolbar.save') }}
+        &#128190;&#xFE0E; {{ store.gitRepo ? $t('toolbar.commit') : $t('toolbar.save') }}
       </button>
 
       <!-- 外观面板：主题 + 界面密度 -->
@@ -481,6 +507,32 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Git 数据源徽章：仓库与分支 */
+.git-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  padding: 2px 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .12s ease;
+}
+
+.git-badge:hover {
+  background: var(--accent-subtle-2);
+}
+
+.autosave-toggle input:disabled {
+  cursor: not-allowed;
 }
 
 .autosave-toggle {

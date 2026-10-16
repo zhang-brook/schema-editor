@@ -19,8 +19,12 @@ import {
 import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
 import { buildSchemaExportData } from '@/core/workspace/serialization'
 import { BrowserWorkspaceWriter } from '@/core/workspace/browser-workspace'
-import { createDefaultCommonConfig, createWorkspaceSession, loadWorkspaceDocuments, type WorkspaceSession } from '@/core/workspace/workspace-session'
-import type { SaveState } from '@/core/workspace/save-coordinator'
+import { createDefaultCommonConfig, createWorkspaceSession, loadWorkspaceDocuments, type SessionWriter, type WorkspaceSession } from '@/core/workspace/workspace-session'
+import type { SaveState, StagedChange } from '@/core/workspace/save-coordinator'
+import { GitRepoError, type GitRepoInfo } from '@/core/workspace/git/types'
+import { normalizeSubdir, parseRepoUrl } from '@/core/workspace/git/url'
+import { connectGitWorkspace } from '@/core/workspace/git/workspace'
+import { readGitToken, storeGitToken } from '@/core/workspace/git/credentials'
 import { jsonContent } from '@/core/workspace/project-documents'
 import { loadGenerateAiGuide, saveGenerateAiGuide } from '@/utils/ai-guide'
 import { ALL_SQL_DIALECTS, type SqlDialect } from '@/utils/sql-generator/shared'
@@ -67,6 +71,14 @@ export const useEditorStore = defineStore('editor', () => {
   const rootDirHandle = ref<any>(null)
   const projectOpened = ref(false)
 
+  // ===== Git 仓库模式：远端分支即数据源，无本地目录句柄 =====
+  const gitRepo = ref<GitRepoInfo | null>(null)
+  const showOpenGitModal = ref(false)
+  const commitDialogVisible = ref(false)
+  const commitPendingChanges = ref<StagedChange[]>([])
+  const commitMessage = ref('')
+  let commitResolve: ((confirmed: boolean) => void) | null = null
+
   // ===== 项目设置：是否在用户打开的文件夹中生成/更新 AI JSON 结构指南 =====
   // 该设置随项目保存到 common.json（commonConfig.generate_ai_guide），缺省为 false
   const generateAiGuide = ref<boolean>(false)
@@ -96,6 +108,8 @@ export const useEditorStore = defineStore('editor', () => {
   const saveState = ref<SaveState>({ dirty: false, saving: false, error: null, pendingFiles: 0 })
   const hasUnsavedChanges = computed(() => saveState.value.dirty)
   let session: WorkspaceSession | null = null
+  /** 最近一次保存是否真正产生了提交（Git 模式），供保存反馈选择文案 */
+  let lastSaveCommitted = false
 
   // ===== Versions / Migrations =====
   const versions = ref<VersionSummary[]>([])
@@ -352,6 +366,103 @@ export const useEditorStore = defineStore('editor', () => {
     void closeProject(true)
   }
 
+  // ===== Git 仓库数据源 =====
+
+  /** 打开「打开 Git 仓库」弹窗 */
+  function openGitRepoModal() {
+    if (projectOpened.value) return
+    showOpenGitModal.value = true
+  }
+
+  /** 把加载期的异常统一映射为带 code 的仓库错误（网络失败、文档缺失等） */
+  function _asRepoError(error: unknown): GitRepoError {
+    if (error instanceof GitRepoError) return error
+    if (error instanceof TypeError) return new GitRepoError('network', error.message, error)
+    return new GitRepoError('notProject', error instanceof Error ? error.message : String(error), error)
+  }
+
+  /**
+   * 连接 Git 仓库并挂载为当前项目：解析地址 → 解析默认分支 → 建立文件快照 → 加载文档。
+   * 失败抛 GitRepoError，由弹窗按 code 展示错误文案；返回 false 表示版本检查未通过。
+   */
+  async function openGitRepository(input: { url: string; branch: string; subdir: string; token: string; remember: boolean }): Promise<boolean> {
+    if (projectOpened.value && !(await confirmLeaveUnsaved())) return false
+    showOverlay(t('app.loadingOpenProject'))
+    try {
+      const parsed = parseRepoUrl(input.url)
+      const target = {
+        ...parsed,
+        branch: input.branch.trim() || parsed.branch,
+        subdir: input.subdir.trim() ? normalizeSubdir(input.subdir) : parsed.subdir,
+      }
+      const token = input.token.trim()
+      const { writer, info } = await connectGitWorkspace(target, token)
+      const ok = await _mountWorkspace(writer, 'git')
+      if (!ok) return false
+      gitRepo.value = info
+      storeGitToken(info.host, token, input.remember)
+      return true
+    } catch (error) {
+      throw _asRepoError(error)
+    } finally {
+      hideOverlay()
+    }
+  }
+
+  /** Git 模式重新加载：从远端重新拉取分支快照（未保存改动先经离开保护） */
+  async function _reloadGitRepo() {
+    const current = gitRepo.value
+    if (!current) return
+    showOverlay(t('app.loadingOpenProject'))
+    try {
+      const { writer, info } = await connectGitWorkspace(current, readGitToken(current.host))
+      const closing = session
+      session = null
+      await closing?.coordinator.dispose()
+      const ok = await _mountWorkspace(writer, 'git')
+      if (!ok) {
+        await closeProject(true)
+        return
+      }
+      gitRepo.value = info
+      showToast(t('toast.reloadedFromDisk'))
+    } catch (e) {
+      console.error('[reloadGitRepo] Failed:', e)
+      const repoError = _asRepoError(e)
+      showToast(t(`gitRepo.openError.${repoError.code}`))
+    } finally {
+      hideOverlay()
+    }
+  }
+
+  /** 提交弹窗：展示待提交文件并等待用户确认提交信息 */
+  function requestCommitMessage(staged: StagedChange[]): Promise<boolean> {
+    commitPendingChanges.value = staged
+    commitMessage.value = t('commitDialog.defaultMessage', { n: staged.length })
+    commitDialogVisible.value = true
+    return new Promise(resolve => { commitResolve = resolve })
+  }
+
+  /** 提交弹窗：确认（信息为空时回退默认文案） */
+  function confirmCommit() {
+    const count = commitPendingChanges.value.length
+    session?.setCommitMessage(commitMessage.value.trim() || t('commitDialog.defaultMessage', { n: count }))
+    _closeCommitDialog(true)
+  }
+
+  /** 提交弹窗：取消本次提交 */
+  function cancelCommit() {
+    _closeCommitDialog(false)
+  }
+
+  function _closeCommitDialog(confirmed: boolean) {
+    commitDialogVisible.value = false
+    commitPendingChanges.value = []
+    const resolve = commitResolve
+    commitResolve = null
+    resolve?.(confirmed)
+  }
+
   // ===== Close Project =====
 
   /** 关闭当前项目文件夹，清空所有编辑状态。silent=true 时不弹「项目已关闭」提示（如取消升级场景） */
@@ -360,6 +471,7 @@ export const useEditorStore = defineStore('editor', () => {
     const closing = session
     session = null
     rootDirHandle.value = null
+    gitRepo.value = null
     projectOpened.value = false
     _resetMemory()
     saveState.value = { dirty: false, saving: false, error: null, pendingFiles: 0 }
@@ -422,12 +534,12 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Load Project (current/) =====
 
   /**
-   * 加载项目：一次性读出 common.json / database.json / 各 schema、table、initial-data 文档，
+   * 加载并挂载工作区（本地文件夹与 Git 仓库共用）：
+   * 一次性读出 common.json / database.json / 各 schema、table、initial-data 文档，
    * 用读到的原文建立保存基线，之后由工作区会话只写真正变化的文件。
    * 返回 false 表示版本检查未通过。
    */
-  async function _loadNewStructure(rootHandle: FileSystemDirectoryHandle): Promise<boolean> {
-    const writer = new BrowserWorkspaceWriter(rootHandle)
+  async function _mountWorkspace(writer: SessionWriter, source: 'folder' | 'git'): Promise<boolean> {
     const { project, files } = await loadWorkspaceDocuments(writer)
 
     const versionResult = checkVersion(project.common)
@@ -436,8 +548,14 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
     if (versionResult.needsUpgrade) {
+      // 旧结构升级仅支持本地文件夹（升级器依赖目录句柄）；Git 模式只能提示
+      if (source === 'git') await alertDialog({ title: t('alertTitle'), message: t('gitRepo.upgradeUnsupported') })
       return false
     }
+
+    const previous = session
+    session = null
+    await previous?.coordinator.dispose()
 
     _resetMemory()
     commonConfig.value = project.common
@@ -459,6 +577,8 @@ export const useEditorStore = defineStore('editor', () => {
       autoSave: { docs: autoSaveEnabled.value, outputs: autoSyncOutputsEnabled.value },
       onStateChange: state => { saveState.value = state },
     })
+    // 新会话只在首次变更时上报状态，这里先对齐一次，避免残留上一个项目的保存失败标记
+    saveState.value = session.coordinator.state
 
     // 加载版本/迁移列表（只读元数据，不加载完整快照）
     await loadVersionsAndMigrations()
@@ -466,9 +586,14 @@ export const useEditorStore = defineStore('editor', () => {
     if (schemas.length > 0) parts.push(`${schemas.length} schema(s)`)
     if (commonConfig.value) parts.push('common.json')
     showToast(t('toast.opened', { summary: parts.join(' + ') }))
-
-    await _startFileObserver()
     return true
+  }
+
+  /** 打开本地文件夹：挂载后启动文件监听（Git 模式无本地文件可监听） */
+  async function _loadNewStructure(rootHandle: FileSystemDirectoryHandle): Promise<boolean> {
+    const ok = await _mountWorkspace(new BrowserWorkspaceWriter(rootHandle), 'folder')
+    if (ok) await _startFileObserver()
+    return ok
   }
 
   /**
@@ -516,8 +641,13 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== Reload from Disk =====
 
-  /** 用户入口：放弃网页中的编辑，从本地文件重新读取所有数据（未保存改动先经离开保护） */
+  /** 用户入口：放弃网页中的编辑，从数据源重新读取所有数据（未保存改动先经离开保护） */
   async function reloadFromDisk() {
+    if (gitRepo.value) {
+      if (!(await confirmLeaveUnsaved())) return
+      await _reloadGitRepo()
+      return
+    }
     if (!rootDirHandle.value) return
     if (!(await confirmLeaveUnsaved())) return
     await _reloadFromDisk()
@@ -670,22 +800,39 @@ export const useEditorStore = defineStore('editor', () => {
   /**
    * 手动保存：整批写出内存里的项目文档，并重建全部派生文件（output/ 下的 SQL、AI 指南）。
    * 因此即使当前没有改动也可以保存——磁盘上的派生文件被外部删除后，靠它恢复。
+   * Git 模式先弹提交弹窗收集提交信息，确认后连同全部改动提交一次。
    */
   async function saveProject() {
+    lastSaveCommitted = false
     if (!session) return
+    if (gitRepo.value) {
+      const staged = session.previewCommitChanges()
+      if (staged.length === 0) {
+        showToast(t('toast.noChange'))
+        return
+      }
+      if (!(await requestCommitMessage(staged))) return
+    }
     try {
       await session.saveAll()
+      lastSaveCommitted = Boolean(gitRepo.value)
     } catch (e) {
       console.error('[saveProject] failed:', e)
-      showToast(t('toast.failedSaveChanges'))
+      const message = e instanceof GitRepoError ? t(`gitRepo.openError.${e.code}`) : t('toast.failedSaveChanges')
+      showToast(message)
     }
   }
 
-  /** 点击保存按钮：保存完成后提示结果（失败时 saveProject 已提示，且未保存态保持不变） */
+  /** 点击保存按钮：保存完成后提示结果（失败或取消时 saveProject 已提示，且未保存态保持不变） */
   async function saveProjectWithFeedback() {
     if (!session) return
     await saveProject()
-    if (!hasUnsavedChanges.value) showToast(t('toast.saved'))
+    if (hasUnsavedChanges.value) return
+    if (gitRepo.value) {
+      if (lastSaveCommitted) showToast(t('gitRepo.committed'))
+    } else {
+      showToast(t('toast.saved'))
+    }
   }
 
   /** 只改状态与偏好，不触碰会话；供两个开关互相连带时复用 */
@@ -1005,6 +1152,17 @@ export const useEditorStore = defineStore('editor', () => {
     overlayText,
     confirmUpgradeStructure,
     cancelUpgradeStructure,
+
+    // Git 仓库数据源
+    gitRepo,
+    openGitRepoModal,
+    showOpenGitModal,
+    openGitRepository,
+    commitDialogVisible,
+    commitPendingChanges,
+    commitMessage,
+    confirmCommit,
+    cancelCommit,
 
     // 保存：项目文件 / 派生 SQL 两个独立开关、未保存态与手动全量保存
     autoSaveEnabled,

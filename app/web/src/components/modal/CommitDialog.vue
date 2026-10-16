@@ -1,0 +1,165 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useEditorStore } from '@/stores/editor'
+import { useEscClose } from '@/composables/useEscClose'
+import { useEnterConfirm } from '@/composables/useEnterConfirm'
+
+const store = useEditorStore()
+const { t } = useI18n()
+
+const messageInput = ref<HTMLInputElement | null>(null)
+
+/** 按新增 / 修改 / 删除分组展示待提交文件 */
+const groups = computed(() => {
+  const staged = store.commitPendingChanges
+  return [
+    { key: 'add', label: t('commitDialog.added'), files: staged.filter(c => c.kind === 'add').map(c => c.path) },
+    { key: 'update', label: t('commitDialog.updated'), files: staged.filter(c => c.kind === 'update').map(c => c.path) },
+    { key: 'delete', label: t('commitDialog.deleted'), files: staged.filter(c => c.kind === 'delete').map(c => c.path) },
+  ].filter(group => group.files.length > 0)
+})
+
+useEscClose(computed(() => store.commitDialogVisible), () => store.cancelCommit())
+
+// ENTER 提交：焦点在提交信息输入框内时直接回车确认
+useEnterConfirm(computed(() => store.commitDialogVisible), () => store.confirmCommit(), messageInput)
+</script>
+
+<template>
+  <div class="modal-overlay" v-if="store.commitDialogVisible" @click.self="store.cancelCommit()">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>{{ $t('commitDialog.title') }}</h3>
+        <button class="modal-close-btn" @click="store.cancelCommit()">&times;</button>
+      </div>
+
+      <div class="change-groups">
+        <div v-for="group in groups" :key="group.key" class="change-group">
+          <div class="change-group-title">
+            <span class="change-kind" :class="`is-${group.key}`">{{ group.label }}</span>
+            <span class="change-count">{{ group.files.length }}</span>
+          </div>
+          <div v-for="path in group.files" :key="path" class="change-path">{{ path }}</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ $t('commitDialog.message') }}</label>
+        <input
+          ref="messageInput"
+          class="form-input"
+          v-model="store.commitMessage"
+          :placeholder="$t('commitDialog.messagePlaceholder')"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" @click="store.cancelCommit()">{{ $t('confirm.cancel') }}</button>
+        <button class="btn btn-primary" @click="store.confirmCommit()">{{ $t('commitDialog.confirm') }}</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped src="@/assets/style/modal.css"></style>
+<style scoped src="@/assets/style/btn.css"></style>
+<style scoped src="@/assets/style/form.css"></style>
+<style scoped>
+.modal-box {
+  max-width: 560px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.modal-header h3 {
+  margin-bottom: 0;
+}
+
+.modal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--fg-subtle);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+
+.modal-close-btn:hover {
+  background: var(--surface-3);
+  color: var(--fg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.change-groups {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.change-group + .change-group {
+  margin-top: 10px;
+}
+
+.change-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.change-kind {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.change-kind.is-add {
+  color: var(--success);
+}
+
+.change-kind.is-update {
+  color: var(--warning);
+}
+
+.change-kind.is-delete {
+  color: var(--danger);
+}
+
+.change-count {
+  font-size: 11px;
+  color: var(--fg-subtle);
+}
+
+.change-path {
+  padding: 1px 0 1px 10px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--fg-muted);
+  word-break: break-all;
+}
+</style>

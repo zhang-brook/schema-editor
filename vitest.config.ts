@@ -1,5 +1,5 @@
 import { mergeConfig, defineConfig } from 'vitest/config'
-import viteConfig from './vite.config'
+import viteConfig from './app/web/vite.config'
 
 // 仅用于 Vitest 单元测试（不接 jsdom，纯逻辑测试）。
 export default mergeConfig(
@@ -7,7 +7,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'node',
-      include: ['src/**/*.spec.ts'],
+      include: ['app/web/src/**/*.spec.ts', 'app/desktop/src/**/*.spec.ts'],
     },
   }),
 )

@@ -38,3 +38,7 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# 桌面外壳（Electron）：渲染层产物与打包输出
+app/desktop/renderer
+app/desktop/release

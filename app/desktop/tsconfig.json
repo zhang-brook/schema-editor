@@ -1,0 +1,12 @@
+{
+  "extends": "@tsconfig/node24/tsconfig.json",
+  "include": ["src/**/*", "vite.config.mts"],
+  "compilerOptions": {
+    // 与根项目保持一致：Bundler 解析 + 不在产物中写类型
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "types": ["node"],
+    "noUncheckedIndexedAccess": true
+  }
+}

@@ -1,0 +1,17 @@
+appId: com.zhangbrook.schemaeditor
+productName: Schema Editor
+directories:
+  output: release
+files:
+  - dist/**
+  - renderer/**
+  - package.json
+win:
+  icon: ../web/public/logo.png
+  target:
+    - nsis
+    - portable
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Schema Editor

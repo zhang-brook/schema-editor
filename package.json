@@ -20,7 +20,16 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "format": "oxfmt src/",
-    "changelog": "node scripts/changelog.mjs"
+    "changelog": "node scripts/changelog.mjs",
+    "desktop:install": "pnpm -C desktop install",
+    "desktop:dev": "run-p dev desktop:start",
+    "desktop:start": "pnpm -C desktop start",
+    "desktop:type-check": "pnpm -C desktop type-check",
+    "desktop:build": "run-s desktop:build:renderer desktop:build:main",
+    "desktop:build:renderer": "vite build --outDir desktop/renderer --emptyOutDir",
+    "desktop:build:main": "pnpm -C desktop build:main",
+    "desktop:dist": "run-s desktop:build desktop:pack",
+    "desktop:pack": "pnpm -C desktop run pack"
   },
   "dependencies": {
     "nanoid": "^6.0.2",

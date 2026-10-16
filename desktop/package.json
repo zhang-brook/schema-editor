@@ -1,0 +1,23 @@
+{
+  "name": "schema-editor-desktop",
+  "private": true,
+  "version": "0.7.0",
+  "description": "Schema Editor 桌面端外壳（Electron），加载前端构建产物并桥接本地文件系统",
+  "author": "zhang-brook",
+  "license": "MIT",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:main": "vite build && vite build --mode preload",
+    "type-check": "tsc --noEmit",
+    "pack": "electron-builder --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "@tsconfig/node24": "^24.0.5",
+    "@types/node": "^24.19.2",
+    "electron": "~44.7.2",
+    "electron-builder": "^26.15.3",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4"
+  }
+}

@@ -62,7 +62,7 @@
 
 .btn-danger:hover:not(:disabled) {
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-fg);
   border-color: var(--danger);
 }
 
@@ -100,6 +100,6 @@
 
 .btn-danger-sm:hover:not(:disabled) {
   background: var(--danger);
-  color: #fff;
+  color: var(--danger-fg);
   border-color: var(--danger);
 }

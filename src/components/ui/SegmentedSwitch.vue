@@ -68,7 +68,7 @@ function select(opt: SegmentedOption) {
 
 .segmented-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 

@@ -35,6 +35,7 @@
   --surface: #ffffff;
   --surface-2: #f7f7f8;
   --surface-3: #f0f0f2;
+  --overlay-bg: rgba(24, 24, 27, 0.45);
 
   /* ===== Borders ===== */
   --border: #e4e4e7;
@@ -103,6 +104,7 @@
   --surface: #18181b;
   --surface-2: #1c1c20;
   --surface-3: #26262b;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
 
   --border: #27272a;
   --border-muted: #212125;

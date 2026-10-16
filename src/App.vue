@@ -82,7 +82,7 @@ const confirmState = useConfirmState()
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(58, 114, 196, 0.08);
+  background: var(--accent-subtle-2);
   border: 3px dashed var(--accent);
   display: flex;
   align-items: center;

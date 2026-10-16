@@ -52,5 +52,5 @@
 
 .toggle-hint {
   font-size: 11px;
-  color: #888;
+  color: var(--fg-muted);
 }

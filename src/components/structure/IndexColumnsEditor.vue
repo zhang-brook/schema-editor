@@ -347,7 +347,7 @@ watch(() => props.modelValue, () => {
 }
 
 .column-row:hover .col-drag-handle {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .col-dragging {
@@ -409,7 +409,7 @@ watch(() => props.modelValue, () => {
 .db-label {
   font-size: 9px;
   font-weight: 600;
-  color: #888;
+  color: var(--fg-muted);
   text-transform: uppercase;
 }
 
@@ -445,7 +445,7 @@ watch(() => props.modelValue, () => {
 .btn {
   padding: 2px 6px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 11px;
   cursor: pointer;

@@ -29,6 +29,7 @@
   --warning: #d97706;
   --warning-subtle: #fffbeb;
   --warning-border: #fde68a;
+  --warning-fg: #ffffff;
 
   /* ===== Surfaces ===== */
   --canvas: #fafafa;
@@ -99,6 +100,7 @@
   --warning: #fbbf24;
   --warning-subtle: rgba(251, 191, 36, 0.12);
   --warning-border: rgba(251, 191, 36, 0.36);
+  --warning-fg: #451a03;
 
   --canvas: #121214;
   --surface: #18181b;

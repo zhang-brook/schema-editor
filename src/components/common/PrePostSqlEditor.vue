@@ -125,7 +125,7 @@ function updatePost(val: string) {
 .sql-label {
   font-size: 10px;
   font-weight: 600;
-  color: #888;
+  color: var(--fg-muted);
   text-transform: uppercase;
 }
 

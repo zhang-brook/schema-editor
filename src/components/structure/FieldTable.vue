@@ -552,7 +552,7 @@ function onDropTail(e: DragEvent) {
 .fields-table th {
   background: var(--surface-2);
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -572,7 +572,7 @@ function onDropTail(e: DragEvent) {
 .commented-out-row {
   background: var(--surface-3) !important;
   text-decoration: line-through;
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .commented-out-row:hover {
@@ -617,7 +617,7 @@ function onDropTail(e: DragEvent) {
 .btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -630,7 +630,7 @@ function onDropTail(e: DragEvent) {
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 
@@ -695,7 +695,7 @@ function onDropTail(e: DragEvent) {
 }
 
 .resolved-length {
-  color: #666;
+  color: var(--fg-muted);
   font-size: 12px;
 }
 
@@ -724,7 +724,7 @@ function onDropTail(e: DragEvent) {
 }
 
 .disabled-indicator {
-  color: #999;
+  color: var(--fg-subtle);
   font-size: 12px;
   cursor: pointer;
   user-select: none;
@@ -767,7 +767,7 @@ function onDropTail(e: DragEvent) {
 }
 
 .drag-handle-cell:hover .drag-handle {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .row-dragging {
@@ -823,7 +823,7 @@ function onDropTail(e: DragEvent) {
 .comment-options-table th {
   text-align: left;
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   font-size: 11px;
   padding: 2px 4px;
 }

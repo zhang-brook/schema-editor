@@ -413,7 +413,7 @@ function onDropTail(e: DragEvent) {
           </tr>
         </tbody>
       </table>
-      <div v-else style="padding: 14px; color: #aaa; font-size: 12px; text-align: center;">
+      <div v-else style="padding: 14px; color: var(--fg-subtle); font-size: 12px; text-align: center;">
         {{ $t('indexTable.empty') }}
       </div>
     </div>
@@ -444,7 +444,7 @@ function onDropTail(e: DragEvent) {
 .indexes-table th {
   background: var(--surface-2);
   font-weight: 600;
-  color: var(--code-thumb);
+  color: var(--fg-muted);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -596,7 +596,7 @@ function onDropTail(e: DragEvent) {
 .btn {
   padding: 4px 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
@@ -609,7 +609,7 @@ function onDropTail(e: DragEvent) {
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
 }
 
@@ -643,7 +643,7 @@ function onDropTail(e: DragEvent) {
 }
 
 .drag-handle-cell:hover .drag-handle {
-  color: #999;
+  color: var(--fg-subtle);
 }
 
 .row-dragging {

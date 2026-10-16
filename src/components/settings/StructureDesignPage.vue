@@ -118,7 +118,7 @@ onBeforeUnmount(stopResize)
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #aaa;
+  color: var(--fg-subtle);
   font-size: 13px;
 }
 </style>

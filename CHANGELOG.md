@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.7.0
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.6.1...v0.7.0)
+
+### 🚀 新功能
+
+- **sql:** 新增 `__all__.sql` 合并 schema 与 initial data 输出 ([24d034f](https://github.com/zhang-brook/schema-editor/commit/24d034f))
+- **persistence:** 新增串行增量保存协调器及竞态回归测试 ([0bcc2e3](https://github.com/zhang-brook/schema-editor/commit/0bcc2e3))
+- **storage:** 隔离本地批量写入并检测外部文件冲突 ([a78d1dc](https://github.com/zhang-brook/schema-editor/commit/a78d1dc))
+- **persistence:** 按文档规划变更并复用未失效的 SQL 输出 ([b0c32f6](https://github.com/zhang-brook/schema-editor/commit/b0c32f6))
+- **workspace:** 增加工作区会话统一项目读写与派生文件刷新 ([bebd1a3](https://github.com/zhang-brook/schema-editor/commit/bebd1a3))
+- **toolbar:** 增加保存按钮、实时保存开关与未保存标记 ([c0bf4db](https://github.com/zhang-brook/schema-editor/commit/c0bf4db))
+- **save:** 项目文件与派生 SQL 拆成两个独立的自动写入开关 ([de46cb5](https://github.com/zhang-brook/schema-editor/commit/de46cb5))
+
+### 🩹 问题修复
+
+- **history:** 保留连续编辑终态并隔离撤销重做分支 ([8f5891e](https://github.com/zhang-brook/schema-editor/commit/8f5891e))
+- **storage:** 统一序列化并保留 Schema SQL 和字段自动更新时间配置 ([6717ef6](https://github.com/zhang-brook/schema-editor/commit/6717ef6))
+- **toolbar:** 保存按钮不再依赖未保存状态 ([dbb3c9e](https://github.com/zhang-brook/schema-editor/commit/dbb3c9e))
+- **save:** 同步 SQL 改为依赖项目文件保存，去掉「SQL 领先于 JSON」的组合 ([86dfc6a](https://github.com/zhang-brook/schema-editor/commit/86dfc6a))
+
+### ♻️ 代码重构
+
+- **stores:** 按领域拆分编辑动作并让面板直连 store ([13534a0](https://github.com/zhang-brook/schema-editor/commit/13534a0))
+- **editor:** 编辑器状态改由工作区会话按需落盘 ([40c2614](https://github.com/zhang-brook/schema-editor/commit/40c2614))
+- **workspace:** 删除被工作区会话取代的旧项目加载器 ([5426269](https://github.com/zhang-brook/schema-editor/commit/5426269))
+
+### 📖 文档
+
+- 说明按需保存机制、保存开关与快捷键 ([b2f1f4d](https://github.com/zhang-brook/schema-editor/commit/b2f1f4d))
+- 说明两个保存开关的分工 ([0e04b00](https://github.com/zhang-brook/schema-editor/commit/0e04b00))
+- 说明保存开关的连带方向 ([f1de92f](https://github.com/zhang-brook/schema-editor/commit/f1de92f))
+- **toolbar:** 开关文案改为「同步保存 SQL」 ([ae16e1b](https://github.com/zhang-brook/schema-editor/commit/ae16e1b))
+
+### 🏡 杂项
+
+- **workspace:** 删除全量保存遗留的磁盘写入工具 ([af9a4c7](https://github.com/zhang-brook/schema-editor/commit/af9a4c7))
+
+### ✅ 测试
+
+- **workspace:** 补齐增量保存与保存链路接线用例 ([f9695b5](https://github.com/zhang-brook/schema-editor/commit/f9695b5))
+
 ## v0.6.1
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.6.0...v0.6.1)
@@ -12,10 +54,6 @@
 
 - **structure:** 清理删除或重命名 schema 后残留的输出 SQL 文件 ([413985e](https://github.com/zhang-brook/schema-editor/commit/413985e))
 - **common-field:** 删除公共字段时同步删除引用它的表字段 ([69a32d9](https://github.com/zhang-brook/schema-editor/commit/69a32d9))
-
-### 📖 文档
-
-- 更新待办事项 ([4b61d8c](https://github.com/zhang-brook/schema-editor/commit/4b61d8c))
 
 ### 📦 构建
 
@@ -172,7 +210,6 @@
 
 ### 📖 文档
 
-- 更新待办事项列表 ([b45c61d](https://github.com/zhang-brook/schema-editor/commit/b45c61d))
 - **i18n:** 更新版本标题为版本历史 ([fce97f4](https://github.com/zhang-brook/schema-editor/commit/fce97f4))
 
 ### 🎨 代码风格
@@ -366,7 +403,6 @@
 - 打开项目时并发读取以解决表数量较多时项目加载耗时很长问题 ([bda6364](https://github.com/zhang-brook/schema-editor/commit/bda6364))
 - 新增 Schema 与表复制功能 ([2883ee4](https://github.com/zhang-brook/schema-editor/commit/2883ee4))
 - 优化侧边栏交互 ([0d3a44d](https://github.com/zhang-brook/schema-editor/commit/0d3a44d))
-- 更新 todo.txt ([2859722](https://github.com/zhang-brook/schema-editor/commit/2859722))
 - 未打开项目时点击空白区域可打开「打开文件夹」弹窗 ([113bdc0](https://github.com/zhang-brook/schema-editor/commit/113bdc0))
 - Schema 名称改为原地行内编辑替代 prompt 弹窗 ([27fa928](https://github.com/zhang-brook/schema-editor/commit/27fa928))
 - 字段注释支持自动拼接选项含义，索引名支持前后缀徽标编辑 ([2214b99](https://github.com/zhang-brook/schema-editor/commit/2214b99))
@@ -444,7 +480,6 @@
 - 未创建基线时也自动生成 field_id/table_id/schema_id/index_id/initial_data_id ([26d67d4](https://github.com/zhang-brook/schema-editor/commit/26d67d4))
 - 将 STRUCTURE_MIGRATION_STEPS 抽取为独立文件 ([75233c3](https://github.com/zhang-brook/schema-editor/commit/75233c3))
 - 合并重复的版本比较函数，统一使用 compareStructVersion ([a481081](https://github.com/zhang-brook/schema-editor/commit/a481081))
-- 清理 todo.txt 中已实现的重构规划与噪声 ([8d61b4f](https://github.com/zhang-brook/schema-editor/commit/8d61b4f))
 - 移除未使用的 store 导入与死代码 ([8cafd9c](https://github.com/zhang-brook/schema-editor/commit/8cafd9c))
 - 生成表字段时非主键字段不添加 "primary_key": false ([9a8d20d](https://github.com/zhang-brook/schema-editor/commit/9a8d20d))
 - 重命名“基线”为“版本” ([ff9398d](https://github.com/zhang-brook/schema-editor/commit/ff9398d))
@@ -462,7 +497,6 @@
 - 更新 README 文档 ([4709fdb](https://github.com/zhang-brook/schema-editor/commit/4709fdb))
 - 重写 README.md ([4fd560d](https://github.com/zhang-brook/schema-editor/commit/4fd560d))
 - Update docs ([50afc19](https://github.com/zhang-brook/schema-editor/commit/50afc19))
-- Update TODO.txt ([5b638ff](https://github.com/zhang-brook/schema-editor/commit/5b638ff))
 - 创建重构总纲文档及第一批原子步骤规划 ([d4f5de7](https://github.com/zhang-brook/schema-editor/commit/d4f5de7))
 - 移除已完成的样式 scoped 化重构文档 (01-style-scoped) ([be1abdf](https://github.com/zhang-brook/schema-editor/commit/be1abdf))
 - 删除已实现功能的过时 .qoder spec 文档 ([5629fdd](https://github.com/zhang-brook/schema-editor/commit/5629fdd))
@@ -473,7 +507,6 @@
 - 删除第1部分重构文档并标注统一路径层已落地 ([0655a0e](https://github.com/zhang-brook/schema-editor/commit/0655a0e))
 - 更新重构总纲文档及第二批原子步骤规划 ([c916b31](https://github.com/zhang-brook/schema-editor/commit/c916b31))
 - 更新 13-upgrade-button 实现状态与迁移架构 ([0ff7bed](https://github.com/zhang-brook/schema-editor/commit/0ff7bed))
-- 更新 todo.txt 规划文档 ([7b70d21](https://github.com/zhang-brook/schema-editor/commit/7b70d21))
 - 第11部分目录结构重构已落地，归档删除方案文档并同步引用；统一结构版本口径为 1.0 ([e060876](https://github.com/zhang-brook/schema-editor/commit/e060876))
 - 归档 initial-data 行内化重构文档 ([f228b93](https://github.com/zhang-brook/schema-editor/commit/f228b93))
 - 移除已落地的手动升级项目结构方案文档 ([2540a98](https://github.com/zhang-brook/schema-editor/commit/2540a98))
@@ -490,7 +523,6 @@
 - 小改动 ([39ca605](https://github.com/zhang-brook/schema-editor/commit/39ca605))
 - 更新版本号至 0.1.0 ([8c5c061](https://github.com/zhang-brook/schema-editor/commit/8c5c061))
 - 更新版本号至 0.2.0 ([f349290](https://github.com/zhang-brook/schema-editor/commit/f349290))
-- 更新 todo.txt 添加待办项 ([c07f928](https://github.com/zhang-brook/schema-editor/commit/c07f928))
 
 ### ✅ 测试
 

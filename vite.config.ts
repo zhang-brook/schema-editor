@@ -36,12 +36,8 @@ function buildInfoPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  // docs:
-  // - GITHUB_ACTIONS: https://docs.github.com/zh/actions/reference/workflows-and-actions/variables
-  // - GITHUB_REPOSITORY: https://docs.github.com/zh/codespaces/developing-in-a-codespace/default-environment-variables-for-your-codespace
-  base: process.env.GITHUB_ACTIONS
-    ? `/${process.env.GITHUB_REPOSITORY?.split('/')[1]}/`
-    : '/',
+  // 相对基址：产物可部署在任意路径下，也可被桌面外壳以 file:// 直接加载
+  base: './',
   server: {
     host: '0.0.0.0',
     port: 6842,

@@ -8,146 +8,153 @@
 - **Pinia** 状态管理
 - **vue-i18n** 国际化（en / zh-CN / zh-TW）
 - **File System Access API** — 直接读写用户选定的本地文件夹，改动经工作区会话按需落盘
-- 纯前端运行，无需后端服务；另提供 Electron 桌面外壳（`desktop/`），复用同一份前端产物，把文件夹访问接到原生选择器与 Node 文件系统
+- 纯前端运行，无需后端服务；另提供 Electron 桌面外壳（`app/desktop/`），复用同一份前端产物，把文件夹访问接到原生选择器与 Node 文件系统
 
 ## 项目结构
 
-```
-src/
-├── App.vue                      # 根组件，整体布局框架（工具栏 + 侧边栏 + 编辑区）
-├── main.ts                      # 入口文件，挂载 Vue 应用 & Pinia & i18n
-├── assets/
-│   └── style/                   # 按功能拆分的 .css（base / layout / table / modal / form 等），由各组件 <style scoped src> 引入
-├── components/
-│   ├── EditorToolbar.vue        # 顶部工具栏：项目 / 编辑 / 帮助菜单、保存按钮、实时保存开关、撤改重做
-│   ├── UpgradingOverlay.vue     # 旧版本项目升级遮罩
-│   ├── ui/                      # 无业务语义的基础组件
-│   │   ├── PageTabs.vue         # 下划线式页面级 tab
-│   │   └── SegmentedSwitch.vue  # 连体按钮式切换（方言 / 模式等）
-│   ├── common/                  # 跨页面复用的业务组件
-│   │   └── PrePostSqlEditor.vue # 前置 / 后置 SQL 编辑（表 / Schema / 初始数据 / 全局共用）
-│   ├── icon/                    # 图标组件
-│   ├── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal / ConfirmModal）
-│   ├── settings/                # 设置区：左侧 rail + 三个页面
-│   │   ├── SettingsPanel.vue        # 外壳：SettingsRail + 三个页面组件
-│   │   ├── SettingsRail.vue         # 页面切换列（项目设置 / 库结构设计 / 版本管理）
-│   │   ├── ProjectConfigPage.vue    # 项目设置页（通用字段·统一类型 / 方言配置 / 大模型）
-│   │   ├── StructureDesignPage.vue  # 库结构设计页（侧边树 + 拖拽分隔 + 编辑面板）
-│   │   ├── VersionManagementPage.vue# 版本管理页（版本 / 迁移两个子 tab）
-│   │   ├── VersionTimeline.vue      # 版本时间线（节点 + 迁移连线）
-│   │   ├── EnvironmentPanel.vue     # 环境管理
-│   │   ├── RenameAlignPanel.vue     # 改名识别的对齐配置
-│   │   └── sections/                # 项目设置页内的各配置板块
-│   │       ├── CommonUsedFieldsPanel.vue / UnifiedTypesPanel.vue
-│       ├── LogicalDeletePanel.vue   # 逻辑删除配置（删除字段 / 未删除谓词 / MySQL 策略）
-│   │       ├── DialectConfigPanel.vue / DdlOptionsPanel.vue / TypeCasePanel.vue
-│   │       ├── GlobalPrePostSqlPanel.vue / AiGuidePanel.vue / ProjectInfoPanel.vue
-│   │       └── database-defaults/   # 数据库默认配置（合体卡片 + 三方言子面板）
-│   └── structure/               # 库结构设计相关组件
-│       ├── EditorSidebar.vue        # 左侧树形导航：Schema > Table，支持折叠/展开/拖拽
-│       ├── SchemaConfigPanel.vue    # Schema 配置编辑面板
-│       ├── TableEditor.vue          # 表编辑主面板，组合以下子组件
-│       ├── TableBasicInfo.vue       # 表基础信息编辑
-│       ├── FieldTable.vue           # 字段列表表格编辑（FieldCommentInput 为备注单元格）
-│       ├── IndexTable.vue           # 索引列表表格编辑（IndexColumnsEditor 为索引列编辑）
-│       ├── SqlPreview.vue           # SQL 建表语句实时预览（方言切换）
-│       └── InitialDataEditor.vue    # 初始数据编辑器（含 InitialDataSqlPreview）
-├── composables/
-│   ├── useDropFolder.ts         # 拖拽文件夹打开的组合式函数
-│   ├── useEscClose.ts           # Esc 关闭弹窗的组合式函数
-│   ├── useConfirm.ts            # 全局弹窗队列（confirmDialog / chooseDialog 三选一 / alertDialog）
-│   ├── useEnterConfirm.ts       # 弹窗回车确认
-│   └── useEnabledDialect.ts     # 当前启用的方言
-├── core/                        # 与 UI 无关的核心领域层
-│   ├── ids.ts                   # 唯一 id 生成（仅版本 / 迁移等存储实体使用）
-│   ├── history/
-│   │   └── command.ts           # 命令模式 + 结构化 patch（undo/redo 底层）
-│   ├── workspace/               # 统一路径层与工作区读写
-│   │   ├── layout.ts            # 路径常量 + CURRENT_STRUCT_VERSION + 文件名友好化
-│   │   ├── handles.ts           # File System Access API 原语封装
-│   │   ├── paths.ts             # 业务路径解析（新旧结构兼容）
-│   │   ├── serialization.ts     # 内存态 → 磁盘文档的序列化（common / schema / table）
-│   │   ├── project-documents.ts # 项目文档规划：由变更范围算出待写文件与派生 SQL
-│   │   ├── browser-workspace.ts # 批量写入、路径白名单校验与外部改动冲突检测
-│   │   ├── save-coordinator.ts  # 串行保存队列：脏文件追踪 + 防抖 + 手动整批保存
-│   │   └── workspace-session.ts # 工作区会话：加载项目、声明变更、手动保存
-│   └── version/                 # 版本与迁移
-│       ├── types.ts             # 版本 / 迁移脚本类型定义
-│       ├── storage.ts           # versions/<id>.json 读写
-│       ├── migration-storage.ts # migrations/<id>.json 读写
-│       ├── environment-storage.ts # 环境定义读写
-│       ├── diff.ts              # 结构 diff 引擎
-│       ├── identity.ts          # 改名识别与推断
-│       ├── matcher.ts           # 结构对象相似度匹配
-│       ├── chain.ts             # 版本链：父子关系时间线 + 缺失迁移标注
-│       ├── guards.ts            # 操作合法性校验
-│       └── migration-ddl.ts     # 迁移脚本 → 变更 DDL（MySQL / PostgreSQL / SQLite）
-├── i18n/
-│   ├── index.ts                 # vue-i18n 初始化
-│   ├── detection.ts             # 浏览器语言检测
-│   └── locales/                 # en / zh-CN / zh-TW 语言包
-├── platform/
-│   ├── bridge.ts                # 桌面桥接协议：IPC 通道名与请求/响应负载（主进程 / preload / 渲染端共用）
-│   └── desktop-fsa.ts           # 桌面端 File System Access 模拟层（目录/文件句柄、FileSystemObserver、showDirectoryPicker）
-├── stores/                      # Pinia：主 store + 按职责拆分的 action 工厂
-│   ├── editor.ts                # 主 store：持有状态，组合下列 action 并对组件暴露统一 API
-│   ├── editor-action-utils.ts   # action 工厂共用工具（快照捕获、名称校验、数组增删移）
-│   ├── editor-crud.ts           # 组合 schema / table / field / index 四个动作模块
-│   ├── editor-schema-actions.ts # schema 增删改与排序
-│   ├── editor-table-actions.ts  # table 增删改、基础信息与前后置 SQL
-│   ├── editor-field-actions.ts  # 字段增删改、统一类型解析与方言覆盖
-│   ├── editor-index-actions.ts  # 索引增删改与索引列
-│   ├── editor-common-config.ts  # 公共配置（统一类型 / 常用字段 / 方言配置等）
-│   ├── editor-initial-data.ts   # 初始数据编辑
-│   ├── editor-import-sql.ts     # 导入 SQL 解析与落库
-│   └── editor-version.ts        # 版本 / 迁移 / 环境
-├── types/
-│   ├── schema.ts                # Schema 核心类型定义（Schema、Table、Field、Index 等）
-│   ├── settings.ts              # 设置区页面类型（SettingsTab）
-│   └── global.d.ts              # 全局类型声明
-└── utils/
-    ├── constants.ts             # 全局常量
-    ├── file-helpers.ts          # 旧结构 → 新结构的迁移写入入口，以及字段长度/默认值的输入解析
-    ├── initial-data-io.ts       # 初始数据（行内结构）读写
-    ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
-    ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
-    ├── logical-delete.ts        # 逻辑删除解析（项目级配置 + 索引级覆盖 → 各方言落地形式）
-    ├── unified-types.ts         # 跨模块共用的统一类型
-    ├── build-info.ts            # 构建信息（版本号 / 构建时间）
-    ├── ai-guide/                # AI 结构指南 Markdown 生成
-    ├── structure-migrations/    # 项目结构迁移链（v0.0 → v1.0，注册表驱动）
-    ├── sql-generator/
-    │   ├── shared.ts            # SQL 生成公共逻辑
-    │   ├── mysql.ts             # MySQL 方言 SQL 生成
-    │   ├── postgresql.ts        # PostgreSQL 方言 SQL 生成
-    │   └── sqlite.ts            # SQLite 方言 SQL 生成
-    └── sql-parser/
-        ├── index.ts             # SQL 解析入口
-        ├── tokenizer.ts         # SQL 词法分析
-        ├── create-table-parser.ts # CREATE TABLE 语句解析
-        ├── dialect-detector.ts  # 方言自动检测
-        └── type-mapper.ts       # 字段类型映射
-```
-
-桌面外壳是一个独立包（`desktop/`，不参与根工作区，依赖单独安装）：
+仓库为 pnpm workspace：`app/` 下是可直接运行的应用，`packages/` 下是应用之间共享的包，依赖统一在仓库根安装。
 
 ```
-desktop/
-├── src/
-│   ├── main.ts                  # 主进程：创建窗口、注册 IPC、开发模式加载 Vite 服务
-│   ├── preload.ts               # 通过 contextBridge 暴露 window.schemaEditorDesktop
-│   └── fs-service.ts            # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
-├── vite.config.mts              # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
-└── electron-builder.yml         # Windows 打包配置（NSIS 安装包 + 免安装 exe）
+app/
+├── web/                         # 前端应用（网页版与桌面版渲染层共用同一套代码）
+│   ├── index.html               # 入口 HTML
+│   ├── public/                  # 静态资源（favicon / logo）
+│   ├── vite.config.ts           # 相对基址：产物可部署在任意路径下，也可被桌面外壳以 file:// 加载
+│   └── src/
+│       ├── App.vue                      # 根组件，整体布局框架（工具栏 + 侧边栏 + 编辑区）
+│       ├── main.ts                      # 入口文件，挂载 Vue 应用 & Pinia & i18n
+│       ├── assets/
+│       │   └── style/                   # 按功能拆分的 .css（base / layout / table / modal / form 等），由各组件 <style scoped src> 引入
+│       ├── components/
+│       │   ├── EditorToolbar.vue        # 顶部工具栏：项目 / 编辑 / 帮助菜单、保存按钮、实时保存开关、撤改重做
+│       │   ├── UpgradingOverlay.vue     # 旧版本项目升级遮罩
+│       │   ├── ui/                      # 无业务语义的基础组件
+│       │   │   ├── PageTabs.vue         # 下划线式页面级 tab
+│       │   │   └── SegmentedSwitch.vue  # 连体按钮式切换（方言 / 模式等）
+│       │   ├── common/                  # 跨页面复用的业务组件
+│       │   │   └── PrePostSqlEditor.vue # 前置 / 后置 SQL 编辑（表 / Schema / 初始数据 / 全局共用）
+│       │   ├── icon/                    # 图标组件
+│       │   ├── modal/                   # 弹窗组件（AddFieldModal / ImportSqlModal / AboutModal / ConfirmModal）
+│       │   ├── settings/                # 设置区：左侧 rail + 三个页面
+│       │   │   ├── SettingsPanel.vue        # 外壳：SettingsRail + 三个页面组件
+│       │   │   ├── SettingsRail.vue         # 页面切换列（项目设置 / 库结构设计 / 版本管理）
+│       │   │   ├── ProjectConfigPage.vue    # 项目设置页（通用字段·统一类型 / 方言配置 / 大模型）
+│       │   │   ├── StructureDesignPage.vue  # 库结构设计页（侧边树 + 拖拽分隔 + 编辑面板）
+│       │   │   ├── VersionManagementPage.vue# 版本管理页（版本 / 迁移两个子 tab）
+│       │   │   ├── VersionTimeline.vue      # 版本时间线（节点 + 迁移连线）
+│       │   │   ├── EnvironmentPanel.vue     # 环境管理
+│       │   │   ├── RenameAlignPanel.vue     # 改名识别的对齐配置
+│       │   │   └── sections/                # 项目设置页内的各配置板块
+│       │   │       ├── CommonUsedFieldsPanel.vue / UnifiedTypesPanel.vue
+│       │   │       ├── LogicalDeletePanel.vue   # 逻辑删除配置（删除字段 / 未删除谓词 / MySQL 策略）
+│       │   │       ├── DialectConfigPanel.vue / DdlOptionsPanel.vue / TypeCasePanel.vue
+│       │   │       ├── GlobalPrePostSqlPanel.vue / AiGuidePanel.vue / ProjectInfoPanel.vue
+│       │   │       └── database-defaults/   # 数据库默认配置（合体卡片 + 三方言子面板）
+│       │   └── structure/               # 库结构设计相关组件
+│       │       ├── EditorSidebar.vue        # 左侧树形导航：Schema > Table，支持折叠/展开/拖拽
+│       │       ├── SchemaConfigPanel.vue    # Schema 配置编辑面板
+│       │       ├── TableEditor.vue          # 表编辑主面板，组合以下子组件
+│       │       ├── TableBasicInfo.vue       # 表基础信息编辑
+│       │       ├── FieldTable.vue           # 字段列表表格编辑（FieldCommentInput 为备注单元格）
+│       │       ├── IndexTable.vue           # 索引列表表格编辑（IndexColumnsEditor 为索引列编辑）
+│       │       ├── SqlPreview.vue           # SQL 建表语句实时预览（方言切换）
+│       │       └── InitialDataEditor.vue    # 初始数据编辑器（含 InitialDataSqlPreview）
+│       ├── composables/
+│       │   ├── useDropFolder.ts         # 拖拽文件夹打开的组合式函数
+│       │   ├── useEscClose.ts           # Esc 关闭弹窗的组合式函数
+│       │   ├── useConfirm.ts            # 全局弹窗队列（confirmDialog / chooseDialog 三选一 / alertDialog）
+│       │   ├── useEnterConfirm.ts       # 弹窗回车确认
+│       │   └── useEnabledDialect.ts     # 当前启用的方言
+│       ├── core/                        # 与 UI 无关的核心领域层
+│       │   ├── ids.ts                   # 唯一 id 生成（仅版本 / 迁移等存储实体使用）
+│       │   ├── history/
+│       │   │   └── command.ts           # 命令模式 + 结构化 patch（undo/redo 底层）
+│       │   ├── workspace/               # 统一路径层与工作区读写
+│       │   │   ├── layout.ts            # 路径常量 + CURRENT_STRUCT_VERSION + 文件名友好化
+│       │   │   ├── handles.ts           # File System Access API 原语封装
+│       │   │   ├── paths.ts             # 业务路径解析（新旧结构兼容）
+│       │   │   ├── serialization.ts     # 内存态 → 磁盘文档的序列化（common / schema / table）
+│       │   │   ├── project-documents.ts # 项目文档规划：由变更范围算出待写文件与派生 SQL
+│       │   │   ├── browser-workspace.ts # 批量写入、路径白名单校验与外部改动冲突检测
+│       │   │   ├── save-coordinator.ts  # 串行保存队列：脏文件追踪 + 防抖 + 手动整批保存
+│       │   │   └── workspace-session.ts # 工作区会话：加载项目、声明变更、手动保存
+│       │   └── version/                 # 版本与迁移
+│       │       ├── types.ts             # 版本 / 迁移脚本类型定义
+│       │       ├── storage.ts           # versions/<id>.json 读写
+│       │       ├── migration-storage.ts # migrations/<id>.json 读写
+│       │       ├── environment-storage.ts # 环境定义读写
+│       │       ├── diff.ts              # 结构 diff 引擎
+│       │       ├── identity.ts          # 改名识别与推断
+│       │       ├── matcher.ts           # 结构对象相似度匹配
+│       │       ├── chain.ts             # 版本链：父子关系时间线 + 缺失迁移标注
+│       │       ├── guards.ts            # 操作合法性校验
+│       │       └── migration-ddl.ts     # 迁移脚本 → 变更 DDL（MySQL / PostgreSQL / SQLite）
+│       ├── i18n/
+│       │   ├── index.ts                 # vue-i18n 初始化
+│       │   ├── detection.ts             # 浏览器语言检测
+│       │   └── locales/                 # en / zh-CN / zh-TW 语言包
+│       ├── platform/
+│       │   └── desktop-fsa.ts           # 桌面端 File System Access 模拟层（目录/文件句柄、FileSystemObserver、showDirectoryPicker）
+│       ├── stores/                      # Pinia：主 store + 按职责拆分的 action 工厂
+│       │   ├── editor.ts                # 主 store：持有状态，组合下列 action 并对组件暴露统一 API
+│       │   ├── editor-action-utils.ts   # action 工厂共用工具（快照捕获、名称校验、数组增删移）
+│       │   ├── editor-crud.ts           # 组合 schema / table / field / index 四个动作模块
+│       │   ├── editor-schema-actions.ts # schema 增删改与排序
+│       │   ├── editor-table-actions.ts  # table 增删改、基础信息与前后置 SQL
+│       │   ├── editor-field-actions.ts  # 字段增删改、统一类型解析与方言覆盖
+│       │   ├── editor-index-actions.ts  # 索引增删改与索引列
+│       │   ├── editor-common-config.ts  # 公共配置（统一类型 / 常用字段 / 方言配置等）
+│       │   ├── editor-initial-data.ts   # 初始数据编辑
+│       │   ├── editor-import-sql.ts     # 导入 SQL 解析与落库
+│       │   └── editor-version.ts        # 版本 / 迁移 / 环境
+│       ├── types/
+│       │   ├── schema.ts                # Schema 核心类型定义（Schema、Table、Field、Index 等）
+│       │   ├── settings.ts              # 设置区页面类型（SettingsTab）
+│       │   └── global.d.ts              # 全局类型声明
+│       └── utils/
+│           ├── constants.ts             # 全局常量
+│           ├── file-helpers.ts          # 旧结构 → 新结构的迁移写入入口，以及字段长度/默认值的输入解析
+│           ├── initial-data-io.ts       # 初始数据（行内结构）读写
+│           ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
+│           ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
+│           ├── logical-delete.ts        # 逻辑删除解析（项目级配置 + 索引级覆盖 → 各方言落地形式）
+│           ├── unified-types.ts         # 跨模块共用的统一类型
+│           ├── build-info.ts            # 构建信息（版本号 / 构建时间）
+│           ├── ai-guide/                # AI 结构指南 Markdown 生成
+│           ├── structure-migrations/    # 项目结构迁移链（v0.0 → v1.0，注册表驱动）
+│           ├── sql-generator/
+│           │   ├── shared.ts            # SQL 生成公共逻辑
+│           │   ├── mysql.ts             # MySQL 方言 SQL 生成
+│           │   ├── postgresql.ts        # PostgreSQL 方言 SQL 生成
+│           │   └── sqlite.ts            # SQLite 方言 SQL 生成
+│           └── sql-parser/
+│               ├── index.ts             # SQL 解析入口
+│               ├── tokenizer.ts         # SQL 词法分析
+│               ├── create-table-parser.ts # CREATE TABLE 语句解析
+│               ├── dialect-detector.ts  # 方言自动检测
+│               └── type-mapper.ts       # 字段类型映射
+├── desktop/                     # 桌面外壳（Electron）：加载前端构建产物并桥接本地文件系统
+│   ├── src/
+│   │   ├── main.ts              # 主进程：创建窗口、注册 IPC、开发模式加载 Vite 服务
+│   │   ├── preload.ts           # 通过 contextBridge 暴露 window.schemaEditorDesktop
+│   │   └── fs-service.ts        # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
+│   ├── vite.config.mts          # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
+│   └── electron-builder.yml     # Windows 打包配置（NSIS 安装包 + 免安装 exe）
+└── packages/
+    └── bridge/                  # 桌面桥接协议：IPC 通道名与请求/响应负载（主进程 / preload / 渲染端共用）
 ```
+
+仓库根存放各应用共用的工具与配置：TypeScript 工程引用、ESLint / oxlint / oxfmt 配置、`scripts/` 下的脚本、`docs/` 下的补充文档。
 
 ## 架构概览
+
+以下路径除特别说明外均相对 `app/web/src/`。
 
 ### 数据流
 
 ```
 本地工作目录 (common.json + current/ + versions/ + migrations/)
-        │ File System Access API（core/workspace；桌面端由 src/platform 模拟为 IPC 调用）
+        │ File System Access API（core/workspace；桌面端由 platform/desktop-fsa 模拟为 IPC 调用）
         ▼
   workspace-session.ts  ←→  Pinia Store (editor.ts + 5 个 action 工厂)
    （加载 + 变更范围 + 手动保存）        │
@@ -172,28 +179,27 @@ desktop/
 
 ```sh
 pnpm dev           # 启动 Vite 开发服务器
-pnpm build         # 并行：类型检查 + 生产构建
+pnpm build         # app/web：并行执行类型检查 + 生产构建
 pnpm preview       # 预览生产构建
-pnpm test:unit     # Vitest 单元测试（含 desktop/ 下的用例）
-pnpm lint          # 串行：oxlint → eslint
-pnpm format        # oxfmt 格式化 src/
-pnpm type-check    # 单独运行 vue-tsc 类型检查
-pnpm changelog     # 生成 CHANGELOG
+pnpm test:unit     # Vitest 单元测试（覆盖 app/web 与 app/desktop）
+pnpm type-check    # 全仓类型检查（根配置 + app/web + app/desktop）
+pnpm lint          # 串行：oxlint → eslint（覆盖整个仓库）
+pnpm format        # oxfmt 格式化 app/web/src
+pnpm changelog     # 生成 CHANGELOG（版本号取自 app/web/package.json）
 ```
 
-桌面外壳（依赖与构建均独立，首次使用先安装）：
+桌面端：
 
 ```sh
-pnpm desktop:install      # 安装 desktop/ 依赖（含 Electron 二进制）
 pnpm desktop:dev          # 开发模式：Vite 开发服务器 + Electron 窗口
-pnpm desktop:build        # 构建前端产物与主进程 / preload 脚本
-pnpm desktop:dist         # 构建并打包 Windows 安装包与免安装 exe（desktop/release）
-pnpm desktop:type-check   # desktop/ 的 tsc 类型检查
+pnpm desktop:start        # 仅启动 Electron 窗口
+pnpm desktop:build        # 构建渲染层（app/desktop/renderer）与主进程 / preload
+pnpm desktop:dist         # 构建并打包 Windows 安装包与免安装 exe（app/desktop/release）
 ```
 
 ## 部署
 
-- 通过 GitHub Actions 自动构建并部署到 GitHub Pages
+- 通过 GitHub Actions 自动构建并部署到 GitHub Pages（产物为 `app/web/dist`）
 - `base` 固定为相对路径 `./`，产物可部署在任意子路径下，也可被桌面外壳以 `file://` 直接加载
 - 纯前端应用，无后端，构建产物为静态文件
 - Windows 安装包由 `pnpm desktop:dist` 本地打包，未配置代码签名（安装时可能出现 SmartScreen 提示）

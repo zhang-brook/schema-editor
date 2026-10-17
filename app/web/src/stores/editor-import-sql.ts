@@ -28,7 +28,7 @@ export interface ImportSqlDeps {
   syncSchemaOrder: () => void
   executeCommand: (cmd: Command) => void
   showToast: (msg: string) => void
-  t: (key: string, options?: any) => string
+  t: (key: string, options?: Record<string, unknown>) => string
 }
 
 export function createImportSqlActions(deps: ImportSqlDeps) {

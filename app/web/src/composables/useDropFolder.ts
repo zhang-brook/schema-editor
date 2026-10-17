@@ -45,7 +45,7 @@ export function useDropFolder() {
     //   2) 浏览器支持 getAsFileSystemHandle（否则即使显示也无法打开文件夹）
     if (!isExternalFileDrag(e)) return
     const item = e.dataTransfer?.items[0]
-    if (!item || typeof (item as any).getAsFileSystemHandle !== 'function') return
+    if (!item || typeof item.getAsFileSystemHandle !== 'function') return
     dragOverCounter++
     if (dragOverCounter === 1) {
       dragOver.value = true
@@ -73,13 +73,13 @@ export function useDropFolder() {
     if (!items?.length) return
 
     const item = items[0]
-    if (!item || typeof (item as any).getAsFileSystemHandle !== 'function') {
+    if (!item || typeof item.getAsFileSystemHandle !== 'function') {
       store.showToast(t('toast.dropNotSupported'))
       return
     }
 
     try {
-      const handle = await (item as any).getAsFileSystemHandle() as FileSystemHandle | null
+      const handle = await item.getAsFileSystemHandle()
       if (!handle) return
 
       if (handle.kind !== 'directory') {

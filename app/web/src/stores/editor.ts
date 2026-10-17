@@ -68,7 +68,7 @@ export const useEditorStore = defineStore('editor', () => {
   const newFieldUnifiedType = ref('')
 
   // File System Access API handles (in-memory, same session)
-  const rootDirHandle = ref<any>(null)
+  const rootDirHandle = ref<FileSystemDirectoryHandle | null>(null)
   const projectOpened = ref(false)
 
   // ===== Git 仓库模式：远端分支即数据源，无本地目录句柄 =====
@@ -256,7 +256,7 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Open Project Folder =====
 
   /** 升级确认弹窗状态（打开旧结构项目时由用户手动触发迁移） */
-  const pendingUpgradeRootHandle = ref<any>(null)
+  const pendingUpgradeRootHandle = ref<FileSystemDirectoryHandle | null>(null)
   /** 全局加载遮罩：升级旧结构 / 打开项目加载期间展示，全局唯一实例 */
   const overlayVisible = ref(false)
   const overlayText = ref('')
@@ -602,7 +602,7 @@ export const useEditorStore = defineStore('editor', () => {
    */
   async function _migrateAndLoad(rootHandle: FileSystemDirectoryHandle): Promise<void> {
     // 读取根 common.json 用于版本判定
-    let oldCommon: any = null
+    let oldCommon: CommonConfig | null = null
     try {
       const commonText = await new BrowserWorkspaceWriter(rootHandle).read(COMMON_FILE)
       oldCommon = commonText === null ? null : JSON.parse(commonText)

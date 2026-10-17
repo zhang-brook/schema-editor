@@ -30,7 +30,7 @@ export interface CrudDeps {
   initialDataKey: (schemaName: string, tableName: string) => string
   executeCommand: (cmd: Command) => void
   showToast: (msg: string) => void
-  t: (key: string, options?: any) => string
+  t: (key: string, options?: Record<string, unknown>) => string
 }
 
 export function createCrudActions(deps: CrudDeps) {

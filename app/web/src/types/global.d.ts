@@ -16,6 +16,14 @@ declare global {
     FileSystemObserver: typeof FileSystemObserver
   }
 
+  /**
+   * getAsFileSystemHandle — Chromium 私有的拖拽扩展，把拖入的 DataTransferItem 换成文件系统句柄。
+   * 尚未标准化，lib.dom 里没有该成员，故在此做可选声明。
+   */
+  interface DataTransferItem {
+    getAsFileSystemHandle?(): Promise<FileSystemHandle | null>
+  }
+
   // FileSystemObserver - experimental File System API
   // @see https://developer.mozilla.org/en-US/docs/Web/API/FileSystemObserver
   class FileSystemObserver {

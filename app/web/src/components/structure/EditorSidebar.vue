@@ -53,7 +53,7 @@ function onSchemaDragStart(e: DragEvent, sIdx: number) {
   ;(e.currentTarget as HTMLElement)?.classList.add('dragging')
 }
 
-function onDragOver(e: DragEvent, sIdx: number) {
+function onDragOver(e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
@@ -88,7 +88,7 @@ function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
 // Schema header 上的 drop 处理：
 //   - 拖拽表：将表追加到目标 schema 末尾（虚线框引导）
 //   - 拖拽 schema：调整 schema 顺序（实线引导线）
-function onSchemaDragOver(e: DragEvent, _sIdx: number) {
+function onSchemaDragOver(e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
@@ -130,7 +130,7 @@ function onSchemaDrop(e: DragEvent, sIdx: number) {
 }
 
 // 尾部 drop 区域：拖到当前 schema 最后一个表之后
-function onDropTailOver(e: DragEvent, _sIdx: number) {
+function onDropTailOver(e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
@@ -272,7 +272,7 @@ function cancelRenameSchema() {
           draggable="true"
           @click="store.selectSchemaOnly(sIdx)"
           @dragstart="onSchemaDragStart($event, sIdx)"
-          @dragover="onSchemaDragOver($event, sIdx)"
+          @dragover="onSchemaDragOver($event)"
           @dragleave="onDragLeave"
           @drop="onSchemaDrop($event, sIdx)"
           @dragend="onDragEnd"
@@ -311,7 +311,7 @@ function cancelRenameSchema() {
           draggable="true"
           @click="store.selectTable(sIdx, tIdx)"
           @dragstart="onDragStart($event, sIdx, tIdx)"
-          @dragover="onDragOver($event, sIdx)"
+          @dragover="onDragOver($event)"
           @dragleave="onDragLeave"
           @drop="onDrop($event, sIdx, tIdx)"
           @dragend="onDragEnd"
@@ -332,7 +332,7 @@ function cancelRenameSchema() {
           v-show="isExpanded(sIdx) && schema.tables.length > 0"
           class="drop-tail"
           :class="{ 'drag-active': dragSchemaIdx >= 0, 'drag-over': false }"
-          @dragover="onDropTailOver($event, sIdx)"
+          @dragover="onDropTailOver($event)"
           @dragleave="onDragLeave"
           @drop="onDropTail($event, sIdx)"
         ></div>

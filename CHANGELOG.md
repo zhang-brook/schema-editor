@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.8.0
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.7.0...v0.8.0)
+
+### 🚀 新功能
+
+- **ui:** 设计 token 双主题化，工具栏新增外观切换（跟随系统/浅色/深色） ([f7b6990](https://github.com/zhang-brook/schema-editor/commit/f7b6990))
+- **ui:** 外观面板整合主题与界面密度，行高支持紧凑/正常/宽松三档 ([9c4cd15](https://github.com/zhang-brook/schema-editor/commit/9c4cd15))
+- **ui:** 字段表与索引表支持拖拽调整列宽，宽度按列记住 ([71793d9](https://github.com/zhang-brook/schema-editor/commit/71793d9))
+- **ui:** 结构设计页支持多表标签切换，删除的表自动从标签栏剔除 ([c8e70a0](https://github.com/zhang-brook/schema-editor/commit/c8e70a0))
+- **ui:** 结构设计侧栏宽度可拖拽并记住，刷新后保持 ([25e13b4](https://github.com/zhang-brook/schema-editor/commit/25e13b4))
+- **desktop:** 引入 Electron 桌面外壳与桥接协议 ([0ed7431](https://github.com/zhang-brook/schema-editor/commit/0ed7431))
+- **desktop:** 渲染层接入桌面桥接，替换目录选择与文件监听 ([e2bc8f0](https://github.com/zhang-brook/schema-editor/commit/e2bc8f0))
+- **git:** 支持打开 Git 仓库子目录作为数据源并手动提交 ([a2a7905](https://github.com/zhang-brook/schema-editor/commit/a2a7905))
+
+### 🩹 问题修复
+
+- **ui:** 共享样式模块硬编码颜色改用语义 token，补齐暗色适配 ([1711af6](https://github.com/zhang-brook/schema-editor/commit/1711af6))
+- **ui:** 编辑区硬编码颜色改用语义 token，补齐暗色适配 ([252275d](https://github.com/zhang-brook/schema-editor/commit/252275d))
+- **ui:** 设置页与弹窗硬编码颜色改用语义 token，清理已废弃的变量回退值 ([214ba0c](https://github.com/zhang-brook/schema-editor/commit/214ba0c))
+- **ui:** 主题强调色恢复原有蓝调，不再偏艳 ([56400cf](https://github.com/zhang-brook/schema-editor/commit/56400cf))
+
+### ♻️ 代码重构
+
+- **toolbar:** 顶部菜单改用无样式下拉组件，键盘导航/外点关闭交由组件层 ([29a909c](https://github.com/zhang-brook/schema-editor/commit/29a909c))
+- 迁移为 app/web + app/desktop + packages/bridge 的 pnpm workspace 结构 ([76be96c](https://github.com/zhang-brook/schema-editor/commit/76be96c))
+- **types:** 领域类型去掉 any，默认值与初始数据单元格改用 JsonValue ([9193d1d](https://github.com/zhang-brook/schema-editor/commit/9193d1d))
+- **types:** 持久化与结构升级模块去掉 any ([d69442b](https://github.com/zhang-brook/schema-editor/commit/d69442b))
+- **types:** SQL 生成与方言解析去掉 any ([5f9104a](https://github.com/zhang-brook/schema-editor/commit/5f9104a))
+- **types:** Store、组件与拖拽组合式去掉 any ([be6538a](https://github.com/zhang-brook/schema-editor/commit/be6538a))
+- **core:** 抽出 schema-editor-core 共享逻辑包 ([970846e](https://github.com/zhang-brook/schema-editor/commit/970846e))
+
+### 📖 文档
+
+- 补充桌面版说明并更新部署描述 ([1e98981](https://github.com/zhang-brook/schema-editor/commit/1e98981))
+- 同步目录结构与命令说明 ([2069c64](https://github.com/zhang-brook/schema-editor/commit/2069c64))
+- 补充 Git 仓库数据源的用法与架构说明 ([77e16e5](https://github.com/zhang-brook/schema-editor/commit/77e16e5))
+- **开发指南:** 记录共享逻辑包分层与路径约定 ([254c88d](https://github.com/zhang-brook/schema-editor/commit/254c88d))
+
+### 📦 构建
+
+- 前端产物改用相对基址以支持 file:// 加载 ([ddb996f](https://github.com/zhang-brook/schema-editor/commit/ddb996f))
+- **desktop:** Electron 与 electron-builder 二进制下载改用 npmmirror 镜像 ([a8e8656](https://github.com/zhang-brook/schema-editor/commit/a8e8656))
+
+### 🏡 杂项
+
+- **deps:** 引入 reka-ui 作为无样式交互组件底层 ([4401987](https://github.com/zhang-brook/schema-editor/commit/4401987))
+- **deps:** 升级 pnpm 至 12.11.2 ([0d27e8f](https://github.com/zhang-brook/schema-editor/commit/0d27e8f))
+- **deps:** 同步锁文件 ([e76e50e](https://github.com/zhang-brook/schema-editor/commit/e76e50e))
+- **release:** 版本号统一到仓库根 package.json ([1255be4](https://github.com/zhang-brook/schema-editor/commit/1255be4))
+
+### ✅ 测试
+
+- **utils:** 补齐方言解析、初始数据序列化与迁移 DDL 的用例 ([796745c](https://github.com/zhang-brook/schema-editor/commit/796745c))
+
 ## v0.7.0
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.6.1...v0.7.0)

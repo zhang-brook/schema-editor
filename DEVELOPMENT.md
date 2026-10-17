@@ -66,36 +66,6 @@ app/
 │       │   ├── useConfirm.ts            # 全局弹窗队列（confirmDialog / chooseDialog 三选一 / alertDialog）
 │       │   ├── useEnterConfirm.ts       # 弹窗回车确认
 │       │   └── useEnabledDialect.ts     # 当前启用的方言
-│       ├── core/                        # 与 UI 无关的核心领域层
-│       │   ├── ids.ts                   # 唯一 id 生成（仅版本 / 迁移等存储实体使用）
-│       │   ├── history/
-│       │   │   └── command.ts           # 命令模式 + 结构化 patch（undo/redo 底层）
-│       │   ├── workspace/               # 统一路径层与工作区读写
-│       │   │   ├── layout.ts            # 路径常量 + CURRENT_STRUCT_VERSION + 文件名友好化
-│       │   │   ├── handles.ts           # File System Access API 原语封装
-│       │   │   ├── paths.ts             # 业务路径解析（新旧结构兼容）
-│       │   │   ├── serialization.ts     # 内存态 → 磁盘文档的序列化（common / schema / table）
-│       │   │   ├── project-documents.ts # 项目文档规划：由变更范围算出待写文件与派生 SQL
-│       │   │   ├── browser-workspace.ts # 批量写入、路径白名单校验与外部改动冲突检测
-│       │   │   ├── git/                 # Git 远端工作区（地址解析 / 平台 API / 写入器 / 令牌）
-│       │   │   │   ├── url.ts           # 仓库地址 → provider + owner/repo + 分支 + 子目录
-│       │   │   │   ├── types.ts         # GitRepoInfo、GitRepoError 与错误码
-│       │   │   │   ├── providers.ts     # GitHub / Gitee / Gitea 的读快照与提交实现
-│       │   │   │   ├── credentials.ts   # 令牌存会话内存，勾选记住时按站点落本地
-│       │   │   │   └── workspace.ts     # GitWorkspaceWriter：不支持自动保存，分支头变动即拒绝提交
-│       │   │   ├── save-coordinator.ts  # 串行保存队列：脏文件追踪 + 防抖 + 手动整批保存
-│       │   │   └── workspace-session.ts # 工作区会话：加载项目、声明变更、手动保存
-│       │   └── version/                 # 版本与迁移
-│       │       ├── types.ts             # 版本 / 迁移脚本类型定义
-│       │       ├── storage.ts           # versions/<id>.json 读写
-│       │       ├── migration-storage.ts # migrations/<id>.json 读写
-│       │       ├── environment-storage.ts # 环境定义读写
-│       │       ├── diff.ts              # 结构 diff 引擎
-│       │       ├── identity.ts          # 改名识别与推断
-│       │       ├── matcher.ts           # 结构对象相似度匹配
-│       │       ├── chain.ts             # 版本链：父子关系时间线 + 缺失迁移标注
-│       │       ├── guards.ts            # 操作合法性校验
-│       │       └── migration-ddl.ts     # 迁移脚本 → 变更 DDL（MySQL / PostgreSQL / SQLite）
 │       ├── i18n/
 │       │   ├── index.ts                 # vue-i18n 初始化
 │       │   ├── detection.ts             # 浏览器语言检测
@@ -115,31 +85,12 @@ app/
 │       │   ├── editor-import-sql.ts     # 导入 SQL 解析与落库
 │       │   └── editor-version.ts        # 版本 / 迁移 / 环境
 │       ├── types/
-│       │   ├── schema.ts                # Schema 核心类型定义（Schema、Table、Field、Index 等）
 │       │   ├── settings.ts              # 设置区页面类型（SettingsTab）
-│       │   └── global.d.ts              # 全局类型声明
+│       │   └── global.d.ts              # 全局类型声明（浏览器 API 与桌面注入对象）
 │       └── utils/
 │           ├── constants.ts             # 全局常量
-│           ├── file-helpers.ts          # 旧结构 → 新结构的迁移写入入口，以及字段长度/默认值的输入解析
-│           ├── initial-data-io.ts       # 初始数据（行内结构）读写
-│           ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
-│           ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
-│           ├── logical-delete.ts        # 逻辑删除解析（项目级配置 + 索引级覆盖 → 各方言落地形式）
-│           ├── unified-types.ts         # 跨模块共用的统一类型
 │           ├── build-info.ts            # 构建信息（版本号 / 构建时间）
-│           ├── ai-guide/                # AI 结构指南 Markdown 生成
-│           ├── structure-migrations/    # 项目结构迁移链（v0.0 → v1.0，注册表驱动）
-│           ├── sql-generator/
-│           │   ├── shared.ts            # SQL 生成公共逻辑
-│           │   ├── mysql.ts             # MySQL 方言 SQL 生成
-│           │   ├── postgresql.ts        # PostgreSQL 方言 SQL 生成
-│           │   └── sqlite.ts            # SQLite 方言 SQL 生成
-│           └── sql-parser/
-│               ├── index.ts             # SQL 解析入口
-│               ├── tokenizer.ts         # SQL 词法分析
-│               ├── create-table-parser.ts # CREATE TABLE 语句解析
-│               ├── dialect-detector.ts  # 方言自动检测
-│               └── type-mapper.ts       # 字段类型映射
+│           └── column-drag-flag.ts      # 列拖拽进行中的全局标记
 ├── desktop/                     # 桌面外壳（Electron）：加载前端构建产物并桥接本地文件系统
 │   ├── src/
 │   │   ├── main.ts              # 主进程：创建窗口、注册 IPC、开发模式加载 Vite 服务
@@ -148,6 +99,64 @@ app/
 │   ├── vite.config.mts          # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
 │   └── electron-builder.yml     # Windows 打包配置（NSIS 安装包 + 免安装 exe）
 └── packages/
+    ├── core/                    # schema-editor-core：与 UI、与 Vue 运行时无关的领域核心，网页与桌面共用
+    │   ├── package.json         # 源码直出（exports 指向 src/*.ts），宿主构建工具直接编译，无独立构建步骤
+    │   └── src/
+    │       ├── index.ts                 # 入口：转出领域类型；具体能力按子路径引用，如 schema-editor-core/utils/sql-generator
+    │       ├── types/
+    │       │   └── schema.ts            # Schema 核心类型定义（Schema、Table、Field、Index 等）
+    │       ├── core/                    # 核心领域层
+    │       │   ├── ids.ts               # 唯一 id 生成（仅版本 / 迁移等存储实体使用）
+    │       │   ├── history/
+    │       │   │   └── command.ts       # 命令模式 + 结构化 patch（undo/redo 底层）
+    │       │   ├── workspace/           # 统一路径层与工作区读写
+    │       │   │   ├── layout.ts        # 路径常量 + CURRENT_STRUCT_VERSION + 文件名友好化
+    │       │   │   ├── handles.ts       # File System Access API 原语封装
+    │       │   │   ├── paths.ts         # 业务路径解析（新旧结构兼容）
+    │       │   │   ├── serialization.ts # 内存态 → 磁盘文档的序列化（common / schema / table）
+    │       │   │   ├── project-documents.ts # 项目文档规划：由变更范围算出待写文件与派生 SQL
+    │       │   │   ├── browser-workspace.ts # 批量写入、路径白名单校验与外部改动冲突检测
+    │       │   │   ├── git/             # Git 远端工作区（地址解析 / 平台 API / 写入器 / 令牌）
+    │       │   │   │   ├── url.ts       # 仓库地址 → provider + owner/repo + 分支 + 子目录
+    │       │   │   │   ├── types.ts     # GitRepoInfo、GitRepoError 与错误码
+    │       │   │   │   ├── providers.ts # GitHub / Gitee / Gitea 的读快照与提交实现
+    │       │   │   │   ├── credentials.ts # 令牌存会话内存，勾选记住时按站点落本地
+    │       │   │   │   └── workspace.ts # GitWorkspaceWriter：不支持自动保存，分支头变动即拒绝提交
+    │       │   │   ├── save-coordinator.ts  # 串行保存队列：脏文件追踪 + 防抖 + 手动整批保存
+    │       │   │   └── workspace-session.ts # 工作区会话：加载项目、声明变更、手动保存
+    │       │   └── version/             # 版本与迁移
+    │       │       ├── types.ts         # 版本 / 迁移脚本类型定义
+    │       │       ├── storage.ts       # versions/<id>.json 读写
+    │       │       ├── migration-storage.ts # migrations/<id>.json 读写
+    │       │       ├── environment-storage.ts # 环境定义读写
+    │       │       ├── diff.ts          # 结构 diff 引擎
+    │       │       ├── identity.ts      # 改名识别与推断
+    │       │       ├── matcher.ts       # 结构对象相似度匹配
+    │       │       ├── chain.ts         # 版本链：父子关系时间线 + 缺失迁移标注
+    │       │       ├── guards.ts        # 操作合法性校验
+    │       │       └── migration-ddl.ts # 迁移脚本 → 变更 DDL（MySQL / PostgreSQL / SQLite）
+    │       └── utils/
+    │           ├── file-helpers.ts          # 旧结构 → 新结构的迁移写入入口，以及字段长度/默认值的输入解析
+    │           ├── initial-data-io.ts       # 初始数据（行内结构）读写
+    │           ├── dialect-resolver.ts      # 方言配置覆盖解析辅助
+    │           ├── index-column-utils.ts    # 索引列解析与方言覆盖工具
+    │           ├── field-utils.ts           # 字段属性读取工具
+    │           ├── table-comment-utils.ts   # 表注释工具
+    │           ├── logical-delete.ts        # 逻辑删除解析（项目级配置 + 索引级覆盖 → 各方言落地形式）
+    │           ├── unified-types.ts         # 跨模块共用的统一类型
+    │           ├── ai-guide/                # AI 结构指南 Markdown 生成
+    │           ├── structure-migrations/    # 项目结构迁移链（v0.0 → v1.0，注册表驱动）
+    │           ├── sql-generator/
+    │           │   ├── shared.ts        # SQL 生成公共逻辑
+    │           │   ├── mysql.ts         # MySQL 方言 SQL 生成
+    │           │   ├── postgresql.ts    # PostgreSQL 方言 SQL 生成
+    │           │   └── sqlite.ts        # SQLite 方言 SQL 生成
+    │           └── sql-parser/
+    │               ├── index.ts         # SQL 解析入口
+    │               ├── tokenizer.ts     # SQL 词法分析
+    │               ├── create-table-parser.ts # CREATE TABLE 语句解析
+    │               ├── dialect-detector.ts  # 方言自动检测
+    │               └── type-mapper.ts   # 字段类型映射
     └── bridge/                  # 桌面桥接协议：IPC 通道名与请求/响应负载（主进程 / preload / 渲染端共用）
 ```
 
@@ -155,13 +164,13 @@ app/
 
 ## 架构概览
 
-以下路径除特别说明外均相对 `app/web/src/`。
+领域逻辑（类型、SQL 生成与解析、工作区读写、结构升级、版本比较）在 `packages/core/src/`，以 `schema-editor-core/<子路径>` 引用；界面、Pinia store、i18n 与桌面端 File System Access 模拟层在 `app/web/src/`。包内不依赖 Vue，端侧差异由宿主在运行时注入。下文用裸模块名指代文件，`stores/`、`platform/`、`composables/` 前缀的在 `app/web/src/` 下，`core/`、`utils/`、`types/` 前缀的在 `packages/core/src/` 下。
 
 ### 数据流
 
 ```
 本地工作目录 (common.json + current/ + versions/ + migrations/)
-        │ File System Access API（core/workspace；桌面端由 platform/desktop-fsa 模拟为 IPC 调用）
+        │ File System Access API（schema-editor-core 的 core/workspace；桌面端由 platform/desktop-fsa 模拟为 IPC 调用）
         ▼
   workspace-session.ts  ←→  Pinia Store (editor.ts + 5 个 action 工厂)
    （加载 + 变更范围 + 手动保存）        │
@@ -191,8 +200,8 @@ app/
 pnpm dev           # 启动 Vite 开发服务器
 pnpm build         # app/web：并行执行类型检查 + 生产构建
 pnpm preview       # 预览生产构建
-pnpm test:unit     # Vitest 单元测试（覆盖 app/web 与 app/desktop）
-pnpm type-check    # 全仓类型检查（根配置 + app/web + app/desktop）
+pnpm test:unit     # Vitest 单元测试（覆盖 packages/core、app/web 与 app/desktop）
+pnpm type-check    # 全仓类型检查（根配置 + packages/core + app/web + app/desktop）
 pnpm lint          # 串行：oxlint → eslint（覆盖整个仓库）
 pnpm format        # oxfmt 格式化 app/web/src
 pnpm changelog     # 生成 CHANGELOG（版本号取自 app/web/package.json）

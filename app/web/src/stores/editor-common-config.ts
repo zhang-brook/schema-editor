@@ -1,8 +1,8 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema, Field, FieldOverride, InitialData, UnifiedTypeDefinition, UnifiedTypeDbMapping, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from '@/types/schema'
-import { affectedCommon, affectedTable, affectedInitialData, affectedSql, type AffectedFile, type Command } from '@/core/history/command'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
-import { parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
+import type { CommonConfig, Schema, Field, FieldOverride, InitialData, UnifiedTypeDefinition, UnifiedTypeDbMapping, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from 'schema-editor-core/types/schema'
+import { affectedCommon, affectedTable, affectedInitialData, affectedSql, type AffectedFile, type Command } from 'schema-editor-core/core/history/command'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
+import { parseFieldLengthInput, parseFieldScaleInput } from 'schema-editor-core/utils/file-helpers'
 import { confirmDialog } from '@/composables/useConfirm'
 
 export interface CommonConfigDeps {

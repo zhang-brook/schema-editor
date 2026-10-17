@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, reactive } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import type { Field, UnifiedTypeDefinition } from '@/types/schema'
-import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
+import type { Field, UnifiedTypeDefinition } from 'schema-editor-core/types/schema'
+import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from 'schema-editor-core/utils/file-helpers'
 
 const store = useEditorStore()
 

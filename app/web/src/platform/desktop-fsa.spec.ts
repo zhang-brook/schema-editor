@@ -8,7 +8,7 @@ import type {
   DesktopWatchEvent,
 } from 'schema-editor-bridge'
 import { DesktopDirectoryHandle, DesktopFileSystemObserver, installDesktopFsa } from './desktop-fsa'
-import { BrowserWorkspaceWriter } from '../core/workspace/browser-workspace'
+import { BrowserWorkspaceWriter } from 'schema-editor-core/core/workspace/browser-workspace'
 
 const ROOT = '/proj'
 

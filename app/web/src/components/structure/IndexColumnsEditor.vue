@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { watch, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { IndexColumn } from '@/types/schema'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
+import type { IndexColumn } from 'schema-editor-core/types/schema'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { isColumnDragging } from '@/utils/column-drag-flag'
 
 const props = defineProps<{

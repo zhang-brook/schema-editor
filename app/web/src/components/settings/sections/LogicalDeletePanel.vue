@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import type { LogicalDeleteMysqlStrategy } from '@/types/schema'
-import { deriveDeletePredicate } from '@/utils/logical-delete'
+import type { LogicalDeleteMysqlStrategy } from 'schema-editor-core/types/schema'
+import { deriveDeletePredicate } from 'schema-editor-core/utils/logical-delete'
 
 const store = useEditorStore()
 

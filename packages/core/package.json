@@ -1,0 +1,23 @@
+{
+  "name": "schema-editor-core",
+  "private": true,
+  "version": "0.0.0",
+  "description": "与界面无关的结构编辑核心：领域类型、SQL 生成与解析、工作区读写与结构升级、版本差异与迁移",
+  "author": "zhang-brook",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./utils/ai-guide": "./src/utils/ai-guide/index.ts",
+    "./utils/sql-generator": "./src/utils/sql-generator/index.ts",
+    "./utils/sql-parser": "./src/utils/sql-parser/index.ts",
+    "./utils/structure-migrations": "./src/utils/structure-migrations/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "nanoid": "^6.0.2"
+  }
+}

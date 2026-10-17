@@ -4,10 +4,10 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
-import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from '@/utils/sql-generator/shared'
-import { generateInitialDataMySQL } from '@/utils/sql-generator/mysql'
-import { generateInitialDataPostgreSQL } from '@/utils/sql-generator/postgresql'
-import { generateInitialDataSQLite } from '@/utils/sql-generator/sqlite'
+import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from 'schema-editor-core/utils/sql-generator/shared'
+import { generateInitialDataMySQL } from 'schema-editor-core/utils/sql-generator/mysql'
+import { generateInitialDataPostgreSQL } from 'schema-editor-core/utils/sql-generator/postgresql'
+import { generateInitialDataSQLite } from 'schema-editor-core/utils/sql-generator/sqlite'
 
 const store = useEditorStore()
 const { t } = useI18n()

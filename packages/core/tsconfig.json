@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    // 与 app/web 保持一致的严格度：包内代码不依赖 vue，只用 DOM 与 ESNext 类型
+    "target": "ESNext",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*"]
+}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { ALL_SQL_DIALECTS, type SqlDialect } from '@/utils/sql-generator/shared'
+import { ALL_SQL_DIALECTS, type SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { DIALECT_LABELS } from '@/composables/useEnabledDialect'
 
 const store = useEditorStore()

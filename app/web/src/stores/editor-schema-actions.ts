@@ -1,5 +1,5 @@
-import type { Schema, Table } from '@/types/schema'
-import { affectedDatabase, affectedInitialData, affectedSchema, affectedSql, affectedTable, type AffectedFile } from '@/core/history/command'
+import type { Schema, Table } from 'schema-editor-core/types/schema'
+import { affectedDatabase, affectedInitialData, affectedSchema, affectedSql, affectedTable, type AffectedFile } from 'schema-editor-core/core/history/command'
 import { confirmDialog } from '@/composables/useConfirm'
 import { captureValue, cloneValue, diskName, moveItem, removeItem, uniqueName, validName } from './editor-action-utils'
 import type { CrudDeps } from './editor-crud'

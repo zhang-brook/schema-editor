@@ -2,9 +2,9 @@
 import { ref, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useColumnResize } from '@/composables/useColumnResize'
-import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from '@/utils/file-helpers'
-import { buildFieldComment, type SqlDialect } from '@/utils/sql-generator/shared'
-import type { Field, CommentOption } from '@/types/schema'
+import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from 'schema-editor-core/utils/file-helpers'
+import { buildFieldComment, type SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
+import type { Field, CommentOption } from 'schema-editor-core/types/schema'
 import FieldCommentInput from './FieldCommentInput.vue'
 
 const store = useEditorStore()

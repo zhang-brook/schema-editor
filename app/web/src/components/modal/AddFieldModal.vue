@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
-import { displayFieldLength, displayFieldScale } from '@/utils/file-helpers'
+import { displayFieldLength, displayFieldScale } from 'schema-editor-core/utils/file-helpers'
 
 const store = useEditorStore()
 

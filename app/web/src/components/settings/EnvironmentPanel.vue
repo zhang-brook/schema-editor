@@ -5,7 +5,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import type { Environment } from '@/core/version/types'
+import type { Environment } from 'schema-editor-core/core/version/types'
 import { confirmDialog } from '@/composables/useConfirm'
 
 const store = useEditorStore()

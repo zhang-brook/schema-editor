@@ -1,9 +1,9 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema, InitialData } from '@/types/schema'
-import { newVersionId, newMigrationId, newEnvironmentId } from '@/core/ids'
-import { computeStructureDiff } from '@/core/version/diff'
-import { buildRenameLookup, buildRenameMap, suggestRenames } from '@/core/version/identity'
-import type { RenameSuggestion } from '@/core/version/identity'
+import type { CommonConfig, Schema, InitialData } from 'schema-editor-core/types/schema'
+import { newVersionId, newMigrationId, newEnvironmentId } from 'schema-editor-core/core/ids'
+import { computeStructureDiff } from 'schema-editor-core/core/version/diff'
+import { buildRenameLookup, buildRenameMap, suggestRenames } from 'schema-editor-core/core/version/identity'
+import type { RenameSuggestion } from 'schema-editor-core/core/version/identity'
 import type {
   VersionSummary,
   VersionSnapshot,
@@ -12,12 +12,12 @@ import type {
   RenameEntry,
   StructureDiff,
   Environment,
-} from '@/core/version/types'
-import { generateMigrationDdl } from '@/core/version/migration-ddl'
-import { CURRENT_STRUCT_VERSION, VERSIONS_DIR, MIGRATIONS_DIR, ENVIRONMENTS_DIR } from '@/core/workspace/layout'
-import type { FileChange } from '@/core/workspace/save-coordinator'
-import { jsonContent } from '@/core/workspace/project-documents'
-import { buildCommonWriteData } from '@/core/workspace/serialization'
+} from 'schema-editor-core/core/version/types'
+import { generateMigrationDdl } from 'schema-editor-core/core/version/migration-ddl'
+import { CURRENT_STRUCT_VERSION, VERSIONS_DIR, MIGRATIONS_DIR, ENVIRONMENTS_DIR } from 'schema-editor-core/core/workspace/layout'
+import type { FileChange } from 'schema-editor-core/core/workspace/save-coordinator'
+import { jsonContent } from 'schema-editor-core/core/workspace/project-documents'
+import { buildCommonWriteData } from 'schema-editor-core/core/workspace/serialization'
 
 export interface VersionDeps {
   getDocuments: () => {

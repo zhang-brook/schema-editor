@@ -8,8 +8,8 @@
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { RenameEntry } from '@/core/version/types'
-import type { RenameSuggestion } from '@/core/version/identity'
+import type { RenameEntry } from 'schema-editor-core/core/version/types'
+import type { RenameSuggestion } from 'schema-editor-core/core/version/identity'
 
 const props = defineProps<{
   suggestions: RenameSuggestion[]

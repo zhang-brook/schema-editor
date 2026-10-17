@@ -1,7 +1,7 @@
-import type { PartitionByConfig, Schema, SqlStatements, Table } from '@/types/schema'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
-import { affectedSchema, affectedSql } from '@/core/history/command'
-import { getDialectSubConfig } from '@/utils/dialect-resolver'
+import type { PartitionByConfig, Schema, SqlStatements, Table } from 'schema-editor-core/types/schema'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
+import { affectedSchema, affectedSql } from 'schema-editor-core/core/history/command'
+import { getDialectSubConfig } from 'schema-editor-core/utils/dialect-resolver'
 import { cloneValue, type ActionContext } from './editor-action-utils'
 import type { CrudDeps } from './editor-crud'
 

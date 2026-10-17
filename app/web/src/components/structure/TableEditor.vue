@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
-import { getTablePreSql, getTablePostSql, type SqlDialect } from '@/utils/sql-generator/shared'
+import { getTablePreSql, getTablePostSql, type SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import PageTabs from '@/components/ui/PageTabs.vue'
 import TableBasicInfo from './TableBasicInfo.vue'
 import FieldTable from './FieldTable.vue'

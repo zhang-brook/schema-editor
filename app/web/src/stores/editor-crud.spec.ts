@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref } from 'vue'
-import { CommandManager, type AffectedFile, type Command } from '@/core/history/command'
-import type { CommonConfig, Field, Index, InitialData, Schema, Table } from '@/types/schema'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
+import { CommandManager, type AffectedFile, type Command } from 'schema-editor-core/core/history/command'
+import type { CommonConfig, Field, Index, InitialData, Schema, Table } from 'schema-editor-core/types/schema'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { confirmDialog } from '@/composables/useConfirm'
 import { createCrudActions, type CrudDeps } from './editor-crud'
 

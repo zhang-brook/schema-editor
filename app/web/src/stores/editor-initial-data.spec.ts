@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref, toRaw, watch, nextTick } from 'vue'
-import type { InitialData, InitialDataRow, JsonValue, Schema } from '@/types/schema'
-import { CommandManager, affectedInitialData, affectedSql, type Command } from '@/core/history/command'
-import { parseDefaultInput } from '@/utils/file-helpers'
-import { buildInitialDataExport } from '@/utils/initial-data-io'
+import type { InitialData, InitialDataRow, JsonValue, Schema } from 'schema-editor-core/types/schema'
+import { CommandManager, affectedInitialData, affectedSql, type Command } from 'schema-editor-core/core/history/command'
+import { parseDefaultInput } from 'schema-editor-core/utils/file-helpers'
+import { buildInitialDataExport } from 'schema-editor-core/utils/initial-data-io'
 import { createInitialDataActions } from './editor-initial-data'
 
 function setup(data?: InitialData) {

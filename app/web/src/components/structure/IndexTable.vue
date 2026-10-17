@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Index } from '@/types/schema'
+import type { Index } from 'schema-editor-core/types/schema'
 import { useEditorStore } from '@/stores/editor'
 import { useColumnResize } from '@/composables/useColumnResize'
 import IndexColumnsEditor from './IndexColumnsEditor.vue'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
-import { getTableColumnNames } from '@/utils/sql-generator/shared'
-import { resolveDialectOverride } from '@/utils/dialect-resolver'
-import { buildMysqlActiveExpression, mergeLogicalDelete, resolveIndexLogicalDelete } from '@/utils/logical-delete'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
+import { getTableColumnNames } from 'schema-editor-core/utils/sql-generator/shared'
+import { resolveDialectOverride } from 'schema-editor-core/utils/dialect-resolver'
+import { buildMysqlActiveExpression, mergeLogicalDelete, resolveIndexLogicalDelete } from 'schema-editor-core/utils/logical-delete'
 import { isColumnDragging } from '@/utils/column-drag-flag'
 
 const store = useEditorStore()

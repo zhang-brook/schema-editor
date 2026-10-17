@@ -1,7 +1,7 @@
 import { toRaw } from 'vue'
-import type { Field, Index, Table } from '@/types/schema'
-import { affectedCommon, affectedSql, affectedTable, type AffectedFile } from '@/core/history/command'
-import { sanitizeName } from '@/core/workspace/layout'
+import type { Field, Index, Table } from 'schema-editor-core/types/schema'
+import { affectedCommon, affectedSql, affectedTable, type AffectedFile } from 'schema-editor-core/core/history/command'
+import { sanitizeName } from 'schema-editor-core/core/workspace/layout'
 import type { CrudDeps } from './editor-crud'
 
 /** JSON-shaped values, including explicit undefined; never retain caller-owned patch data. */

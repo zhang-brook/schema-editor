@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import type { UnifiedTypeDefinition } from '@/types/schema'
-import { displayFieldLength, displayFieldScale } from '@/utils/file-helpers'
+import type { UnifiedTypeDefinition } from 'schema-editor-core/types/schema'
+import { displayFieldLength, displayFieldScale } from 'schema-editor-core/utils/file-helpers'
 
 const store = useEditorStore()
 const localUnifiedTypes = computed(() => store.commonConfig?.unified_types ?? [])

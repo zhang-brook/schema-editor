@@ -70,7 +70,7 @@ const dialectOptions = [
 ]
 
 // 格式化列类型显示
-function formatColType(col: import('@/utils/sql-parser').ParsedColumn): string {
+function formatColType(col: import('schema-editor-core/utils/sql-parser').ParsedColumn): string {
   let display = col.rawType
   if (col.length != null) {
     display += `(${col.length}`

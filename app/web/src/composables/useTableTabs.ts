@@ -1,6 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import type { Schema, Table } from '@/types/schema'
+import type { Schema, Table } from 'schema-editor-core/types/schema'
 
 /** 已打开的编辑标签 */
 export interface TableTab {

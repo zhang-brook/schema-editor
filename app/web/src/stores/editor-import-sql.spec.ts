@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { reactive, ref, toRaw } from 'vue'
-import type { Schema, Table } from '@/types/schema'
-import { CommandManager, affectedDatabase, affectedSchema, affectedSql, affectedTable, type Command } from '@/core/history/command'
-import { parseCreateTableStatements, type ParsedTable } from '@/utils/sql-parser'
-import { sanitizeName } from '@/core/workspace/layout'
+import type { Schema, Table } from 'schema-editor-core/types/schema'
+import { CommandManager, affectedDatabase, affectedSchema, affectedSql, affectedTable, type Command } from 'schema-editor-core/core/history/command'
+import { parseCreateTableStatements, type ParsedTable } from 'schema-editor-core/utils/sql-parser'
+import { sanitizeName } from 'schema-editor-core/core/workspace/layout'
 import { createImportSqlActions, type ImportSqlDeps } from './editor-import-sql'
 
 const table = (name: string): Table => ({ name, comment: '', fields: [], indexes: [] })

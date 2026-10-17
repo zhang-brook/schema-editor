@@ -5,34 +5,34 @@ import type {
   CommonConfig,
   Schema,
   InitialData,
-} from '@/types/schema'
+} from 'schema-editor-core/types/schema'
 import type { SettingsTab } from '@/types/settings'
-import { isFileSystemAccessSupported, isNewStructure, isEmptyFolder } from '@/utils/file-helpers'
-import { checkVersion } from '@/utils/structure-migrations/version-utils'
-import { runStructureMigrations } from '@/utils/structure-migrations'
+import { isFileSystemAccessSupported, isNewStructure, isEmptyFolder } from 'schema-editor-core/utils/file-helpers'
+import { checkVersion } from 'schema-editor-core/utils/structure-migrations/version-utils'
+import { runStructureMigrations } from 'schema-editor-core/utils/structure-migrations'
 import {
   CommandManager,
   affectedCommon,
   type Command,
   type AffectedFile,
-} from '@/core/history/command'
-import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION } from '@/core/workspace/layout'
-import { buildSchemaExportData } from '@/core/workspace/serialization'
-import { BrowserWorkspaceWriter } from '@/core/workspace/browser-workspace'
-import { createDefaultCommonConfig, createWorkspaceSession, loadWorkspaceDocuments, type SessionWriter, type WorkspaceSession } from '@/core/workspace/workspace-session'
-import type { SaveState, StagedChange } from '@/core/workspace/save-coordinator'
-import { GitRepoError, type GitRepoInfo } from '@/core/workspace/git/types'
-import { normalizeSubdir, parseRepoUrl } from '@/core/workspace/git/url'
-import { connectGitWorkspace } from '@/core/workspace/git/workspace'
-import { readGitToken, storeGitToken } from '@/core/workspace/git/credentials'
-import { jsonContent } from '@/core/workspace/project-documents'
-import { loadGenerateAiGuide, saveGenerateAiGuide } from '@/utils/ai-guide'
-import { ALL_SQL_DIALECTS, type SqlDialect } from '@/utils/sql-generator/shared'
-import type { UnifiedTypeDefinition } from '@/types/schema'
-import type { ParsedTable, ParseMessage } from '@/utils/sql-parser'
+} from 'schema-editor-core/core/history/command'
+import { COMMON_FILE, CURRENT_DIR, CURRENT_STRUCT_VERSION } from 'schema-editor-core/core/workspace/layout'
+import { buildSchemaExportData } from 'schema-editor-core/core/workspace/serialization'
+import { BrowserWorkspaceWriter } from 'schema-editor-core/core/workspace/browser-workspace'
+import { createDefaultCommonConfig, createWorkspaceSession, loadWorkspaceDocuments, type SessionWriter, type WorkspaceSession } from 'schema-editor-core/core/workspace/workspace-session'
+import type { SaveState, StagedChange } from 'schema-editor-core/core/workspace/save-coordinator'
+import { GitRepoError, type GitRepoInfo } from 'schema-editor-core/core/workspace/git/types'
+import { normalizeSubdir, parseRepoUrl } from 'schema-editor-core/core/workspace/git/url'
+import { connectGitWorkspace } from 'schema-editor-core/core/workspace/git/workspace'
+import { readGitToken, storeGitToken } from 'schema-editor-core/core/workspace/git/credentials'
+import { jsonContent } from 'schema-editor-core/core/workspace/project-documents'
+import { loadGenerateAiGuide, saveGenerateAiGuide } from 'schema-editor-core/utils/ai-guide'
+import { ALL_SQL_DIALECTS, type SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
+import type { UnifiedTypeDefinition } from 'schema-editor-core/types/schema'
+import type { ParsedTable, ParseMessage } from 'schema-editor-core/utils/sql-parser'
 import { createInitialDataActions } from './editor-initial-data'
 import { createVersionActions } from './editor-version'
-import { buildVersionChain } from '@/core/version/chain'
+import { buildVersionChain } from 'schema-editor-core/core/version/chain'
 import { createImportSqlActions } from './editor-import-sql'
 import { createCommonConfigActions } from './editor-common-config'
 import { createCrudActions } from './editor-crud'
@@ -41,7 +41,7 @@ import type {
   VersionSnapshot,
   Migration,
   Environment,
-} from '@/core/version/types'
+} from 'schema-editor-core/core/version/types'
 import { confirmDialog, chooseDialog, alertDialog } from '@/composables/useConfirm'
 
 export const useEditorStore = defineStore('editor', () => {

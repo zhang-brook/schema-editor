@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Schema, Table } from '@/types/schema'
+import type { Schema, Table } from 'schema-editor-core/types/schema'
 import { addTab, removeTab, type TableTab } from './useTableTabs'
 
 function makeTab(schemaName: string, tableName: string): TableTab {

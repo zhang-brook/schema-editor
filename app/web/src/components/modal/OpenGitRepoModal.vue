@@ -4,9 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
-import { parseRepoUrl } from '@/core/workspace/git/url'
-import { GitRepoError } from '@/core/workspace/git/types'
-import { readStoredGitToken } from '@/core/workspace/git/credentials'
+import { parseRepoUrl } from 'schema-editor-core/core/workspace/git/url'
+import { GitRepoError } from 'schema-editor-core/core/workspace/git/types'
+import { readStoredGitToken } from 'schema-editor-core/core/workspace/git/credentials'
 
 const store = useEditorStore()
 const { t } = useI18n()

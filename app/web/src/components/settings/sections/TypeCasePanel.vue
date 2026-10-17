@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
-import type { TypeCaseMode } from '@/types/schema'
+import type { TypeCaseMode } from 'schema-editor-core/types/schema'
 
 const store = useEditorStore()
 </script>

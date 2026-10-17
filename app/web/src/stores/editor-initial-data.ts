@@ -1,7 +1,7 @@
 import { computed, toRaw, type ComputedRef } from 'vue'
-import type { Schema, Table, InitialData, InitialDataRow } from '@/types/schema'
-import { affectedInitialData, affectedSql, type Command } from '@/core/history/command'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
+import type { Schema, Table, InitialData, InitialDataRow } from 'schema-editor-core/types/schema'
+import { affectedInitialData, affectedSql, type Command } from 'schema-editor-core/core/history/command'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { captureProps, captureValue, cloneValue } from './editor-action-utils'
 
 export interface InitialDataDeps {

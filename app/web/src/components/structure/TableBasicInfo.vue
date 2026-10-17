@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import { toDialectOptions } from '@/composables/useEnabledDialect'
-import type { SqlDialect } from '@/utils/sql-generator/shared'
+import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 
 const store = useEditorStore()
 

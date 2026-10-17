@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
-import type { TableDdlMode } from '@/types/schema'
+import type { TableDdlMode } from 'schema-editor-core/types/schema'
 
 const store = useEditorStore()
 </script>

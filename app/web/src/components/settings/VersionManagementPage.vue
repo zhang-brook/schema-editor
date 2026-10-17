@@ -6,10 +6,10 @@ import type {
   Migration,
   MigrationStep,
   MigrationDdlPreview,
-} from '@/core/version/types'
-import { generateSchemaMySQL } from '@/utils/sql-generator/mysql'
-import { generateSchemaPostgreSQL } from '@/utils/sql-generator/postgresql'
-import { generateSchemaSQLite } from '@/utils/sql-generator/sqlite'
+} from 'schema-editor-core/core/version/types'
+import { generateSchemaMySQL } from 'schema-editor-core/utils/sql-generator/mysql'
+import { generateSchemaPostgreSQL } from 'schema-editor-core/utils/sql-generator/postgresql'
+import { generateSchemaSQLite } from 'schema-editor-core/utils/sql-generator/sqlite'
 import { confirmDialog } from '@/composables/useConfirm'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import PageTabs from '@/components/ui/PageTabs.vue'
@@ -17,9 +17,9 @@ import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import VersionTimeline from './VersionTimeline.vue'
 import RenameAlignPanel from './RenameAlignPanel.vue'
 import EnvironmentPanel from './EnvironmentPanel.vue'
-import type { EnvMigrationStatus, RenameEntry } from '@/core/version/types'
-import type { RenameSuggestion } from '@/core/version/identity'
-import { canDeleteVersion } from '@/core/version/guards'
+import type { EnvMigrationStatus, RenameEntry } from 'schema-editor-core/core/version/types'
+import type { RenameSuggestion } from 'schema-editor-core/core/version/identity'
+import { canDeleteVersion } from 'schema-editor-core/core/version/guards'
 
 const store = useEditorStore()
 const { t } = useI18n()

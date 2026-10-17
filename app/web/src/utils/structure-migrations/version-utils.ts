@@ -16,16 +16,11 @@ export interface VersionCheckResult {
 
 /**
  * 读取旧字段名（历史兼容）。
- * 内部做一次 as 断言，把散落的 @ts-expect-error 收敛到这一处，
- * 对外返回 any，不改变运行时行为。
+ * 磁盘内容不可信，这里只按键取值并返回 unknown，形态是否可用由调用方判断。
  */
-export function readLegacyField<T = any>(
-  obj: Record<string, any>,
-  legacyKey: string,
-  fallback?: T,
-): T {
-  const v = (obj as Record<string, any>)[legacyKey]
-  return (v === undefined ? fallback : v) as T
+export function readLegacyField(obj: object, legacyKey: string, fallback?: unknown): unknown {
+  const v = (obj as Record<string, unknown>)[legacyKey]
+  return v === undefined ? fallback : v
 }
 
 /**

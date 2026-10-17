@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import type { Schema, Table } from '@/types/schema'
 import { runStructureMigrations } from './index'
 
 /**
@@ -80,7 +81,20 @@ async function seedFile(root: MemDir, segments: string[], obj: unknown): Promise
   await w.close()
 }
 
-async function readJson<T = any>(root: MemDir, segments: string[]): Promise<T> {
+// ===== 断言涉及的落盘文档视图（只声明测试关心的键） =====
+
+type ChainCommonDoc = {
+  struct_version?: string
+  default_config?: { postgresql?: unknown; pgsql?: unknown }
+}
+type ChainTableDoc = {
+  indexes: { columns: unknown }[]
+  fields: { field_name: string; postgresql?: unknown; pgsql?: unknown }[]
+}
+type ChainSchemaDoc = { tables: ChainTableDoc[] }
+type ChainInitialDoc = { rows: unknown[] }
+
+async function readJson<T>(root: MemDir, segments: string[]): Promise<T> {
   let dir = root
   for (let i = 0; i < segments.length - 1; i++) {
     dir = await dir.getDirectoryHandle(segments[i]!, { create: false })
@@ -136,7 +150,7 @@ function buildProjectV0_0(): MemDir {
   return root
 }
 
-const deps = { transformTable: (_schema: any, table: any) => table }
+const deps = { transformTable: (_schema: Schema, table: Table) => table }
 // 内存 mock 满足迁移所需的最小 handle API，运行时安全，类型上做一次断言收敛
 const asRoot = (d: MemDir) => d as unknown as FileSystemDirectoryHandle
 
@@ -152,7 +166,7 @@ describe('结构迁移链式升级', () => {
     ]
     for (const [from, to] of steps) {
       await runStructureMigrations(asRoot(root), from, deps, to)
-      const common = await readJson(root, ['common.json'])
+      const common = await readJson<ChainCommonDoc>(root, ['common.json'])
       expect(common.struct_version).toBe(to)
     }
   })
@@ -162,27 +176,27 @@ describe('结构迁移链式升级', () => {
     await runStructureMigrations(asRoot(root), '0.0', deps, '1.0')
 
     // 版本推进到 1.0
-    const common = await readJson(root, ['common.json'])
+    const common = await readJson<ChainCommonDoc>(root, ['common.json'])
     expect(common.struct_version).toBe('1.0')
     // default_config：pgsql → postgresql
-    expect(common.default_config.postgresql).toEqual({ quote_identifiers: true })
-    expect(common.default_config.pgsql).toBeUndefined()
+    expect(common.default_config!.postgresql).toEqual({ quote_identifiers: true })
+    expect(common.default_config!.pgsql).toBeUndefined()
 
     // 新布局落盘：current/schemas/public/users/table.json
     const tablePath = ['current', 'schemas', 'public', 'users', 'table.json']
     expect(await pathExists(root, tablePath)).toBe(true)
-    const table = await readJson(root, tablePath)
+    const table = await readJson<ChainTableDoc>(root, tablePath)
 
     // v0.0→v0.1：index.columns string[] → IndexColumn[]
-    expect(table.indexes[0].columns).toEqual([{ name: 'created_at', sort_order: 'DESC' }])
+    expect(table.indexes[0]!.columns).toEqual([{ name: 'created_at', sort_order: 'DESC' }])
 
     // v0.3→v0.4：字段 pgsql → postgresql
-    const createdAt = table.fields.find((f: any) => f.field_name === 'created_at')
-    expect(createdAt.postgresql).toEqual({ type: 'timestamp' })
-    expect(createdAt.pgsql).toBeUndefined()
+    const createdAt = table.fields.find(f => f.field_name === 'created_at')
+    expect(createdAt!.postgresql).toEqual({ type: 'timestamp' })
+    expect(createdAt!.pgsql).toBeUndefined()
 
     // v0.4→v1.0：initial-data 数组 → 行内 rows 结构
-    const initial = await readJson(root, ['current', 'schemas', 'public', 'users', 'initial-data.json'])
+    const initial = await readJson<ChainInitialDoc>(root, ['current', 'schemas', 'public', 'users', 'initial-data.json'])
     expect(initial.rows).toEqual([{ data: { id: 1, created_at: '2020-01-01' } }])
 
     // 旧布局文件被清理
@@ -193,7 +207,7 @@ describe('结构迁移链式升级', () => {
     const root = buildProjectV0_0()
     await runStructureMigrations(asRoot(root), '0.0', deps, '0.4')
 
-    const common = await readJson(root, ['common.json'])
+    const common = await readJson<ChainCommonDoc>(root, ['common.json'])
     expect(common.struct_version).toBe('0.4')
 
     // 仍为旧布局：schemas/public.json 存在，current/ 未创建
@@ -201,11 +215,11 @@ describe('结构迁移链式升级', () => {
     expect(await pathExists(root, ['current'])).toBe(false)
 
     // 旧布局下字段已升级：columns 已对象化、pgsql 已改名
-    const schema = await readJson(root, ['schemas', 'public.json'])
-    const table = schema.tables[0]
-    expect(table.indexes[0].columns).toEqual([{ name: 'created_at', sort_order: 'DESC' }])
-    const createdAt = table.fields.find((f: any) => f.field_name === 'created_at')
-    expect(createdAt.postgresql).toEqual({ type: 'timestamp' })
-    expect(createdAt.pgsql).toBeUndefined()
+    const schema = await readJson<ChainSchemaDoc>(root, ['schemas', 'public.json'])
+    const table = schema.tables[0]!
+    expect(table.indexes[0]!.columns).toEqual([{ name: 'created_at', sort_order: 'DESC' }])
+    const createdAt = table.fields.find(f => f.field_name === 'created_at')
+    expect(createdAt!.postgresql).toEqual({ type: 'timestamp' })
+    expect(createdAt!.pgsql).toBeUndefined()
   })
 })

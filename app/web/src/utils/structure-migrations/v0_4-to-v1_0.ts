@@ -22,7 +22,8 @@ import {
   cleanupOldStructure,
 } from '@/utils/file-helpers'
 import { readInitialDataFromHandle } from '@/utils/initial-data-io'
-import { readProject } from './structure-io'
+import type { Schema, Table } from '@/types/schema'
+import { readProject, type CommonDocument } from './structure-io'
 
 /** 本步骤的终点版本（引入 current/ 新布局后的第一个结构版本） */
 const V1_0 = '1.0'
@@ -30,7 +31,7 @@ const V1_0 = '1.0'
 /** 结构迁移依赖（由调度器注入） */
 export interface StructureMigrationDeps {
   /** 将内存态单表序列化为可写出的 table.json 对象 */
-  transformTable: (schema: any, table: any) => any
+  transformTable: (schema: Schema, table: Table) => Table
 }
 
 /**
@@ -53,7 +54,7 @@ export async function migrate(
   if (oldCommon) oldCommon.struct_version = V1_0
 
   // 3. 构造新结构写盘数据
-  const newCommon = oldCommon ?? { struct_version: V1_0 }
+  const newCommon: CommonDocument = oldCommon ?? { struct_version: V1_0 }
   // 将 schema_order 从根 common 迁入 database.json：
   // - 旧 common 中若存在 schema_order，原样沿用（必须和之前保持一致）；
   // - 旧 common 中若不存在，则不写该字段（使用方 applySchemaOrder 已兼容「排序不存在」的情况，

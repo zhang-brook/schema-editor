@@ -1,6 +1,7 @@
 {
   "name": "schema-editor",
   "private": true,
+  "version": "0.7.0",
   "author": "zhang-brook",
   "license": "MIT",
   "repository": {

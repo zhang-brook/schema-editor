@@ -97,7 +97,7 @@ app/
 │   │   ├── preload.ts           # 通过 contextBridge 暴露 window.schemaEditorDesktop
 │   │   └── fs-service.ts        # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
 │   ├── vite.config.mts          # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
-│   └── electron-builder.yml     # Windows 打包配置（NSIS 安装包 + 免安装 exe）
+│   └── electron-builder.mjs     # Windows 打包配置（NSIS 安装包 + 免安装 exe），打包时注入根版本号
 └── packages/
     ├── core/                    # schema-editor-core：与 UI、与 Vue 运行时无关的领域核心，网页与桌面共用
     │   ├── package.json         # 源码直出（exports 指向 src/*.ts），宿主构建工具直接编译，无独立构建步骤
@@ -204,7 +204,7 @@ pnpm test:unit     # Vitest 单元测试（覆盖 packages/core、app/web 与 ap
 pnpm type-check    # 全仓类型检查（根配置 + packages/core + app/web + app/desktop）
 pnpm lint          # 串行：oxlint → eslint（覆盖整个仓库）
 pnpm format        # oxfmt 格式化 app/web/src
-pnpm changelog     # 生成 CHANGELOG（版本号取自 app/web/package.json）
+pnpm changelog     # 生成 CHANGELOG（版本号取自仓库根 package.json）
 ```
 
 桌面端：

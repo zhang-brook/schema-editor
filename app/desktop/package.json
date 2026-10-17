@@ -1,7 +1,6 @@
 {
   "name": "schema-editor-desktop",
   "private": true,
-  "version": "0.7.0",
   "description": "Schema Editor 桌面端外壳（Electron），加载前端构建产物并桥接本地文件系统",
   "author": "zhang-brook",
   "license": "MIT",
@@ -10,7 +9,7 @@
     "start": "cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ electron .",
     "build:main": "vite build && vite build --mode preload",
     "type-check": "tsc --noEmit",
-    "pack": "cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --config electron-builder.yml"
+    "pack": "cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --config electron-builder.mjs"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",

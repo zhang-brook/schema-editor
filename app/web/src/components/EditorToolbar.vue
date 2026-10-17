@@ -22,7 +22,7 @@ import MonitorIcon from '@/components/icon/MonitorIcon.vue'
 import SunIcon from '@/components/icon/SunIcon.vue'
 import MoonIcon from '@/components/icon/MoonIcon.vue'
 import { GITHUB_REPO_URL, GITHUB_ISSUE_URL, changelogUrl } from '@/utils/constants'
-import { version } from '@/../package.json'
+import { APP_VERSION } from '@/utils/build-info'
 import { useTheme } from '@/composables/useTheme'
 import type { ThemePreference } from '@/composables/useTheme'
 import { useDensity } from '@/composables/useDensity'
@@ -284,7 +284,7 @@ onUnmounted(() => {
           </DropdownMenuItem>
           <DropdownMenuSeparator class="menu-separator" />
           <DropdownMenuItem as-child class="menu-dropdown-item">
-            <a :href="changelogUrl(version)" target="_blank" rel="noopener noreferrer">{{ $t('toolbar.changelog') }}</a>
+            <a :href="changelogUrl(APP_VERSION)" target="_blank" rel="noopener noreferrer">{{ $t('toolbar.changelog') }}</a>
           </DropdownMenuItem>
           <DropdownMenuSeparator class="menu-separator" />
           <DropdownMenuItem class="menu-dropdown-item" @select="showAboutModal = true">

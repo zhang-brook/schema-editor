@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { version } from '@/../package.json'
-import { BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
+import { APP_VERSION, BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
 import { GITHUB_REPO_URL, changelogUrl } from '@/utils/constants'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
@@ -103,7 +102,7 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
         </div>
         <div class="about-info">
           <div class="about-name">{{ $t('app.title') }}</div>
-          <div class="about-version">{{ $t('about.version') }} {{ version }}</div>
+          <div class="about-version">{{ $t('about.version') }} {{ APP_VERSION }}</div>
           <div class="about-meta">
             <div class="about-meta-row">
               <span class="about-meta-label">{{ $t('about.buildTime') }}</span>
@@ -139,7 +138,7 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
           {{ $t('about.github') }}
         </a>
         <a
-          :href="changelogUrl(version)"
+          :href="changelogUrl(APP_VERSION)"
           target="_blank"
           rel="noopener noreferrer"
           class="about-github-link"

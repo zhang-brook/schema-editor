@@ -12,7 +12,7 @@ import {
 
 const cwd = fileURLToPath(new URL('..', import.meta.url))
 const changelogPath = fileURLToPath(new URL('../CHANGELOG.md', import.meta.url))
-const { version } = JSON.parse(readFileSync(new URL('../app/web/package.json', import.meta.url), 'utf8'))
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
 
 const git = (args) => spawnSync('git', args, { cwd, encoding: 'utf8' }).stdout.trim()
 const gitRefExists = (ref) => spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd }).status === 0

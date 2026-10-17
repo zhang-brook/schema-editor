@@ -31,9 +31,17 @@ export const FIELD_SEMANTIC_KEYS: (keyof Field)[] = [
   'sqlite',
 ]
 
+/** 对比两侧对象在给定时序属性上的差异，返回发生变化的属性 → [旧值, 新值] */
+export function diffSemantics<T extends object>(a: T, b: T, keys: readonly (keyof T)[]): Record<string, [unknown, unknown]> {
+  const changes: Record<string, [unknown, unknown]> = {}
+  for (const key of keys) {
+    if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) changes[String(key)] = [a[key], b[key]]
+  }
+  return changes
+}
+
 /** 低于该分数的候选直接视为「不相关」 */
 export const MATCH_THRESHOLD = 0.5
-
 /** 最优与次优分数差小于该值时，认为存在歧义，需交由用户确认 */
 export const AMBIGUITY_MARGIN = 0.12
 
@@ -131,8 +139,8 @@ export function fieldSimilarity(a: Field, b: Field): number {
   let compared = 0
   let same = 0
   for (const k of FIELD_SEMANTIC_KEYS) {
-    const av = (a as unknown as Record<string, unknown>)[k]
-    const bv = (b as unknown as Record<string, unknown>)[k]
+    const av = a[k]
+    const bv = b[k]
     if (av === undefined && bv === undefined) continue
     compared++
     if (JSON.stringify(av) === JSON.stringify(bv)) same++

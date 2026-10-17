@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref, toRaw, watch, nextTick } from 'vue'
-import type { InitialData, InitialDataRow, Schema } from '@/types/schema'
+import type { InitialData, InitialDataRow, JsonValue, Schema } from '@/types/schema'
 import { CommandManager, affectedInitialData, affectedSql, type Command } from '@/core/history/command'
 import { parseDefaultInput } from '@/utils/file-helpers'
 import { buildInitialDataExport } from '@/utils/initial-data-io'
@@ -30,6 +30,8 @@ function setup(data?: InitialData) {
 }
 
 const expectedFiles = [affectedInitialData('public', 'users'), affectedSql()]
+/** 单元格里的嵌套结构：深拷贝断言与变异都要按形态收窄 */
+const nested = <T>(value: JsonValue): T => value as T
 const richRow = (): InitialDataRow => ({
   data: { id: 0, enabled: false, value: null, missing: undefined, time: 'CURRENT_TIMESTAMP()', nested: { items: [0, false, null] } },
   field_comments: { id: 'identifier', time: 'expression' },
@@ -87,13 +89,13 @@ describe('initial data entry commands', () => {
     s.setInitialDataObject('public', 'users', input)
     input.rows[0]!.data.nested.flag = true
     input.post_sql.sqlite = 'caller mutation'
-    old.rows[0]!.data.nested.items.push(99)
+    nested<{ items: unknown[] }>(old.rows[0]!.data.nested).items.push(99)
     const replaced = s.currentInitialData.value!
-    expect(replaced.rows![0]!.data.nested.flag).toBe(false)
+    expect(nested<{ flag: boolean }>(replaced.rows![0]!.data.nested).flag).toBe(false)
     s.manager.undo()
     expect(toRaw(s.currentInitialData.value!.rows![0]!)).toBe(toRaw(row))
     expect(row.data.id).toBe(7)
-    expect(row.data.nested.items).toEqual([0, false, null])
+    expect(nested<{ items: unknown[] }>(row.data.nested).items).toEqual([0, false, null])
     s.manager.undo()
     expect(row.data.id).toBe(0)
     s.manager.redo()
@@ -189,11 +191,11 @@ describe('initial data row property commands', () => {
     const input = { values: [0, false, null] }
     s.setInitialDataCell('public', 'users', row, 'object', input)
     input.values.push(9)
-    expect(row.data.object.values).toEqual([0, false, null])
-    row.data.object.values.push(8)
+    expect(nested<{ values: unknown[] }>(row.data.object).values).toEqual([0, false, null])
+    nested<{ values: unknown[] }>(row.data.object).values.push(8)
     s.manager.undo()
     s.manager.redo()
-    expect(row.data.object.values).toEqual([0, false, null])
+    expect(nested<{ values: unknown[] }>(row.data.object).values).toEqual([0, false, null])
   })
 
   it.each(['field_comments', 'expr_fields', 'row_comment', 'is_skip'] as const)('undo restores absent/empty/false %s exactly', property => {

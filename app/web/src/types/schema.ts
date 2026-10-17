@@ -55,12 +55,22 @@ export interface CommentOption {
   sqlite?: string
 }
 
+/**
+ * 初始数据单元格与字段默认值的取值域：JSON 标量，或已解析出的嵌套结构。
+ * 嵌套层不再逐层建模，磁盘读到的值都按 unknown 兜住，由使用处收窄。
+ */
+export type JsonValue = string | number | boolean | null | undefined | unknown[] | Record<string, unknown>
+
+export interface JsonObject {
+  [key: string]: JsonValue
+}
+
 // 字段的数据库特定覆盖
 export interface FieldOverride {
   field_type?: string
   field_length?: number | null
   field_scale?: number | null
-  default?: any
+  default?: JsonValue
 }
 
 // 索引的数据库特定覆盖
@@ -128,7 +138,7 @@ export interface Field {
   primary_key?: boolean
   /** 默认值是否需要引号包裹（覆盖 unified_type 的设置，仅自定义类型时生效） */
   quote_default?: boolean
-  default?: any
+  default?: JsonValue
   /** MySQL：追加 `ON UPDATE CURRENT_TIMESTAMP[(n)]`（「最后修改时间」字段用法）；其他方言不输出 */
   on_update_current_timestamp?: boolean
   /**
@@ -301,7 +311,7 @@ export interface CommonConfig {
  */
 export interface InitialDataRow {
   /** 行的字段数据 */
-  data: Record<string, any>
+  data: JsonObject
   /** 该行的字段级注释（仅有注释的字段才出现） */
   field_comments?: Record<string, string>
   /** 标记为「SQL 表达式」的字段：值为任意 SQL 表达式，生成 INSERT 时不加引号原样输出（如 CURRENT_TIMESTAMP()），仅字符串类字段有意义 */
@@ -326,7 +336,7 @@ export interface InitialData {
  * 仅用于升级器读取旧磁盘格式，运行时内存态一律使用 {@link InitialData} 行内结构。
  */
 export interface LegacyInitialData {
-  rows?: Record<string, any>[]
+  rows?: JsonObject[]
   row_comments?: (string | null)[]
   field_comments?: (Record<string, string> | null)[]
   /** 逐行跳过标记：skip_rows[i] === true 时该行不生成 INSERT 语句 */

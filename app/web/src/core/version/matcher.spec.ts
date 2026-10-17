@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Field, Index, Table } from '@/types/schema'
 import {
+  diffSemantics,
   fieldSimilarity,
   jaccard,
   levenshtein,
@@ -216,5 +217,41 @@ describe('索引级配对', () => {
     const mk = (name: string): Index => ({ name, type: 'index', columns: [{ name: 'user_id' }] })
     const result = matchIndexes([mk('idx_uid')], [mk('idx_user_id')])
     expect(result.pairs).toHaveLength(1)
+  })
+})
+
+describe('diffSemantics', () => {
+  it('只报告变化的键，值为新旧二元组', () => {
+    const a = field('u', { field_type: 'varchar', field_length: 32, not_null: true })
+    const b = field('u', { field_type: 'varchar', field_length: 64, not_null: true })
+    expect(diffSemantics(a, b, ['field_type', 'field_length', 'not_null'])).toEqual({
+      field_length: [32, 64],
+    })
+  })
+
+  it('缺省键与显式 undefined 视为相同', () => {
+    expect(diffSemantics(field('u'), field('u', { comment: undefined }), ['comment'])).toEqual({})
+  })
+
+  it('null 与空串、false 与 0 都算变更', () => {
+    expect(diffSemantics(field('u', { default: null }), field('u', { default: '' }), ['default'])).toEqual({
+      default: [null, ''],
+    })
+    expect(diffSemantics(field('u', { not_null: false }), field('u', { not_null: true }), ['not_null'])).toEqual({
+      not_null: [false, true],
+    })
+  })
+
+  it('嵌套结构按键名顺序敏感比较', () => {
+    const keys = ['mysql'] as const
+    const a = field('u', { mysql: { field_type: 'int', default: 1 } })
+    const b = field('u', { mysql: { default: 1, field_type: 'int' } })
+    expect(diffSemantics(a, b, keys)).toEqual({ mysql: [a.mysql, b.mysql] })
+    expect(diffSemantics(a, field('u', { mysql: { field_type: 'int', default: 1 } }), keys)).toEqual({})
+  })
+
+  it('无变更时返回空对象', () => {
+    const a = field('u', { field_type: 'int', field_length: 4 })
+    expect(diffSemantics(a, { ...a }, ['field_type', 'field_length'])).toEqual({})
   })
 })

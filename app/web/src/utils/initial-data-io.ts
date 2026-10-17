@@ -1,5 +1,5 @@
 import { toRaw } from 'vue'
-import type { InitialData, InitialDataRow, LegacyInitialData } from '@/types/schema'
+import type { InitialData, InitialDataRow, JsonObject, LegacyInitialData, SqlStatements } from '@/types/schema'
 import {
   getCurrentDir,
   getCurrentSchemasDir,
@@ -97,15 +97,16 @@ export async function readInitialDataFromHandle(
 export function normalizeInitialData(raw: unknown): InitialData | null {
   // 纯数组：直接包成行内 rows
   if (Array.isArray(raw)) {
-    return { rows: raw.map(r => ({ data: (r ?? {}) as Record<string, any> })) }
+    return { rows: raw.map((r: unknown) => ({ data: (r ?? {}) as JsonObject })) }
   }
 
   if (raw && typeof raw === 'object') {
-    const obj = raw as Record<string, any>
+    // 磁盘旧格式按 LegacyInitialData 视图取值，内部逐字段仍做运行时防御
+    const obj = raw as LegacyInitialData
     const result: InitialData = {}
 
     if (Array.isArray(obj.rows)) {
-      result.rows = mergeToInlineRows(obj as LegacyInitialData)
+      result.rows = mergeToInlineRows(obj)
     }
     if (obj.pre_sql && typeof obj.pre_sql === 'object') result.pre_sql = { ...obj.pre_sql }
     if (obj.post_sql && typeof obj.post_sql === 'object') result.post_sql = { ...obj.post_sql }
@@ -127,16 +128,16 @@ function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
   const skipRows = obj.skip_rows
 
   return rows.map((r, i) => {
-    const raw = (r ?? {}) as Record<string, any>
+    const raw = r ?? {}
     // 已是行内格式（带 data 键）：原样沿用，仅在缺省时从平行数组补齐
     const isInline = raw.data !== undefined && typeof raw.data === 'object'
     const row: InitialDataRow = isInline
       ? {
-          data: (raw.data ?? {}) as Record<string, any>,
-          ...(raw.field_comments ? { field_comments: raw.field_comments } : {}),
-          ...(raw.expr_fields ? { expr_fields: raw.expr_fields } : {}),
+          data: (raw.data ?? {}) as JsonObject,
+          ...(raw.field_comments ? { field_comments: raw.field_comments as Record<string, string> } : {}),
+          ...(raw.expr_fields ? { expr_fields: raw.expr_fields as Record<string, boolean> } : {}),
           ...(raw.is_skip === true ? { is_skip: true } : {}),
-          ...(raw.row_comment ? { row_comment: raw.row_comment } : {}),
+          ...(raw.row_comment ? { row_comment: raw.row_comment as string } : {}),
         }
       : { data: raw }
 
@@ -154,16 +155,31 @@ function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
   })
 }
 
+/** 写出到 initial-data.json 的干净文档（行内结构，只含非空字段）；用 type 别名以便结构式赋值 */
+type InlineRowExport = {
+  data: JsonObject
+  field_comments?: Record<string, string>
+  expr_fields?: Record<string, boolean>
+  is_skip?: true
+  row_comment?: string
+}
+
+type InitialDataExportDocument = {
+  rows?: InlineRowExport[]
+  pre_sql?: SqlStatements
+  post_sql?: SqlStatements
+}
+
 /**
  * 构建行内 InitialData 的干净导出对象：只写非空字段，保持磁盘文件精简。
  * 每行仅在有值时输出 field_comments / is_skip / row_comment。
  */
-export function buildInitialDataExport(data: InitialData): Record<string, any> {
-  const exportData: Record<string, any> = {}
+export function buildInitialDataExport(data: InitialData): InitialDataExportDocument {
+  const exportData: InitialDataExportDocument = {}
 
   if (data.rows) {
     exportData.rows = toRaw(data.rows).map(row => {
-      const out: Record<string, any> = { data: toRaw(row.data) }
+      const out: InlineRowExport = { data: toRaw(row.data) }
       if (row.field_comments && Object.keys(row.field_comments).length > 0) {
         out.field_comments = toRaw(row.field_comments)
       }

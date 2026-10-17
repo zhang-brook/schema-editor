@@ -11,7 +11,7 @@ export interface InitialDataDeps {
   currentSchema: ComputedRef<Schema | null | undefined>
   currentTable: ComputedRef<Table | null | undefined>
   executeCommand: (cmd: Command) => void
-  t: (key: string, options?: any) => string
+  t: (key: string, options?: Record<string, unknown>) => string
 }
 
 export function createInitialDataActions(deps: InitialDataDeps) {

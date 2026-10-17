@@ -1,4 +1,4 @@
-import type { InitialData, Schema } from '@/types/schema'
+import type { Field, InitialData, Schema, Table, UnifiedTypeDefinition } from '@/types/schema'
 import {
   getCommonFileHandle,
   getSchemasDir,
@@ -30,10 +30,29 @@ import { normalizeInitialData, buildInitialDataExport } from '@/utils/initial-da
  * 在内存态上做字段变更后写回即可，无需新增任何 IO 代码。
  */
 
+/**
+ * 磁盘上的根配置文档：旧布局是根 common.json，新布局是 current/database.json。
+ * 迁移期间需要读写各历史版本的遗留键（如 default_config.pgsql），
+ * 故只声明迁移关心的键，default_config 保持为未收窄的记录视图。
+ */
+export interface CommonDocument {
+  struct_version?: string
+  schema_order?: string[]
+  default_config?: Record<string, unknown>
+  common_used_fields?: Record<string, Field>
+  unified_types?: UnifiedTypeDefinition[]
+}
+
+/** 磁盘上的 table.json：可能是 { schema, table } 包裹形态，也可能是直接展开的表对象 */
+interface TableDocument extends Partial<Table> {
+  schema?: string
+  table?: Partial<Table> & { schema?: string }
+}
+
 /** 统一的内存态项目数据模型（与磁盘布局无关） */
 export interface ProjectData {
-  /** 全局配置（含 struct_version） */
-  common: any
+  /** 全局配置（含 struct_version）；文件缺失或不可读时为 null */
+  common: CommonDocument | null
   /** 全部 schema（含 tables、fields、indexes 等完整结构） */
   schemas: Schema[]
   /** 初始数据，key 为 "<schemaName>/<tableName>" */
@@ -57,10 +76,10 @@ async function readOldLayout(rootHandle: FileSystemDirectoryHandle): Promise<Pro
   return { common, schemas, initialData: mapFromPairs(initialData) }
 }
 
-async function readOldCommon(rootHandle: FileSystemDirectoryHandle): Promise<any> {
+async function readOldCommon(rootHandle: FileSystemDirectoryHandle): Promise<CommonDocument | null> {
   try {
     const handle = await getCommonFileHandle(rootHandle, false)
-    return await readJsonFile(handle)
+    return await readJsonFile<CommonDocument>(handle)
   } catch {
     return null
   }
@@ -143,7 +162,7 @@ async function writeOldSchema(
 
 async function writeOldCommon(
   rootHandle: FileSystemDirectoryHandle,
-  common: any,
+  common: CommonDocument,
 ): Promise<void> {
   const handle = await getCommonFileHandle(rootHandle)
   await writeJsonFile(handle, common)
@@ -171,10 +190,10 @@ async function readNewLayout(rootHandle: FileSystemDirectoryHandle): Promise<Pro
   return { common, schemas, initialData }
 }
 
-async function readNewCommon(currentDir: FileSystemDirectoryHandle): Promise<any> {
+async function readNewCommon(currentDir: FileSystemDirectoryHandle): Promise<CommonDocument | null> {
   try {
     const handle = await getCurrentDatabaseFileHandle(currentDir, false)
-    return await readJsonFile(handle)
+    return await readJsonFile<CommonDocument>(handle)
   } catch {
     return null
   }
@@ -191,7 +210,7 @@ async function readNewSchemas(currentDir: FileSystemDirectoryHandle): Promise<Sc
       const tableDir = tableEntry as FileSystemDirectoryHandle
       try {
         const handle = await getTableFileHandle(tableDir, false)
-        const tableJson = await readJsonFile<any>(handle)
+        const tableJson = await readJsonFile<TableDocument>(handle)
         // 新布局 table.json 结构：{ schema, table } 或已展开；归一化为统一内存态
         const schemaName = schemaNameFromTable(tableJson) ?? schemaEntry.name
         let schema = result.find((s) => s.schema === schemaName)
@@ -199,7 +218,7 @@ async function readNewSchemas(currentDir: FileSystemDirectoryHandle): Promise<Sc
           schema = { schema: schemaName, tables: [] } as Schema
           result.push(schema)
         }
-        schema.tables.push(tableJson.table ?? tableJson)
+        schema.tables.push((tableJson.table ?? tableJson) as Table)
       } catch (e) {
         console.warn(`[structure-io] failed to parse table "${schemaEntry.name}/${tableEntry.name}":`, e)
       }
@@ -242,7 +261,8 @@ async function writeNewLayout(rootHandle: FileSystemDirectoryHandle, data: Proje
   for (const schema of data.schemas) {
     const schemaDir = await getSchemaDirUnderCurrent(schemasDir, schema.schema)
     for (const table of schema.tables) {
-      const tableName = (table as any).name ?? (table as any).table?.name
+      const tableDoc = table as TableDocument
+      const tableName = tableDoc.name ?? tableDoc.table?.name
       if (!tableName) continue
       const tableDir = await getTableDirUnderSchema(schemaDir, tableName)
       const tableHandle = await getTableFileHandle(tableDir)
@@ -259,7 +279,7 @@ async function writeNewLayout(rootHandle: FileSystemDirectoryHandle, data: Proje
 
 // ─────────────────────────────── 公共 API ───────────────────────────────
 
-function schemaNameFromTable(tableJson: any): string | undefined {
+function schemaNameFromTable(tableJson: TableDocument): string | undefined {
   if (typeof tableJson?.schema === 'string') return tableJson.schema
   if (typeof tableJson?.table?.schema === 'string') return tableJson.table.schema
   return undefined

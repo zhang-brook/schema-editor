@@ -5,7 +5,7 @@ export const ALL_SQL_DIALECTS: SqlDialect[] = ['mysql', 'postgresql', 'sqlite']
 
 // ===== 解析公共字段 =====
 
-import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, TypeCaseMode, CommentOption, Index } from "@/types/schema"
+import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, JsonValue, JsonObject, TypeCaseMode, CommentOption, Index } from "@/types/schema"
 import { resolveDialectOverride } from "@/utils/dialect-resolver"
 
 export function resolveField(field: Field, commonConfig: CommonConfig | null): Field {
@@ -189,7 +189,7 @@ export function resolveQuoteDefault(
  * - quote=true 时用单引号包裹并转义
  * - quote=false 时原样输出（适用于数字、布尔等）
  */
-export function formatSqlDefault(value: any, quote: boolean): string {
+export function formatSqlDefault(value: JsonValue, quote: boolean): string {
   const str = String(value)
   // 特殊 SQL 表达式：保持原样
   if (typeof value === 'string' && (value === 'CURRENT_TIMESTAMP' || value.includes('CURRENT_TIMESTAMP'))) {
@@ -392,13 +392,13 @@ export function getInitialDataPostSql(initialData: InitialData, dialect: SqlDial
 export function filterInitialDataRows(
   rows: InitialDataRow[] | undefined
 ): {
-  rows: Record<string, any>[]
+  rows: JsonObject[]
   rowComments: (string | null)[]
   exprFields: Record<string, boolean>[]
   hasRows: boolean
 } {
   const srcRows = rows ?? []
-  const result: Record<string, any>[] = []
+  const result: JsonObject[] = []
   const resultComments: (string | null)[] = []
   const resultExprFields: Record<string, boolean>[] = []
   for (const row of srcRows) {

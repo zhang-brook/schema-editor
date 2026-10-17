@@ -6,7 +6,7 @@ import { parseRepoUrl } from './url'
 interface FakeRequest {
   method: string
   url: string
-  body: any
+  body: unknown
   headers: Record<string, string>
 }
 
@@ -290,7 +290,7 @@ describe('GiteaRemote', () => {
         { operation: 'delete', path: 'data/c.json', content: '', sha: 'old-c' },
       ],
     })
-    expect('sha' in call.body.files[0]).toBe(false)
+    expect('sha' in (call.body as { files: object[] }).files[0]!).toBe(false)
   })
 
   it('uses the Gitea recursive query spelling', async () => {

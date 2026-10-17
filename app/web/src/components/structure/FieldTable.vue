@@ -26,7 +26,7 @@ function handleFieldNameChange(field: Field, newName: string) {
 // ===== Direct add field (no modal) =====
 const fieldNameInputRefs: (HTMLInputElement | null)[] = []
 
-function setFieldNameInputRef(el: any, idx: number) {
+function setFieldNameInputRef(el: unknown, idx: number) {
   fieldNameInputRefs[idx] = el as HTMLInputElement | null
 }
 

@@ -1,4 +1,4 @@
-import type { CommonConfig, Schema, Table, Field, InitialData } from '@/types/schema'
+import type { CommonConfig, Schema, Table, Field, InitialData, JsonObject } from '@/types/schema'
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '@/utils/index-column-utils'
 import { resolveDialectOverride } from '@/utils/dialect-resolver'
@@ -274,7 +274,7 @@ export function formatSqlValue(val: unknown, isExpr = false): string {
 /** 生成单表的 INSERT 语句 */
 export function generateInitialDataSQLite(
   table: Table,
-  rows: Record<string, any>[], // rows 应为已过滤掉 skip 行的有效数据
+  rows: JsonObject[], // rows 应为已过滤掉 skip 行的有效数据
   rowComments: (string | null)[] | undefined,
   commonConfig: CommonConfig | null,
   exprFields?: Record<string, boolean>[], // 与 rows 索引对齐：标记某字段值为 SQL 表达式（不加引号）

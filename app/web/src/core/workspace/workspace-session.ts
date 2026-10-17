@@ -1,4 +1,4 @@
-import type { CommonConfig, Schema, Table } from '@/types/schema'
+import type { CommonConfig, Schema, SqlStatements, Table } from '@/types/schema'
 import { normalizeInitialData } from '@/utils/initial-data-io'
 import { DEFAULT_UNIFIED_TYPES } from '@/utils/unified-types'
 import { COMMON_FILE, CURRENT_STRUCT_VERSION, ENVIRONMENTS_DIR, INITIAL_DATA_FILE, MIGRATIONS_DIR, OUTPUT_DIR, VERSIONS_DIR } from './layout'
@@ -20,10 +20,24 @@ export function createDefaultCommonConfig(): CommonConfig {
   }
 }
 
-function parseObject(content: string, path: string): Record<string, any> {
-  const value = JSON.parse(content)
+/** 解析项目文档：只保证顶层是对象，字段形态由调用方逐项校验 */
+function parseObject<T extends object>(content: string, path: string): T {
+  const value: unknown = JSON.parse(content)
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid project document: ${path}`)
-  return value
+  return value as T
+}
+
+/** 磁盘上的 current/database.json */
+interface DatabaseDocument {
+  schema_order?: string[]
+}
+
+/** 磁盘上的 schema.json：表定义按目录分散存放，这里只承载元信息与排序 */
+interface SchemaDocument {
+  schema?: string
+  table_order?: string[]
+  pre_sql?: SqlStatements
+  post_sql?: SqlStatements
 }
 
 function sortByOrder<T>(items: T[], order: string[], name: (item: T) => string) {
@@ -45,7 +59,7 @@ export async function loadWorkspaceDocuments(writer: Pick<BrowserWorkspaceWriter
   const root = await writer.load([COMMON_FILE, databasePath])
   const commonText = root.get(COMMON_FILE)
   if (commonText === undefined) throw new Error(`Missing project document: ${COMMON_FILE}`)
-  const common = parseObject(commonText, COMMON_FILE) as CommonConfig
+  const common = parseObject<CommonConfig>(commonText, COMMON_FILE)
   if (!common.default_config?.mysql || !common.common_used_fields) throw new Error(`Invalid project document: ${COMMON_FILE}`)
   common.default_config.postgresql ??= { quote_identifiers: true }
   common.default_config.sqlite ??= { quote_identifiers: true }
@@ -59,14 +73,14 @@ export async function loadWorkspaceDocuments(writer: Pick<BrowserWorkspaceWriter
   const metadata = await writer.load(metadataPaths)
   const initialPaths: { path: string, key: string }[] = []
   for (const [path, content] of metadata) {
-    const meta = parseObject(content, path)
+    const meta = parseObject<SchemaDocument>(content, path)
     if (typeof meta.schema !== 'string' || !meta.schema || path !== `${schemaDirectory(meta.schema)}/schema.json`) throw new Error(`Invalid schema document: ${path}`)
     const schema: Schema = { schema: meta.schema, tables: [], pre_sql: meta.pre_sql, post_sql: meta.post_sql }
     const directory = schemaDirectory(schema.schema)
     const tablePaths = paths.filter(candidate => candidate.startsWith(`${directory}/`) && candidate.slice(directory.length + 1).split('/').length === 2 && candidate.endsWith('/table.json'))
     const tables = await writer.load(tablePaths)
     for (const [tablePath, tableText] of tables) {
-      const table = parseObject(tableText, tablePath) as Table
+      const table = parseObject<Table>(tableText, tablePath)
       if (typeof table.name !== 'string' || !table.name || tablePath !== `${tableDirectory(schema.schema, table.name)}/table.json`) throw new Error(`Invalid table document: ${tablePath}`)
       table.fields ??= []
       table.indexes ??= []
@@ -89,7 +103,7 @@ export async function loadWorkspaceDocuments(writer: Pick<BrowserWorkspaceWriter
     project.initialData.set(entry.key, initial)
   }
   const databaseText = root.get(databasePath)
-  const database: { schema_order?: string[] } = databaseText === undefined ? {} : parseObject(databaseText, databasePath)
+  const database: DatabaseDocument = databaseText === undefined ? {} : parseObject<DatabaseDocument>(databaseText, databasePath)
   sortByOrder(project.schemas, database.schema_order ?? [], schema => schema.schema)
   common.schema_order = project.schemas.map(schema => schema.schema)
   const auxiliaryPaths: string[] = []

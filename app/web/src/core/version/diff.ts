@@ -22,21 +22,15 @@ import {
   resolveOldPath,
   tablePath,
 } from './identity'
-import { FIELD_SEMANTIC_KEYS } from './matcher'
+import { FIELD_SEMANTIC_KEYS, diffSemantics } from './matcher'
+
+/** 参与索引对比的语义属性（排除 name，name 作为匹配标识） */
+const INDEX_SEMANTIC_KEYS: (keyof Index)[] = ['type', 'using', 'columns', 'active_only', 'logical_delete', 'comment', 'pre_comment', 'mysql', 'postgresql', 'sqlite']
 
 /** 对单索引的「语义属性」做对比（排除 name，name 作为匹配标识） */
-function compareIndexSemantics(a: Index, b: Index): Record<string, [any, any]> {
-  const changes: Record<string, [any, any]> = {}
+function compareIndexSemantics(a: Index, b: Index): Record<string, [unknown, unknown]> {
   // active_only / logical_delete 影响生成的索引定义（部分索引、函数索引），必须参与对比
-  const keys: (keyof Index)[] = ['type', 'using', 'columns', 'active_only', 'logical_delete', 'comment', 'pre_comment', 'mysql', 'postgresql', 'sqlite']
-  for (const k of keys) {
-    const av = (a as any)[k]
-    const bv = (b as any)[k]
-    if (JSON.stringify(av) !== JSON.stringify(bv)) {
-      changes[k] = [av, bv]
-    }
-  }
-  return changes
+  return diffSemantics(a, b, INDEX_SEMANTIC_KEYS)
 }
 
 /** 无名称索引用「列签名」作为匹配键 */
@@ -126,14 +120,7 @@ function diffFields(
       result.push({ type: 'field_renamed', old_name: of.field_name, new_name: nf.field_name })
     }
 
-    const changes: Record<string, [any, any]> = {}
-    for (const k of FIELD_SEMANTIC_KEYS) {
-      const av = (of as any)[k]
-      const bv = (nf as any)[k]
-      if (JSON.stringify(av) !== JSON.stringify(bv)) {
-        changes[k] = [av, bv]
-      }
-    }
+    const changes = diffSemantics(of, nf, FIELD_SEMANTIC_KEYS)
     if (Object.keys(changes).length > 0) {
       result.push({ type: 'field_modified', old_name: of.field_name, new_name: nf.field_name, changes })
     }

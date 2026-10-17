@@ -315,7 +315,7 @@ describe('已有 initial data 序列化函数回归（不改实现）', () => {
     } satisfies Required<InitialData>)
     expect(buildInitialDataExport(source)).toStrictEqual(source)
     const serialized = json(buildInitialDataExport(source))
-    expect(serialized.rows[0].data).toStrictEqual({ zero: 0, disabled: false, empty: '', nil: null, expr: 'CURRENT_TIMESTAMP' })
+    expect(serialized.rows?.[0]?.data).toStrictEqual({ zero: 0, disabled: false, empty: '', nil: null, expr: 'CURRENT_TIMESTAMP' })
     expect(normalizeInitialData(serialized)).toStrictEqual(serialized)
   })
 

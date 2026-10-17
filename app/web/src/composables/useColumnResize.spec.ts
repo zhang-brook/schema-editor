@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { useColumnResize } from './useColumnResize'
 
 const COLUMNS = [
@@ -8,15 +8,15 @@ const COLUMNS = [
 
 function stubStorage(initial: Record<string, string> = {}) {
   const store = new Map(Object.entries(initial))
-  ;(globalThis as any).localStorage = {
+  vi.stubGlobal('localStorage', {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => void store.set(key, value),
-  }
+  })
   return store
 }
 
 afterEach(() => {
-  delete (globalThis as any).localStorage
+  vi.unstubAllGlobals()
 })
 
 describe('列宽持久化', () => {

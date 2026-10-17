@@ -1,5 +1,5 @@
 import { toRaw } from 'vue'
-import type { InitialData, Schema, Table } from '@/types/schema'
+import type { InitialData, JsonValue, Schema, Table } from '@/types/schema'
 import {
   getCommonFileHandle,
   getSchemasDir,
@@ -135,7 +135,7 @@ export async function writeTableToHandle(
 export async function migrateOldToNewStructure(
   rootHandle: FileSystemDirectoryHandle,
   data: {
-    commonConfig: any
+    commonConfig: unknown
     databaseData: { schema_order?: string[] }
     schemas: Schema[]
     transformTable: (schema: Schema, table: Table) => Table
@@ -264,7 +264,7 @@ export function parseDefaultInput(val: string) {
 /**
  * 格式化显示默认值
  */
-export function displayDefault(val: any): string {
+export function displayDefault(val: JsonValue): string {
   if (val === undefined || val === null) return ''
   return String(val)
 }
@@ -283,7 +283,7 @@ export function parseFieldLengthInput(val: string): number | null {
 /**
  * 格式化显示字段长度
  */
-export function displayFieldLength(val: any): string {
+export function displayFieldLength(val: number | null | undefined): string {
   if (val === null || val === undefined) return ''
   return String(val)
 }
@@ -298,6 +298,6 @@ export function parseFieldScaleInput(val: string): number | null {
 /**
  * 格式化显示字段小数位
  */
-export function displayFieldScale(val: any): string {
+export function displayFieldScale(val: number | null | undefined): string {
   return displayFieldLength(val)
 }

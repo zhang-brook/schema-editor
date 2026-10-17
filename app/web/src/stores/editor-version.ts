@@ -33,7 +33,7 @@ export interface VersionDeps {
   schemas: Schema[]
   initialDataMap: Map<string, InitialData>
   showToast: (msg: string) => void
-  t: (key: string, options?: any) => string
+  t: (key: string, options?: Record<string, unknown>) => string
 }
 
 type Documents = NonNullable<ReturnType<VersionDeps['getDocuments']>>

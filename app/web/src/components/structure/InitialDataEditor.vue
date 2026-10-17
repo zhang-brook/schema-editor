@@ -124,8 +124,8 @@ function onJsonInput(text: string) {
     if (store.currentSchema && store.currentTable) {
       store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, parsed)
     }
-  } catch (e: any) {
-    jsonError.value = e.message || t('initialData.jsonError.invalidSyntax')
+  } catch (e: unknown) {
+    jsonError.value = (e instanceof Error && e.message) || t('initialData.jsonError.invalidSyntax')
   }
 }
 
@@ -142,8 +142,8 @@ function switchMode(mode: 'json' | 'table') {
       }
       // 编辑已由 onJsonInput 写入；模式切换仅校验，不重复生成历史。
       jsonError.value = ''
-    } catch (e: any) {
-      jsonError.value = (e.message || t('initialData.jsonError.invalidSyntax')) + t('initialData.jsonError.fixBeforeSwitch')
+    } catch (e: unknown) {
+      jsonError.value = ((e instanceof Error && e.message) || t('initialData.jsonError.invalidSyntax')) + t('initialData.jsonError.fixBeforeSwitch')
       return
     }
   }

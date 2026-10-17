@@ -2,6 +2,11 @@
 
 import type { SqlDialect } from "./sql-generator/shared"
 
+/** 实体上的方言子对象视图；实体形态由调用方保证，属性值统一按 unknown 取出 */
+function dialectSubObject<T>(obj: T | null | undefined, dialect: SqlDialect): Record<string, unknown> | undefined {
+  return (obj as Record<string, unknown> | null | undefined)?.[dialect] as Record<string, unknown> | undefined
+}
+
 /**
  * 读取带方言覆盖的属性：方言优先，其次顶层同名属性，最后回退默认值。
  * 等价于 `obj[dialect]?.[key] ?? obj[key] ?? fallback`。
@@ -20,7 +25,7 @@ export function resolveDialectOverride<T, K extends keyof T & string>(
   key: K,
   fallback?: T[K]
 ): T[K] {
-  const dialectVal = (obj as any)?.[dialect]?.[key]
+  const dialectVal = dialectSubObject(obj, dialect)?.[key]
   if (dialectVal !== undefined) return dialectVal as T[K]
   const topVal = obj?.[key]
   if (topVal !== undefined) return topVal
@@ -45,7 +50,7 @@ export function getDialectOverrideValue<T, K extends keyof T & string>(
   key: K,
   fallback?: T[K]
 ): T[K] {
-  const dialectVal = (obj as any)?.[dialect]?.[key]
+  const dialectVal = dialectSubObject(obj, dialect)?.[key]
   return dialectVal !== undefined ? (dialectVal as T[K]) : (fallback as T[K])
 }
 

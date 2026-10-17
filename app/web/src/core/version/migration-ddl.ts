@@ -10,7 +10,7 @@
  * SQLite 的 ALTER 能力有限（仅 ADD COLUMN / DROP COLUMN / RENAME COLUMN / RENAME TO，
  * 且无 schema 前缀、无 USING 子句），修改列属性需重建表，故此处输出提示性注释。
  */
-import type { CommonConfig, Field, Index, Table } from '@/types/schema'
+import type { CommonConfig, Field, Index, IndexOverride, Table } from '@/types/schema'
 import type { SqlDialect } from '@/utils/sql-generator/shared'
 import {
   resolveFieldTypeForDialect,
@@ -235,7 +235,7 @@ function buildIndexDefinition(
   let indexName = index.name
   let indexType = index.type
   let indexUsing = index.using
-  const override = (index as any)[dialect]
+  const override = index[dialect] as IndexOverride | undefined
   if (override) {
     indexName = override.name || indexName
     indexType = override.type || indexType
@@ -255,7 +255,7 @@ function buildIndexDefinition(
     : index.columns
 
   const colList = columnsForSql.map(c => {
-    const { name, sortPart } = splitColumnForSql(c as any, dialect)
+    const { name, sortPart } = splitColumnForSql(c, dialect)
     if (useMysqlExpression && logicalDelete) {
       return `(${buildMysqlActiveExpression(name, logicalDelete.field)})${sortPart}`
     }

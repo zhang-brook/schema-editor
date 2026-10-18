@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.1
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.0...v0.8.1)
+
+### 🚀 新功能
+
+- **desktop:** 在 CI 打包 Windows 安装包并配置更新源 ([b8cf502](https://github.com/zhang-brook/schema-editor/commit/b8cf502))
+- **desktop:** 支持应用内检查并安装新版本 ([42a0f97](https://github.com/zhang-brook/schema-editor/commit/42a0f97))
+
+### 📖 文档
+
+- 记录桌面端安装包产出与应用内更新链路 ([ccc4a2c](https://github.com/zhang-brook/schema-editor/commit/ccc4a2c))
+
 ## v0.8.0
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.7.0...v0.8.0)

@@ -6,6 +6,7 @@ import { GITHUB_REPO_URL, changelogUrl } from '@/utils/constants'
 import { updateStatusLabel, useDesktopUpdate } from '@/composables/useDesktopUpdate'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
+import logoUrl from '@/assets/logo.svg'
 
 const props = defineProps<{
   visible: boolean
@@ -107,7 +108,7 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
 
       <div class="about-body">
         <div class="about-logo">
-          <img src="/logo.png" alt="Logo" class="about-logo-img" />
+          <img :src="logoUrl" alt="Logo" class="about-logo-img" />
         </div>
         <div class="about-info">
           <div class="about-name">{{ $t('app.title') }}</div>

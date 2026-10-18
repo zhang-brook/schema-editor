@@ -19,6 +19,7 @@ import {
 import { useEditorStore } from '@/stores/editor'
 import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
+import logoUrl from '@/assets/logo.svg'
 import AboutModal from '@/components/modal/AboutModal.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import MonitorIcon from '@/components/icon/MonitorIcon.vue'
@@ -205,7 +206,7 @@ onUnmounted(() => {
 <template>
   <!-- ===== Menu Bar ===== -->
   <div class="menu-bar">
-    <img src="/logo.png" alt="Logo" class="menu-bar-logo" />
+    <img :src="logoUrl" alt="Logo" class="menu-bar-logo" />
     <span class="menu-bar-brand">{{ $t('app.title') }}</span>
 
     <!-- File Menu -->

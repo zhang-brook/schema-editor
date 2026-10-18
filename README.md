@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./app/web/public/logo.png" width="128" alt="schema-editor logo">
+  <img src="./app/web/src/assets/logo.svg" width="128" alt="schema-editor logo">
 </p>
 
 <h1 align="center">schema-editor</h1>

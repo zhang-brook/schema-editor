@@ -18,7 +18,7 @@ export default {
   // Source of the online update metadata: clients read latest.yml from that release; publishing itself is done by CI
   publish: { provider: 'github', owner: 'zhang-brook', repo: 'schema-editor' },
   win: {
-    icon: '../web/public/logo.png',
+    icon: 'build/icon.png',
     target: ['nsis', 'portable'],
   },
   nsis: {
@@ -31,14 +31,14 @@ export default {
     artifactName: artifactName('windows', 'portable'),
   },
   mac: {
-    icon: '../web/public/logo.png',
+    icon: 'build/icon.png',
     // dmg is for manual installs; zip is the target required for in-app updates
     target: ['dmg', 'zip'],
     category: 'public.app-category.developer-tools',
     artifactName: artifactName('macos'),
   },
   linux: {
-    icon: '../web/public/logo.png',
+    icon: 'build/icon.png',
     target: ['AppImage', 'deb'],
     category: 'Development',
     maintainer: 'zhang-brook <zhang-brook@users.noreply.github.com>',

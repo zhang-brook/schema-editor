@@ -1,10 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { DESKTOP_CHANNELS, type DesktopBridge, type DesktopWatchEvent } from 'schema-editor-bridge'
+import {
+  DESKTOP_CHANNELS,
+  type DesktopBridge,
+  type DesktopUpdateStatus,
+  type DesktopWatchEvent,
+} from 'schema-editor-bridge'
 
 let watchHandler: ((event: DesktopWatchEvent) => void) | null = null
+let updateHandler: ((status: DesktopUpdateStatus) => void) | null = null
 
 ipcRenderer.on(DESKTOP_CHANNELS.watchEvent, (_event, payload: DesktopWatchEvent) => {
   watchHandler?.(payload)
+})
+
+ipcRenderer.on(DESKTOP_CHANNELS.updateStatus, (_event, payload: DesktopUpdateStatus) => {
+  updateHandler?.(payload)
 })
 
 const bridge: DesktopBridge = {
@@ -19,6 +29,12 @@ const bridge: DesktopBridge = {
   watchStop: id => ipcRenderer.invoke(DESKTOP_CHANNELS.watchStop, id),
   setWatchHandler: handler => {
     watchHandler = handler
+  },
+  getUpdateStatus: () => ipcRenderer.invoke(DESKTOP_CHANNELS.getUpdateStatus),
+  checkUpdate: () => ipcRenderer.invoke(DESKTOP_CHANNELS.checkUpdate),
+  installUpdate: () => ipcRenderer.invoke(DESKTOP_CHANNELS.installUpdate),
+  setUpdateHandler: handler => {
+    updateHandler = handler
   },
 }
 

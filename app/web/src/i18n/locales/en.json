@@ -684,6 +684,15 @@
     "commit": "Git commit",
     "github": "View on GitHub",
     "changelog": "Changelog",
-    "close": "OK"
+    "close": "OK",
+    "update": {
+      "check": "Check for updates",
+      "checking": "Checking for updates…",
+      "upToDate": "You're on the latest version",
+      "downloading": "Downloading v{version} ({percent}%)",
+      "ready": "v{version} is ready to install",
+      "install": "Restart to install",
+      "failed": "Update check failed, please try again later"
+    }
   }
 }

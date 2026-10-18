@@ -90,6 +90,15 @@ function memoryBridge(files: Record<string, string> = {}) {
     setWatchHandler(handler) {
       watchHandler = handler
     },
+    // 更新通道与本组用例无关，按未打包运行返回 unsupported
+    async getUpdateStatus() {
+      return { state: 'unsupported', currentVersion: '0.0.0' }
+    },
+    async checkUpdate() {
+      return { state: 'unsupported', currentVersion: '0.0.0' }
+    },
+    async installUpdate() {},
+    setUpdateHandler() {},
   }
 
   return {

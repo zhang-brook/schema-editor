@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { APP_VERSION, BUILD_TIME, COMMIT_ID } from '@/utils/build-info'
 import { GITHUB_REPO_URL, changelogUrl } from '@/utils/constants'
+import { updateStatusLabel, useDesktopUpdate } from '@/composables/useDesktopUpdate'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
@@ -14,7 +15,15 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
+
+// 在线更新只在打包后的桌面端可用
+const { status, supported, checkUpdate, installUpdate } = useDesktopUpdate()
+const isChecking = computed(() => status.value?.state === 'checking')
+const isReady = computed(() => status.value?.state === 'ready')
+const updateText = computed(() =>
+  updateStatusLabel(status.value, (key, params) => (params ? t(key, params) : t(key))),
+)
 
 // ESC/ENTER 关闭弹窗
 const closeBtn = ref<HTMLButtonElement | null>(null)
@@ -125,6 +134,18 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
               <span v-else class="about-meta-value">{{ COMMIT_ID }}</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div v-if="supported" class="about-update">
+        <span v-if="updateText" class="about-update-text">{{ updateText }}</span>
+        <div class="about-update-actions">
+          <button class="btn btn-ghost btn-sm" :disabled="isChecking" @click="checkUpdate">
+            {{ $t('about.update.check') }}
+          </button>
+          <button v-if="isReady" class="btn btn-primary btn-sm" @click="installUpdate">
+            {{ $t('about.update.install') }}
+          </button>
         </div>
       </div>
 
@@ -254,6 +275,25 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
 .about-commit-link:hover {
   color: var(--accent-hover);
   text-decoration: underline;
+}
+
+.about-update {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 14px;
+}
+
+.about-update-text {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.about-update-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
 }
 
 .about-github {

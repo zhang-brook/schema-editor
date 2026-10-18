@@ -684,6 +684,15 @@
     "commit": "Git 提交",
     "github": "在 GitHub 上查看",
     "changelog": "更新日誌",
-    "close": "確定"
+    "close": "確定",
+    "update": {
+      "check": "檢查更新",
+      "checking": "正在檢查更新…",
+      "upToDate": "已是最新版本",
+      "downloading": "正在下載 v{version}（{percent}%）",
+      "ready": "v{version} 已下載完成",
+      "install": "重新啟動並安裝",
+      "failed": "檢查更新失敗，請稍後再試"
+    }
   }
 }

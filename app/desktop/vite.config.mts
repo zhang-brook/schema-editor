@@ -21,7 +21,8 @@ export default defineConfig(({ mode }) => {
       target: 'node22',
       rollupOptions: {
         input: { [entry.name]: entry.path },
-        external: ['electron'],
+        // electron 由运行时提供；electron-updater 是生产依赖，随 asar 一起打包，不在主进程产物里内联
+        external: ['electron', 'electron-updater'],
         output: {
           format: 'cjs',
           entryFileNames: '[name].cjs',

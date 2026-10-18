@@ -153,6 +153,27 @@ jobs:
             echo "未在 CHANGELOG.md 中找到 ${GITHUB_REF_NAME} 对应的更新说明。" > release-body.md
           fi
 
+      - name: Append download links
+        run: |
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          asset() { find release -maxdepth 1 -type f -name "$1" -printf '%f\n' -quit; }
+
+          win_setup=$(asset '*-windows-*-setup.exe')
+          win_portable=$(asset '*-windows-*-portable.exe')
+          mac_dmg=$(asset '*-macos-*.dmg')
+          linux_appimage=$(asset '*-linux-*.AppImage')
+          linux_deb=$(asset '*-linux-*.deb')
+
+          {
+            echo ''
+            echo '### 📥 下载'
+            echo ''
+            echo "- **Windows (x64)**：[安装包](${base}/${win_setup}) · [便携版](${base}/${win_portable})"
+            echo "- **macOS (Universal)**：[DMG](${base}/${mac_dmg})"
+            echo "- **Linux (x64)**：[AppImage](${base}/${linux_appimage}) · [DEB](${base}/${linux_deb})"
+            echo "- **Web**：[在线使用](https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/) · [离线包](${base}/schema-editor-${GITHUB_REF_NAME}.zip)"
+          } >> release-body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:

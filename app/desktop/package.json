@@ -1,7 +1,7 @@
 {
   "name": "schema-editor-desktop",
   "private": true,
-  "description": "Schema Editor 桌面端外壳（Electron），加载前端构建产物并桥接本地文件系统",
+  "description": "Schema Editor desktop shell (Electron) that loads the frontend build and bridges the local file system",
   "homepage": "https://github.com/zhang-brook/schema-editor",
   "repository": {
     "type": "git",

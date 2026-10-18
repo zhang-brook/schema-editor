@@ -2,7 +2,7 @@
   "name": "schema-editor-bridge",
   "private": true,
   "version": "0.0.0",
-  "description": "桌面外壳与渲染进程之间的桥接协议（IPC 通道名与负载类型），仅供 workspace 内构建时引用",
+  "description": "Bridge protocol between the desktop shell and the renderer (IPC channels and payload types), referenced at build time within the workspace",
   "author": "zhang-brook",
   "license": "MIT",
   "type": "module",

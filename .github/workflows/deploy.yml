@@ -150,7 +150,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > release-body.md
           if [ ! -s release-body.md ]; then
-            echo "未在 CHANGELOG.md 中找到 ${GITHUB_REF_NAME} 对应的更新说明。" > release-body.md
+            echo "No changelog entry found in CHANGELOG.md for ${GITHUB_REF_NAME}." > release-body.md
           fi
 
       - name: Append download links
@@ -166,12 +166,12 @@ jobs:
 
           {
             echo ''
-            echo '### 📥 下载'
+            echo '### 📥 Downloads'
             echo ''
-            echo "- **Windows (x64)**：[安装包](${base}/${win_setup}) · [便携版](${base}/${win_portable})"
-            echo "- **macOS (Universal)**：[DMG](${base}/${mac_dmg})"
-            echo "- **Linux (x64)**：[AppImage](${base}/${linux_appimage}) · [DEB](${base}/${linux_deb})"
-            echo "- **Web**：[在线使用](https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/) · [离线包](${base}/schema-editor-${GITHUB_REF_NAME}.zip)"
+            echo "- **Windows (x64)**: [Installer](${base}/${win_setup}) · [Portable](${base}/${win_portable})"
+            echo "- **macOS (Universal)**: [DMG](${base}/${mac_dmg})"
+            echo "- **Linux (x64)**: [AppImage](${base}/${linux_appimage}) · [DEB](${base}/${linux_deb})"
+            echo "- **Web**: [Live Preview](https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/) · [Offline bundle](${base}/schema-editor-${GITHUB_REF_NAME}.zip)"
           } >> release-body.md
 
       - name: Create GitHub Release

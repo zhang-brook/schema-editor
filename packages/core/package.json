@@ -2,7 +2,7 @@
   "name": "schema-editor-core",
   "private": true,
   "version": "0.0.0",
-  "description": "与界面无关的结构编辑核心：领域类型、SQL 生成与解析、工作区读写与结构升级、版本差异与迁移",
+  "description": "UI-independent schema editing core: domain types, SQL generation and parsing, workspace I/O and structure upgrades, version diffing and migrations",
   "author": "zhang-brook",
   "license": "MIT",
   "type": "module",

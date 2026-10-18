@@ -289,8 +289,8 @@ function onDropTail(e: DragEvent) {
                     @input="store.updateFieldProp(store.currentTable!, field, 'field_length', parseFieldLengthInput(($event.target as HTMLInputElement).value))"
                     style="width:38px;"
                   />
-                  <span v-else class="disabled-indicator" title="已禁用长度（点击恢复）" @click="store.updateFieldProp(store.currentTable!, field, 'field_length_disabled', undefined)">—</span>
-                  <label class="mini-checkbox-label" title="不设置长度">
+                  <span v-else class="disabled-indicator" :title="$t('fieldTable.lengthDisabledHint')" @click="store.updateFieldProp(store.currentTable!, field, 'field_length_disabled', undefined)">—</span>
+                  <label class="mini-checkbox-label" :title="$t('fieldTable.lengthNotSetHint')">
                     <input
                       type="checkbox"
                       class="mini-checkbox"
@@ -313,8 +313,8 @@ function onDropTail(e: DragEvent) {
                     @input="store.updateFieldProp(store.currentTable!, field, 'field_scale', parseFieldScaleInput(($event.target as HTMLInputElement).value))"
                     style="width:38px;"
                   />
-                  <span v-else class="disabled-indicator" title="已禁用小数位（点击恢复）" @click="store.updateFieldProp(store.currentTable!, field, 'field_scale_disabled', undefined)">—</span>
-                  <label class="mini-checkbox-label" title="不设置小数位">
+                  <span v-else class="disabled-indicator" :title="$t('fieldTable.scaleDisabledHint')" @click="store.updateFieldProp(store.currentTable!, field, 'field_scale_disabled', undefined)">—</span>
+                  <label class="mini-checkbox-label" :title="$t('fieldTable.scaleNotSetHint')">
                     <input
                       type="checkbox"
                       class="mini-checkbox"

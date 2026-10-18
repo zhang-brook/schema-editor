@@ -20,7 +20,7 @@ const gitRefExists = (ref) => spawnSync('git', ['rev-parse', '--verify', '--quie
 const changelog = existsSync(changelogPath) ? readFileSync(changelogPath, 'utf8') : ''
 
 if (new RegExp(`^## v${version.replace(/\./g, '\\.')}\\.?\\s*$`, 'm').test(changelog)) {
-  console.error(`CHANGELOG.md 已包含 v${version}，如需重新生成请先删除该小节`)
+  console.error(`CHANGELOG.md already contains v${version}; delete that section before regenerating`)
   process.exit(1)
 }
 
@@ -50,5 +50,5 @@ const updated = firstEntry
   : (changelog || '# Changelog\n\n') + '\n' + markdown + '\n\n'
 
 writeFileSync(changelogPath, updated)
-console.log(`已写入 v${version} 小节（${config.from}...${config.to}，${commits.length} 条提交）`)
+console.log(`Wrote section v${version} (${config.from}...${config.to}, ${commits.length} commits)`)
 

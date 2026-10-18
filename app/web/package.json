@@ -1,7 +1,7 @@
 {
   "name": "schema-editor-web",
   "private": true,
-  "description": "Schema Editor 前端应用（Vue 3 + Vite），可部署为网页，也作为桌面外壳的渲染层",
+  "description": "Schema Editor frontend (Vue 3 + Vite), deployable as a web app and used as the desktop renderer",
   "author": "zhang-brook",
   "license": "MIT",
   "type": "module",

@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, Index, InitialData, InitialDataInsertMode, JsonObject } from '../../types/schema'
-import { getTableColumnNames, getPrimaryKeyColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
+import { getTableColumnNames, getPrimaryKeyColumnNames, resolveInitialDataInsertMode, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '../index-column-utils'
 import { resolveDialectOverride } from '../dialect-resolver'
 import { buildMysqlActiveExpression, resolveIndexLogicalDelete } from '../logical-delete'
@@ -442,7 +442,7 @@ export function generateInitialDataAllMySQL(
         // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
         // sql += `-- ----------------------------\n`
         sql += `-- Insert data into \`${table.name}\`\n`
-        sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields, commonConfig, initData.insert_mode)
+        sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields, commonConfig, resolveInitialDataInsertMode(initData, commonConfig))
         sql += '\n'
       }
 

@@ -5,7 +5,7 @@ export const ALL_SQL_DIALECTS: SqlDialect[] = ['mysql', 'postgresql', 'sqlite']
 
 // ===== Common field resolution =====
 
-import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, JsonValue, JsonObject, TypeCaseMode, CommentOption, Index } from '../../types/schema'
+import type { CommonConfig, Field, Table, Schema, InitialData, InitialDataRow, InitialDataInsertMode, JsonValue, JsonObject, TypeCaseMode, CommentOption, Index } from '../../types/schema'
 import { resolveDialectOverride } from '../dialect-resolver'
 
 export function resolveField(field: Field, commonConfig: CommonConfig | null): Field {
@@ -340,6 +340,14 @@ export function getPrimaryKeyColumnNames(table: Table, commonConfig: CommonConfi
       return resolved.primary_key === true && !resolved.is_commented_out
     })
     .map(field => field.field_name)
+}
+
+/** Effective initial data INSERT mode: table setting → project default → plain INSERT */
+export function resolveInitialDataInsertMode(
+  initialData: InitialData | undefined,
+  commonConfig: CommonConfig | null,
+): InitialDataInsertMode {
+  return initialData?.insert_mode ?? commonConfig?.initial_data_insert_mode ?? 'insert'
 }
 
 // ===== Pre/post SQL helpers =====

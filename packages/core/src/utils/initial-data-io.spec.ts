@@ -45,10 +45,10 @@ describe('normalizeInitialData', () => {
     expect(normalizeInitialData(once)).toEqual(once)
   })
 
-  it('keeps ignore / overwrite insert modes and drops the default insert mode', () => {
+  it('keeps every valid insert mode and drops unknown values', () => {
+    expect(normalizeInitialData({ rows: [], insert_mode: 'insert' })?.insert_mode).toBe('insert')
     expect(normalizeInitialData({ rows: [], insert_mode: 'ignore' })?.insert_mode).toBe('ignore')
     expect(normalizeInitialData({ rows: [], insert_mode: 'overwrite' })?.insert_mode).toBe('overwrite')
-    expect(normalizeInitialData({ rows: [], insert_mode: 'insert' })).toEqual({ rows: [] })
     expect(normalizeInitialData({ rows: [], insert_mode: 'invalid' })).toEqual({ rows: [] })
   })
 
@@ -87,10 +87,11 @@ describe('buildInitialDataExport', () => {
     })
   })
 
-  it('persists only non-default insert modes', () => {
+  it('persists explicit insert modes and omits inheritance', () => {
+    expect(buildInitialDataExport({ rows: [], insert_mode: 'insert' })).toEqual({ rows: [], insert_mode: 'insert' })
     expect(buildInitialDataExport({ rows: [], insert_mode: 'ignore' })).toEqual({ rows: [], insert_mode: 'ignore' })
     expect(buildInitialDataExport({ rows: [], insert_mode: 'overwrite' })).toEqual({ rows: [], insert_mode: 'overwrite' })
-    expect(buildInitialDataExport({ rows: [], insert_mode: 'insert' })).toEqual({ rows: [] })
+    expect(buildInitialDataExport({ rows: [] })).toEqual({ rows: [] })
   })
 
   it('does not persist empty pre_sql / post_sql objects', () => {

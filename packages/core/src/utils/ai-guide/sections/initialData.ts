@@ -14,7 +14,7 @@ export const initialDataBody = `### initial-data.json（初始数据）
       "row_comment": "示例行"          // 可选：行级注释
     }
   ],
-  "insert_mode": "insert",            // 可选：insert（默认）/ ignore（忽略冲突）/ overwrite（冲突时覆盖）
+  "insert_mode": "insert",            // 可选：insert / ignore / overwrite；缺省时继承 common.json 的 initial_data_insert_mode
   "pre_sql":  { "mysql": "", "postgresql": "", "sqlite": "" },
   "post_sql": { "mysql": "", "postgresql": "", "sqlite": "" }
 }
@@ -23,5 +23,5 @@ export const initialDataBody = `### initial-data.json（初始数据）
 - \`rows\` 缺省为 \`undefined\`（未初始化板块）；空表为 \`[]\`。
 - \`data\` 值为 JSON 原生类型；对象/数组会 \`JSON.stringify\` 后作为字符串字面量插入（带引号）。
 - \`is_skip: true\` 的行被完全跳过。
-- \`insert_mode\` 控制 INSERT 写法：\`ignore\` 对应 MySQL \`INSERT IGNORE\` / PostgreSQL \`ON CONFLICT DO NOTHING\` / SQLite \`INSERT OR IGNORE\`；\`overwrite\` 对应 MySQL \`ON DUPLICATE KEY UPDATE\` / PostgreSQL \`ON CONFLICT ... DO UPDATE\` / SQLite \`INSERT OR REPLACE\`。
+- \`insert_mode\` 控制 INSERT 写法：缺省时继承 \`common.json\` 的 \`initial_data_insert_mode\`（默认 \`insert\`）；\`ignore\` 对应 MySQL \`INSERT IGNORE\` / PostgreSQL \`ON CONFLICT DO NOTHING\` / SQLite \`INSERT OR IGNORE\`；\`overwrite\` 对应 MySQL \`ON DUPLICATE KEY UPDATE\` / PostgreSQL \`ON CONFLICT ... DO UPDATE\` / SQLite \`INSERT OR REPLACE\`。
 - INSERT 列名取自表中**未被 \`is_commented_out\` 注释掉**的字段（顺序为表字段顺序）。`

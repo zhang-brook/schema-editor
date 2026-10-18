@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
-import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows } from 'schema-editor-core/utils/sql-generator/shared'
+import { getInitialDataPreSql, getInitialDataPostSql, fmtPrePostSql, filterInitialDataRows, resolveInitialDataInsertMode } from 'schema-editor-core/utils/sql-generator/shared'
 import { generateInitialDataMySQL } from 'schema-editor-core/utils/sql-generator/mysql'
 import { generateInitialDataPostgreSQL } from 'schema-editor-core/utils/sql-generator/postgresql'
 import { generateInitialDataSQLite } from 'schema-editor-core/utils/sql-generator/sqlite'
@@ -28,13 +28,14 @@ const previewSql = computed(() => {
   let sql = ''
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
   if (filtered.hasRows) {
+    const insertMode = resolveInitialDataInsertMode(data, store.commonConfig)
     if (activeDialect.value === 'mysql') {
-      sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields, store.commonConfig, data.insert_mode)
+      sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields, store.commonConfig, insertMode)
     } else if (activeDialect.value === 'postgresql') {
       const schemaName = schema?.schema || 'public'
-      sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields, data.insert_mode)
+      sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields, insertMode)
     } else if (activeDialect.value === 'sqlite') {
-      sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields, data.insert_mode)
+      sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields, insertMode)
     }
   }
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)

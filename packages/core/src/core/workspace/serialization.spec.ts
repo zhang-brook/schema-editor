@@ -286,7 +286,7 @@ describe('schema and common serialization', () => {
       },
       common_used_field_order: ['zero', 'updated_at', 'cleared'],
       unified_types: [{ name: 'decimal', quote_default: false, default_input: 'text', mysql: { type: 'decimal', length: null, scale: 0 }, postgresql: { type: 'numeric' }, sqlite: { type: 'numeric' } }],
-      type_case: 'keep', generate_ai_guide: false, logical_delete: { enabled: false },
+      type_case: 'keep', generate_ai_guide: false, initial_data_insert_mode: 'insert', logical_delete: { enabled: false },
     } satisfies Required<CommonConfig>)
     const out = buildCommonWriteData(source)
     const { schema_order, ...expected } = source

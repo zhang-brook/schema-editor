@@ -1043,6 +1043,8 @@ export const useEditorStore = defineStore('editor', () => {
     setLogicalDelete,
     getCommonTypeCase,
     setCommonTypeCase,
+    getGlobalInitialDataInsertMode,
+    setGlobalInitialDataInsertMode,
     addCommonUsedField,
     deleteCommonUsedField,
     updateCommonUsedFieldName,
@@ -1320,6 +1322,8 @@ export const useEditorStore = defineStore('editor', () => {
     setLogicalDelete,
     getCommonTypeCase,
     setCommonTypeCase,
+    getGlobalInitialDataInsertMode,
+    setGlobalInitialDataInsertMode,
 
     // Global Pre/Post SQL
     setGlobalPreSql,

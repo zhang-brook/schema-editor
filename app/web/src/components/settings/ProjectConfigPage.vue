@@ -10,6 +10,7 @@ import LogicalDeletePanel from './sections/LogicalDeletePanel.vue'
 import DialectConfigPanel from './sections/DialectConfigPanel.vue'
 import DatabaseDefaultsPanel from './sections/database-defaults/DatabaseDefaultsPanel.vue'
 import DdlOptionsPanel from './sections/DdlOptionsPanel.vue'
+import InitialDataOptionsPanel from './sections/InitialDataOptionsPanel.vue'
 import TypeCasePanel from './sections/TypeCasePanel.vue'
 import GlobalPrePostSqlPanel from './sections/GlobalPrePostSqlPanel.vue'
 import AiGuidePanel from './sections/AiGuidePanel.vue'
@@ -70,6 +71,7 @@ const subTabOptions = computed(() =>
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.generatePrefs') }}</div>
         <DdlOptionsPanel />
+        <InitialDataOptionsPanel />
         <TypeCasePanel />
         <GlobalPrePostSqlPanel />
       </div>

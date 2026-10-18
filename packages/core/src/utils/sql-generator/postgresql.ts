@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData, InitialDataInsertMode, JsonObject } from '../../types/schema'
-import { getTableColumnNames, getPrimaryKeyColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
+import { getTableColumnNames, getPrimaryKeyColumnNames, resolveInitialDataInsertMode, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '../index-column-utils'
 import { resolveDialectOverride } from '../dialect-resolver'
 import { resolveIndexLogicalDelete } from '../logical-delete'
@@ -428,7 +428,7 @@ export function generateInitialDataAllPostgreSQL(
         const qSchema = quoteIdent(schema.schema, commonConfig)
         const qTable = quoteIdent(table.name, commonConfig)
         sql += `-- Insert data into ${qSchema}.${qTable}\n`
-        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields, initData.insert_mode)
+        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields, resolveInitialDataInsertMode(initData, commonConfig))
         sql += '\n'
       }
 

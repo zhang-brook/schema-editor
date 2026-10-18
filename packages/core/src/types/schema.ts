@@ -301,6 +301,8 @@ export interface CommonConfig {
   type_case?: TypeCaseMode
   /** Whether to generate the AI JSON structure guide (AI_JSON_STRUCTURE_GUIDE.md) in the current project folder; defaults to false */
   generate_ai_guide?: boolean
+  /** Default INSERT generation mode for initial data; tables without an explicit mode inherit this value */
+  initial_data_insert_mode?: InitialDataInsertMode
   /** Project-level logical delete configuration: declares the logical delete field and unique index strategy; index level can override */
   logical_delete?: LogicalDeleteConfig
 }

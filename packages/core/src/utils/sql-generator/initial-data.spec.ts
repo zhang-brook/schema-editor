@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { CommonConfig, Schema, Table } from '../../types/schema'
 import { generateInitialDataMySQL, generateInitialDataAllMySQL } from './mysql'
-import { generateInitialDataPostgreSQL } from './postgresql'
-import { generateInitialDataSQLite } from './sqlite'
+import { generateInitialDataPostgreSQL, generateInitialDataAllPostgreSQL } from './postgresql'
+import { generateInitialDataSQLite, generateInitialDataAllSQLite } from './sqlite'
 
 function usersTable(extra: Partial<Table> = {}): Table {
   return {
@@ -80,6 +80,15 @@ describe('MySQL initial data insert modes', () => {
     const initialDataMap = new Map([['app/users', { rows: [{ data: rows[0]! }], insert_mode: 'ignore' as const }]])
     expect(generateInitialDataAllMySQL(schemas, initialDataMap, null)).toContain('INSERT IGNORE INTO `users`')
   })
+
+  it('inherits the project default and lets the table mode override it', () => {
+    const schemas: Schema[] = [{ schema: 'app', tables: [usersTable()] }]
+    const config = { ...commonConfig, initial_data_insert_mode: 'ignore' as const }
+    const inherited = new Map([['app/users', { rows: [{ data: rows[0]! }] }]])
+    expect(generateInitialDataAllMySQL(schemas, inherited, config)).toContain('INSERT IGNORE INTO `users`')
+    const overridden = new Map([['app/users', { rows: [{ data: rows[0]! }], insert_mode: 'overwrite' as const }]])
+    expect(generateInitialDataAllMySQL(schemas, overridden, config)).toContain('ON DUPLICATE KEY UPDATE')
+  })
 })
 
 describe('PostgreSQL initial data insert modes', () => {
@@ -141,6 +150,13 @@ describe('PostgreSQL initial data insert modes', () => {
       + 'ON CONFLICT ("id") DO UPDATE SET\n  "name" = EXCLUDED."name";\n',
     )
   })
+
+  it('inherits the project default mode through the whole-schema generator', () => {
+    const schemas: Schema[] = [{ schema: 'app', tables: [usersTable()] }]
+    const initialDataMap = new Map([['app/users', { rows: [{ data: rows[0]! }] }]])
+    expect(generateInitialDataAllPostgreSQL(schemas, initialDataMap, { ...commonConfig, initial_data_insert_mode: 'overwrite' }))
+      .toContain('ON CONFLICT ("id") DO UPDATE SET')
+  })
 })
 
 describe('SQLite initial data insert modes', () => {
@@ -160,5 +176,12 @@ describe('SQLite initial data insert modes', () => {
     expect(generateInitialDataSQLite(usersTable(), rows, undefined, null, undefined, 'overwrite')).toBe(
       'INSERT OR REPLACE INTO "users" ("id", "name", "email") VALUES\n  (1, \'Alice\', \'alice@example.com\');\n',
     )
+  })
+
+  it('inherits the project default mode through the whole-schema generator', () => {
+    const schemas: Schema[] = [{ schema: 'app', tables: [usersTable()] }]
+    const initialDataMap = new Map([['app/users', { rows: [{ data: rows[0]! }] }]])
+    expect(generateInitialDataAllSQLite(schemas, initialDataMap, { ...commonConfig, initial_data_insert_mode: 'ignore' }))
+      .toContain('INSERT OR IGNORE INTO "users"')
   })
 })

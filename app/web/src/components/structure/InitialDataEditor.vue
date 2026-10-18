@@ -13,6 +13,12 @@ import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 const store = useEditorStore()
 const { t } = useI18n()
 
+const insertModeLabelKeys: Record<InitialDataInsertMode, string> = {
+  insert: 'initialData.insertModeInsertShort',
+  ignore: 'initialData.insertModeIgnoreShort',
+  overwrite: 'initialData.insertModeOverwriteShort',
+}
+
 const editorMode = ref<'json' | 'table'>('table')
 const jsonText = ref('')
 const jsonError = ref('')
@@ -40,8 +46,10 @@ const stringFieldSet = computed(() => {
 const initialData = computed(() => store.currentInitialData)
 const rows = computed(() => initialData.value?.rows)
 
-// INSERT generation mode (plain INSERT when unset)
-const insertMode = computed<InitialDataInsertMode>(() => initialData.value?.insert_mode ?? 'insert')
+// Table-level INSERT generation mode; inherit means follow the project default
+const insertMode = computed(() => initialData.value?.insert_mode ?? 'inherit')
+const globalInsertMode = computed<InitialDataInsertMode>(() => store.commonConfig?.initial_data_insert_mode ?? 'insert')
+const globalInsertModeLabel = computed(() => t(insertModeLabelKeys[globalInsertMode.value]))
 
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
@@ -96,7 +104,7 @@ function formatJson() {
 
 function handleInsertMode(value: string) {
   if (!store.currentSchema || !store.currentTable) return
-  const mode: InitialDataInsertMode = value === 'ignore' || value === 'overwrite' ? value : 'insert'
+  const mode = value === 'insert' || value === 'ignore' || value === 'overwrite' ? value : undefined
   store.setInitialDataInsertMode(store.currentSchema.schema, store.currentTable.name, mode)
 }
 
@@ -289,6 +297,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
             <span>{{ $t('initialData.insertMode') }}</span>
             <select class="form-input insert-mode-select" :value="insertMode"
               @change="handleInsertMode(($event.target as HTMLSelectElement).value)">
+              <option value="inherit">{{ $t('initialData.insertModeInherit', { mode: globalInsertModeLabel }) }}</option>
               <option value="insert">{{ $t('initialData.insertModeInsert') }}</option>
               <option value="ignore">{{ $t('initialData.insertModeIgnore') }}</option>
               <option value="overwrite">{{ $t('initialData.insertModeOverwrite') }}</option>

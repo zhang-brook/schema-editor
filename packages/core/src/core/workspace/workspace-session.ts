@@ -16,7 +16,7 @@ export function createDefaultCommonConfig(): CommonConfig {
       postgresql: { quote_identifiers: true },
       sqlite: { quote_identifiers: true },
     },
-    common_used_fields: {}, type_case: 'keep', generate_ai_guide: false,
+    common_used_fields: {}, type_case: 'keep', generate_ai_guide: false, initial_data_insert_mode: 'insert',
   }
 }
 

@@ -1,5 +1,5 @@
 import type { CommonConfig, Schema, Table, Field, InitialData, InitialDataInsertMode, JsonObject } from '../../types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, buildFieldComment, resolveIndexName } from './shared'
+import { getTableColumnNames, resolveInitialDataInsertMode, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '../index-column-utils'
 import { resolveDialectOverride } from '../dialect-resolver'
 import { resolveIndexLogicalDelete } from '../logical-delete'
@@ -361,7 +361,7 @@ export function generateInitialDataAllSQLite(
       if (filtered.hasRows) {
         const qTable = quoteIdent(table.name, commonConfig)
         sql += `-- Insert data into ${qTable}\n`
-        sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields, initData.insert_mode)
+        sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields, resolveInitialDataInsertMode(initData, commonConfig))
         sql += '\n'
       }
 

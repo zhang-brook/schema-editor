@@ -11,6 +11,7 @@ export const commonBody = `### common.json
   "common_used_field_order": ["id"],  // 仅 UI 顺序
   "unified_types": [ "..." ],        // 统一顶层类型（见下）
   "type_case": "keep",               // keep | lowercase | uppercase | pascal
+  "initial_data_insert_mode": "insert", // insert（默认）| ignore | overwrite；未单独设置的表继承此值
   "logical_delete": { "...": "见下" }, // 逻辑删除配置（可选）
   "generate_ai_guide": false         // 是否生成本 AI 指南（项目级开关，默认不生成）
 }

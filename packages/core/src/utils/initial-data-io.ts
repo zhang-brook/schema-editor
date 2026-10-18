@@ -172,9 +172,9 @@ type InitialDataExportDocument = {
   post_sql?: SqlStatements
 }
 
-/** Keep only the modes that differ from the plain INSERT default */
+/** Keep only valid modes; undefined means the table inherits the project default */
 function normalizeInsertMode(value: unknown): InitialDataInsertMode | undefined {
-  return value === 'ignore' || value === 'overwrite' ? value : undefined
+  return value === 'insert' || value === 'ignore' || value === 'overwrite' ? value : undefined
 }
 
 /**

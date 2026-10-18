@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { CommonConfig, Schema, Field, FieldOverride, InitialData, UnifiedTypeDefinition, UnifiedTypeDbMapping, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from 'schema-editor-core/types/schema'
+import type { CommonConfig, Schema, Field, FieldOverride, InitialData, InitialDataInsertMode, UnifiedTypeDefinition, UnifiedTypeDbMapping, TypeCaseMode, TableDdlMode, LogicalDeleteConfig } from 'schema-editor-core/types/schema'
 import { affectedCommon, affectedTable, affectedInitialData, affectedSql, type AffectedFile, type Command } from 'schema-editor-core/core/history/command'
 import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { parseFieldLengthInput, parseFieldScaleInput } from 'schema-editor-core/utils/file-helpers'
@@ -130,6 +130,13 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
   function setCommonTypeCase(val: TypeCaseMode) {
     if (!commonConfig.value) return
     commit('history.editTypeCase', [propertyChange(config, 'type_case', val)])
+  }
+  function getGlobalInitialDataInsertMode(): InitialDataInsertMode {
+    return commonConfig.value?.initial_data_insert_mode ?? 'insert'
+  }
+  function setGlobalInitialDataInsertMode(val: InitialDataInsertMode) {
+    if (!commonConfig.value) return
+    commit('history.editInitialDataInsertMode', [propertyChange(config, 'initial_data_insert_mode', val)], commonSqlFiles())
   }
   function getLogicalDelete(): LogicalDeleteConfig { return commonConfig.value?.logical_delete ?? {} }
   function setLogicalDelete(patch: Partial<LogicalDeleteConfig>) {
@@ -418,6 +425,7 @@ export function createCommonConfigActions(deps: CommonConfigDeps) {
     getCommonSqliteQuoteIdentifiers, setCommonSqliteQuoteIdentifiers,
     getTableDdlMode, setTableDdlMode, getLogicalDelete, setLogicalDelete,
     getCommonTypeCase, setCommonTypeCase,
+    getGlobalInitialDataInsertMode, setGlobalInitialDataInsertMode,
     addCommonUsedField, deleteCommonUsedField, updateCommonUsedFieldName,
     updateCommonUsedField, setCommonUsedFieldOverrideValue, moveCommonUsedField, getOrderedCommonUsedFields,
     addUnifiedType, deleteUnifiedType, renameUnifiedType,

@@ -225,11 +225,10 @@ export function createInitialDataActions(deps: InitialDataDeps) {
       t('history.toggleInitialDataExpr', { name: field }))
   }
 
-  function setInitialDataInsertMode(schema: string, table: string, mode: InitialDataInsertMode) {
+  function setInitialDataInsertMode(schema: string, table: string, mode: InitialDataInsertMode | undefined) {
     const data = initialDataMap.get(initialDataKey(schema, table))
-    const normalized = mode === 'insert' ? undefined : mode
-    if ((data?.insert_mode ?? undefined) === normalized) return
-    patchEntry(schema, table, { insert_mode: normalized }, t('history.setInitialDataInsertMode'))
+    if (data?.insert_mode === mode) return
+    patchEntry(schema, table, { insert_mode: mode }, t('history.setInitialDataInsertMode'))
   }
 
   function setSql(schema: string, table: string, property: 'pre_sql' | 'post_sql', dialect: SqlDialect, val: string) {

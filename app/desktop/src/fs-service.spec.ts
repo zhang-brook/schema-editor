@@ -71,6 +71,11 @@ describe('createFsService', () => {
     expect(await service.remove(path.join(workDir, 'x'), true)).toEqual({ ok: true, value: null })
     expect(await service.statKind(path.join(workDir, 'x'))).toEqual({ ok: true, value: null })
     expect(await service.remove(path.join(workDir, 'x'), false)).toEqual({ ok: false, code: 'ENOENT' })
+
+    // 非递归删除空目录：Windows 上 fs.rm 会报 EISDIR，必须走 rmdir
+    expect(await service.ensureDir(path.join(workDir, 'empty'))).toEqual({ ok: true, value: null })
+    expect(await service.remove(path.join(workDir, 'empty'), false)).toEqual({ ok: true, value: null })
+    expect(await service.statKind(path.join(workDir, 'empty'))).toEqual({ ok: true, value: null })
   })
 
   it('递归监听子目录变更并携带相对路径，watchStop 后不再上报', async () => {

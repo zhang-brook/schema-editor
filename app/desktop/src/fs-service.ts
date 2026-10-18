@@ -118,7 +118,14 @@ export function createFsService() {
     const resolved = resolveInsideRoot(target)
     if (!resolved) return fail('EACCES')
     try {
-      await fs.rm(resolved, { recursive, force: false })
+      if (recursive) {
+        await fs.rm(resolved, { recursive: true, force: false })
+      } else {
+        // Windows 上 fs.rm 非递归删除目录会报 ERR_FS_EISDIR，需按类型分别 unlink/rmdir
+        const stats = await fs.lstat(resolved)
+        if (stats.isDirectory()) await fs.rmdir(resolved)
+        else await fs.unlink(resolved)
+      }
       return ok(null)
     } catch (error) {
       return fail(toErrorCode(error))

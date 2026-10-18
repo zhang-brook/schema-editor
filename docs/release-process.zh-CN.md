@@ -1,8 +1,10 @@
 # 发布流程
 
+[English](./release-process.md) | 简体中文
+
 1. 改 [package.json](../package.json) 的 `version`（两端与安装包版本在构建期取用这一处）
 2. `pnpm changelog` 生成 CHANGELOG
-3. `git add package.json CHANGELOG.md` → `git commit -m "chore: 发布 vx.y.z"` → `git push`
+3. `git add package.json CHANGELOG.md` → `git commit -m "chore: release vx.y.z"` → `git push`
 4. `git tag vx.y.z` → `git push origin vx.y.z`，触发 [deploy.yml](../.github/workflows/deploy.yml)：build → 部署 Pages；desktop 在 Windows / macOS / Linux 三个 runner 上并行打包；release 等这些任务都完成后发布 Release（正文取 CHANGELOG 中 `## vx.y.z` 小节）
 5. 打开验证
 

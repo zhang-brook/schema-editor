@@ -1,5 +1,7 @@
 # 项目创建命令
 
+[English](./project-setup.md) | 简体中文
+
 https://cn.vuejs.org/guide/introduction.html
 
 ```bash

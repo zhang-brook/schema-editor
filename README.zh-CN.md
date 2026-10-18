@@ -1,8 +1,20 @@
-# schema-editor - 数据库 Schema JSON 可视化编辑器
+<p align="center">
+  <img src="./app/web/public/logo.png" width="128" alt="schema-editor logo">
+</p>
 
-[GitHub](https://github.com/zhang-brook/schema-editor) · [在线预览](https://zhang-brook.github.io/schema-editor/)
+<h1 align="center">schema-editor</h1>
 
-数据库 Schema 可视化编辑器 —— 通过图形界面编辑 JSON 格式的 Schema 定义，实时预览 MySQL / PostgreSQL 建表语句，并将结果导出为 JSON 或 SQL 文件。
+<p align="center"><em>数据库 Schema JSON 可视化编辑器</em></p>
+
+<p align="center">
+  <a href="./README.md">English</a> | 简体中文
+</p>
+
+<p align="center">
+  <a href="https://github.com/zhang-brook/schema-editor">GitHub</a> · <a href="https://zhang-brook.github.io/schema-editor/">在线预览</a>
+</p>
+
+通过图形界面编辑 JSON 格式的 Schema 定义，实时预览 MySQL / PostgreSQL 建表语句，并将结果导出为 JSON 或 SQL 文件。
 
 ## 功能
 
@@ -78,4 +90,8 @@ your-schema-folder/
 
 ---
 
-如需了解项目架构或参与开发，请参阅 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+如需了解项目架构或参与开发，请参阅 [DEVELOPMENT.zh-CN.md](./DEVELOPMENT.zh-CN.md)。
+
+## 参与贡献
+
+欢迎提交 Issue 和 Pull Request。提交信息与代码注释请使用英文；文档默认提供英文版，并同步维护中文版（`.zh-CN.md`）。

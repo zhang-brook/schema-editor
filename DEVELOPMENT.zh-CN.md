@@ -1,5 +1,7 @@
 # 开发指南
 
+[English](./DEVELOPMENT.md) | 简体中文
+
 本文档面向参与 schema-editor 开发的成员，涵盖技术栈、项目结构、架构设计和质量保障体系。
 
 ## 技术栈
@@ -227,3 +229,7 @@ pnpm desktop:dist         # 构建并打包当前平台的安装包（app/deskto
 - 版本号只在仓库根 `package.json` 维护，网页版、桌面运行时与安装包元数据在构建期取用同一处
 - 未配置代码签名：Windows 可能出现 SmartScreen 提示，macOS 会被 Gatekeeper 拦截且暂不展示应用内更新入口，签名与公证完成后再开放
 - 安装版与 AppImage 在「关于」弹窗检查更新：从 GitHub Release 读取对应平台的 `latest*.yml`，下载完成后由用户点「重启并安装」；Windows 免安装 exe 无法就地覆盖，不展示该入口
+
+## 参与贡献
+
+提交信息与代码注释使用英文；文档默认提供英文版，并同步维护中文版（`.zh-CN.md`）。

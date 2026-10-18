@@ -29,12 +29,12 @@ const previewSql = computed(() => {
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
   if (filtered.hasRows) {
     if (activeDialect.value === 'mysql') {
-      sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields)
+      sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields, store.commonConfig, data.insert_mode)
     } else if (activeDialect.value === 'postgresql') {
       const schemaName = schema?.schema || 'public'
-      sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields)
+      sql += generateInitialDataPostgreSQL(table, schemaName, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields, data.insert_mode)
     } else if (activeDialect.value === 'sqlite') {
-      sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields)
+      sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, store.commonConfig, filtered.exprFields, data.insert_mode)
     }
   }
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)

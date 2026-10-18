@@ -910,6 +910,7 @@ export const useEditorStore = defineStore('editor', () => {
     setInitialDataCell,
     setInitialDataRowComment,
     setInitialDataCellExpr,
+    setInitialDataInsertMode,
     setInitialDataPreSql,
     setInitialDataPostSql,
     clearInitialDataPrePostSql,
@@ -1189,6 +1190,8 @@ export const useEditorStore = defineStore('editor', () => {
     setInitialDataCell,
     setInitialDataRowComment,
     setInitialDataCellExpr,
+
+    setInitialDataInsertMode,
 
     // Initial Data Pre/Post SQL
     setInitialDataPreSql,

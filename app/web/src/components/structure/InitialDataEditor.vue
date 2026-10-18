@@ -6,7 +6,7 @@ import { parseDefaultInput } from 'schema-editor-core/utils/file-helpers'
 import { normalizeInitialData } from 'schema-editor-core/utils/initial-data-io'
 import { getInitialDataPreSql, getInitialDataPostSql, isStringTypeField, type SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { confirmDialog } from '@/composables/useConfirm'
-import type { InitialData, InitialDataRow } from 'schema-editor-core/types/schema'
+import type { InitialData, InitialDataInsertMode, InitialDataRow } from 'schema-editor-core/types/schema'
 import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
 import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
@@ -40,6 +40,9 @@ const stringFieldSet = computed(() => {
 const initialData = computed(() => store.currentInitialData)
 const rows = computed(() => initialData.value?.rows)
 
+// INSERT generation mode (plain INSERT when unset)
+const insertMode = computed<InitialDataInsertMode>(() => initialData.value?.insert_mode ?? 'insert')
+
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
 
@@ -68,7 +71,7 @@ watch(() => initialData.value, () => {
 
 function syncJsonText() {
   const wrapper = initialData.value
-  if (wrapper && (wrapper.rows?.length || wrapper.pre_sql || wrapper.post_sql)) {
+  if (wrapper && (wrapper.rows?.length || wrapper.insert_mode || wrapper.pre_sql || wrapper.post_sql)) {
     jsonText.value = JSON.stringify(wrapper, null, 4)
   } else {
     jsonText.value = '{}'
@@ -89,6 +92,12 @@ function formatJson() {
   } catch {
     // Unreachable: not triggered while the button is disabled
   }
+}
+
+function handleInsertMode(value: string) {
+  if (!store.currentSchema || !store.currentTable) return
+  const mode: InitialDataInsertMode = value === 'ignore' || value === 'overwrite' ? value : 'insert'
+  store.setInitialDataInsertMode(store.currentSchema.schema, store.currentTable.name, mode)
 }
 
 function handlePreSql(dialect: SqlDialect, val: string) {
@@ -276,6 +285,15 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
         <span>{{ $t('initialData.title') }}</span>
         <span class="badge" v-if="hasData">{{ $t('initialData.badge', { n: rowCount }) }}</span>
         <div class="header-actions">
+          <label class="insert-mode" :title="$t('initialData.insertModeTitle')">
+            <span>{{ $t('initialData.insertMode') }}</span>
+            <select class="form-input insert-mode-select" :value="insertMode"
+              @change="handleInsertMode(($event.target as HTMLSelectElement).value)">
+              <option value="insert">{{ $t('initialData.insertModeInsert') }}</option>
+              <option value="ignore">{{ $t('initialData.insertModeIgnore') }}</option>
+              <option value="overwrite">{{ $t('initialData.insertModeOverwrite') }}</option>
+            </select>
+          </label>
           <div class="mode-toggle">
             <button class="mode-btn" :class="{ active: editorMode === 'table' }" @click="switchMode('table')">{{
               $t('initialData.table') }}</button>
@@ -394,6 +412,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 <style scoped src="@/assets/style/section.css"></style>
 <style scoped src="@/assets/style/table.css"></style>
 <style scoped src="@/assets/style/btn.css"></style>
+<style scoped src="@/assets/style/form.css"></style>
 <style scoped src="@/assets/style/help.css"></style>
 <style scoped src="@/assets/style/move-btn.css"></style>
 <style scoped>
@@ -420,6 +439,24 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+.insert-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.insert-mode-select {
+  height: 24px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 11px;
+  min-width: 128px;
 }
 
 .mode-toggle {

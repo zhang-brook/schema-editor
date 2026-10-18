@@ -1,4 +1,4 @@
-import type { InitialData, InitialDataRow, JsonObject, LegacyInitialData, SqlStatements } from '../types/schema'
+import type { InitialData, InitialDataInsertMode, InitialDataRow, JsonObject, LegacyInitialData, SqlStatements } from '../types/schema'
 import {
   getCurrentDir,
   getCurrentSchemasDir,
@@ -101,12 +101,14 @@ export function normalizeInitialData(raw: unknown): InitialData | null {
 
   if (raw && typeof raw === 'object') {
     // The old on-disk format is read through the LegacyInitialData view, with per-field runtime guards
-    const obj = raw as LegacyInitialData
+    const obj = raw as LegacyInitialData & { insert_mode?: unknown }
     const result: InitialData = {}
 
     if (Array.isArray(obj.rows)) {
       result.rows = mergeToInlineRows(obj)
     }
+    const insertMode = normalizeInsertMode(obj.insert_mode)
+    if (insertMode) result.insert_mode = insertMode
     if (obj.pre_sql && typeof obj.pre_sql === 'object') result.pre_sql = { ...obj.pre_sql }
     if (obj.post_sql && typeof obj.post_sql === 'object') result.post_sql = { ...obj.post_sql }
     return result
@@ -165,8 +167,14 @@ type InlineRowExport = {
 
 type InitialDataExportDocument = {
   rows?: InlineRowExport[]
+  insert_mode?: InitialDataInsertMode
   pre_sql?: SqlStatements
   post_sql?: SqlStatements
+}
+
+/** Keep only the modes that differ from the plain INSERT default */
+function normalizeInsertMode(value: unknown): InitialDataInsertMode | undefined {
+  return value === 'ignore' || value === 'overwrite' ? value : undefined
 }
 
 /**
@@ -190,6 +198,9 @@ export function buildInitialDataExport(data: InitialData): InitialDataExportDocu
       return out
     })
   }
+
+  const insertMode = normalizeInsertMode(data.insert_mode)
+  if (insertMode) exportData.insert_mode = insertMode
 
   const hasPreSql = !!(data.pre_sql && Object.keys(data.pre_sql).length > 0)
   if (hasPreSql) exportData.pre_sql = data.pre_sql

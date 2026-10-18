@@ -1,5 +1,5 @@
-import type { CommonConfig, Schema, Table, Field, InitialData, JsonObject } from '../../types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
+import type { CommonConfig, Schema, Table, Field, InitialData, InitialDataInsertMode, JsonObject } from '../../types/schema'
+import { getTableColumnNames, getPrimaryKeyColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '../index-column-utils'
 import { resolveDialectOverride } from '../dialect-resolver'
 import { resolveIndexLogicalDelete } from '../logical-delete'
@@ -301,6 +301,24 @@ export function formatSqlValue(val: unknown, isExpr = false): string {
   return `'${JSON.stringify(val).replace(/'/g, "''")}'`
 }
 
+/**
+ * Conflict target for ON CONFLICT DO UPDATE: the primary key first, otherwise the first plain unique index.
+ * Partial unique indexes are skipped because inferring them requires repeating their WHERE predicate.
+ */
+function resolveConflictTargetColumns(table: Table, commonConfig: CommonConfig | null): string[] {
+  const primaryKey = getPrimaryKeyColumnNames(table, commonConfig)
+  if (primaryKey.length > 0) return primaryKey
+
+  for (const index of table.indexes) {
+    const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
+    if (indexType !== 'unique') continue
+    if (resolveIndexLogicalDelete(index, table, 'postgresql', commonConfig)) continue
+    const names = index.columns.map(col => col.name).filter(Boolean)
+    if (names.length > 0) return names
+  }
+  return []
+}
+
 /** Generate INSERT statements for a single table */
 export function generateInitialDataPostgreSQL(
   table: Table,
@@ -309,8 +327,9 @@ export function generateInitialDataPostgreSQL(
   rowComments: (string | null)[] | undefined,
   commonConfig: CommonConfig | null,
   exprFields?: Record<string, boolean>[], // aligned with rows by index: marks a field value as a SQL expression (no quotes)
+  insertMode: InitialDataInsertMode = 'insert',
 ): string {
-  const cols = getTableColumnNames(table, null)
+  const cols = getTableColumnNames(table, commonConfig)
   if (cols.length === 0 || rows.length === 0) return ''
 
   const qSchema = quoteIdent(schemaName, commonConfig)
@@ -333,7 +352,28 @@ export function generateInitialDataPostgreSQL(
     return `  (${vals.join(', ')})`
   })
 
-  return `${comments}INSERT INTO ${qSchema}.${qTable} (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+  let conflictClause = ''
+  if (insertMode === 'ignore') {
+    conflictClause = '\nON CONFLICT DO NOTHING'
+  } else if (insertMode === 'overwrite') {
+    const conflictTarget = resolveConflictTargetColumns(table, commonConfig)
+    if (conflictTarget.length === 0) {
+      comments += '-- ON CONFLICT DO UPDATE requires a primary key or unique index; generated as ON CONFLICT DO NOTHING\n'
+      conflictClause = '\nON CONFLICT DO NOTHING'
+    } else {
+      const targetList = conflictTarget.map(c => quoteIdent(c, commonConfig)).join(', ')
+      const updateColumns = cols.filter(col => !conflictTarget.includes(col))
+      if (updateColumns.length === 0) {
+        conflictClause = `\nON CONFLICT (${targetList}) DO NOTHING`
+      } else {
+        const assignments = updateColumns
+          .map(col => `  ${quoteIdent(col, commonConfig)} = EXCLUDED.${quoteIdent(col, commonConfig)}`)
+        conflictClause = `\nON CONFLICT (${targetList}) DO UPDATE SET\n${assignments.join(',\n')}`
+      }
+    }
+  }
+
+  return `${comments}INSERT INTO ${qSchema}.${qTable} (${colList}) VALUES\n${valueRows.join(',\n')}${conflictClause};\n`
 }
 
 /** Generate the combined PostgreSQL initial data INSERT script for all schemas */
@@ -388,7 +428,7 @@ export function generateInitialDataAllPostgreSQL(
         const qSchema = quoteIdent(schema.schema, commonConfig)
         const qTable = quoteIdent(table.name, commonConfig)
         sql += `-- Insert data into ${qSchema}.${qTable}\n`
-        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields)
+        sql += generateInitialDataPostgreSQL(table, schema.schema, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields, initData.insert_mode)
         sql += '\n'
       }
 

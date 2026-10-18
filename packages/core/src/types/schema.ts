@@ -322,9 +322,19 @@ export interface InitialDataRow {
   row_comment?: string
 }
 
+/**
+ * Initial data INSERT generation mode:
+ * - insert: plain INSERT INTO
+ * - ignore: skip rows that conflict with existing unique keys
+ * - overwrite: update existing rows on unique-key conflict
+ */
+export type InitialDataInsertMode = 'insert' | 'ignore' | 'overwrite'
+
 export interface InitialData {
   /** Row-inline data rows; undefined when the data section has not been initialized, [] for an empty table */
   rows?: InitialDataRow[]
+  /** INSERT generation mode; omitted means plain INSERT */
+  insert_mode?: InitialDataInsertMode
   /** Pre SQL (configured per dialect, generated before INSERT) */
   pre_sql?: SqlStatements
   /** Post SQL (configured per dialect, generated after INSERT) */

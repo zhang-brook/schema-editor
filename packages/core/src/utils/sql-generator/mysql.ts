@@ -1,5 +1,5 @@
-import type { CommonConfig, Schema, Table, Field, Index, InitialData, JsonObject } from '../../types/schema'
-import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
+import type { CommonConfig, Schema, Table, Field, Index, InitialData, InitialDataInsertMode, JsonObject } from '../../types/schema'
+import { getTableColumnNames, getPrimaryKeyColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, getTablePartitionClause, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '../index-column-utils'
 import { resolveDialectOverride } from '../dialect-resolver'
 import { buildMysqlActiveExpression, resolveIndexLogicalDelete } from '../logical-delete'
@@ -349,10 +349,10 @@ export function generateInitialDataMySQL(
   rows: JsonObject[], // rows must already have skip rows filtered out
   rowComments?: (string | null)[],
   exprFields?: Record<string, boolean>[], // index-aligned with rows: marks a field value as an SQL expression (unquoted)
+  commonConfig: CommonConfig | null = null,
+  insertMode: InitialDataInsertMode = 'insert',
 ): string {
-  const cols = getTableColumnNames(table, null)  // MySQL DDL uses the same field names, so no commonConfig field-name resolution is needed (names are quoted in the INSERT)
-  // This actually needs resolveField handling to re-fetch the column names
-  // Column names stay as-is; the INSERT only needs consistent field names
+  const cols = getTableColumnNames(table, commonConfig)
   if (cols.length === 0 || rows.length === 0) return ''
 
   const colList = cols.map(c => `\`${c}\``).join(', ')
@@ -373,14 +373,27 @@ export function generateInitialDataMySQL(
     return `  (${vals.join(', ')})`
   })
 
-  return `${comments}INSERT INTO \`${table.name}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+  let keyword = 'INSERT INTO'
+  let conflictClause = ''
+  if (insertMode === 'ignore') {
+    keyword = 'INSERT IGNORE INTO'
+  } else if (insertMode === 'overwrite') {
+    // Update every inserted non-primary-key column; a primary-key-only table falls back to a no-op assignment
+    const primaryKey = getPrimaryKeyColumnNames(table, commonConfig)
+    const updateColumns = cols.filter(col => !primaryKey.includes(col))
+    const assignments = (updateColumns.length > 0 ? updateColumns : cols.slice(0, 1))
+      .map(col => `  \`${col}\` = VALUES(\`${col}\`)`)
+    conflictClause = `\nON DUPLICATE KEY UPDATE\n${assignments.join(',\n')}`
+  }
+
+  return `${comments}${keyword} \`${table.name}\` (${colList}) VALUES\n${valueRows.join(',\n')}${conflictClause};\n`
 }
 
 /** Generate the MySQL initial data INSERT summary for all schemas */
 export function generateInitialDataAllMySQL(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
-  _commonConfig: CommonConfig | null
+  commonConfig: CommonConfig | null
 ): string {
   let sql = ''
 
@@ -429,7 +442,7 @@ export function generateInitialDataAllMySQL(
         // sql += `-- Initial data for ${schema.schema}.${table.name}\n`
         // sql += `-- ----------------------------\n`
         sql += `-- Insert data into \`${table.name}\`\n`
-        sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields)
+        sql += generateInitialDataMySQL(table, filtered.rows, filtered.rowComments, filtered.exprFields, commonConfig, initData.insert_mode)
         sql += '\n'
       }
 

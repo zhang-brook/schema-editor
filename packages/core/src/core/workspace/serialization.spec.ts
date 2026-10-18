@@ -310,7 +310,8 @@ describe('existing initial data serialization regression (implementation unchang
       is_skip: true, row_comment: 'row',
     } satisfies Required<InitialDataRow>
     const source = freeze({
-      rows: [row], pre_sql: { mysql: 'SELECT 1;', postgresql: 'SELECT 2;', sqlite: 'SELECT 3;' },
+      rows: [row], insert_mode: 'overwrite',
+      pre_sql: { mysql: 'SELECT 1;', postgresql: 'SELECT 2;', sqlite: 'SELECT 3;' },
       post_sql: { mysql: 'SELECT 4;', postgresql: 'SELECT 5;', sqlite: 'SELECT 6;' },
     } satisfies Required<InitialData>)
     expect(buildInitialDataExport(source)).toStrictEqual(source)

@@ -1,5 +1,5 @@
 import { computed, toRaw, type ComputedRef } from 'vue'
-import type { Schema, Table, InitialData, InitialDataRow } from 'schema-editor-core/types/schema'
+import type { Schema, Table, InitialData, InitialDataInsertMode, InitialDataRow } from 'schema-editor-core/types/schema'
 import { affectedInitialData, affectedSql, type Command } from 'schema-editor-core/core/history/command'
 import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { captureProps, captureValue, cloneValue } from './editor-action-utils'
@@ -78,7 +78,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
   }
 
   function setInitialDataObject(schema: string, table: string, data: InitialData) {
-    const willDelete = (data.rows?.length ?? 0) === 0 && !data.pre_sql && !data.post_sql
+    const willDelete = (data.rows?.length ?? 0) === 0 && !data.insert_mode && !data.pre_sql && !data.post_sql
     replaceEntry(schema, table, willDelete ? undefined : data, t('history.editInitialDataObject'))
   }
 
@@ -225,6 +225,13 @@ export function createInitialDataActions(deps: InitialDataDeps) {
       t('history.toggleInitialDataExpr', { name: field }))
   }
 
+  function setInitialDataInsertMode(schema: string, table: string, mode: InitialDataInsertMode) {
+    const data = initialDataMap.get(initialDataKey(schema, table))
+    const normalized = mode === 'insert' ? undefined : mode
+    if ((data?.insert_mode ?? undefined) === normalized) return
+    patchEntry(schema, table, { insert_mode: normalized }, t('history.setInitialDataInsertMode'))
+  }
+
   function setSql(schema: string, table: string, property: 'pre_sql' | 'post_sql', dialect: SqlDialect, val: string) {
     const sql = initialDataMap.get(initialDataKey(schema, table))?.[property]
     const trimmed = val.trim()
@@ -268,6 +275,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     setInitialDataCell,
     setInitialDataRowComment,
     setInitialDataCellExpr,
+    setInitialDataInsertMode,
     setInitialDataPreSql,
     setInitialDataPostSql,
     clearInitialDataPrePostSql,

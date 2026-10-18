@@ -1,4 +1,4 @@
-import type { CommonConfig, Schema, Table, Field, InitialData, JsonObject } from '../../types/schema'
+import type { CommonConfig, Schema, Table, Field, InitialData, InitialDataInsertMode, JsonObject } from '../../types/schema'
 import { getTableColumnNames, renderCommentBeforeField, renderCommentBeforeTable, resolveField, resolveFieldTypeForDialect, resolveQuoteDefault, formatSqlDefault, getTablePreSql, getTablePostSql, getSchemaPreSql, getSchemaPostSql, fmtPrePostSql, getInitialDataPreSql, getInitialDataPostSql, filterInitialDataRows, buildFieldComment, resolveIndexName } from './shared'
 import { splitColumnForSql } from '../index-column-utils'
 import { resolveDialectOverride } from '../dialect-resolver'
@@ -278,8 +278,9 @@ export function generateInitialDataSQLite(
   rowComments: (string | null)[] | undefined,
   commonConfig: CommonConfig | null,
   exprFields?: Record<string, boolean>[], // aligned with rows by index: marks a field value as a SQL expression (no quotes)
+  insertMode: InitialDataInsertMode = 'insert',
 ): string {
-  const cols = getTableColumnNames(table, null)
+  const cols = getTableColumnNames(table, commonConfig)
   if (cols.length === 0 || rows.length === 0) return ''
 
   const qTable = quoteIdent(table.name, commonConfig)
@@ -301,7 +302,13 @@ export function generateInitialDataSQLite(
     return `  (${vals.join(', ')})`
   })
 
-  return `${comments}INSERT INTO ${qTable} (${colList}) VALUES\n${valueRows.join(',\n')};\n`
+  const keyword = insertMode === 'ignore'
+    ? 'INSERT OR IGNORE INTO'
+    : insertMode === 'overwrite'
+      ? 'INSERT OR REPLACE INTO'
+      : 'INSERT INTO'
+
+  return `${comments}${keyword} ${qTable} (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
 /** Generate the combined SQLite initial data INSERT script for all schemas */
@@ -354,7 +361,7 @@ export function generateInitialDataAllSQLite(
       if (filtered.hasRows) {
         const qTable = quoteIdent(table.name, commonConfig)
         sql += `-- Insert data into ${qTable}\n`
-        sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields)
+        sql += generateInitialDataSQLite(table, filtered.rows, filtered.rowComments, commonConfig, filtered.exprFields, initData.insert_mode)
         sql += '\n'
       }
 

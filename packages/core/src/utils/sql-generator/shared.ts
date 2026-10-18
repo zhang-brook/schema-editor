@@ -332,6 +332,16 @@ export function getTableColumnNames(table: Table, commonConfig: CommonConfig | n
     .map(f => resolveField(f, commonConfig).field_name)
 }
 
+/** Get the primary key column names of a Table (common fields resolved, commented-out fields excluded) */
+export function getPrimaryKeyColumnNames(table: Table, commonConfig: CommonConfig | null): string[] {
+  return table.fields
+    .filter(field => {
+      const resolved = resolveField(field, commonConfig)
+      return resolved.primary_key === true && !resolved.is_commented_out
+    })
+    .map(field => field.field_name)
+}
+
 // ===== Pre/post SQL helpers =====
 
 export function getTablePreSql(table: Table, dialect: SqlDialect): string {

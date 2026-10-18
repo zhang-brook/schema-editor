@@ -23,8 +23,9 @@ function publishUpdateStatus(status: DesktopUpdateStatus): void {
 
 const updater = createUpdater(
   {
-    // 免安装 exe 就地解压运行，无法自我覆盖，只在 NSIS 安装版开放在线更新
-    updateSupported: app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR,
+    // 免安装 exe 无法自我覆盖；macOS 未签名时系统会拒绝更新包，签名后再开放
+    updateSupported:
+      app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR && process.platform !== 'darwin',
     currentVersion: app.getVersion(),
     checkForUpdates: () => autoUpdater.checkForUpdates(),
     quitAndInstall: () => autoUpdater.quitAndInstall(),

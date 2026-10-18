@@ -57,8 +57,23 @@ jobs:
         uses: actions/deploy-pages@v5
 
   desktop:
-    runs-on: windows-latest
+    name: desktop (${{ matrix.artifact }})
+    runs-on: ${{ matrix.runner }}
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            artifact: desktop-windows
+            args: --win --x64
+          # 通用包同时覆盖 Intel 与 Apple Silicon，且只有一个 latest-mac.yml
+          - runner: macos-latest
+            artifact: desktop-macos
+            args: --mac --universal
+          - runner: ubuntu-latest
+            artifact: desktop-linux
+            args: --linux --x64
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -75,17 +90,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Package Windows installers
-        run: pnpm desktop:dist
+      - name: Build desktop app
+        run: pnpm desktop:build
+
+      - name: Package installers
+        run: pnpm -C app/desktop exec electron-builder --config electron-builder.mjs --publish never ${{ matrix.args }}
 
       - name: Upload installers
         uses: actions/upload-artifact@v7
         with:
-          name: desktop-windows
+          name: ${{ matrix.artifact }}
           path: |
             app/desktop/release/*.exe
+            app/desktop/release/*.dmg
+            app/desktop/release/*.zip
+            app/desktop/release/*.AppImage
+            app/desktop/release/*.deb
             app/desktop/release/*.blockmap
-            app/desktop/release/latest.yml
+            app/desktop/release/latest*.yml
           if-no-files-found: error
 
   release:
@@ -98,17 +120,18 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download Pages artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v7
         with:
           name: github-pages
           path: pages-artifact
 
-      # 与 Web 包同批挂进 Release，避免两个 job 争着改同一个 tag 的资产
-      - name: Download Windows installers
+      # 与 Web 包同批挂进 Release，避免多个 job 争着改同一个 tag 的资产
+      - name: Download desktop installers
         uses: actions/download-artifact@v7
         with:
-          name: desktop-windows
+          pattern: desktop-*
           path: release
+          merge-multiple: true
 
       - name: Package release assets
         run: |

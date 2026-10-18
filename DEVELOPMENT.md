@@ -100,7 +100,7 @@ app/
 │   │   ├── updater.ts           # 在线更新编排：把 electron-updater 事件收敛成状态推送（可脱离 Electron 测试）
 │   │   └── update-state.ts      # 更新状态机：检查中 / 已最新 / 下载中 / 待安装 / 失败
 │   ├── vite.config.mts          # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
-│   └── electron-builder.mjs     # Windows 打包配置（NSIS 安装包 + 免安装 exe），注入根版本号并按 schema-editor-v<版本>-setup/portable.exe 命名
+│   └── electron-builder.mjs     # 打包配置（Windows NSIS/portable、macOS dmg/zip、Linux AppImage/deb），注入根版本号，产物名区分系统与架构
 └── packages/
     ├── core/                    # schema-editor-core：与 UI、与 Vue 运行时无关的领域核心，网页与桌面共用
     │   ├── package.json         # 源码直出（exports 指向 src/*.ts），宿主构建工具直接编译，无独立构建步骤
@@ -216,14 +216,14 @@ pnpm changelog     # 生成 CHANGELOG（版本号取自仓库根 package.json）
 pnpm desktop:dev          # 开发模式：Vite 开发服务器 + Electron 窗口
 pnpm desktop:start        # 仅启动 Electron 窗口
 pnpm desktop:build        # 构建渲染层（app/desktop/renderer）与主进程 / preload
-pnpm desktop:dist         # 构建并打包 Windows 安装包与免安装 exe（app/desktop/release）
+pnpm desktop:dist         # 构建并打包当前平台的安装包（app/desktop/release）
 ```
 
 ## 部署
 
-- 推送 `v*` tag 触发 [deploy.yml](./.github/workflows/deploy.yml)：`build` 构建前端并部署 GitHub Pages（产物 `app/web/dist`），`desktop` 在 Windows runner 上跑 `pnpm desktop:dist`，`release` 把网页包与安装包一起挂到同一 Release
+- 推送 `v*` tag 触发 [deploy.yml](./.github/workflows/deploy.yml)：`build` 构建前端并部署 GitHub Pages（产物 `app/web/dist`），`desktop` 在 Windows / macOS / Linux runner 上并行打包（macOS 打 universal），`release` 把网页包与各平台安装包一起挂到同一 Release
 - `base` 固定为相对路径 `./`，产物可部署在任意子路径下，也可被桌面外壳以 `file://` 直接加载
 - 纯前端应用，无后端，构建产物为静态文件
 - 版本号只在仓库根 `package.json` 维护，网页版、桌面运行时与安装包元数据在构建期取用同一处
-- 未配置代码签名，安装时可能出现 SmartScreen 提示
-- 安装版在「关于」弹窗检查更新：从 GitHub Release 读取 `latest.yml`，下载完成后由用户点「重启并安装」；免安装 exe 无法就地覆盖，不展示该入口
+- 未配置代码签名：Windows 可能出现 SmartScreen 提示，macOS 会被 Gatekeeper 拦截且暂不展示应用内更新入口，签名与公证完成后再开放
+- 安装版与 AppImage 在「关于」弹窗检查更新：从 GitHub Release 读取对应平台的 `latest*.yml`，下载完成后由用户点「重启并安装」；Windows 免安装 exe 无法就地覆盖，不展示该入口

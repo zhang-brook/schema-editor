@@ -32,13 +32,13 @@ pnpm build
 
 ## 桌面版（Windows）
 
-除网页版外，还可以本地应用方式运行：桌面版与网页版共用同一套界面与功能，打开项目文件夹时使用系统自带的文件夹选择器。桌面端依赖（含 Electron 二进制）随上面的 `pnpm install` 一并安装。
+除网页版外，还可以本地应用方式运行：桌面版与网页版共用同一套界面与功能，打开项目文件夹时使用系统自带的文件夹选择器。桌面端依赖（含 Electron 二进制）随上面的 `pnpm install` 一并安装。发布时 CI 会在 [Releases](https://github.com/zhang-brook/schema-editor/releases) 附上 `schema-editor-vX.Y.Z-setup.exe`（安装版）与 `schema-editor-vX.Y.Z-portable.exe`（免安装版）；安装版可在「关于」弹窗检查并安装新版本。
 
 ```sh
 # 开发模式：开发服务器 + 桌面窗口
 pnpm desktop:dev
 
-# 打包安装包与免安装 exe（输出到 app/desktop/release）
+# 本地打包安装包与免安装 exe（输出到 app/desktop/release）
 pnpm desktop:dist
 ```
 

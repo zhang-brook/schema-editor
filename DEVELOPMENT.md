@@ -65,6 +65,7 @@ app/
 │       │   ├── useEscClose.ts           # Esc 关闭弹窗的组合式函数
 │       │   ├── useConfirm.ts            # 全局弹窗队列（confirmDialog / chooseDialog 三选一 / alertDialog）
 │       │   ├── useEnterConfirm.ts       # 弹窗回车确认
+│       │   ├── useDesktopUpdate.ts      # 桌面端在线更新状态（网页版与免安装 exe 不展示入口）
 │       │   └── useEnabledDialect.ts     # 当前启用的方言
 │       ├── i18n/
 │       │   ├── index.ts                 # vue-i18n 初始化
@@ -91,13 +92,15 @@ app/
 │           ├── constants.ts             # 全局常量
 │           ├── build-info.ts            # 构建信息（版本号 / 构建时间）
 │           └── column-drag-flag.ts      # 列拖拽进行中的全局标记
-├── desktop/                     # 桌面外壳（Electron）：加载前端构建产物并桥接本地文件系统
+├── desktop/                     # 桌面外壳（Electron）：加载前端构建产物，桥接本地文件系统与在线更新
 │   ├── src/
 │   │   ├── main.ts              # 主进程：创建窗口、注册 IPC、开发模式加载 Vite 服务
 │   │   ├── preload.ts           # 通过 contextBridge 暴露 window.schemaEditorDesktop
-│   │   └── fs-service.ts        # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
+│   │   ├── fs-service.ts        # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
+│   │   ├── updater.ts           # 在线更新编排：把 electron-updater 事件收敛成状态推送（可脱离 Electron 测试）
+│   │   └── update-state.ts      # 更新状态机：检查中 / 已最新 / 下载中 / 待安装 / 失败
 │   ├── vite.config.mts          # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
-│   └── electron-builder.mjs     # Windows 打包配置（NSIS 安装包 + 免安装 exe），打包时注入根版本号
+│   └── electron-builder.mjs     # Windows 打包配置（NSIS 安装包 + 免安装 exe），注入根版本号并按 schema-editor-v<版本>-setup/portable.exe 命名
 └── packages/
     ├── core/                    # schema-editor-core：与 UI、与 Vue 运行时无关的领域核心，网页与桌面共用
     │   ├── package.json         # 源码直出（exports 指向 src/*.ts），宿主构建工具直接编译，无独立构建步骤
@@ -218,7 +221,9 @@ pnpm desktop:dist         # 构建并打包 Windows 安装包与免安装 exe（
 
 ## 部署
 
-- 通过 GitHub Actions 自动构建并部署到 GitHub Pages（产物为 `app/web/dist`）
+- 推送 `v*` tag 触发 [deploy.yml](./.github/workflows/deploy.yml)：`build` 构建前端并部署 GitHub Pages（产物 `app/web/dist`），`desktop` 在 Windows runner 上跑 `pnpm desktop:dist`，`release` 把网页包与安装包一起挂到同一 Release
 - `base` 固定为相对路径 `./`，产物可部署在任意子路径下，也可被桌面外壳以 `file://` 直接加载
 - 纯前端应用，无后端，构建产物为静态文件
-- Windows 安装包由 `pnpm desktop:dist` 本地打包，未配置代码签名（安装时可能出现 SmartScreen 提示）
+- 版本号只在仓库根 `package.json` 维护，网页版、桌面运行时与安装包元数据在构建期取用同一处
+- 未配置代码签名，安装时可能出现 SmartScreen 提示
+- 安装版在「关于」弹窗检查更新：从 GitHub Release 读取 `latest.yml`，下载完成后由用户点「重启并安装」；免安装 exe 无法就地覆盖，不展示该入口

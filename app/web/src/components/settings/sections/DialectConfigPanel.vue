@@ -8,7 +8,7 @@ const store = useEditorStore()
 
 const enabledCount = computed(() => ALL_SQL_DIALECTS.filter(d => store.isDialectEnabled(d)).length)
 
-/** 该方言是当前唯一启用项：禁止取消，保证至少启用一种方言 */
+/** This dialect is the only one currently enabled: unchecking is forbidden to keep at least one dialect enabled */
 function isLastEnabled(dialect: SqlDialect): boolean {
   return store.isDialectEnabled(dialect) && enabledCount.value <= 1
 }

@@ -3,23 +3,23 @@ import { useEditorStore } from '@/stores/editor'
 import type { SegmentedOption } from '@/components/ui/SegmentedSwitch.vue'
 import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 
-/** 方言展示名（各方言名称在各语言环境下保持一致） */
+/** Dialect display names (dialect names stay the same across all locales) */
 export const DIALECT_LABELS: Record<SqlDialect, string> = {
   mysql: 'MySQL',
   postgresql: 'PostgreSQL',
   sqlite: 'SQLite',
 }
 
-/** 将方言列表转为分段切换组件的选项 */
+/** Converts a dialect list into options for the segmented switch component */
 export function toDialectOptions(dialects: SqlDialect[]): SegmentedOption[] {
   return dialects.map(d => ({ value: d, label: DIALECT_LABELS[d] }))
 }
 
 /**
- * 受项目「启用的 SQL 方言」约束的方言页签状态：
- * - `enabledDialects`：当前启用的方言（按支持顺序排列）
- * - `dialectOptions`：可直接喂给 SegmentedSwitch 的选项
- * - `activeDialect`：当前选中方言，其被取消启用时自动回落到第一个启用的方言
+ * Dialect tab state constrained by the project's "enabled SQL dialects":
+ * - `enabledDialects`: currently enabled dialects (in supported order)
+ * - `dialectOptions`: options that can be passed directly to SegmentedSwitch
+ * - `activeDialect`: currently selected dialect; falls back to the first enabled dialect when it is disabled
  */
 export function useEnabledDialect() {
   const store = useEditorStore()

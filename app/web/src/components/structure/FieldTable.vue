@@ -9,7 +9,7 @@ import FieldCommentInput from './FieldCommentInput.vue'
 
 const store = useEditorStore()
 
-// 可拖拽列：宽度沿用上次调整结果（未调整过则用默认值）
+// Resizable columns: widths reuse the last adjustment (defaults if never adjusted)
 const { widthStyle, onResizeStart } = useColumnResize('schema-editor.fieldTableColWidths', [
   { key: 'name', min: 100, defaultWidth: 140 },
   { key: 'type', min: 165, defaultWidth: 175 },
@@ -37,7 +37,7 @@ async function handleDirectAddField() {
   fieldNameInputRefs[newIdx]?.focus()
 }
 
-/** 切换字段是否有默认值 */
+/** Toggle whether the field has a default value */
 function toggleHasDefault(field: Field) {
   if (field.default !== undefined) {
     store.updateFieldProps(store.currentTable!, field, { default: undefined, quote_default: undefined })
@@ -86,26 +86,26 @@ function onDragEnd(e: DragEvent) {
   dragFieldIdx.value = -1
 }
 
-/** ON UPDATE 勾选时按字段长度预填小数秒精度（datetime(3) → 3），非 0-6 的长度不作数 */
+/** When ON UPDATE is checked, prefill fractional-second precision from the field length (datetime(3) → 3); lengths outside 0-6 are ignored */
 function defaultOnUpdatePrecision(field: Field): number | undefined {
   const len = field.field_length
   return typeof len === 'number' && len >= 0 && len <= 6 ? len : undefined
 }
 
-/** 切换 MySQL 的 ON UPDATE CURRENT_TIMESTAMP */
+/** Toggle MySQL ON UPDATE CURRENT_TIMESTAMP */
 function toggleOnUpdate(field: Field, checked: boolean) {
   store.updateFieldProps(store.currentTable!, field, checked
     ? { on_update_current_timestamp: true, on_update_current_timestamp_precision: defaultOnUpdatePrecision(field) }
     : { on_update_current_timestamp: undefined, on_update_current_timestamp_precision: undefined })
 }
 
-/** 选择统一类型时仅清除 field_type，长度和小数位由用户决定是否覆盖 */
+/** Selecting a unified type only clears field_type; the user decides whether to override length and scale */
 function handleUnifiedTypeChange(field: Field, value: string) {
   if (value) {
     store.updateFieldProps(store.currentTable!, field, {
       unified_type: value,
       field_type: undefined,
-      // 统一类型字段的 quote_default 由类型定义决定，清除字段级设置
+      // quote_default for unified-type fields is decided by the type definition; clear the field-level setting
       quote_default: undefined,
     }, `unified-type:${field.field_name}`)
   } else {
@@ -113,7 +113,7 @@ function handleUnifiedTypeChange(field: Field, value: string) {
   }
 }
 
-/** 获取统一类型定义中配置的 placeholder 值（优先取 MySQL 的值） */
+/** Get the placeholder value configured in the unified type definition (prefer the MySQL value) */
 function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
   const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
@@ -122,19 +122,19 @@ function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): strin
   return val !== undefined && val !== null ? String(val) : ''
 }
 
-/** 获取统一类型定义的默认值输入组件类型 */
+/** Get the default-value input component type from the unified type definition */
 function getDefaultInputType(field: Field): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
   const def = store.commonConfig.unified_types.find(ut => ut.name === field.unified_type)
   return def?.default_input || ''
 }
 
-/** 注释选项含义在指定方言下的实时预览 */
+/** Live preview of comment option meaning for the given dialect */
 function commentOptionsPreview(field: Field, dialect: SqlDialect): string {
   return buildFieldComment(field, dialect)
 }
 
-/** 编辑注释选项某一列（label/value/mysql/postgresql） */
+/** Edit one column of a comment option (label/value/mysql/postgresql) */
 function onCommentOptionInput(field: Field, idx: number, key: keyof CommentOption, value: string) {
   store.updateFieldCommentOption(store.currentTable!, field, idx, key, value)
 }
@@ -434,7 +434,7 @@ function onDropTail(e: DragEvent) {
             <tr v-if="store.expandedFields.has(store.fieldKey(store.currentSchema!, store.currentTable!, field))">
               <td colspan="14">
                 <div class="field-expand-content">
-                  <!-- 解析后类型预览 -->
+                  <!-- Resolved type preview -->
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('fieldTable.resolvedTypes') }}</div>
                     <div class="resolved-type-row">
@@ -473,7 +473,7 @@ function onDropTail(e: DragEvent) {
                       </div>
                     </div>
                   </div>
-                  <!-- Comment Options（注释选项含义） -->
+                  <!-- Comment Options (option meanings) -->
                   <div class="expand-section" v-if="!store.isCommonField(field)">
                     <div class="expand-section-title">
                       <label class="comment-options-toggle">
@@ -538,7 +538,7 @@ function onDropTail(e: DragEvent) {
               </td>
             </tr>
           </template>
-          <!-- 尾部 drop 区域 -->
+          <!-- Tail drop zone -->
           <tr
             v-if="store.currentTable.fields.length > 0"
             class="drop-tail-row"
@@ -569,7 +569,7 @@ function onDropTail(e: DragEvent) {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-  /* 固定布局：列宽完全由表头宽度决定，拖拽收窄才能即时生效 */
+  /* Fixed layout: column widths are fully determined by the header width, so shrinking by drag takes effect immediately */
   table-layout: fixed;
 }
 
@@ -831,7 +831,7 @@ function onDropTail(e: DragEvent) {
   gap: 4px;
 }
 
-/* Comment options（注释选项含义） */
+/* Comment options (option meanings) */
 .comment-options-toggle {
   display: inline-flex;
   align-items: center;

@@ -9,15 +9,15 @@ const store = useEditorStore()
 
 const orderedCommonFields = computed(() => store.getOrderedCommonUsedFields())
 
-// 普通模式聚焦字段名输入框（可直接输入后回车），公共字段模式聚焦确认按钮
+// Normal mode focuses the field name input (type then press Enter); common field mode focuses the confirm button
 const nameInput = ref<HTMLInputElement | null>(null)
 const confirmBtn = ref<HTMLButtonElement | null>(null)
 const initialFocus = computed<HTMLElement | null>(() => (store.addFieldMode === 'normal' ? nameInput.value : confirmBtn.value))
 
-// ESC 关闭弹窗
+// ESC closes the modal
 useEscClose(computed(() => store.showAddFieldModal), () => { store.showAddFieldModal = false })
 
-// ENTER 确认添加
+// ENTER confirms adding
 useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddField(), initialFocus)
 </script>
 

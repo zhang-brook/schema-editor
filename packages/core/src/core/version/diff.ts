@@ -1,15 +1,15 @@
 /**
- * 结构 diff 引擎：对比两组 schema 结构，输出结构化差异。
+ * Structure diff engine: compares two sets of schema structures and outputs structured differences.
  *
- * 匹配策略（不依赖结构对象上的持久化 id，自顶向下解析路径）：
- * - 改名记录优先：调用方传入 RenameLookup，其来自迁移脚本上累积的 RenameEntry。
- * - 其余按路径（即名称）对应；旧结构中未被对应到的记为 removed，新结构中未对应到的记为 added。
- * - 索引在无名称时退化为「列签名」匹配。
+ * Matching strategy (does not rely on persisted ids on structure objects; resolves paths top-down):
+ * - Rename records take priority: callers pass a RenameLookup built from RenameEntry accumulated on migrations.
+ * - Everything else is matched by path (i.e. name); unmatched old entries become removed, unmatched new entries become added.
+ * - Indexes fall back to "column signature" matching when unnamed.
  *
- * 改名关系的自动推断不在本模块，见 identity.suggestRenames；
- * 两者的分工是：suggestRenames 产出候选 → 用户确认 → 作为 RenameEntry 落盘 → 本模块消费。
+ * Automatic rename inference lives outside this module; see identity.suggestRenames.
+ * The split of responsibilities: suggestRenames produces candidates → user confirms → persisted as RenameEntry → consumed here.
  *
- * 纯函数，不依赖 FS / reactive，可在浏览器端运行。
+ * Pure functions, no FS / reactive dependencies, so it can run in the browser.
  */
 import type { Field, Index, Schema, Table } from '../../types/schema'
 import type { FieldDiff, IndexDiff, SchemaDiff, StructureDiff, TableDiff } from './types'
@@ -24,21 +24,21 @@ import {
 } from './identity'
 import { FIELD_SEMANTIC_KEYS, diffSemantics } from './matcher'
 
-/** 参与索引对比的语义属性（排除 name，name 作为匹配标识） */
+/** Semantic properties participating in index comparison (name excluded; name is the match key) */
 const INDEX_SEMANTIC_KEYS: (keyof Index)[] = ['type', 'using', 'columns', 'active_only', 'logical_delete', 'comment', 'pre_comment', 'mysql', 'postgresql', 'sqlite']
 
-/** 对单索引的「语义属性」做对比（排除 name，name 作为匹配标识） */
+/** Compare the "semantic properties" of a single index (name excluded; name is the match key) */
 function compareIndexSemantics(a: Index, b: Index): Record<string, [unknown, unknown]> {
-  // active_only / logical_delete 影响生成的索引定义（部分索引、函数索引），必须参与对比
+  // active_only / logical_delete affect the generated index definition (partial and functional indexes), so they must be compared
   return diffSemantics(a, b, INDEX_SEMANTIC_KEYS)
 }
 
-/** 无名称索引用「列签名」作为匹配键 */
+/** Use the "column signature" as the match key for unnamed indexes */
 function indexColumnSignature(idx: Index): string {
   return idx.columns.map(c => `${c.name}:${c.sort_order ?? ''}`).join(',')
 }
 
-/** 按字段路径匹配新旧字段：newIndex → oldIndex */
+/** Match new and old fields by field path: newIndex → oldIndex */
 function pairFields(
   oldFields: Field[],
   newFields: Field[],
@@ -62,7 +62,7 @@ function pairFields(
   return pairs
 }
 
-/** 按索引路径匹配，无名称时回退列签名：newIndex → oldIndex */
+/** Match by index path, falling back to column signature when unnamed: newIndex → oldIndex */
 function pairIndexes(
   oldIndexes: Index[],
   newIndexes: Index[],
@@ -214,10 +214,10 @@ function diffTable(
 }
 
 /**
- * 对比两组 schema 结构。
- * @param oldSchemas 源结构（如旧版本）
- * @param newSchemas 目标结构（如当前工作区）
- * @param renames 改名反查表，缺省时仅按名称匹配
+ * Compare two sets of schema structures.
+ * @param oldSchemas Source structures (e.g. the old version)
+ * @param newSchemas Target structures (e.g. the current workspace)
+ * @param renames Reverse rename lookup; matches by name only when omitted
  */
 export function diffSchemas(
   oldSchemas: Schema[],
@@ -265,7 +265,7 @@ export function diffSchemas(
     }
   }
 
-  // 旧 schema 中被删除的
+  // Old schemas that were deleted
   for (const os of oldSchemas) {
     if (matchedOldSchemas.has(os.schema)) continue
     const tableDiffs: TableDiff[] = []
@@ -279,7 +279,7 @@ export function diffSchemas(
   return result
 }
 
-/** 计算完整结构 diff（含 from/to 标识与是否变更） */
+/** Compute the full structure diff (including from/to references and whether anything changed) */
 export function computeStructureDiff(
   fromSchemas: Schema[] | null,
   toSchemas: Schema[],

@@ -5,7 +5,7 @@ const store = useEditorStore()
 </script>
 
 <template>
-  <!-- 项目信息：随项目保存到 common.json -->
+  <!-- Project info: saved with the project into common.json -->
   <div class="section-card">
     <div class="section-body">
       <div class="form-row">

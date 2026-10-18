@@ -1,17 +1,17 @@
 /**
- * 相似度推断引擎：在没有改名记录可依据时，猜测「旧结构里消失的对象」与「新结构里新增的对象」
- * 是否为同一个对象的改名。
+ * Similarity inference engine: when no rename records are available, guess whether "an object missing from the
+ * old structure" and "an object added in the new structure" are the same object renamed.
  *
- * 设计边界（重要）：
- * - 只做最基础的信号：表级用「字段集合 Jaccard + 名称相似度」，字段级用「语义属性匹配度 + 名称相似度」。
- * - 改名存在理论上的不可判定情况：若两个表字段集合完全一致且仅互换名称（b ↔ c），
- *   相似度矩阵对称，任何算法都无法区分「对调」与「未变」，此时本引擎会保守地判为未变。
- *   这类场景必须由用户在迁移编辑器中手工连线纠正。
- * - 本模块为纯函数，不依赖 FS / reactive。
+ * Design boundaries (important):
+ * - Only basic signals are used: table level combines field-set Jaccard + name similarity; field level combines semantic-attribute match ratio + name similarity.
+ * - Renames are theoretically undecidable in some cases: if two tables have identical field sets and only swap names (b ↔ c),
+ *   the similarity matrix is symmetric and no algorithm can distinguish "swapped" from "unchanged"; this engine conservatively reports unchanged.
+ *   Such cases must be corrected by the user through manual linking in the migration editor.
+ * - This module is pure functions with no FS / reactive dependencies.
  */
 import type { Field, Index, Table } from '../../types/schema'
 
-/** 参与字段语义对比的属性（不含 field_name，名称由 nameSimilarity 单独打分） */
+/** Attributes participating in field semantic comparison (excluding field_name, which nameSimilarity scores separately) */
 export const FIELD_SEMANTIC_KEYS: (keyof Field)[] = [
   'unified_type',
   'field_type',
@@ -31,7 +31,7 @@ export const FIELD_SEMANTIC_KEYS: (keyof Field)[] = [
   'sqlite',
 ]
 
-/** 对比两侧对象在给定时序属性上的差异，返回发生变化的属性 → [旧值, 新值] */
+/** Compare two objects on the given attributes; return changed attributes → [old value, new value] */
 export function diffSemantics<T extends object>(a: T, b: T, keys: readonly (keyof T)[]): Record<string, [unknown, unknown]> {
   const changes: Record<string, [unknown, unknown]> = {}
   for (const key of keys) {
@@ -40,12 +40,12 @@ export function diffSemantics<T extends object>(a: T, b: T, keys: readonly (keyo
   return changes
 }
 
-/** 低于该分数的候选直接视为「不相关」 */
+/** Candidates scoring below this are treated as unrelated */
 export const MATCH_THRESHOLD = 0.5
-/** 最优与次优分数差小于该值时，认为存在歧义，需交由用户确认 */
+/** If the gap between the best and second-best score is below this, treat it as ambiguous and let the user decide */
 export const AMBIGUITY_MARGIN = 0.12
 
-/** 分数构成权重 */
+/** Score component weights */
 const W_TABLE_FIELDS = 0.7
 const W_TABLE_NAME = 0.3
 const W_FIELD_SEMANTIC = 0.5
@@ -53,14 +53,14 @@ const W_FIELD_NAME = 0.5
 const W_INDEX_COLUMNS = 0.6
 const W_INDEX_NAME = 0.4
 
-// ===== 名称相似度 =====
+// ===== Name similarity =====
 
-/** 计算 Levenshtein 编辑距离（滚动数组，空间 O(min(m,n))） */
+/** Compute Levenshtein edit distance (rolling arrays, O(min(m,n)) space) */
 export function levenshtein(a: string, b: string): number {
   if (a === b) return 0
   if (!a.length) return b.length
   if (!b.length) return a.length
-  // 保证内层数组更短
+  // Ensure the inner array is the shorter one
   let prev: number[] = []
   let curr: number[] = []
   for (let j = 0; j <= b.length; j++) prev[j] = j
@@ -80,14 +80,14 @@ export function levenshtein(a: string, b: string): number {
   return prev[b.length] ?? b.length
 }
 
-/** 名称归一化：忽略大小写与分隔符差异，使 user_name 与 userName 等价 */
+/** Name normalization: ignore case and separator differences so user_name and userName are equivalent */
 export function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[\s_\-.]/g, '')
 }
 
 /**
- * 名称相似度 0~1：完全相等为 1，编辑距离按较长串归一化。
- * 空串与空串视为 1，空串与非空串视为 0。
+ * Name similarity 0-1: 1 when identical, edit distance normalized by the longer string.
+ * Two empty strings count as 1; an empty and a non-empty string count as 0.
  */
 export function nameSimilarity(a: string, b: string): number {
   const na = normalizeName(a ?? '')
@@ -99,9 +99,9 @@ export function nameSimilarity(a: string, b: string): number {
   return 1 - levenshtein(na, nb) / max
 }
 
-// ===== 集合相似度 =====
+// ===== Set similarity =====
 
-/** 两个集合的 Jaccard 相似度：|交集| / |并集| */
+/** Jaccard similarity of two sets: |intersection| / |union| */
 export function jaccard(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 && b.size === 0) return 1
   if (a.size === 0 || b.size === 0) return 0
@@ -111,29 +111,29 @@ export function jaccard(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : intersection / union
 }
 
-/** 字段集合签名（归一化字段名） */
+/** Field-set signature (normalized field names) */
 function fieldNameSet(table: Table): Set<string> {
   return new Set(table.fields.map(f => normalizeName(f.field_name ?? '')))
 }
 
-/** 索引列签名集合 */
+/** Set of index column signatures */
 function indexColumnSet(index: Index): Set<string> {
   return new Set(index.columns.map(c => normalizeName(c.name ?? '')))
 }
 
-// ===== 对象相似度 =====
+// ===== Object similarity =====
 
-/** 表级相似度：字段集合为主，名称为辅 */
+/** Table-level similarity: field sets primary, names secondary */
 export function tableSimilarity(a: Table, b: Table): number {
   const fields = jaccard(fieldNameSet(a), fieldNameSet(b))
-  // 字段集合完全相同时才值得考虑，避免把结构迥异的表误配
+  // Only worth considering when the field sets are identical, which avoids mismatching structurally different tables
   const name = nameSimilarity(a.name ?? '', b.name ?? '')
   return W_TABLE_FIELDS * fields + W_TABLE_NAME * name
 }
 
 /**
- * 字段级相似度：语义属性匹配比例为主，名称为辅。
- * 仅统计两侧「至少一侧有值」的属性，避免大量 undefined 拉高分数。
+ * Field-level similarity: semantic attribute match ratio primary, names secondary.
+ * Only attributes where at least one side has a value are counted, so many undefined values do not inflate the score.
  */
 export function fieldSimilarity(a: Field, b: Field): number {
   let compared = 0
@@ -150,42 +150,42 @@ export function fieldSimilarity(a: Field, b: Field): number {
   return W_FIELD_SEMANTIC * semantic + W_FIELD_NAME * name
 }
 
-/** 索引相似度：列集合为主，名称为辅 */
+/** Index similarity: column sets primary, names secondary */
 export function indexSimilarity(a: Index, b: Index): number {
   const columns = jaccard(indexColumnSet(a), indexColumnSet(b))
   const name = nameSimilarity(a.name ?? '', b.name ?? '')
   return W_INDEX_COLUMNS * columns + W_INDEX_NAME * name
 }
 
-// ===== 最优配对 =====
+// ===== Best pairing =====
 
 export interface MatchCandidate {
-  /** 源集合下标 */
+  /** Source collection index */
   from: number
-  /** 目标集合下标 */
+  /** Target collection index */
   to: number
   score: number
 }
 
 export interface MatchResult {
-  /** 配对结果，按分数降序 */
+  /** Pairing result, in descending score order */
   pairs: MatchCandidate[]
-  /** 未配对的源下标 */
+  /** Unmatched source indexes */
   unmatchedFrom: number[]
-  /** 未配对的目标下标 */
+  /** Unmatched target indexes */
   unmatchedTo: number[]
   /**
-   * 歧义组：同一源存在多个分数接近的候选（或同一目标被多个源争抢）。
-   * 每组内 candidates 按分数降序，UI 应提示用户确认。
+   * Ambiguity groups: one source has multiple close-scoring candidates (or one target is contested by multiple sources).
+   * Within each group, candidates are in descending score order; the UI should ask the user to confirm.
    */
   ambiguous: MatchCandidate[][]
 }
 
 /**
- * 在两组对象间求配对：先按分数降序贪心分配，再标注歧义。
+ * Pair objects between two collections: greedily assign in descending score order, then flag ambiguities.
  *
- * 贪心而非匈牙利算法：项目规模下差距极小，且贪心便于产出「次优候选」用于歧义提示。
- * 代价是极端情况下不是全局最优，但配合 ambiguous 提示已足够。
+ * Greedy rather than Hungarian: at this project's scale the difference is negligible, and greedy readily yields runner-up candidates for ambiguity hints.
+ * The trade-off is that extreme cases are not globally optimal, but combined with the ambiguous hints this is sufficient.
  */
 export function matchByScore(
   fromCount: number,
@@ -196,7 +196,7 @@ export function matchByScore(
   const threshold = options?.threshold ?? MATCH_THRESHOLD
   const margin = options?.ambiguityMargin ?? AMBIGUITY_MARGIN
 
-  // 收集所有达标候选
+  // Collect all candidates above the threshold
   const all: MatchCandidate[] = []
   for (let i = 0; i < fromCount; i++) {
     for (let j = 0; j < toCount; j++) {
@@ -206,7 +206,7 @@ export function matchByScore(
   }
   all.sort((a, b) => b.score - a.score)
 
-  // 贪心分配
+  // Greedy assignment
   const usedFrom = new Set<number>()
   const usedTo = new Set<number>()
   const pairs: MatchCandidate[] = []
@@ -217,7 +217,7 @@ export function matchByScore(
     pairs.push(c)
   }
 
-  // 歧义标注：对每个源，找出所有达标但未中选的候选，若与中选者分数接近则成组
+  // Ambiguity flagging: for each source, find qualifying candidates that were not chosen and group those close to the chosen one
   const ambiguous: MatchCandidate[][] = []
   const byFrom = new Map<number, MatchCandidate[]>()
   for (const c of all) {
@@ -240,7 +240,7 @@ export function matchByScore(
   return { pairs, unmatchedFrom, unmatchedTo, ambiguous }
 }
 
-/** 表级配对便捷入口 */
+/** Convenience entry point for table-level pairing */
 export function matchTables(oldTables: Table[], newTables: Table[]): MatchResult {
   return matchByScore(oldTables.length, newTables.length, (i, j) => {
     const a = oldTables[i]
@@ -249,7 +249,7 @@ export function matchTables(oldTables: Table[], newTables: Table[]): MatchResult
   })
 }
 
-/** 字段级配对便捷入口 */
+/** Convenience entry point for field-level pairing */
 export function matchFields(oldFields: Field[], newFields: Field[]): MatchResult {
   return matchByScore(oldFields.length, newFields.length, (i, j) => {
     const a = oldFields[i]
@@ -258,7 +258,7 @@ export function matchFields(oldFields: Field[], newFields: Field[]): MatchResult
   })
 }
 
-/** 索引级配对便捷入口 */
+/** Convenience entry point for index-level pairing */
 export function matchIndexes(oldIndexes: Index[], newIndexes: Index[]): MatchResult {
   return matchByScore(oldIndexes.length, newIndexes.length, (i, j) => {
     const a = oldIndexes[i]
@@ -266,3 +266,4 @@ export function matchIndexes(oldIndexes: Index[], newIndexes: Index[]): MatchRes
     return a && b ? indexSimilarity(a, b) : 0
   })
 }
+

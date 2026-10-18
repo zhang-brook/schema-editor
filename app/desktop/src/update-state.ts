@@ -1,6 +1,6 @@
 import type { DesktopUpdateStatus } from 'schema-editor-bridge'
 
-/** 更新流程事件：由 electron-updater 的回调归一化后喂入 */
+/** Update flow events: fed in after normalization by electron-updater callbacks */
 export type UpdateEvent =
   | { type: 'checking' }
   | { type: 'up-to-date' }
@@ -14,10 +14,10 @@ export function initialStatus(currentVersion: string, supported: boolean): Deskt
 }
 
 /**
- * 按事件推进更新状态。
+ * Advance the update status according to events.
  *
- * 进度事件只在下发过程中生效并夹到 0-100 的整数，数值未变时返回原对象，
- * 便于调用方按引用跳过重复推送。
+ * Progress events only apply while downloading and are clamped to an integer in 0-100; unchanged values
+ * return the previous object so callers can skip duplicate pushes by reference.
  */
 export function reduceUpdateStatus(prev: DesktopUpdateStatus, event: UpdateEvent): DesktopUpdateStatus {
   switch (event.type) {

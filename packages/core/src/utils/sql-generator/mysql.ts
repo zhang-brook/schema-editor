@@ -5,18 +5,18 @@ import { resolveDialectOverride } from '../dialect-resolver'
 import { buildMysqlActiveExpression, resolveIndexLogicalDelete } from '../logical-delete'
 
 /*
-  SQL 生成器
-  纯函数，不依赖 Node.js fs，可在浏览器端运行
+  SQL generator
+  Pure functions with no Node.js fs dependency, runnable in the browser
 */
 
 /**
- * MySQL 字符串字面量转义：反斜杠加倍、单引号加倍，真实换行/回车写成 `\n`/`\r`。
+ * MySQL string literal escaping: double backslashes and single quotes, emit real newlines/carriage returns as `\n`/`\r`.
  *
- * 模型里的注释是真实字符（JSON 的 `\n` 已由 JSON.parse 解成真换行、`\\` 解成单个反斜杠），
- * 因此这里是标准 MySQL 转义：`C:\new` → `'C:\\new'`、真换行 → `'\n'`，
- * MySQL 解读后与模型中的真实字符一致。
+ * Comments in the model hold real characters (JSON `\n` has already been parsed into a real newline and `\\` into a single backslash),
+ * so this is standard MySQL escaping: `C:\new` → `'C:\\new'`, a real newline → `'\n'`,
+ * which MySQL decodes back to the same characters as in the model.
  *
- * 反斜杠必须最先替换，否则会把后续步骤插入的反斜杠再次加倍。
+ * Backslashes must be replaced first, otherwise the backslashes inserted by later steps get doubled again.
  */
 function escapeMySqlStringLiteral(text: string): string {
   return text
@@ -26,18 +26,18 @@ function escapeMySqlStringLiteral(text: string): string {
     .replace(/\n/g, '\\n')
 }
 
-// ===== 表字段定义 =====
+// ===== Table field definitions =====
 
 function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null): string {
   let fieldDef = `\`${field.field_name}\``
 
-  // 使用统一类型解析链获取最终 type + length + scale
+  // Use the unified type resolution chain to get the final type + length + scale
   const resolved = resolveFieldTypeForDialect(field, 'mysql', commonConfig)
   const fieldType = resolved.type
   const fieldLength = resolved.length
   const fieldScale = resolved.scale
 
-  // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
+  // Determine the default value (bypassing unified_type, keeping the field-level → dialect override chain)
   const defaultValue = resolveDialectOverride(field, 'mysql', 'default')
 
   if (fieldType) {
@@ -76,7 +76,7 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
         fieldDef += '(3)'
       }
     } else if (typeof defaultValue === 'boolean') {
-      // MySQL boolean 类型的默认值使用 0/1 (不再使用 true/false 虽然 MySQL 也支持这么写)
+      // MySQL boolean defaults use 0/1 (no longer true/false, even though MySQL accepts that too)
       fieldDef += ` DEFAULT ${defaultValue ? 1 : 0}`
     } else {
       const shouldQuote = resolveQuoteDefault(field, commonConfig)
@@ -105,10 +105,10 @@ function getFieldDefinitionMySQL(field: Field, commonConfig: CommonConfig | null
   return fieldDef
 }
 
-// ===== 表索引定义 =====
+// ===== Table index definitions =====
 
 function getMySQLIndexDefinition(index: Index, table: Table, commonConfig: CommonConfig | null): string {
-  // 获取数据库特定的索引名称
+  // Get the database-specific index name
   let indexType = index.type
   let indexUsing = index.using
 
@@ -117,13 +117,13 @@ function getMySQLIndexDefinition(index: Index, table: Table, commonConfig: Commo
     indexUsing = index.mysql.using || indexUsing
   }
 
-  // resolveIndexName 返回 undefined（name 缺失）时不输出索引名，交由 MySQL 自动命名
+  // When resolveIndexName returns undefined (missing name), omit the index name and let MySQL name it automatically
   const indexName = resolveIndexName(index, 'mysql', '')
 
-  // 如果没有指定 type，默认使用 BTREE（MySQL 默认索引类型）
+  // If no type is specified, default to BTREE (MySQL's default index type)
   const finalIndexUsing = indexUsing ? ' USING ' + indexUsing.toUpperCase() : ''
 
-  // 逻辑删除感知：MySQL 不支持部分索引，只能靠函数索引或把删除列并入索引列来绕
+  // Logical delete awareness: MySQL has no partial indexes, so work around it with a functional index or by adding the delete column to the index columns
   const logicalDelete = resolveIndexLogicalDelete(index, table, 'mysql', commonConfig)
   const appendDeleteColumn =
     logicalDelete?.mysqlStrategy === 'timestamp_union' &&
@@ -133,7 +133,7 @@ function getMySQLIndexDefinition(index: Index, table: Table, commonConfig: Commo
     : index.columns
 
   const colList = columnsForSql.map(c => {
-    // 函数索引：已删除行整体映射为 NULL（唯一索引中多个 NULL 互不冲突）
+    // Functional index: deleted rows map to NULL as a whole (multiple NULLs do not conflict in a unique index)
     if (logicalDelete && logicalDelete.mysqlStrategy === 'functional') {
       const { sortPart } = splitColumnForSql(c, 'mysql')
       return `(${buildMysqlActiveExpression(c.name, logicalDelete.field)})${sortPart}`
@@ -142,18 +142,18 @@ function getMySQLIndexDefinition(index: Index, table: Table, commonConfig: Commo
     return '`' + name + '`' + sortPart
   }).join(', ')
 
-  // 确定索引注释（字段级 comment，非方言覆盖）
+  // Determine the index comment (field-level comment, not a dialect override)
   let commentPart = ''
   const idxComment = index.comment
   if (idxComment) {
     commentPart = ` COMMENT '${escapeMySqlStringLiteral(idxComment)}'`
   }
 
-  // name 缺失时省略索引名（MySQL 语法允许省略，自动按首列命名）
+  // Omit the index name when missing (MySQL allows this and names it after the first column)
   const indexNameSql = indexName ? ` \`${indexName}\`` : ''
 
   if (indexType === 'unique') {
-    // 多列唯一索引必须用 UNIQUE INDEX 显式定义；单列可省略为 UNIQUE KEY
+    // Multi-column unique indexes must be declared explicitly as UNIQUE INDEX; single-column ones can be shortened to UNIQUE KEY
     if (index.columns.length > 1) {
       // UNIQUE INDEX `indexName` (`column1`, `column2`) USING BTREE
       // UNIQUE INDEX (`column1`, `column2`) USING BTREE
@@ -169,7 +169,7 @@ function getMySQLIndexDefinition(index: Index, table: Table, commonConfig: Commo
 }
 
 
-// ===== 生成单表 SQL =====
+// ===== Generate SQL for a single table =====
 
 export function generateTableMySQL(table: Table, commonConfig: CommonConfig | null): string {
   let sql = ''
@@ -180,17 +180,17 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   sql += `-- Table structure for ${table.name}\n`
   sql += `-- ----------------------------\n`
 
-  // 表前置 SQL
+  // Table pre-SQL
   const preSql = getTablePreSql(table, 'mysql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DDL 生成策略：drop_and_create | create_if_not_exists | create
+  // DDL generation strategy: drop_and_create | create_if_not_exists | create
   const ddlMode = commonConfig?.default_config?.table_ddl_mode ?? 'drop_and_create'
   if (ddlMode === 'drop_and_create') {
     sql += `DROP TABLE IF EXISTS \`${table.name}\`;\n`
   }
 
-  // 判断是否有实际字段（MySQL 不允许创建没有列的表）
+  // Check whether there is any real column (MySQL cannot create a table without columns)
   const hasRealColumn = table.fields.some(field => {
     const fieldConfig = resolveField(field, commonConfig)
     return !fieldConfig.is_commented_out
@@ -207,12 +207,12 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
     sql += `CREATE TABLE \`${table.name}\` (\n`
   }
 
-  // 字段定义
+  // Field definitions
   const fieldDefinitions = table.fields.map(field => {
     const fieldConfig = resolveField(field, commonConfig)
     let fieldDef = `  ${getFieldDefinitionMySQL(fieldConfig, commonConfig)}`
 
-    // 检查是否需要在字段前添加注释
+    // Check whether a comment needs to be added before the field
     if (table.comment_before_fields?.[field.field_name]) {
       fieldDef = renderCommentBeforeField(table.comment_before_fields[field.field_name]!) + fieldDef
     }
@@ -220,7 +220,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
     return fieldDef
   })
 
-  // 主键（支持复合主键）
+  // Primary key (compound primary keys supported)
   const primaryKeyFields = table.fields.filter(field => {
     const fieldConfig = resolveField(field, commonConfig)
     return fieldConfig.primary_key
@@ -232,7 +232,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
     indexDefinitions.push(`  PRIMARY KEY (${primaryKeyColumns}) USING BTREE`)
   }
 
-  // 索引
+  // Indexes
   table.indexes.forEach(index => {
     const indexDef = `  ${getMySQLIndexDefinition(index, table, commonConfig)}`
     if (index.pre_comment) {
@@ -249,7 +249,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   }
   sql += '\n)'
 
-  // 表级配置
+  // Table-level options
   const mysqlConfig = (table.mysql && Object.keys(table.mysql).length > 0)
     ? table.mysql
     : commonConfig?.default_config?.mysql?.table
@@ -264,7 +264,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
     sql += ` COLLATE = ${mysqlConfig.mysql_collation}`
   }
 
-  // PARTITION BY 生成在右括号之后（MySQL 要求位于所有表选项之后）
+  // PARTITION BY is emitted after the closing parenthesis (MySQL requires it after all table options)
   const partitionClause = getTablePartitionClause(table, 'mysql', commonConfig)
   if (partitionClause) {
     sql += ` ${partitionClause}`
@@ -272,7 +272,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   sql += ` COMMENT = '${escapeMySqlStringLiteral(table.comment)}'`
   sql += ' ROW_FORMAT = Dynamic;\n'
 
-  // 表后置 SQL
+  // Table post-SQL
   const postSql = getTablePostSql(table, 'mysql')
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)
 
@@ -283,7 +283,7 @@ export function generateTableMySQL(table: Table, commonConfig: CommonConfig | nu
   return sql
 }
 
-// ===== 生成整个 schema 的 SQL =====
+// ===== Generate SQL for the whole schema =====
 
 export function generateSchemaMySQL(schema: Schema, commonConfig: CommonConfig | null): string {
   let sql = ''
@@ -301,7 +301,7 @@ export function generateSchemaMySQL(schema: Schema, commonConfig: CommonConfig |
     '',
   ].join('\n')
 
-  // Schema 前置 SQL
+  // Schema pre-SQL
   const schemaPreSql = getSchemaPreSql(schema, 'mysql')
   if (schemaPreSql) sql += fmtPrePostSql(schemaPreSql) + '\n'
 
@@ -312,7 +312,7 @@ export function generateSchemaMySQL(schema: Schema, commonConfig: CommonConfig |
 
   sql = sql.trimEnd() + '\n\n'
 
-  // Schema 后置 SQL
+  // Schema post-SQL
   const schemaPostSql = getSchemaPostSql(schema, 'mysql')
   if (schemaPostSql) sql += fmtPrePostSql(schemaPostSql) + '\n'
 
@@ -321,9 +321,9 @@ export function generateSchemaMySQL(schema: Schema, commonConfig: CommonConfig |
   return sql
 }
 
-// ===== Initial Data INSERT 语句生成 =====
+// ===== Initial data INSERT generation =====
 
-/** 将 JS 值格式化为 SQL 字面量，根据方言处理差异 */
+/** Format a JS value as an SQL literal, handling dialect differences */
 export function formatSqlValue(val: unknown, isExpr = false): string {
   if (val === null || val === undefined) return 'NULL'
   if (typeof val === 'boolean') {
@@ -334,30 +334,30 @@ export function formatSqlValue(val: unknown, isExpr = false): string {
     return String(val)
   }
   if (typeof val === 'string') {
-    // 标记为 SQL 表达式（如 CURRENT_TIMESTAMP()）：原样输出，不加引号
+    // Marked as an SQL expression (e.g. CURRENT_TIMESTAMP()): emit as-is without quotes
     if (isExpr) return val
-    // 转义单引号：' → ''
+    // Escape single quotes: ' → ''
     return `'${val.replace(/'/g, "''")}'`
   }
-  // 对象/数组等：JSON 序列化后作为字符串
+  // Objects/arrays and the like: JSON-serialize and emit as a string
   return `'${JSON.stringify(val).replace(/'/g, "''")}'`
 }
 
-/** 生成单表的 INSERT 语句（） */
+/** Generate INSERT statements for a single table */
 export function generateInitialDataMySQL(
   table: Table,
-  rows: JsonObject[], // rows 应为已过滤掉 skip 行的有效数据
+  rows: JsonObject[], // rows must already have skip rows filtered out
   rowComments?: (string | null)[],
-  exprFields?: Record<string, boolean>[], // 与 rows 索引对齐：标记某字段值为 SQL 表达式（不加引号）
+  exprFields?: Record<string, boolean>[], // index-aligned with rows: marks a field value as an SQL expression (unquoted)
 ): string {
-  const cols = getTableColumnNames(table, null)  // MySQL DDL 也是用同名字段，不需要 commonConfig 解析字段名（name 在 INSERT 中用引号括起来即可）
-  // 实际需要用 resolveField 处理，重新获取列名
-  // 列名保持原样，INSERT 中只需字段名一致
+  const cols = getTableColumnNames(table, null)  // MySQL DDL uses the same field names, so no commonConfig field-name resolution is needed (names are quoted in the INSERT)
+  // This actually needs resolveField handling to re-fetch the column names
+  // Column names stay as-is; the INSERT only needs consistent field names
   if (cols.length === 0 || rows.length === 0) return ''
 
   const colList = cols.map(c => `\`${c}\``).join(', ')
 
-  // 行注释（仅输出非 null 的）
+  // Row comments (only non-null ones are emitted)
   let comments = ''
   if (rowComments) {
     for (let i = 0; i < rowComments.length; i++) {
@@ -376,7 +376,7 @@ export function generateInitialDataMySQL(
   return `${comments}INSERT INTO \`${table.name}\` (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
-/** 生成所有 Schema 的 MySQL initial data INSERT 汇总 */
+/** Generate the MySQL initial data INSERT summary for all schemas */
 export function generateInitialDataAllMySQL(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
@@ -405,10 +405,10 @@ export function generateInitialDataAllMySQL(
       const hasPreSql = !!initPreSql
       const hasPostSql = !!initPostSql
 
-      // 先过滤掉「不生成」的行，得到有效数据行（无 skip 逻辑残留）
+      // Filter out "do not generate" rows first to get the effective data rows (no skip logic left)
       const filtered = filterInitialDataRows(initData.rows)
 
-      // 无有效数据行且无 pre/post SQL 则跳过
+      // Skip when there are no effective rows and no pre/post SQL
       if (!filtered.hasRows && !hasPreSql && !hasPostSql) continue
 
       if (!isSchemaCommentHeaderPrinted) {
@@ -419,7 +419,7 @@ export function generateInitialDataAllMySQL(
         isSchemaCommentHeaderPrinted = true
       }
 
-      // initial-data 级别前置 SQL
+      // initial-data level pre-SQL
       if (hasPreSql) {
         sql += fmtPrePostSql(initPreSql) + '\n'
       }
@@ -433,7 +433,7 @@ export function generateInitialDataAllMySQL(
         sql += '\n'
       }
 
-      // initial-data 级别后置 SQL
+      // initial-data level post-SQL
       if (hasPostSql) {
         sql += fmtPrePostSql(initPostSql) + '\n'
       }

@@ -4,19 +4,19 @@ import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
 const props = withDefaults(defineProps<{
-  /** 是否显示弹窗 */
+  /** Whether the modal is visible */
   visible: boolean
-  /** 标题文本（已翻译后的字符串，直接显示） */
+  /** Title text (already translated string, displayed as is) */
   title: string
-  /** 正文消息，支持 \n 换行 */
+  /** Body message; supports \n line breaks */
   message: string
-  /** 确认按钮文本 */
+  /** Confirm button text */
   confirmText?: string
-  /** 次按钮文本；为空则不显示（如「不保存」） */
+  /** Secondary button text; hidden when empty (e.g. "Don't Save") */
   secondaryText?: string
-  /** 取消按钮文本；为空则不显示取消按钮 */
+  /** Cancel button text; hides the cancel button when empty */
   cancelText?: string
-  /** 确认按钮是否使用主色调（默认 true） */
+  /** Whether the confirm button uses the primary color (default true) */
   primaryConfirm?: boolean
 }>(), {
   confirmText: 'OK',
@@ -32,13 +32,13 @@ const emit = defineEmits<{
 }>()
 
 const showCancel = computed(() => !!props.cancelText)
-// 有取消按钮＝需决策（疑问），无取消＝纯提示（信息）
+// With cancel button = decision required (question); without = plain notice (info)
 const iconGlyph = computed(() => (showCancel.value ? '?' : 'i'))
 const iconClass = computed(() => (showCancel.value ? 'confirm-icon--warn' : 'confirm-icon--info'))
 
-// ===== 键盘快捷键：ESC 取消，ENTER 确认 =====
-// 弹窗由队列驱动、组件始终挂载，两个 composable 仅在 visible 时拦截按键；
-// 焦点落在确认按钮上（如表格里的删除 × 触发的弹窗），避免回车重复触发原按钮。
+// ===== Keyboard shortcuts: ESC cancels, ENTER confirms =====
+// The modal is queue-driven and the component stays mounted, so both composables only intercept keys when visible;
+// focus lands on the confirm button (e.g. a modal triggered by a delete × in a table) to avoid Enter re-triggering the original button.
 const confirmBtn = ref<HTMLButtonElement | null>(null)
 const visibleFlag = computed(() => props.visible)
 
@@ -102,7 +102,7 @@ useEnterConfirm(visibleFlag, () => emit('confirm'), confirmBtn)
   color: var(--warning-fg);
 }
 
-/* 覆盖 modal.css 中 .modal-box h3 的默认下边距，交给 header 控制间距 */
+/* Override the default bottom margin of .modal-box h3 in modal.css; spacing is controlled by the header */
 .modal-box .confirm-title {
   margin: 0;
   font-size: 16px;

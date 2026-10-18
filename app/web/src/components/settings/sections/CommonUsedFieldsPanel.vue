@@ -111,12 +111,12 @@ async function handleDelete(name: string) {
   await store.deleteCommonUsedField(name)
 }
 
-/** 类型选择与清理自定义类型/默认值引号在同一命令内完成。 */
+/** Type selection and clearing of the custom type / default quote happen in the same command. */
 function handleUnifiedTypeChange(field: Field, value: string) {
   updateField(field, { unified_type: value || undefined })
 }
 
-/** 获取统一类型定义中配置的 placeholder 值（优先取 MySQL 的值） */
+/** Get the placeholder value configured in the unified type definition (prefers the MySQL value) */
 function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
   const def = store.commonConfig.unified_types.find((ut: UnifiedTypeDefinition) => ut.name === field.unified_type)
@@ -125,20 +125,20 @@ function getUnifiedTypePlaceholder(field: Field, key: 'length' | 'scale'): strin
   return val !== undefined && val !== null ? String(val) : ''
 }
 
-/** 切换字段是否有默认值 */
+/** Toggle whether the field has a default value */
 function toggleHasDefault(field: Field) {
   updateField(field, field.default !== undefined
     ? { default: undefined, quote_default: undefined }
     : { default: '' })
 }
 
-/** ON UPDATE 勾选时按字段长度预填小数秒精度（datetime(3) → 3），非 0-6 的长度不作数 */
+/** When ON UPDATE is checked, prefill the fractional-seconds precision from the field length (datetime(3) → 3); lengths outside 0-6 are ignored */
 function defaultOnUpdatePrecision(field: Field): number | undefined {
   const len = field.field_length
   return typeof len === 'number' && len >= 0 && len <= 6 ? len : undefined
 }
 
-/** 切换 MySQL 的 ON UPDATE CURRENT_TIMESTAMP */
+/** Toggle MySQL ON UPDATE CURRENT_TIMESTAMP */
 function toggleOnUpdate(field: Field, checked: boolean) {
   updateField(field, {
     on_update_current_timestamp: checked || undefined,
@@ -146,7 +146,7 @@ function toggleOnUpdate(field: Field, checked: boolean) {
   })
 }
 
-/** 获取统一类型定义的默认值输入组件类型 */
+/** Get the default-value input component type from the unified type definition */
 function getDefaultInputType(field: Field): string {
   if (!field.unified_type || !store.commonConfig?.unified_types) return ''
   const def = store.commonConfig.unified_types.find((ut: UnifiedTypeDefinition) => ut.name === field.unified_type)
@@ -402,11 +402,11 @@ function toggleCommonFieldExpand(fieldName: string) {
                 >&times;</button>
               </td>
             </tr>
-            <!-- 展开行：数据库方言覆盖 -->
+            <!-- Expand row: database dialect overrides -->
             <tr v-if="expandedCommonFields.has(field.field_name)">
               <td :colspan="13">
                 <div class="field-expand-content">
-                  <!-- 解析后类型预览 -->
+                  <!-- Resolved type preview -->
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('fieldTable.resolvedTypes') }}</div>
                     <div class="resolved-type-row">
@@ -439,7 +439,7 @@ function toggleCommonFieldExpand(fieldName: string) {
               </td>
             </tr>
             </template>
-            <!-- 尾部 drop 区域 -->
+            <!-- Tail drop zone -->
             <tr
               v-if="localFields.length > 0"
               class="drop-tail-row"

@@ -10,7 +10,7 @@ import type {
 
 function toErrorCode(error: unknown): DesktopFsErrorCode {
   const code = (error as { code?: unknown } | null)?.code
-  // Node 对「用 rm 删除目录但未开 recursive」报 ERR_FS_EISDIR，这里归一化为 EISDIR
+  // Node reports ERR_FS_EISDIR for rm on a directory without recursive; normalize it to EISDIR
   if (code === 'ERR_FS_EISDIR') return 'EISDIR'
   if (code === 'ENOENT' || code === 'EISDIR' || code === 'ENOTEMPTY' || code === 'EPERM' || code === 'EACCES') {
     return code
@@ -27,22 +27,22 @@ function fail<T = never>(code: DesktopFsErrorCode): DesktopFsResult<T> {
 }
 
 /**
- * 主进程文件系统服务：所有操作限定在用户通过目录选择器打开的项目根目录内。
- * 只依赖 node:fs，可在无 Electron 环境下测试。
+ * Main-process filesystem service: all operations are confined to project roots the user opened
+ * through the directory picker. Depends only on node:fs, so it can be tested without Electron.
  */
 export function createFsService() {
   const allowedRoots = new Set<string>()
   const watchers = new Map<number, FSWatcher>()
   let nextWatcherId = 1
 
-  /** 记录原生选择器返回的项目根目录，返回规范化路径 */
+  /** Record a project root returned by the native picker and return its resolved path */
   function allowRoot(root: string): string {
     const resolved = path.resolve(root)
     allowedRoots.add(resolved)
     return resolved
   }
 
-  /** 路径不在任何已授权根目录内时返回 null */
+  /** Return null when the path is not inside any authorized root */
   function resolveInsideRoot(target: string): string | null {
     if (typeof target !== 'string' || target.length === 0) return null
     const resolved = path.resolve(target)
@@ -121,7 +121,7 @@ export function createFsService() {
       if (recursive) {
         await fs.rm(resolved, { recursive: true, force: false })
       } else {
-        // Windows 上 fs.rm 非递归删除目录会报 ERR_FS_EISDIR，需按类型分别 unlink/rmdir
+        // On Windows non-recursive fs.rm on a directory reports ERR_FS_EISDIR; unlink/rmdir by kind
         const stats = await fs.lstat(resolved)
         if (stats.isDirectory()) await fs.rmdir(resolved)
         else await fs.unlink(resolved)
@@ -132,7 +132,7 @@ export function createFsService() {
     }
   }
 
-  /** 递归监听目录，事件携带相对被监听目录的路径（'/' 分隔） */
+  /** Watch a directory recursively; events carry paths relative to it ('/'-separated) */
   async function watchStart(
     target: string,
     onEvent: (event: DesktopWatchEvent) => void,

@@ -2,18 +2,18 @@ import { computed, ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type { Schema, Table } from 'schema-editor-core/types/schema'
 
-/** 已打开的编辑标签 */
+/** Opened editor tabs */
 export interface TableTab {
   schema: Schema
   table: Table
 }
 
-/** 标签数量上限：超出后丢弃最早打开的非当前标签 */
+/** Maximum number of tabs: beyond this, the oldest non-active tab is dropped */
 const MAX_TABS = 12
 
 const tabs = ref<TableTab[]>([])
 
-/** 把标签追加进列表：已在列表中则不动；超出上限时丢弃最早的非当前标签 */
+/** Appends a tab to the list: no-op if already present; drops the oldest non-active tab when exceeding the limit */
 export function addTab(tabs: TableTab[], tab: TableTab, isActive: (tab: TableTab) => boolean): void {
   if (tabs.some(item => item.schema === tab.schema && item.table === tab.table)) return
   tabs.push(tab)
@@ -23,7 +23,7 @@ export function addTab(tabs: TableTab[], tab: TableTab, isActive: (tab: TableTab
   }
 }
 
-/** 移除标签，返回应转为激活的邻居：右邻优先，无右邻取左邻；标签不在列表或列表已空时返回 null */
+/** Removes a tab and returns the neighbor that should become active: right neighbor first, left neighbor if none; returns null when the tab is not in the list or the list is already empty */
 export function removeTab(tabs: TableTab[], tab: TableTab): TableTab | null {
   const idx = tabs.indexOf(tab)
   if (idx < 0) return null
@@ -32,13 +32,13 @@ export function removeTab(tabs: TableTab[], tab: TableTab): TableTab | null {
 }
 
 /**
- * 表编辑标签：当前选中的表自动进入标签列表，点击标签切回对应表。
- * 标签记录对象引用而非索引，Schema/表重命名、移动后依然指向同一张表。
+ * Table editor tabs: the currently selected table automatically enters the tab list, and clicking a tab switches back to that table.
+ * Tabs store object references rather than indices, so they still point to the same table after Schema/table renames or moves.
  */
 export function useTableTabs() {
   const store = useEditorStore()
 
-  /** 剔除已被删除的 Schema / 表（含随 Schema 一并删除的表） */
+  /** Filters out deleted Schemas / tables (including tables deleted together with their Schema) */
   const openTabs = computed(() =>
     tabs.value.filter(tab => store.schemas.includes(tab.schema) && tab.schema.tables.includes(tab.table)),
   )
@@ -59,7 +59,7 @@ export function useTableTabs() {
     const wasActive = isActive(tab)
     const next = removeTab(tabs.value, tab)
     if (!wasActive) return
-    // 关闭当前标签后切到邻居标签，没有邻居就回到 Schema 总览
+    // After closing the current tab, switch to a neighbor tab, or return to the Schema overview if there is none
     if (next) activate(next)
     else if (store.selectedSchemaIdx >= 0) store.selectSchemaOnly(store.selectedSchemaIdx)
   }

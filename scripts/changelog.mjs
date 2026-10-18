@@ -24,7 +24,7 @@ if (new RegExp(`^## v${version.replace(/\./g, '\\.')}\\.?\\s*$`, 'm').test(chang
   process.exit(1)
 }
 
-// 起点只认「既有 CHANGELOG 小节又有对应 tag」的版本，避免 tag 打在无小节的提交上时该提交被永久跳过
+// Only start from versions that have both a CHANGELOG section and a matching tag, so commits tagged without a section are never skipped
 const from =
   [...changelog.matchAll(/^##\s+(v?[\d.]+)/gm)]
     .map((match) => match[1])
@@ -38,7 +38,7 @@ const config = await loadChangelogConfig(cwd, {
   newVersion: version,
 })
 
-// changelogen CLI 会硬性丢弃 chore(deps)/chore(release)，这里改为只按配置里的类型决定是否收录
+// The changelogen CLI unconditionally drops chore(deps)/chore(release); here inclusion is decided solely by the types in the config
 const commits = parseCommits(await getGitDiff(config.from, config.to, cwd), config)
   .map((commit) => ({ ...commit, type: commit.type.toLowerCase() }))
   .filter((commit) => config.types[commit.type])

@@ -20,46 +20,46 @@ function index(extra: Partial<Index> = {}): Index {
 }
 
 describe('formatSqlDefault', () => {
-  it('数字与布尔按原样输出', () => {
+  it('numbers and booleans are output as-is', () => {
     expect(formatSqlDefault(0, false)).toBe('0')
     expect(formatSqlDefault(3.14, false)).toBe('3.14')
     expect(formatSqlDefault(true, false)).toBe('true')
     expect(formatSqlDefault(false, true)).toBe("'false'")
   })
 
-  it('null 与 undefined 字面量输出', () => {
+  it('null and undefined literals are output', () => {
     expect(formatSqlDefault(null, false)).toBe('null')
     expect(formatSqlDefault(undefined, false)).toBe('undefined')
   })
 
-  it('字符串默认值按 NULL 之外原样输出', () => {
+  it('string defaults other than NULL are output as-is', () => {
     expect(formatSqlDefault('abc' as JsonValue, false)).toBe('abc')
     expect(formatSqlDefault('abc', true)).toBe("'abc'")
   })
 
-  it('引号包裹时转义单引号', () => {
+  it('single quotes are escaped when wrapping in quotes', () => {
     expect(formatSqlDefault("O'Neil", true)).toBe("'O''Neil'")
   })
 
-  it('CURRENT_TIMESTAMP 表达式始终原样输出', () => {
+  it('CURRENT_TIMESTAMP expressions are always output as-is', () => {
     expect(formatSqlDefault('CURRENT_TIMESTAMP', true)).toBe('CURRENT_TIMESTAMP')
     expect(formatSqlDefault('CURRENT_TIMESTAMP(3) ON UPDATE', true)).toBe('CURRENT_TIMESTAMP(3) ON UPDATE')
   })
 })
 
 describe('resolveQuoteDefault', () => {
-  it('字段级设置优先于统一类型', () => {
+  it('field-level setting takes precedence over the unified type', () => {
     const f = field('a', { field_type: 'varchar', quote_default: false, unified_type: 'str' })
     expect(resolveQuoteDefault(f, null)).toBe(false)
   })
 
-  it('无字段级设置且无统一类型映射时为 false', () => {
+  it('false when there is no field-level setting and no unified type mapping', () => {
     expect(resolveQuoteDefault(field('a'), null)).toBe(false)
   })
 })
 
 describe('resolveFieldTypeForDialect', () => {
-  it('无统一类型时用 field_type，方言覆盖最优先', () => {
+  it('uses field_type when there is no unified type, dialect override has the highest priority', () => {
     const f = field('a', { field_type: 'varchar', field_length: 32, postgresql: { field_type: 'character varying' } })
     expect(resolveFieldTypeForDialect(f, 'mysql', null)).toEqual({ type: 'varchar', length: 32, scale: null })
     expect(resolveFieldTypeForDialect(f, 'postgresql', null)).toEqual({
@@ -69,19 +69,19 @@ describe('resolveFieldTypeForDialect', () => {
     })
   })
 
-  it('方言覆盖可清空长度并保留其余属性', () => {
+  it('dialect override can clear the length while keeping the other attributes', () => {
     const f = field('a', { field_type: 'decimal', field_length: 10, field_scale: 2, sqlite: { field_length: null } })
     expect(resolveFieldTypeForDialect(f, 'sqlite', null)).toEqual({ type: 'decimal', length: null, scale: 2 })
   })
 
-  it('「不设置」勾选强制跳过长度与小数位', () => {
+  it('the "not set" checkbox forces skipping length and scale', () => {
     const f = field('a', { field_type: 'decimal', field_length: 10, field_scale: 2, field_length_disabled: true, field_scale_disabled: true })
     expect(resolveFieldTypeForDialect(f, 'mysql', null)).toEqual({ type: 'decimal', length: null, scale: null })
   })
 })
 
 describe('applyTypeCase', () => {
-  it('四种模式的大小写转换', () => {
+  it('case conversion for the four modes', () => {
     expect(applyTypeCase('VarChar', undefined)).toBe('VarChar')
     expect(applyTypeCase('VarChar', 'keep')).toBe('VarChar')
     expect(applyTypeCase('VarChar', 'lowercase')).toBe('varchar')
@@ -92,41 +92,41 @@ describe('applyTypeCase', () => {
 })
 
 describe('resolveIndexName', () => {
-  it('mysql 展开占位符，缺名时返回 undefined', () => {
+  it('mysql expands placeholders and returns undefined when the name is missing', () => {
     expect(resolveIndexName(index({ name: '{pre}email' }), 'mysql', 't')).toBe('idx_email')
     expect(resolveIndexName(index({ name: undefined }), 'mysql', 't')).toBeUndefined()
   })
 
-  it('只剩前后缀占位符视为未命名', () => {
+  it('only prefix/suffix placeholders is treated as unnamed', () => {
     expect(resolveIndexName(index({ name: '{pre}{post}' }), 'mysql', 't')).toBeUndefined()
     expect(resolveIndexName(index({ name: '{pre}{post}' }), 'sqlite', 't')).toBe('idx_id')
   })
 
-  it('postgresql 前缀带表名并按唯一类型切换', () => {
+  it('postgresql prefix includes the table name and switches by unique type', () => {
     expect(resolveIndexName(index({ type: 'unique', name: '{pre}email' }), 'postgresql', 'users')).toBe('uk__users__email')
     expect(resolveIndexName(index({ name: undefined, columns: [{ name: 'a' }, { name: 'b' }] }), 'postgresql', 'users')).toBe('idx__users__a_b')
   })
 
-  it('勾选默认名时忽略配置名', () => {
+  it('configured name is ignored when the default name option is enabled', () => {
     expect(resolveIndexName(index({ name: 'idx_custom', use_default_name: true }), 'mysql', 't')).toBeUndefined()
     expect(resolveIndexName(index({ name: 'idx_custom', use_default_name: true }), 'sqlite', 't')).toBe('idx_id')
   })
 
-  it('方言级 name / type 覆盖优先', () => {
+  it('dialect-level name / type overrides take priority', () => {
     const i = index({ name: '{pre}a', type: 'index', mysql: { name: '{pre}b', type: 'unique' } })
     expect(resolveIndexName(i, 'mysql', 't')).toBe('uk_b')
-    // 未配置方言覆盖时回退顶层名称，前缀按方言展开
+    // Falls back to the top-level name when no dialect override is configured; the prefix is expanded per dialect
     expect(resolveIndexName(i, 'postgresql', 't')).toBe('idx__t__a')
   })
 })
 
 describe('buildFieldComment', () => {
-  it('未启用选项含义时返回原注释', () => {
+  it('returns the original comment when comment options are not enabled', () => {
     expect(buildFieldComment(field('a', { comment: '备注' }), 'mysql')).toBe('备注')
     expect(buildFieldComment(field('a', { comment_options_enabled: true, comment_options: [] }), 'mysql')).toBe('')
   })
 
-  it('拼接选项含义与默认值', () => {
+  it('concatenates option labels and the default value', () => {
     const f = field('a', {
       comment: '状态',
       comment_options_enabled: true,
@@ -137,7 +137,7 @@ describe('buildFieldComment', () => {
     expect(buildFieldComment(f, 'postgresql')).toBe('状态：true-启用，0-停用，默认1')
   })
 
-  it('布尔默认值按方言渲染，方言覆盖优先', () => {
+  it('boolean defaults are rendered per dialect, dialect override takes priority', () => {
     const f = field('a', {
       comment_options_enabled: true,
       comment_options: [{ value: '1', label: 'A' }],
@@ -148,21 +148,21 @@ describe('buildFieldComment', () => {
     expect(buildFieldComment(f, 'postgresql')).toBe('1-A，默认FALSE')
   })
 
-  it('默认值为 null 或空串时不输出默认段', () => {
+  it('no default segment is output when the default is null or an empty string', () => {
     const base = { comment_options_enabled: true, comment_options: [{ value: '1', label: 'A' }] }
     expect(buildFieldComment(field('a', { ...base, default: null }), 'mysql')).toBe('1-A，默认null')
     expect(buildFieldComment(field('a', { ...base, default: '' }), 'mysql')).toBe('1-A')
     expect(buildFieldComment(field('a', base), 'mysql')).toBe('1-A')
   })
 
-  it('选项值与含义同时为空的项被跳过', () => {
+  it('entries with both an empty value and an empty label are skipped', () => {
     const f = field('a', { comment_options_enabled: true, comment_options: [{ value: '', label: '' }, { value: '2', label: 'B' }] })
     expect(buildFieldComment(f, 'sqlite')).toBe('2-B')
   })
 })
 
 describe('filterInitialDataRows', () => {
-  it('剔除 skip 行并保持注释与表达式标记对齐', () => {
+  it('removes skip rows and keeps comments and expression flags aligned', () => {
     const result = filterInitialDataRows([
       { data: { id: 1 }, row_comment: '一', expr_fields: { c: true } },
       { data: { id: 2 }, is_skip: true },
@@ -176,14 +176,14 @@ describe('filterInitialDataRows', () => {
     })
   })
 
-  it('全部跳过或无行时 hasRows 为 false', () => {
+  it('hasRows is false when all rows are skipped or there are no rows', () => {
     expect(filterInitialDataRows([{ data: {}, is_skip: true }]).hasRows).toBe(false)
     expect(filterInitialDataRows(undefined)).toEqual({ rows: [], rowComments: [], exprFields: [], hasRows: false })
   })
 })
 
 describe('isStringTypeField', () => {
-  it('自定义类型（无统一类型）返回 true 交由用户判断', () => {
+  it('custom types (no unified type) return true so the user can decide', () => {
     expect(isStringTypeField(field('a'), null)).toBe(true)
   })
 })

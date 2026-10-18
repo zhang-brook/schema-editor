@@ -20,7 +20,7 @@ const errorMsg = ref('')
 const busy = ref(false)
 const urlInput = ref<HTMLInputElement | null>(null)
 
-// 输入可解析的地址时，若该站点存过「记住的令牌」则自动预填
+// When the entered URL can be parsed, auto-fill the saved token for that host if one exists
 watch(url, value => {
   if (token.value) return
   try {
@@ -31,7 +31,7 @@ watch(url, value => {
       remember.value = true
     }
   } catch {
-    // 地址尚不完整时忽略
+    // Ignore while the URL is still incomplete
   }
 })
 

@@ -23,7 +23,7 @@ afterEach(async () => {
 })
 
 describe('createFsService', () => {
-  it('拒绝未授权根目录及越出根目录的路径', async () => {
+  it('rejects unauthorized roots and paths escaping the root', async () => {
     const service = createFsService()
     await fs.writeFile(path.join(workDir, 'a.json'), '{}')
 
@@ -34,7 +34,7 @@ describe('createFsService', () => {
     expect(await service.readText(path.join(workDir, '..', 'escape.json'))).toEqual({ ok: false, code: 'EACCES' })
   })
 
-  it('readDir / statKind 描述文件、目录与缺失路径', async () => {
+  it('readDir / statKind describe files, directories and missing paths', async () => {
     const service = createFsService()
     service.allowRoot(workDir)
     await fs.mkdir(path.join(workDir, 'sub'))
@@ -55,7 +55,7 @@ describe('createFsService', () => {
     expect(await service.readDir(path.join(workDir, 'missing'))).toEqual({ ok: false, code: 'ENOENT' })
   })
 
-  it('writeText / ensureDir 往返一致，remove 区分递归与非递归', async () => {
+  it('writeText / ensureDir round-trip and remove distinguishes recursive from non-recursive', async () => {
     const service = createFsService()
     service.allowRoot(workDir)
 
@@ -72,13 +72,13 @@ describe('createFsService', () => {
     expect(await service.statKind(path.join(workDir, 'x'))).toEqual({ ok: true, value: null })
     expect(await service.remove(path.join(workDir, 'x'), false)).toEqual({ ok: false, code: 'ENOENT' })
 
-    // 非递归删除空目录：Windows 上 fs.rm 会报 EISDIR，必须走 rmdir
+    // Non-recursive delete of an empty directory: fs.rm reports EISDIR on Windows, must use rmdir
     expect(await service.ensureDir(path.join(workDir, 'empty'))).toEqual({ ok: true, value: null })
     expect(await service.remove(path.join(workDir, 'empty'), false)).toEqual({ ok: true, value: null })
     expect(await service.statKind(path.join(workDir, 'empty'))).toEqual({ ok: true, value: null })
   })
 
-  it('递归监听子目录变更并携带相对路径，watchStop 后不再上报', async () => {
+  it('watches subdirectory changes recursively with relative paths and stops after watchStop', async () => {
     const service = createFsService()
     service.allowRoot(workDir)
     const events: Array<{ id: number; relativePath: string }> = []

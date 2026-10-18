@@ -22,7 +22,7 @@ defineProps<{ text?: string }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 低于 .modal-overlay(1000)：加载期间若弹出确认框，弹窗必须可点 */
+  /* Below .modal-overlay (1000): a confirm dialog opened during loading must stay clickable */
   z-index: 900;
   backdrop-filter: blur(2px);
 }

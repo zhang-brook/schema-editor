@@ -19,7 +19,7 @@ const emit = defineEmits<{
 // Per-column expanded state for db overrides
 const expandedOverrides = reactive(new Set<number>())
 
-// ===== 列拖拽排序 =====
+// ===== Column drag-and-drop reordering =====
 const dragColIdx = ref(-1)
 
 function onColDragStart(e: DragEvent, idx: number) {
@@ -33,9 +33,9 @@ function onColDragStart(e: DragEvent, idx: number) {
 }
 
 function onColDragOver(e: DragEvent) {
-  // 仅在拖拽列时响应，避免污染外层索引行的拖拽
+  // Respond only while a column is being dragged, to avoid interfering with the outer index row drag
   if (dragColIdx.value < 0) return
-  // 阻止冒泡，避免触发外层索引行的拖拽排序
+  // Stop propagation so the outer index row drag reordering is not triggered
   e.stopPropagation()
   e.preventDefault()
   if (e.dataTransfer) {
@@ -45,9 +45,9 @@ function onColDragOver(e: DragEvent) {
 }
 
 function onColDragLeave(e: DragEvent) {
-  // 仅在拖拽列时响应，避免污染外层索引行
+  // Respond only while a column is being dragged, to avoid interfering with the outer index row
   if (dragColIdx.value < 0) return
-  // 阻止冒泡，避免联动外层索引行
+  // Stop propagation to avoid involving the outer index row
   e.stopPropagation()
   ;(e.currentTarget as HTMLElement).classList.remove('col-drag-over')
 }
@@ -71,7 +71,7 @@ function onColDragEnd(e: DragEvent) {
   dragColIdx.value = -1
 }
 
-// 末尾投放区：把某项拖到最后一列
+// Tail drop zone: drop an item into the last column
 function onColDragOverTail(e: DragEvent) {
   if (dragColIdx.value < 0) return
   e.stopPropagation()
@@ -110,7 +110,7 @@ function moveColumn(fromIdx: number, toIdx: number) {
   if (!moved) return
   toIdx = Math.min(toIdx, arr.length)
   arr.splice(toIdx, 0, moved)
-  // 同步迁移每列的覆盖展开状态，避免展开错位
+  // Migrate each column's override expansion state along with the move to keep expansion in sync
   const remapped = new Set<number>()
   for (const oldIdx of expandedOverrides) {
     if (oldIdx === fromIdx) remapped.add(toIdx)
@@ -229,7 +229,7 @@ watch(() => props.modelValue, () => {
           >
             {{ fieldName }}
           </option>
-          <!-- 保留不在当前字段列表中的已选值 -->
+          <!-- Keep a selected value that is not in the current field list -->
           <option
             v-if="col.name && !availableFields.includes(col.name)"
             :value="col.name"
@@ -299,7 +299,7 @@ watch(() => props.modelValue, () => {
         </div>
       </div>
     </div>
-    <!-- 末尾投放区：仅在拖拽列时显示，支持把某项拖到最后一列 -->
+    <!-- Tail drop zone: shown only while dragging a column, supports dropping an item into the last column -->
     <div
       v-if="modelValue.length > 1 && dragColIdx >= 0"
       class="col-drop-tail"
@@ -413,7 +413,7 @@ watch(() => props.modelValue, () => {
   text-transform: uppercase;
 }
 
-/* 复用 IndexTable 已有样式 */
+/* Reuse the existing IndexTable styles */
 .table-input {
   padding: 3px 5px;
   border: 1px solid var(--border);

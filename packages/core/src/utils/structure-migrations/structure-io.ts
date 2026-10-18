@@ -16,24 +16,28 @@ import { sanitizeName } from '../../core/workspace/layout'
 import { normalizeInitialData, buildInitialDataExport } from '../initial-data-io'
 
 /**
- * 结构迁移的公共磁盘 IO 层。
+ * Shared disk IO layer for structure migrations.
  *
- * 设计意图：无论是「目录结构调整」还是「字段/属性迁移（新增、改名、结构调整）」，
- * 每一步迁移的本质都是「读当前盘 → 改内存 → 写回当前盘」。因此本模块提供与具体版本
- * 无关的读写能力，让迁移脚本只专注于"字段怎么变"，而不必关心文件怎么摆。
+ * Design intent: whether it is a "directory layout adjustment" or a "field/property migration
+ * (add, rename, restructure)", every migration step is essentially
+ * "read the current disk → mutate in memory → write back to the current disk". This module therefore
+ * offers version-agnostic read/write capabilities, so migration scripts only focus on "how fields
+ * change" and never worry about how files are laid out.
  *
- * 关键点：读写逻辑按「结构版本」分发——
- * - 旧布局（0.0~0.4）：schemas/*.json + initial-data/* + common.json
- * - 新布局（1.0+）：current/schemas/<schema>/<table>/table.json + initial-data.json + database.json
+ * Key point: the read/write logic dispatches on the "structure version" —
+ * - Old layout (0.0~0.4): schemas/*.json + initial-data/* + common.json
+ * - New layout (1.0+): current/schemas/<schema>/<table>/table.json + initial-data.json + database.json
  *
- * 未来新增字段级迁移（如 v1.0→v1.1）时，只需调用本模块的 readProject/writeProject，
- * 在内存态上做字段变更后写回即可，无需新增任何 IO 代码。
+ * When adding a field-level migration in the future (e.g. v1.0→v1.1), simply call this module's
+ * readProject/writeProject, mutate the fields on the in-memory state and write back; no new IO code
+ * is required.
  */
 
 /**
- * 磁盘上的根配置文档：旧布局是根 common.json，新布局是 current/database.json。
- * 迁移期间需要读写各历史版本的遗留键（如 default_config.pgsql），
- * 故只声明迁移关心的键，default_config 保持为未收窄的记录视图。
+ * Root configuration document on disk: root common.json in the old layout,
+ * current/database.json in the new layout. During migration we need to read/write legacy keys from
+ * various historical versions (such as default_config.pgsql), so only the keys the migration cares
+ * about are declared; default_config stays an unnarrowed record view.
  */
 export interface CommonDocument {
   struct_version?: string
@@ -43,31 +47,31 @@ export interface CommonDocument {
   unified_types?: UnifiedTypeDefinition[]
 }
 
-/** 磁盘上的 table.json：可能是 { schema, table } 包裹形态，也可能是直接展开的表对象 */
+/** table.json on disk: either a { schema, table } wrapper or a directly flattened table object */
 interface TableDocument extends Partial<Table> {
   schema?: string
   table?: Partial<Table> & { schema?: string }
 }
 
-/** 统一的内存态项目数据模型（与磁盘布局无关） */
+/** Unified in-memory project data model (independent of disk layout) */
 export interface ProjectData {
-  /** 全局配置（含 struct_version）；文件缺失或不可读时为 null */
+  /** Global config (including struct_version); null when the file is missing or unreadable */
   common: CommonDocument | null
-  /** 全部 schema（含 tables、fields、indexes 等完整结构） */
+  /** All schemas (with complete structures such as tables, fields, indexes) */
   schemas: Schema[]
-  /** 初始数据，key 为 "<schemaName>/<tableName>" */
+  /** Initial data, keyed by "<schemaName>/<tableName>" */
   initialData: Map<string, InitialData>
 }
 
-/** 该版本是否使用 new（current/）布局 */
+/** Whether this version uses the new (current/) layout */
 function isNewLayout(version: string): boolean {
-  // 1.0 起为 new 布局；0.x 为 old 布局
+  // 1.0 and above use the new layout; 0.x uses the old layout
   const parts = version.split('.').map((n) => parseInt(n, 10) || 0)
   const major = parts[0] || 0
   return major >= 1
 }
 
-// ─────────────────────────────── 旧布局读写 ───────────────────────────────
+// ─────────────────────────────── Old layout read/write ───────────────────────────────
 
 async function readOldLayout(rootHandle: FileSystemDirectoryHandle): Promise<ProjectData> {
   const common = await readOldCommon(rootHandle)
@@ -102,7 +106,7 @@ async function readOldSchemas(rootHandle: FileSystemDirectoryHandle): Promise<Sc
       }
     }
   } catch {
-    // 无 schemas/ 目录
+    // no schemas/ directory
   }
   return result
 }
@@ -180,7 +184,7 @@ async function writeOldInitialData(
   await writeJsonFile(handle, data)
 }
 
-// ─────────────────────────────── 新布局读写 ───────────────────────────────
+// ─────────────────────────────── New layout read/write ───────────────────────────────
 
 async function readNewLayout(rootHandle: FileSystemDirectoryHandle): Promise<ProjectData> {
   const currentDir = await getCurrentDir(rootHandle, false)
@@ -211,7 +215,8 @@ async function readNewSchemas(currentDir: FileSystemDirectoryHandle): Promise<Sc
       try {
         const handle = await getTableFileHandle(tableDir, false)
         const tableJson = await readJsonFile<TableDocument>(handle)
-        // 新布局 table.json 结构：{ schema, table } 或已展开；归一化为统一内存态
+        // New layout table.json structure: { schema, table } or already flattened;
+        // normalized into the unified in-memory state
         const schemaName = schemaNameFromTable(tableJson) ?? schemaEntry.name
         let schema = result.find((s) => s.schema === schemaName)
         if (!schema) {
@@ -244,7 +249,7 @@ async function readNewInitialData(
         const normalized = normalizeInitialData(raw)
         if (normalized) map.set(`${schemaEntry.name}/${tableEntry.name}`, normalized)
       } catch {
-        // 无 initial-data.json
+        // no initial-data.json
       }
     }
   }
@@ -277,7 +282,7 @@ async function writeNewLayout(rootHandle: FileSystemDirectoryHandle, data: Proje
   }
 }
 
-// ─────────────────────────────── 公共 API ───────────────────────────────
+// ─────────────────────────────── Public API ───────────────────────────────
 
 function schemaNameFromTable(tableJson: TableDocument): string | undefined {
   if (typeof tableJson?.schema === 'string') return tableJson.schema
@@ -292,11 +297,12 @@ function mapFromPairs(pairs: { key: string; data: InitialData }[]): Map<string, 
 }
 
 /**
- * 读取项目全量数据到统一内存态（按版本自动选择 old/new 布局）。
- * 迁移脚本调用此函数拿到内存态后，只需专注于字段级变更。
+ * Read the project's full data into the unified in-memory state (automatically choosing the
+ * old/new layout based on the version). After calling this, migration scripts only need to focus
+ * on field-level changes.
  *
- * @param rootHandle 项目根目录句柄
- * @param version    当前结构版本（决定读 old 还是 new 布局）
+ * @param rootHandle project root directory handle
+ * @param version    current structure version (decides whether to read the old or new layout)
  */
 export async function readProject(
   rootHandle: FileSystemDirectoryHandle,
@@ -306,12 +312,13 @@ export async function readProject(
 }
 
 /**
- * 将统一内存态写回磁盘（按版本自动选择 old/new 布局）。
- * 与 readProject 配对使用：readProject(version) → 改字段 → writeProject(version)。
+ * Write the unified in-memory state back to disk (automatically choosing the old/new layout based
+ * on the version). Used together with readProject: readProject(version) → change fields →
+ * writeProject(version).
  *
- * @param rootHandle 项目根目录句柄
- * @param version    目标结构版本（决定写 old 还是 new 布局）
- * @param data       内存态项目数据
+ * @param rootHandle project root directory handle
+ * @param version    target structure version (decides whether to write the old or new layout)
+ * @param data       in-memory project data
  */
 export async function writeProject(
   rootHandle: FileSystemDirectoryHandle,
@@ -322,8 +329,9 @@ export async function writeProject(
 }
 
 /**
- * 仅更新 common.struct_version（不触碰其余数据）。
- * 绝大多数数据级步骤仅需推进版本号，可单独调用。
+ * Only update common.struct_version (leaving all other data untouched).
+ * The vast majority of data-level steps only need to advance the version number and can call this
+ * directly.
  */
 export async function bumpVersion(
   rootHandle: FileSystemDirectoryHandle,

@@ -1,7 +1,7 @@
 /**
- * 环境(environment)磁盘读写层。
+ * Environment on-disk read/write layer.
  *
- * 存储：environments/<id>.json。
+ * Storage: environments/<id>.json.
  */
 import {
   getEnvironmentsDir,
@@ -12,7 +12,7 @@ import type { Environment } from './types'
 
 const ENVIRONMENT_FILE_SUFFIX = '.json'
 
-/** 列出所有环境（按创建时间升序） */
+/** List all environments (ascending by creation time) */
 export async function listEnvironments(
   rootHandle: FileSystemDirectoryHandle,
 ): Promise<Environment[]> {
@@ -31,7 +31,7 @@ export async function listEnvironments(
       if (!data?.id) continue
       result.push(data)
     } catch {
-      // 损坏跳过
+      // Skip corrupted entries
     }
   }
   result.sort((a, b) => a.created_at.localeCompare(b.created_at))
@@ -55,6 +55,6 @@ export async function deleteEnvironment(
     const dir = await getEnvironmentsDir(rootHandle, false)
     await removeEntry(dir, `${id}${ENVIRONMENT_FILE_SUFFIX}`)
   } catch {
-    // 已不存在忽略
+    // Ignore if it no longer exists
   }
 }

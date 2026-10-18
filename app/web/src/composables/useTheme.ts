@@ -1,13 +1,13 @@
 import { ref } from 'vue'
 
-/** 主题偏好：system 跟随系统，其余为固定主题 */
+/** Theme preference: system follows the OS, the rest are fixed themes */
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
 
 const THEME_PREF = 'schema-editor.theme'
 const PREFERENCES: readonly ThemePreference[] = ['system', 'light', 'dark']
 
-/** 非法偏好值一律回退到 system */
+/** Invalid preference values always fall back to system */
 export function normalizePreference(value: unknown): ThemePreference {
   return typeof value === 'string' && (PREFERENCES as readonly string[]).includes(value)
     ? (value as ThemePreference)
@@ -41,7 +41,7 @@ export function setTheme(next: ThemePreference) {
   apply()
 }
 
-/** 应用主题并跟随系统深浅色变化（应用启动时调用一次） */
+/** Applies the theme and follows system light/dark changes (called once at app startup) */
 export function initTheme() {
   apply()
   darkQuery?.addEventListener('change', () => {

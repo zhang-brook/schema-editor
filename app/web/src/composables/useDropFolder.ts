@@ -3,10 +3,10 @@ import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
 
 /**
- * 文件夹拖拽打开 composable
+ * Folder drag-and-drop opening composable
  *
- * 返回 dragOver 响应式状态和四个拖拽事件处理器，
- * 在 App.vue 的根容器上绑定即可启用拖入文件夹直接打开项目的功能。
+ * Returns the dragOver reactive state and four drag event handlers;
+ * bind them on the root container in App.vue to enable opening a project by dropping a folder.
  */
 export function useDropFolder() {
   const store = useEditorStore()
@@ -16,15 +16,15 @@ export function useDropFolder() {
   let dragOverCounter = 0
 
   /**
-   * 判断是否为外部文件/文件夹拖拽（来自操作系统）。
+   * Determines whether this is an external file/folder drag (from the operating system).
    *
-   * 注意：不能仅依赖 getAsFileSystemHandle 是否存在来做判断——在 Chromium 中，
-   * 该方法存在于每一个 DataTransferItem 上（对非文件项返回 null），因此内部
-   * 元素的排序拖拽也会被误判为文件夹拖拽，从而错误地弹出遮罩层。
+   * Note: do not rely solely on the presence of getAsFileSystemHandle; in Chromium,
+   * this method exists on every DataTransferItem (returning null for non-file items), so
+   * reordering drags of internal elements are also misidentified as folder drags, wrongly showing the overlay.
    *
-   * 可靠的区分方式是检查 dataTransfer.types 是否包含 'Files'：
-   * 操作系统拖入文件/文件夹时该值一定存在，而内部排序拖拽（draggable 元素）
-   * 不会带有 'Files' 类型。
+   * A reliable way to distinguish them is checking whether dataTransfer.types includes 'Files':
+   * it is always present when files/folders are dragged in from the OS, while internal reordering drags
+   * (draggable elements) never carry the 'Files' type.
    */
   function isExternalFileDrag(e: DragEvent): boolean {
     return !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')
@@ -40,9 +40,9 @@ export function useDropFolder() {
 
   function onDragEnter(e: DragEvent) {
     e.preventDefault()
-    // 两个条件同时满足才显示覆盖层：
-    //   1) 是外部文件/文件夹拖拽（避免内部排序拖拽误触发遮罩层）
-    //   2) 浏览器支持 getAsFileSystemHandle（否则即使显示也无法打开文件夹）
+    // Show the overlay only when both conditions are met:
+    //   1) it is an external file/folder drag (avoids the overlay being triggered by internal reordering drags)
+    //   2) the browser supports getAsFileSystemHandle (otherwise the folder cannot be opened even if shown)
     if (!isExternalFileDrag(e)) return
     const item = e.dataTransfer?.items[0]
     if (!item || typeof item.getAsFileSystemHandle !== 'function') return
@@ -66,7 +66,7 @@ export function useDropFolder() {
     dragOver.value = false
     dragOverCounter = 0
 
-    // 忽略内部排序拖拽，仅处理外部文件/文件夹拖拽
+    // Ignore internal reordering drags and only handle external file/folder drags
     if (!isExternalFileDrag(e)) return
 
     const items = e.dataTransfer?.items
@@ -87,7 +87,7 @@ export function useDropFolder() {
         return
       }
 
-      // 已有项目时先关闭（未保存改动由离开保护弹窗决定保存/放弃/取消），再打开新项目
+      // Close the existing project first (the leave-guard dialog decides whether to save/discard/cancel unsaved changes), then open the new project
       if (store.projectOpened && !(await store.requestCloseProject())) return
 
       await store.openProjectFromHandle(handle as FileSystemDirectoryHandle)

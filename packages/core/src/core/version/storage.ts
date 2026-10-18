@@ -1,17 +1,17 @@
 /**
- * 版本(version)磁盘读写层。
+ * Version on-disk read/write layer.
  *
- * 存储：versions/<id>.json（单文件完整快照）。
- * 实现纯函数 + FS 原语，不持有任何 reactive 状态，便于在 store 中调用。
+ * Storage: versions/<id>.json (a single file holding the full snapshot).
+ * Implemented with pure functions + FS primitives; holds no reactive state, so stores can call it directly.
  */
 import { getVersionsDir, getVersionFileHandle } from '../workspace/paths'
 import { readJsonFile, writeJsonFile, removeEntry } from '../workspace/handles'
 import type { VersionSnapshot, VersionSummary } from './types'
 
-/** 版本文件名后缀 */
+/** Version file name suffix */
 const VERSION_FILE_SUFFIX = '.json'
 
-/** 列出所有版本摘要（按创建时间升序，旧的在前） */
+/** List all version summaries (ascending by creation time, oldest first) */
 export async function listVersions(
   rootHandle: FileSystemDirectoryHandle,
 ): Promise<VersionSummary[]> {
@@ -36,7 +36,7 @@ export async function listVersions(
         ...(data.parent_id ? { parent_id: data.parent_id } : {}),
       })
     } catch {
-      // 损坏的版本文件跳过
+      // Skip corrupted version files
     }
   }
 
@@ -44,10 +44,10 @@ export async function listVersions(
   return summaries
 }
 
-// 避免未使用导入告警（listDirEntries 预留给未来扩展）
+// Avoid unused-import warnings (listDirEntries is reserved for future extensions)
 void removeEntry
 
-/** 读取单个版本完整快照 */
+/** Read a single full version snapshot */
 export async function readVersion(
   rootHandle: FileSystemDirectoryHandle,
   id: string,
@@ -62,7 +62,7 @@ export async function readVersion(
   }
 }
 
-/** 写入版本快照（深拷贝，避免外部修改影响） */
+/** Write a version snapshot (deep copy, so external mutation cannot affect it) */
 export async function writeVersion(
   rootHandle: FileSystemDirectoryHandle,
   snapshot: VersionSnapshot,
@@ -72,7 +72,7 @@ export async function writeVersion(
   await writeJsonFile(handle, JSON.parse(JSON.stringify(snapshot)))
 }
 
-/** 删除版本 */
+/** Delete a version */
 export async function deleteVersion(
   rootHandle: FileSystemDirectoryHandle,
   id: string,
@@ -81,6 +81,6 @@ export async function deleteVersion(
     const versionsDir = await getVersionsDir(rootHandle, false)
     await removeEntry(versionsDir, `${id}${VERSION_FILE_SUFFIX}`)
   } catch {
-    // 已不存在则忽略
+    // Ignore if it no longer exists
   }
 }

@@ -5,7 +5,7 @@ const store = useEditorStore()
 </script>
 
 <template>
-  <!-- MySQL 默认配置（由 DatabaseDefaultsPanel 提供卡片外壳与标题） -->
+  <!-- MySQL default config (card shell and title are provided by DatabaseDefaultsPanel) -->
   <div class="form-row">
     <div class="form-group medium">
       <label class="form-label">{{ $t('commonConfig.engine') }}</label>

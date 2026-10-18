@@ -5,48 +5,48 @@ import { resolveDialectOverride } from '../dialect-resolver'
 import { resolveIndexLogicalDelete } from '../logical-delete'
 
 /*
-  SQL 生成器
-  纯函数，不依赖 Node.js fs，可在浏览器端运行
+  SQL generator
+  Pure functions, no dependency on Node.js fs; runs in the browser
 */
 
-// ===== 工具函数 =====
+// ===== Utility functions =====
 
-/** 根据 commonConfig 决定是否对 PostgreSQL 标识符加双引号 */
+/** Decide from commonConfig whether to double-quote PostgreSQL identifiers */
 function quoteIdent(name: string, commonConfig: CommonConfig | null): string {
   const shouldQuote = commonConfig?.default_config?.postgresql?.quote_identifiers ?? true
   return shouldQuote ? `"${name}"` : name
 }
 
 /**
- * 注释文本 → PostgreSQL 字符串字面量：仅单引号加倍，其余原样输出。
+ * Comment text → PostgreSQL string literal: only single quotes are doubled, everything else is emitted as-is.
  *
- * 模型里存的是真实字符（换行即真换行、`C:\new` 即真实反斜杠），
- * PG 标准字符串（standard_conforming_strings=on）不解析反斜杠、且允许跨行，
- * 原样写出即可得到与模型一致的结果，无需任何转义/解码。
+ * The model stores real characters (a newline is a real newline, `C:\new` is a real backslash),
+ * and PG standard strings (standard_conforming_strings=on) do not interpret backslashes and allow
+ * line breaks, so writing them out verbatim yields exactly what the model holds — no escaping/decoding needed.
  *
- * 不使用 `E'...'`：那会让 PG 开始解析反斜杠，`C:\new` 会被吃成换行。
+ * `E'...'` is not used: that would make PG start interpreting backslashes, turning `C:\new` into a newline.
  */
 function formatPgStringLiteral(text: string): string {
   return `'${text.replace(/'/g, "''")}'`
 }
 
-/** 逐行加 `--` 注释前缀：跨行语句若只注释首行，后续行会变成可执行 SQL */
+/** Prefix every line with `--`: commenting only the first line of a multi-line statement leaves the rest executable */
 function commentOutLines(stmt: string): string {
   return stmt.split('\n').map(line => `-- ${line}`).join('\n')
 }
 
-// ===== 表字段定义 =====
+// ===== Table field definitions =====
 
 function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig | null): string {
   let fieldDef = quoteIdent(field.field_name, commonConfig)
 
-  // 使用统一类型解析链获取最终 type + length + scale
+  // Resolve the final type + length + scale through the unified type resolution chain
   const resolved = resolveFieldTypeForDialect(field, 'postgresql', commonConfig)
   const fieldType = resolved.type
   const fieldLength = resolved.length
   const fieldScale = resolved.scale
 
-  // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
+  // Resolve the default (bypasses unified_type to keep the field-level → dialect override chain)
   const defaultValue = resolveDialectOverride(field, 'postgresql', 'default')
 
   if (fieldType) {
@@ -69,7 +69,7 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
     if (typeof defaultValue === 'string' && (defaultValue === 'CURRENT_TIMESTAMP' || defaultValue.includes('CURRENT_TIMESTAMP'))) {
       fieldDef += ` DEFAULT ${defaultValue}`
     } else if (typeof defaultValue === 'boolean') {
-      // TRUE / FALSE 使用全大写形式
+      // Use uppercase TRUE / FALSE
       fieldDef += ` DEFAULT ${defaultValue ? 'TRUE' : 'FALSE'}`
     } else {
       const shouldQuote = resolveQuoteDefault(field, commonConfig)
@@ -77,8 +77,8 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
     }
   }
 
-  // PostgreSQL 不在字段定义中添加 COMMENT，使用 COMMENT ON COLUMN 语句；
-  // 被注释掉的字段其 COMMENT ON COLUMN 语句整体加 -- 前缀输出（见 generateTablePostgreSQL）
+  // PostgreSQL does not add COMMENT in the field definition; it uses COMMENT ON COLUMN statements.
+  // For commented-out fields, the whole COMMENT ON COLUMN statement is emitted with a -- prefix (see generateTablePostgreSQL)
 
   if (field.is_commented_out) {
     fieldDef = `-- ${fieldDef}`
@@ -87,7 +87,7 @@ function getFieldDefinitionPostgreSQL(field: Field, commonConfig: CommonConfig |
   return fieldDef
 }
 
-// ===== 生成单表 SQL =====
+// ===== Generate SQL for a single table =====
 
 export function generateTablePostgreSQL(table: Table, schemaName: string, commonConfig: CommonConfig | null): string {
   const qSchemaName = quoteIdent(schemaName, commonConfig)
@@ -101,11 +101,11 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   sql += `-- Table structure for ${table.name}\n`
   sql += `-- ----------------------------\n`
 
-  // 表前置 SQL
+  // Table pre-SQL
   const preSql = getTablePreSql(table, 'postgresql')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DDL 生成策略：drop_and_create | create_if_not_exists | create
+  // DDL generation strategy: drop_and_create | create_if_not_exists | create
   const ddlMode = commonConfig?.default_config?.table_ddl_mode ?? 'drop_and_create'
   if (ddlMode === 'create_if_not_exists') {
     sql += `CREATE TABLE IF NOT EXISTS ${qSchemaName}.${qTableName} (\n`
@@ -116,12 +116,12 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     sql += `CREATE TABLE ${qSchemaName}.${qTableName} (\n`
   }
 
-  // 字段定义
+  // Field definitions
   const fieldDefinitions = table.fields.map(field => {
     const fieldConfig = resolveField(field, commonConfig)
     let fieldDef = `  ${getFieldDefinitionPostgreSQL(fieldConfig, commonConfig)}`
 
-    // 检查是否需要在字段前添加注释
+    // Check whether a comment needs to be added before the field
     if (table.comment_before_fields?.[field.field_name]) {
       fieldDef = renderCommentBeforeField(table.comment_before_fields[field.field_name]!) + fieldDef
     }
@@ -129,7 +129,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     return fieldDef
   })
 
-  // 主键（支持复合主键）
+  // Primary key (composite primary keys supported)
   const primaryKeyFields = table.fields.filter(field => {
     const fieldConfig = resolveField(field, commonConfig)
     return fieldConfig.primary_key
@@ -141,9 +141,9 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     indexDefinitions.push(`  PRIMARY KEY (${primaryKeyColumns})`)
   }
 
-  // UNIQUE 索引在建表语句中定义
-  // 例外：逻辑删除感知的唯一索引需带 WHERE，而 PG 的表级 UNIQUE 约束不支持 WHERE，
-  // 只能降级为建表后的 CREATE UNIQUE INDEX ... WHERE（见下方普通索引循环）
+  // UNIQUE indexes are defined inside the CREATE TABLE statement
+  // Exception: logical-delete-aware unique indexes need a WHERE clause, which PG table-level UNIQUE
+  // constraints do not support, so they fall back to CREATE UNIQUE INDEX ... WHERE after the table (see the regular index loop below)
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
     if (indexType === 'unique' && !resolveIndexLogicalDelete(index, table, 'postgresql', commonConfig)) {
@@ -161,15 +161,15 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     sql += indexDefinitions.join(',\n')
   }
   sql += '\n)'
-  // PARTITION BY 生成在右括号之后、分号之前
+  // PARTITION BY is emitted after the closing parenthesis and before the semicolon
   const partitionClause = getTablePartitionClause(table, 'postgresql', commonConfig)
   if (partitionClause) {
     sql += ` ${partitionClause}`
   }
   sql += ';\n\n'
 
-  // 普通索引在建表语句下方定义
-  // 逻辑删除感知的唯一索引同样在此输出：部分唯一索引无法写成表内 CONSTRAINT
+  // Regular indexes are defined below the CREATE TABLE statement
+  // Logical-delete-aware unique indexes are also emitted here: a partial unique index cannot be written as an inline CONSTRAINT
   let hasCreateIndexSql = false
   table.indexes.forEach((index, _i) => {
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
@@ -184,7 +184,7 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
       const indexName = resolveIndexName(index, 'postgresql', table.name)!
       const keyword = logicalDelete ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
       const whereClause = logicalDelete ? ` WHERE ${logicalDelete.predicate}` : ''
-      // // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
+      // // Partial unique index: documents why it is not declared inline (table-level UNIQUE constraints do not support WHERE)
       // if (logicalDelete) {
       //   sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
       // }
@@ -204,13 +204,13 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     sql += '\n'
   }
 
-  // 表级注释 - 使用 COMMENT ON TABLE 语句
+  // Table comment - emitted as a COMMENT ON TABLE statement
   sql += `COMMENT ON TABLE ${qSchemaName}.${qTableName} IS ${formatPgStringLiteral(table.comment)};\n`
   sql += '\n'
 
-  // 字段注释 - 使用 COMMENT ON COLUMN 语句。
-  // 被注释掉的字段不出现在表结构中，其语句整体加 -- 前缀保留：既不会破坏语法，
-  // 去掉前缀即可直接执行；跨行时每行都加前缀（见 commentOutLines）
+  // Field comments - emitted as COMMENT ON COLUMN statements.
+  // Commented-out fields do not appear in the table structure, so their statements are kept whole with a -- prefix:
+  // this keeps the syntax valid, and removing the prefix makes them directly executable; multi-line statements are prefixed on every line (see commentOutLines)
   table.fields.forEach(field => {
     const fieldConfig = resolveField(field, commonConfig)
     const finalComment = buildFieldComment(fieldConfig, 'postgresql')
@@ -220,11 +220,11 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
   })
 
   let isFirstIndex = true
-  // 索引注释 — 为唯一索引和已命名普通索引生成 COMMENT ON INDEX
+  // Index comments — generate COMMENT ON INDEX for unique and named regular indexes
   table.indexes.forEach(index => {
     if (!index.comment) return
     const indexType = resolveDialectOverride(index, 'postgresql', 'type', index.type)
-    // 部分唯一索引的 COMMENT ON INDEX 已在 CREATE UNIQUE INDEX 后输出，此处跳过避免重复
+    // COMMENT ON INDEX for partial unique indexes is already emitted after CREATE UNIQUE INDEX; skip here to avoid duplicates
     if (indexType === 'unique' && !resolveIndexLogicalDelete(index, table, 'postgresql', commonConfig)) {
       if (isFirstIndex) {
         isFirstIndex = false
@@ -235,14 +235,14 @@ export function generateTablePostgreSQL(table: Table, schemaName: string, common
     }
   })
 
-  // 表后置 SQL
+  // Table post-SQL
   const postSql = getTablePostSql(table, 'postgresql')
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)
 
   return sql
 }
 
-// ===== 生成整个 schema 的 SQL =====
+// ===== Generate SQL for the entire schema =====
 
 export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonConfig | null): string {
   const qSchema = quoteIdent(schema.schema, commonConfig)
@@ -257,11 +257,11 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
     '',
   ].join('\n')
 
-  // Schema 前置 SQL
+  // Schema pre-SQL
   const schemaPreSql = getSchemaPreSql(schema, 'postgresql')
   if (schemaPreSql) sql += fmtPrePostSql(schemaPreSql) + '\n'
 
-  // 创建schema
+  // Create schema
   sql += `DROP SCHEMA IF EXISTS ${qSchema} CASCADE;\n`
   sql += `CREATE SCHEMA ${qSchema};\n\n`
 
@@ -272,16 +272,16 @@ export function generateSchemaPostgreSQL(schema: Schema, commonConfig: CommonCon
 
   sql = sql.trimEnd() + '\n'
 
-  // Schema 后置 SQL
+  // Schema post-SQL
   const schemaPostSql = getSchemaPostSql(schema, 'postgresql')
   if (schemaPostSql) sql += fmtPrePostSql(schemaPostSql) + '\n'
 
   return sql
 }
 
-// ===== Initial Data INSERT 语句生成 =====
+// ===== Initial data INSERT statement generation =====
 
-/** 将 JS 值格式化为 SQL 字面量，根据方言处理差异 */
+/** Format a JS value as a SQL literal, handling dialect differences */
 export function formatSqlValue(val: unknown, isExpr = false): string {
   if (val === null || val === undefined) return 'NULL'
   if (typeof val === 'boolean') {
@@ -292,23 +292,23 @@ export function formatSqlValue(val: unknown, isExpr = false): string {
     return String(val)
   }
   if (typeof val === 'string') {
-    // 标记为 SQL 表达式（如 CURRENT_TIMESTAMP()）：原样输出，不加引号
+    // Flagged as a SQL expression (e.g. CURRENT_TIMESTAMP()): emit as-is without quotes
     if (isExpr) return val
-    // 转义单引号：' → ''
+    // Escape single quotes: ' → ''
     return `'${val.replace(/'/g, "''")}'`
   }
-  // 对象/数组等：JSON 序列化后作为字符串
+  // Objects/arrays etc.: JSON-serialize, then treat as a string
   return `'${JSON.stringify(val).replace(/'/g, "''")}'`
 }
 
-/** 生成单表的 INSERT 语句 */
+/** Generate INSERT statements for a single table */
 export function generateInitialDataPostgreSQL(
   table: Table,
   schemaName: string,
-  rows: JsonObject[], // rows 应为已过滤掉 skip 行的有效数据
+  rows: JsonObject[], // rows must already contain only valid data with skipped rows removed
   rowComments: (string | null)[] | undefined,
   commonConfig: CommonConfig | null,
-  exprFields?: Record<string, boolean>[], // 与 rows 索引对齐：标记某字段值为 SQL 表达式（不加引号）
+  exprFields?: Record<string, boolean>[], // aligned with rows by index: marks a field value as a SQL expression (no quotes)
 ): string {
   const cols = getTableColumnNames(table, null)
   if (cols.length === 0 || rows.length === 0) return ''
@@ -317,7 +317,7 @@ export function generateInitialDataPostgreSQL(
   const qTable = quoteIdent(table.name, commonConfig)
   const colList = cols.map(c => quoteIdent(c, commonConfig)).join(', ')
 
-  // 行注释（仅输出非 null 的）
+  // Row comments (only non-null ones are emitted)
   let comments = ''
   if (rowComments) {
     for (let i = 0; i < rowComments.length; i++) {
@@ -336,7 +336,7 @@ export function generateInitialDataPostgreSQL(
   return `${comments}INSERT INTO ${qSchema}.${qTable} (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
-/** 生成所有 Schema 的 PostgreSQL initial data INSERT 汇总 */
+/** Generate the combined PostgreSQL initial data INSERT script for all schemas */
 export function generateInitialDataAllPostgreSQL(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
@@ -362,10 +362,10 @@ export function generateInitialDataAllPostgreSQL(
       const hasPreSql = !!initPreSql
       const hasPostSql = !!initPostSql
 
-      // 先过滤掉「不生成」的行，得到有效数据行（无 skip 逻辑残留）
+      // Filter out "do not generate" rows first to obtain the valid data rows (no leftover skip logic)
       const filtered = filterInitialDataRows(initData.rows)
 
-      // 无有效数据行且无 pre/post SQL 则跳过
+      // Skip when there are no valid rows and no pre/post SQL
       if (!filtered.hasRows && !hasPreSql && !hasPostSql) continue
 
       if (!isSchemaCommentHeaderPrinted) {
@@ -376,7 +376,7 @@ export function generateInitialDataAllPostgreSQL(
         isSchemaCommentHeaderPrinted = true
       }
 
-      // initial-data 级别前置 SQL
+      // initial-data level pre-SQL
       if (hasPreSql) {
         sql += fmtPrePostSql(initPreSql) + '\n'
       }
@@ -392,7 +392,7 @@ export function generateInitialDataAllPostgreSQL(
         sql += '\n'
       }
 
-      // initial-data 级别后置 SQL
+      // initial-data level post-SQL
       if (hasPostSql) {
         sql += fmtPrePostSql(initPostSql) + '\n'
       }

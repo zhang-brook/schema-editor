@@ -99,7 +99,7 @@ function memoryBridge(files: Record<string, string> = {}) {
     setWatchHandler(handler) {
       watchHandler = handler
     },
-    // 更新通道与本组用例无关，按未打包运行返回 unsupported
+    // The update channel is unrelated to this test group; report unsupported as if running unpackaged
     async getUpdateStatus() {
       return { state: 'unsupported', currentVersion: '0.0.0' }
     },
@@ -121,7 +121,7 @@ function memoryBridge(files: Record<string, string> = {}) {
 }
 
 describe('DesktopDirectoryHandle / DesktopFileHandle', () => {
-  it('以浏览器句柄语义驱动 BrowserWorkspaceWriter 完成读取、列出、写入与删除', async () => {
+  it('drives BrowserWorkspaceWriter through read, list, write and remove with browser handle semantics', async () => {
     const disk = memoryBridge({ 'common.json': '{}', 'current/a.txt': 'a', 'current/public/schema.json': '{}' })
     const root = new DesktopDirectoryHandle(disk.bridge, ROOT)
     const writer = new BrowserWorkspaceWriter(root as unknown as FileSystemDirectoryHandle)
@@ -140,7 +140,7 @@ describe('DesktopDirectoryHandle / DesktopFileHandle', () => {
     expect(disk.directories.has(`${ROOT}/current`)).toBe(true)
   })
 
-  it('缺失路径抛出 NotFoundError，类型不符抛出 TypeMismatchError', async () => {
+  it('throws NotFoundError for missing paths and TypeMismatchError for kind mismatches', async () => {
     const disk = memoryBridge({ 'file.json': '{}' })
     const root = new DesktopDirectoryHandle(disk.bridge, ROOT)
     await expect(root.getFileHandle('missing.json', { create: false })).rejects.toMatchObject({ name: 'NotFoundError' })
@@ -149,7 +149,7 @@ describe('DesktopDirectoryHandle / DesktopFileHandle', () => {
     await expect(root.getFileHandle('file.json')).resolves.toMatchObject({ kind: 'file', name: 'file.json' })
   })
 
-  it('create 时立即产生空文件与目录', async () => {
+  it('create immediately produces empty files and directories', async () => {
     const disk = memoryBridge()
     const root = new DesktopDirectoryHandle(disk.bridge, ROOT)
     await root.getFileHandle('new.json', { create: true })
@@ -158,7 +158,7 @@ describe('DesktopDirectoryHandle / DesktopFileHandle', () => {
     expect(disk.directories.has(`${ROOT}/sub`)).toBe(true)
   })
 
-  it('values() 产出文件与子目录句柄', async () => {
+  it('values() yields handles for files and subdirectories', async () => {
     const disk = memoryBridge({ 'a.json': 'a', 'sub/b.json': 'b' })
     const root = new DesktopDirectoryHandle(disk.bridge, ROOT)
     const entries: string[] = []
@@ -166,7 +166,7 @@ describe('DesktopDirectoryHandle / DesktopFileHandle', () => {
     expect(entries.sort()).toEqual(['directory:sub', 'file:a.json'])
   })
 
-  it('写入内容仅在 close 时落盘，abort 丢弃缓冲', async () => {
+  it('flushes content only on close and discards the buffer on abort', async () => {
     const disk = memoryBridge({ 'a.json': 'old' })
     const root = new DesktopDirectoryHandle(disk.bridge, ROOT)
     const handle = await root.getFileHandle('a.json')
@@ -185,7 +185,7 @@ describe('DesktopDirectoryHandle / DesktopFileHandle', () => {
 })
 
 describe('DesktopFileSystemObserver', () => {
-  it('向桥接注册监听，事件映射为相对路径记录，disconnect 后注销', async () => {
+  it('registers a watch on the bridge, maps events to relative-path records and unregisters on disconnect', async () => {
     const disk = memoryBridge()
     const root = new DesktopDirectoryHandle(disk.bridge, ROOT)
     const records: FileSystemObserverRecord[][] = []
@@ -209,7 +209,7 @@ describe('DesktopFileSystemObserver', () => {
 })
 
 describe('installDesktopFsa', () => {
-  it('安装 showDirectoryPicker 与 FileSystemObserver，取消选择抛出 AbortError', async () => {
+  it('installs showDirectoryPicker and FileSystemObserver, and throws AbortError when the pick is cancelled', async () => {
     const disk = memoryBridge()
     const target = {} as Window
     installDesktopFsa(disk.bridge, target)

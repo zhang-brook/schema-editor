@@ -22,7 +22,7 @@ const previewSql = computed(() => {
   const preSql = getInitialDataPreSql(data, activeDialect.value)
   const postSql = getInitialDataPostSql(data, activeDialect.value)
 
-  // 先过滤掉「不生成」的行，得到有效数据行
+  // First filter out rows marked "not generated" to get the effective data rows
   const filtered = filterInitialDataRows(data.rows)
 
   let sql = ''

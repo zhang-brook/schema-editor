@@ -10,7 +10,7 @@ const { t } = useI18n()
 
 const messageInput = ref<HTMLInputElement | null>(null)
 
-/** 按新增 / 修改 / 删除分组展示待提交文件 */
+/** Group pending files for commit by add / update / delete */
 const groups = computed(() => {
   const staged = store.commitPendingChanges
   return [
@@ -22,7 +22,7 @@ const groups = computed(() => {
 
 useEscClose(computed(() => store.commitDialogVisible), () => store.cancelCommit())
 
-// ENTER 提交：焦点在提交信息输入框内时直接回车确认
+// ENTER to commit: press Enter directly when focus is in the commit message input
 useEnterConfirm(computed(() => store.commitDialogVisible), () => store.confirmCommit(), messageInput)
 </script>
 

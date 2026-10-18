@@ -17,7 +17,7 @@ afterEach(async () => {
 })
 
 describe('createRecentFolders', () => {
-  it('按打开顺序倒序保存，重复打开去重并置顶', async () => {
+  it('stores in reverse open order, deduplicates repeats and moves them to the top', async () => {
     const recent = createRecentFolders(file)
     await recent.add(path.join(workDir, 'a'))
     await recent.add(path.join(workDir, 'b'))
@@ -28,7 +28,7 @@ describe('createRecentFolders', () => {
     expect(await recent.mostRecent()).toBe(path.join(workDir, 'a'))
   })
 
-  it('限制条目数量并可从列表移除', async () => {
+  it('limits the number of entries and allows removal', async () => {
     const recent = createRecentFolders(file, 2)
     await recent.add(path.join(workDir, 'a'))
     await recent.add(path.join(workDir, 'b'))
@@ -39,12 +39,12 @@ describe('createRecentFolders', () => {
     expect(await recent.list()).toEqual([path.join(workDir, 'b')])
   })
 
-  it('持久化到文件，新实例可读回', async () => {
+  it('persists to file and a new instance reads it back', async () => {
     await createRecentFolders(file).add(path.join(workDir, 'folder'))
     expect(await createRecentFolders(file).list()).toEqual([path.join(workDir, 'folder')])
   })
 
-  it('文件缺失或内容损坏时返回空列表', async () => {
+  it('returns an empty list when the file is missing or corrupted', async () => {
     expect(await createRecentFolders(file).list()).toEqual([])
     await fs.writeFile(file, '{not json', 'utf8')
     expect(await createRecentFolders(file).list()).toEqual([])

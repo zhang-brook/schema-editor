@@ -1,18 +1,18 @@
 import { watch, onUnmounted, nextTick, type Ref } from 'vue'
 
 /**
- * 弹窗回车确认 composable
+ * Dialog Enter-to-confirm composable
  *
- * 监听弹窗可见状态，显示时绑定 window keydown 事件，按 Enter 触发确认回调；
- * 隐藏时移除事件监听，组件卸载时自动清理。
- * 文本域 / 下拉框 / 富文本内的回车有自身语义（换行、展开选项），不抢键；
- * 按钮上的回车交给原生 click；Ctrl/Cmd + Enter 在文本域内仍可确认。
- * 若传入 focusEl，弹窗显示后会把焦点移入该元素——否则焦点残留在触发按钮上时，
- * 回车会重复触发原按钮，永远轮不到弹窗。
+ * Watches the dialog visibility state and binds a window keydown event while visible, triggering the confirm callback on Enter;
+ * removes the listener when hidden and cleans up automatically when the component unmounts.
+ * Enter inside textareas / selects / rich text has its own semantics (newline, expanding options) and is not intercepted;
+ * Enter on buttons is left to the native click; Ctrl/Cmd + Enter still confirms inside a textarea.
+ * When focusEl is passed in, focus is moved into that element after the dialog is shown; otherwise, if focus stays
+ * on the trigger button, Enter keeps re-triggering that button and never reaches the dialog.
  *
- * @param showFlag  弹窗可见性的 Ref（ref / computed / toRef 均可）
- * @param onConfirm 按下 Enter 时的确认回调
- * @param focusEl   弹窗显示后自动聚焦的元素（一般为确认按钮或首个输入框）
+ * @param showFlag  Ref of the dialog visibility (ref / computed / toRef all work)
+ * @param onConfirm Confirm callback invoked when Enter is pressed
+ * @param focusEl   Element to focus automatically after the dialog is shown (usually the confirm button or first input)
  *
  * @example
  * const confirmBtn = ref<HTMLButtonElement | null>(null)

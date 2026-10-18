@@ -67,7 +67,7 @@ jobs:
           - runner: windows-latest
             artifact: desktop-windows
             args: --win --x64
-          # 通用包同时覆盖 Intel 与 Apple Silicon，且只有一个 latest-mac.yml
+          # The universal build covers both Intel and Apple Silicon, with a single latest-mac.yml
           - runner: macos-latest
             artifact: desktop-macos
             args: --mac --universal
@@ -125,7 +125,7 @@ jobs:
           name: github-pages
           path: pages-artifact
 
-      # 与 Web 包同批挂进 Release，避免多个 job 争着改同一个 tag 的资产
+      # Upload in the same batch as the web bundle so concurrent jobs don't race on the same tag assets
       - name: Download desktop installers
         uses: actions/download-artifact@v7
         with:
@@ -139,7 +139,7 @@ jobs:
           tar -xf pages-artifact/artifact.tar -C dist
           name="schema-editor-${GITHUB_REF_NAME}"
           (cd dist && zip -qr "../release/${name}.zip" .)
-          # 用 %P 去掉 "./" 前缀，避免解压时多出一层 "." 目录
+          # Use %P to strip the "./" prefix so extraction doesn't create an extra "." directory
           (cd dist && find . -mindepth 1 -maxdepth 1 -printf '%P\0' | tar --null -czf "../release/${name}.tar.gz" -T -)
 
       - name: Extract changelog section

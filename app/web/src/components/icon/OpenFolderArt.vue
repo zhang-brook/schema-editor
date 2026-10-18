@@ -1,31 +1,31 @@
 <template>
-  <!-- 首页空状态插画：打开的文件夹 + 表结构示意 -->
+  <!-- Home empty-state illustration: open folder plus a schema layout hint -->
   <svg class="open-folder-art" viewBox="0 0 380 300" aria-hidden="true" focusable="false">
-    <!-- 柔和投影 -->
+    <!-- Soft shadow -->
     <ellipse cx="190" cy="284" rx="126" ry="12" fill="var(--surface-3)" />
-    <!-- 背景圆环装饰 -->
+    <!-- Background ring decoration -->
     <circle cx="190" cy="150" r="128" fill="var(--surface-2)" />
     <circle cx="190" cy="150" r="98" fill="none" stroke="var(--border)" stroke-width="2" stroke-dasharray="6 10" />
-    <!-- 文件夹背面（品牌蓝、略高，营造"打开"层次） -->
+    <!-- Folder back (brand blue, raised slightly to suggest an "open" layer) -->
     <path
       d="M10 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
       fill="var(--accent-border)"
       transform="translate(70 40) scale(10)"
     />
-    <!-- 文件夹正面（白色） -->
+    <!-- Folder front (white) -->
     <path
       d="M10 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
       fill="var(--surface)"
       transform="translate(70 66) scale(10)"
     />
-    <!-- 封面上的表结构示意行 -->
+    <!-- Schema layout rows on the folder face -->
     <g stroke-linecap="round" opacity="0.85">
       <rect x="112" y="150" width="52" height="14" rx="7" fill="var(--accent)" opacity="0.85" />
       <line x1="180" y1="157" x2="268" y2="157" stroke="var(--border-strong)" stroke-width="6" />
       <line x1="122" y1="184" x2="268" y2="184" stroke="var(--border-strong)" stroke-width="6" />
       <line x1="122" y1="212" x2="236" y2="212" stroke="var(--border-strong)" stroke-width="6" />
     </g>
-    <!-- 右下角浮动装饰：表格卡片 -->
+    <!-- Floating decoration at bottom right: table card -->
     <g>
       <clipPath id="table-chip-clip">
         <rect x="302" y="172" width="72" height="62" rx="10" />

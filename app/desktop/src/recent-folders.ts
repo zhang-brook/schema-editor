@@ -4,23 +4,23 @@ import path from 'node:path'
 const MAX_RECENT_FOLDERS = 10
 
 function samePath(a: string, b: string): boolean {
-  // Windows 路径不区分大小写
+  // Windows paths are case-insensitive
   return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b
 }
 
 export interface RecentFolders {
-  /** 最近打开的文件夹，最新在前 */
+  /** Recently opened folders, newest first */
   list(): Promise<string[]>
-  /** 记录一次打开，返回更新后的列表 */
+  /** Record an open and return the updated list */
   add(folder: string): Promise<string[]>
-  /** 从列表移除，返回更新后的列表 */
+  /** Remove from the list and return the updated list */
   remove(folder: string): Promise<string[]>
   mostRecent(): Promise<string | undefined>
 }
 
 /**
- * 最近打开文件夹的持久化列表。文件缺失或内容损坏时按空列表处理，
- * 不阻断目录选择流程。
+ * Persistent list of recently opened folders. A missing or corrupted file is treated as
+ * an empty list so the directory picker flow is not blocked.
  */
 export function createRecentFolders(file: string, max = MAX_RECENT_FOLDERS): RecentFolders {
   let cache: Promise<string[]> | null = null

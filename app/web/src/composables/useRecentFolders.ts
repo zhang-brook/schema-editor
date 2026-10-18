@@ -4,7 +4,7 @@ import { i18n } from '@/i18n'
 import { DesktopDirectoryHandle } from '@/platform/desktop-fsa'
 import { useEditorStore } from '@/stores/editor'
 
-/** 桌面端最近打开的项目文件夹，最新在前 */
+/** Recently opened project folders on desktop, newest first */
 const recentFolders = ref<string[]>([])
 let loaded = false
 
@@ -12,7 +12,7 @@ function getBridge(): DesktopBridge | null {
   return window.schemaEditorDesktop ?? null
 }
 
-/** 列表取文件夹名用作菜单标题，完整路径放在副标题 */
+/** Use the folder name as the menu title and the full path as the subtitle */
 export function folderLabel(folder: string): string {
   return folder.split(/[\\/]/).filter(Boolean).pop() ?? folder
 }

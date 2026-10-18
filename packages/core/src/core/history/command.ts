@@ -1,56 +1,56 @@
 /**
- * 命令模式 + 结构化补丁（undo/redo 底层）。
+ * Command pattern + structured patches (the foundation of undo/redo).
  *
- * 每次用户改动生成一个原子命令（含 apply/revert/affectedFiles），
- * undo/redo 只应用/回滚该命令，并只写受影响的 json 文件。
+ * Each user change produces one atomic command (with apply/revert/affectedFiles);
+ * undo/redo only applies/reverts that command and writes only the affected json files.
  *
- * 设计要点：
- * - `apply()` 操作内存态（editor store 的 reactive 数据），不直接碰 FS。
- * - `revert()` 恢复操作前的内存态快照。
- * - `affectedFiles()` 返回本命令影响的最小文件集合，用于按需写盘。
- * - `coalesceKey` + 时间窗口：连续同类高频操作（如输入框打字）合并为单条
- *   undo 记录，避免历史膨胀；revert 始终为操作前快照、apply 始终为最终态，
- *   不会产生撤销状态不一致。
+ * Design notes:
+ * - `apply()` operates on in-memory state (the editor store's reactive data), never touching the FS.
+ * - `revert()` restores the in-memory snapshot taken before the operation.
+ * - `affectedFiles()` returns the minimal file set touched by this command, used for on-demand writes.
+ * - `coalesceKey` + time window: consecutive high-frequency operations of the same kind
+ *   (e.g. typing in an input) merge into a single undo record, avoiding history bloat;
+ *   revert stays the pre-operation snapshot and apply the final state, so undo never drifts.
  */
 
 import type { InitialData } from '../../types/schema'
 
-/** 命令影响的文件种类 */
+/** Kinds of files affected by a command */
 export type AffectedFileKind = 'table' | 'initial-data' | 'common' | 'database' | 'sql' | 'schema'
 
-/** 单个受影响文件描述 */
+/** Description of a single affected file */
 export interface AffectedFile {
   kind: AffectedFileKind
   schema?: string
   table?: string
-  /** 重命名场景下的旧名（如 schema/table 改名），用于清理旧磁盘目录 */
+  /** Old name in rename scenarios (e.g. schema/table renames), used to clean up the old disk directory */
   oldSchema?: string
   oldTable?: string
 }
 
 export interface Command {
   label: string
-  /** 合并键：仅用于同一对象的终态赋值操作；结构操作不应设置此键 */
+  /** Coalesce key: only for final-state assignments to the same object; structural operations must not set it */
   coalesceKey?: string
-  /** 应用：修改内存态；可合并命令必须能直接恢复最终态，而非累加增量 */
+  /** Apply: mutates in-memory state; coalescable commands must restore the final state directly, not accumulate deltas */
   apply(): void
-  /** 回滚：恢复原内存态 */
+  /** Revert: restores the original in-memory state */
   revert(): void
-  /** 本命令影响的最小文件集合（用于按需写盘） */
+  /** Minimal file set affected by this command (used for on-demand writes) */
   affectedFiles(): AffectedFile[]
 }
 
-/** 按需写盘回调：命令执行后由 store 实现，只写传入的文件集合 */
+/** On-demand persistence hook: implemented by the store after a command runs, writes only the given file set */
 export type PersistHook = (files: AffectedFile[]) => void
 
 const COALESCE_WINDOW_MS = 800
 
 interface HistoryEntry extends Command {
-  /** 执行时的文件集合：身份比较不能依赖随后可能变化的内存态 */
+  /** File set captured at execution time: identity comparison must not depend on in-memory state that may change later */
   files: AffectedFile[]
 }
 
-/** 比较目标文件身份；旧路径仅用于清理，合并时另行保留。 */
+/** Compares target file identity; old paths are only used for cleanup and are kept separately when coalescing. */
 function sameAffectedTargets(left: AffectedFile[], right: AffectedFile[]): boolean {
   const targetKey = (file: AffectedFile) => JSON.stringify([file.kind, file.schema, file.table])
   const leftKeys = new Set(left.map(targetKey))
@@ -64,7 +64,7 @@ export class CommandManager {
   private persistHook: PersistHook | null = null
   private lastExecuteTime: number | null = null
 
-  /** 注册按需写盘回调（由 editor store 注入） */
+  /** Registers the on-demand persistence hook (injected by the editor store) */
   setPersistHook(hook: PersistHook) {
     this.persistHook = hook
   }
@@ -85,12 +85,12 @@ export class CommandManager {
     return this.redoStack.length > 0 ? this.redoStack[this.redoStack.length - 1]!.label : null
   }
 
-  /** 打断连续输入合并（如手动保存边界），不改变历史或触发写盘。 */
+  /** Breaks coalescing of consecutive input (e.g. at a manual save boundary) without changing history or writing files. */
   breakCoalescing() {
     this.lastExecuteTime = null
   }
 
-  /** 清空所有历史（如关闭项目、重新加载时） */
+  /** Clears all history (e.g. on project close or reload) */
   clear() {
     this.undoStack = []
     this.redoStack = []
@@ -120,7 +120,7 @@ export class CommandManager {
         label: cmd.label,
         coalesceKey: cmd.coalesceKey,
         apply: cmd.apply.bind(cmd),
-        // 直接复用首个闭包，不包装前一条合并命令，避免保留整条打字链。
+        // Reuse the first closure directly, without wrapping the previous merged command, to avoid keeping the typing chain.
         revert: top.revert,
         affectedFiles: () => mergedFiles,
         files: mergedFiles,
@@ -140,7 +140,7 @@ export class CommandManager {
     this.persistHook?.(files)
   }
 
-  /** 撤销上一步 */
+  /** Undoes the previous step */
   undo() {
     this.breakCoalescing()
     const cmd = this.undoStack.pop()
@@ -150,7 +150,7 @@ export class CommandManager {
     this.persistHook?.(cmd.affectedFiles())
   }
 
-  /** 重做下一步 */
+  /** Redoes the next step */
   redo() {
     this.breakCoalescing()
     const cmd = this.redoStack.pop()
@@ -161,7 +161,7 @@ export class CommandManager {
   }
 }
 
-/** 构造受影响文件集合的辅助函数 */
+/** Helper functions for building affected file sets */
 export function affectedTable(schema: string, table: string): AffectedFile {
   return { kind: 'table', schema, table }
 }
@@ -186,7 +186,7 @@ export function affectedSql(): AffectedFile {
   return { kind: 'sql' }
 }
 
-/** 合并并去重受影响文件集合 */
+/** Merges and deduplicates affected file sets */
 export function mergeAffectedFiles(files: AffectedFile[]): AffectedFile[] {
   const seen = new Set<string>()
   const result: AffectedFile[] = []
@@ -199,5 +199,5 @@ export function mergeAffectedFiles(files: AffectedFile[]): AffectedFile[] {
   return result
 }
 
-/** 便捷构造：从内存态 initialDataMap 读取当前 initial-data（供命令闭包捕获） */
+/** Convenience type: reads the current initial-data from the in-memory initialDataMap (captured by command closures) */
 export type InitialDataLookup = (schema: string, table: string) => InitialData | undefined

@@ -4,22 +4,22 @@ export type GitProviderKind = 'github' | 'gitee' | 'gitea'
 
 export interface GitRepoTarget {
   provider: GitProviderKind
-  /** 站点源（含协议与端口），如 https://gitee.com / http://git.internal:3000 */
+  /** Site origin (including protocol and port), e.g. https://gitee.com / http://git.internal:3000 */
   origin: string
-  /** 站点主机（含端口），作为凭据键 */
+  /** Site host (including port), used as the credentials key */
   host: string
   owner: string
   repo: string
-  /** 空串表示使用默认分支 */
+  /** An empty string means the default branch is used */
   branch: string
-  /** 工作区在仓库中的子目录；空串表示仓库根目录 */
+  /** Subdirectory of the repository used as the workspace; an empty string means the repository root */
   subdir: string
-  /** 自建 Gitea 的站点子路径（https://example.com/gitea/owner/repo 中的 gitea） */
+  /** Site sub-path of a self-hosted Gitea (the gitea in https://example.com/gitea/owner/repo) */
   prefix: string
 }
 
 export interface GitRepoInfo extends GitRepoTarget {
-  /** 连接后已解析为实际分支名 */
+  /** Resolved to the actual branch name after connecting */
   branch: string
   webUrl: string
 }
@@ -41,7 +41,7 @@ export class GitRepoError extends Error {
   }
 }
 
-/** 待提交的文件差异（含内容与远端当前 blob sha） */
+/** Pending file change to commit (content plus the current remote blob sha) */
 export interface GitFileChange extends StagedChange {
   content: string | null
   sha?: string

@@ -188,7 +188,7 @@ export function createVersionActions(deps: VersionDeps) {
     environments.value = listDocuments(documents, ENVIRONMENTS_DIR, decodeEnvironment)
   }
 
-  /** 将当前内存态序列化为不可变的版本文档，保存时才写入磁盘。 */
+  /** Serialize the current in-memory state into an immutable version document; it is written to disk only when saved. */
   async function createVersion(name?: string): Promise<VersionSummary | null> {
     const documents = getDocuments()
     if (!documents) return null
@@ -219,7 +219,7 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** 仅修改暂存快照的 name，并立即同步列表和预览缓存。 */
+  /** Only change the name of the staged snapshot, then sync the list and preview cache immediately. */
   async function renameVersion(id: string, name: string): Promise<void> {
     const documents = getDocuments()
     if (!documents) return
@@ -271,7 +271,7 @@ export function createVersionActions(deps: VersionDeps) {
     selectedVersionSnapshot.value = null
   }
 
-  /** 历史改名事实同样取自暂存文档，而不是调用方可能正在编辑的缓存。 */
+  /** Historical rename facts likewise come from staged documents, not from caches the caller may be editing. */
   function buildLookup(documents: Documents): ReturnType<typeof buildRenameLookup> {
     const entries: RenameEntry[] = listDocuments(documents, MIGRATIONS_DIR, decodeMigration)
       .flatMap(migration => migration.renames)
@@ -295,7 +295,7 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** fromId 为 null 时才与空结构对比；toCurrent 时目标取当前内存态。 */
+  /** Compare against the empty structure only when fromId is null; when toCurrent is set, the target is the current in-memory state. */
   async function computeDiff(fromId: string | null, toId: string | null, toCurrent: boolean): Promise<StructureDiff | null> {
     const documents = getDocuments()
     if (!documents) return null
@@ -416,7 +416,7 @@ export function createVersionActions(deps: VersionDeps) {
     }
   }
 
-  /** 两个版本和目标 common 均来自同一暂存会话，不依赖当前工作区配置。 */
+  /** Both versions and the target common come from the same staged session and do not depend on the current workspace config. */
   async function previewMigrationDdl(migration: Migration): Promise<MigrationDdlPreview | null> {
     const documents = getDocuments()
     if (!documents) return null

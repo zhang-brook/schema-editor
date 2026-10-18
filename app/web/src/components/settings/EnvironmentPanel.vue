@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 环境管理：每个环境关联到版本链上的某个版本，表示「该环境当前处于这个版本」。
+ * Environment management: each environment is linked to a version in the version chain,
+ * meaning "the environment is currently on this version".
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -11,7 +12,7 @@ import { confirmDialog } from '@/composables/useConfirm'
 const store = useEditorStore()
 const { t } = useI18n()
 
-/** view = 查看详情；edit = 编辑 / 新建表单 */
+/** view = view details; edit = edit / create form */
 const viewId = ref<string | null>(null)
 const editing = ref(false)
 const isCreating = ref(false)
@@ -22,7 +23,7 @@ const canSave = computed(
   () => !!draft.value && !!draft.value.name.trim() && !!draft.value.version_id,
 )
 
-/** 当前查看的环境：直接取自列表，保存后自动展示最新内容 */
+/** Environment currently being viewed: taken directly from the list, so saved changes are shown automatically */
 const viewingEnv = computed(
   () => store.environments.find(e => e.id === viewId.value) ?? null,
 )
@@ -31,7 +32,7 @@ function versionName(id: string): string {
   return store.versions.find(v => v.id === id)?.name ?? id
 }
 
-/** 点击列表项：先进入查看详情，不直接进编辑 */
+/** Click a list item: open the detail view first, not the edit form */
 function select(env: Environment) {
   viewId.value = env.id
   editing.value = false
@@ -39,7 +40,7 @@ function select(env: Environment) {
   draft.value = null
 }
 
-/** 查看 → 编辑 */
+/** View → edit */
 function startEdit() {
   const env = viewingEnv.value
   if (!env) return
@@ -48,7 +49,7 @@ function startEdit() {
   isCreating.value = false
 }
 
-/** 新建：直接进入表单 */
+/** Create: go straight to the form */
 function startCreate() {
   if (!hasVersions.value) return
   viewId.value = null
@@ -63,7 +64,7 @@ function startCreate() {
   isCreating.value = true
 }
 
-/** 取消编辑：新建回到空白态，编辑现有环境则回到该环境的查看页 */
+/** Cancel editing: a new environment returns to the empty state; editing an existing one returns to its detail view */
 function cancelEdit() {
   if (isCreating.value) viewId.value = null
   editing.value = false
@@ -71,7 +72,7 @@ function cancelEdit() {
   draft.value = null
 }
 
-/** 保存：成功后退出表单，回到该环境的查看页 */
+/** Save: on success leave the form and return to the environment's detail view */
 async function onSave() {
   if (!draft.value || !canSave.value) return
   if (isCreating.value) {
@@ -89,7 +90,7 @@ async function onSave() {
   }
   const saved = draft.value
   await store.updateEnvironment(saved)
-  // 失败时 store 已给出错误提示，这里回到查看页展示最新内容
+  // On failure the store has already shown an error; return to the detail view to show the latest content
   viewId.value = saved.id
   editing.value = false
   draft.value = null
@@ -115,7 +116,7 @@ async function onDelete(env: Environment) {
 
 <template>
   <div class="ps-version-body ps-env">
-    <!-- 左侧：环境列表 -->
+    <!-- Left: environment list -->
     <div class="ps-env-list">
       <button class="btn btn-primary btn-block" :disabled="!hasVersions" @click="startCreate">
         + {{ t('environment.create') }}
@@ -135,14 +136,14 @@ async function onDelete(env: Environment) {
       </ul>
     </div>
 
-    <!-- 右侧：查看 / 编辑 -->
+    <!-- Right: view / edit -->
     <div class="ps-env-editor">
-      <!-- 未选中环境且未编辑 -->
+      <!-- No environment selected and not editing -->
       <div v-if="!editing && !viewingEnv" class="ps-version-empty">
         {{ t('environment.emptyGuide') }}
       </div>
 
-      <!-- 查看页 -->
+      <!-- Detail view -->
       <template v-else-if="!editing && viewingEnv">
         <div class="ps-mig-titlebar">
           <span class="ps-mig-title">{{ viewingEnv.name }}</span>
@@ -166,7 +167,7 @@ async function onDelete(env: Environment) {
         </div>
       </template>
 
-      <!-- 编辑页 -->
+      <!-- Edit view -->
       <template v-else-if="editing && draft">
         <div class="ps-mig-titlebar">
           <span class="ps-mig-title">
@@ -245,7 +246,7 @@ async function onDelete(env: Environment) {
   gap: 4px;
 }
 
-/* textarea 外观交由全局 form-input 统一处理，这里只保留交互行为 */
+/* The textarea appearance is handled by the global form-input; only interaction behavior is kept here */
 .ps-textarea {
   resize: vertical;
 }
@@ -255,9 +256,10 @@ async function onDelete(env: Environment) {
   box-sizing: border-box;
 }
 
-/* ===== 以下类原本定义在 VersionManagementPage 的 scoped 样式中。
-   scoped 样式不会穿透到子组件的内部元素，环境面板引用了它们却拿不到样式，
-   故按相同取值在此重新声明，使环境 tab 的列表、标题栏、空态与项目其他页面一致。 ===== */
+/* ===== The classes below were originally defined in VersionManagementPage's scoped styles.
+   Scoped styles do not reach into child component internals, so the environment panel referenced
+   them without receiving any styles; they are redeclared here with the same values so the
+   environment tab's list, title bar and empty state match the rest of the project. ===== */
 .ps-list {
   list-style: none;
   margin: 0;

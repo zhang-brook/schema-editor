@@ -1,18 +1,20 @@
 /**
- * 结构迁移脚本：v0.3 → v0.4（字段级）
+ * Structure migration script: v0.3 → v0.4 (field-level)
  *
- * 将 pgsql 字段重命名为 postgresql（schema/table/field/index/index-column 各级，以及
- * commonConfig 的 default_config / common_used_fields / unified_types）。
- * 这是典型的「字段改名」迁移：磁盘布局不变，只改内存字段后写回。
- * 使用 readProject/writeProject 范式，脚本只关注字段怎么变。
+ * Renames the pgsql field to postgresql (at the schema/table/field/index/index-column levels, plus
+ * commonConfig's default_config / common_used_fields / unified_types).
+ * This is a typical "field rename" migration: the disk layout is unchanged, only in-memory fields
+ * are changed and written back.
+ * It follows the readProject/writeProject pattern, so the script only cares about how fields change.
  *
- * 后续 0.4→1.0 结构迁移可直接基于本步骤产出的 0.4 数据态进行。
+ * The subsequent 0.4→1.0 structure migration can work directly on the 0.4 data state produced by
+ * this step.
  */
 
 import { readLegacyField } from './version-utils'
 import { readProject, writeProject } from './structure-io'
 
-/** 将 obj 上的 pgsql 字段迁移为 postgresql（原地修改） */
+/** Migrate the pgsql field on obj to postgresql (modified in place) */
 function renamePgsql(obj: object): void {
   const record = obj as Record<string, unknown>
   const legacy = readLegacyField(record, 'pgsql')
@@ -22,31 +24,31 @@ function renamePgsql(obj: object): void {
   }
 }
 
-/** 执行 v0.3 → v0.4 迁移 */
+/** Run the v0.3 → v0.4 migration */
 export async function migrate(rootHandle: FileSystemDirectoryHandle): Promise<void> {
-  // 1. 读取当前盘（按 0.3 版本自动选择 old 布局）
+  // 1. Read the current disk (automatically choosing the old layout based on version 0.3)
   const data = await readProject(rootHandle, '0.3')
 
-  // 2. 内存升级：pgsql → postgresql
+  // 2. In-memory upgrade: pgsql → postgresql
   for (const schema of data.schemas) {
-    // 迁移 schema 级别的前/后置 SQL
+    // Migrate schema-level pre/post SQL
     if (schema.pre_sql) renamePgsql(schema.pre_sql)
     if (schema.post_sql) renamePgsql(schema.post_sql)
 
-    // 迁移表配置
+    // Migrate table config
     for (const table of schema.tables) {
       if (table.pre_sql) renamePgsql(table.pre_sql)
       if (table.post_sql) renamePgsql(table.post_sql)
 
-      // 迁移字段配置
+      // Migrate field config
       for (const field of table.fields) {
         renamePgsql(field)
       }
 
-      // 迁移索引配置（包含索引列级别的 pgsql）
+      // Migrate index config (including pgsql at the index column level)
       for (const index of table.indexes) {
         renamePgsql(index)
-        // 迁移索引列的 pgsql
+        // Migrate pgsql of index columns
         if (index.columns) {
           for (const col of index.columns) {
             renamePgsql(col)
@@ -56,9 +58,10 @@ export async function migrate(rootHandle: FileSystemDirectoryHandle): Promise<vo
     }
   }
 
-  // 迁移全局配置
+  // Migrate global config
   if (data.common) {
-    // 旧盘上 default_config 可能整体缺失，此时读到的就是空记录，不会有 pgsql
+    // default_config may be entirely missing on the old disk; in that case an empty record is read
+    // and there is no pgsql
     const defaultConfig = data.common.default_config
     if (defaultConfig && readLegacyField(defaultConfig, 'pgsql') !== undefined) {
       if (!defaultConfig.postgresql) {
@@ -67,7 +70,7 @@ export async function migrate(rootHandle: FileSystemDirectoryHandle): Promise<vo
       delete defaultConfig.pgsql
     }
 
-    // 迁移 common_used_fields 中的 pgsql
+    // Migrate pgsql in common_used_fields
     if (data.common.common_used_fields) {
       for (const fieldName of Object.keys(data.common.common_used_fields)) {
         const field = data.common.common_used_fields[fieldName]
@@ -75,7 +78,7 @@ export async function migrate(rootHandle: FileSystemDirectoryHandle): Promise<vo
       }
     }
 
-    // 迁移 unified_types 中的 pgsql
+    // Migrate pgsql in unified_types
     if (data.common.unified_types) {
       for (const ut of data.common.unified_types) {
         renamePgsql(ut)
@@ -83,7 +86,7 @@ export async function migrate(rootHandle: FileSystemDirectoryHandle): Promise<vo
     }
   }
 
-  // 3. 推进版本号并写回（布局不变，覆盖写回）
+  // 3. Advance the version number and write back (layout unchanged, overwrite in place)
   if (data.common) data.common.struct_version = '0.4'
   await writeProject(rootHandle, '0.4', data)
 }

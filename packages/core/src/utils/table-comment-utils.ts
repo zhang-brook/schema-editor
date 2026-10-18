@@ -3,8 +3,8 @@ import type { Table } from '../types/schema'
 type FieldComment = string | (string | null)[]
 
 /**
- * 删除字段时清理 table.comment_before_fields 中对应的键（该 map 以字段名为键）。
- * 返回撤销函数；无对应注释时返回 null。
+ * Removes the entry for a field from table.comment_before_fields when the field is deleted (that map is keyed by field name).
+ * Returns an undo function; returns null when there is no matching comment.
  */
 export function removeFieldCommentBefore(table: Table, fieldName: string): (() => void) | null {
   const record = table.comment_before_fields
@@ -21,8 +21,8 @@ export function removeFieldCommentBefore(table: Table, fieldName: string): (() =
 }
 
 /**
- * 字段名改名时迁移 table.comment_before_fields 的键（该 map 以字段名为键）。
- * 返回撤销函数；表未配置该字段的前注释、或新旧名相同时返回 null。
+ * Migrates the key in table.comment_before_fields when a field is renamed (that map is keyed by field name).
+ * Returns an undo function; returns null when the table has no comment for that field or the names are the same.
  */
 export function moveFieldCommentBefore(table: Table, oldName: string, newName: string): (() => void) | null {
   const record = table.comment_before_fields

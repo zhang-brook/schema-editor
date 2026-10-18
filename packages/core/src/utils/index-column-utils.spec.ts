@@ -11,21 +11,21 @@ function makeIndexes(): Index[] {
 }
 
 describe('createIndexFieldRemoval', () => {
-  it('多列索引只移除对应列，索引保留', () => {
+  it('removes only the matching column from a multi-column index, keeping the index', () => {
     const indexes = makeIndexes()
     createIndexFieldRemoval(indexes, 'email').apply()
     expect(indexes.map(i => i.name)).toEqual(['idx_single', 'idx_multi'])
     expect(indexes[1]!.columns).toEqual([{ name: 'name' }, { name: 'age', sort_order: 'DESC' }])
   })
 
-  it('仅剩该列的索引被整体移除', () => {
+  it('removes an index entirely when only that column remains', () => {
     const indexes = makeIndexes()
     createIndexFieldRemoval(indexes, 'age').apply()
     expect(indexes.map(i => i.name)).toEqual(['idx_multi', 'idx_other'])
     expect(indexes[0]!.columns).toEqual([{ name: 'name' }, { name: 'email' }])
   })
 
-  it('撤销后恢复被移除的列与被整体移除的索引（含原位置）', () => {
+  it('undo restores removed columns and entirely removed indexes (including their original positions)', () => {
     const indexes = makeIndexes()
     const removal = createIndexFieldRemoval(indexes, 'age')
     removal.apply()
@@ -33,7 +33,7 @@ describe('createIndexFieldRemoval', () => {
     expect(indexes).toEqual(makeIndexes())
   })
 
-  it('多个索引同时被整体移除时，撤销后顺序与列均恢复', () => {
+  it('restores both order and columns after undo when multiple indexes are removed entirely at once', () => {
     const indexes: Index[] = [
       { type: 'index', name: 'a', columns: [{ name: 'x' }] },
       { type: 'index', name: 'b', columns: [{ name: 'email' }] },
@@ -50,7 +50,7 @@ describe('createIndexFieldRemoval', () => {
     expect(indexes[3]!.columns).toEqual([{ name: 'email', sort_order: 'DESC' }])
   })
 
-  it('重复 apply 幂等，且撤销后仍回到初始状态', () => {
+  it('repeated apply is idempotent, and undo still returns to the initial state', () => {
     const indexes = makeIndexes()
     const removal = createIndexFieldRemoval(indexes, 'age')
     removal.apply()
@@ -60,7 +60,7 @@ describe('createIndexFieldRemoval', () => {
     expect(indexes).toEqual(makeIndexes())
   })
 
-  it('字段未被任何索引引用或字段名为空时无改动', () => {
+  it('makes no changes when the field is not referenced by any index or the field name is empty', () => {
     const indexes = makeIndexes()
     createIndexFieldRemoval(indexes, 'not_exists').apply()
     expect(indexes).toEqual(makeIndexes())

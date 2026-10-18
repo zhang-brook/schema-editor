@@ -10,15 +10,16 @@ declare global {
       startIn?: FileSystemHandle
     }): Promise<FileSystemDirectoryHandle>
 
-    /** 桌面外壳注入的文件系统桥接对象；网页环境中不存在 */
+    /** File system bridge injected by the desktop shell; absent in the web environment */
     schemaEditorDesktop?: DesktopBridge
 
     FileSystemObserver: typeof FileSystemObserver
   }
 
   /**
-   * getAsFileSystemHandle — Chromium 私有的拖拽扩展，把拖入的 DataTransferItem 换成文件系统句柄。
-   * 尚未标准化，lib.dom 里没有该成员，故在此做可选声明。
+   * getAsFileSystemHandle — a Chromium-specific drag-and-drop extension that turns a
+   * dropped DataTransferItem into a file system handle.
+   * Not yet standardized, so it is missing from lib.dom; declared as optional here.
    */
   interface DataTransferItem {
     getAsFileSystemHandle?(): Promise<FileSystemHandle | null>

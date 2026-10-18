@@ -1,22 +1,22 @@
 import { reactive } from 'vue'
 
-/** 弹窗按钮标识：确认（主按钮）/ 次按钮 / 取消 */
+/** Dialog button identifier: confirm (primary button) / secondary button / cancel */
 export type ConfirmChoice = 'confirm' | 'secondary' | 'cancel'
 
 export interface ConfirmOptions {
-  /** 标题文本（已翻译后的字符串，直接显示） */
+  /** Title text (an already translated string, displayed as is) */
   title: string
-  /** 正文消息，支持 \n 换行 */
+  /** Body message, supports \n line breaks */
   message: string
-  /** 确认按钮文本 */
+  /** Confirm button text */
   confirmText?: string
-  /** 取消按钮文本；为空则不显示取消按钮 */
+  /** Cancel button text; the cancel button is hidden when empty */
   cancelText?: string
-  /** 确认按钮是否使用主色调（默认 true） */
+  /** Whether the confirm button uses the primary color (default true) */
   primaryConfirm?: boolean
 }
 
-/** 带次按钮的弹窗选项（如「保存 / 不保存 / 取消」三选一） */
+/** Dialog options with a secondary button (e.g. a three-way choice of "Save / Don't Save / Cancel") */
 export interface ChooseOptions extends ConfirmOptions {
   secondaryText: string
 }
@@ -31,10 +31,10 @@ interface ConfirmRequest {
   resolve: (value: ConfirmChoice) => void
 }
 
-// 队列：每次 confirmDialog()/chooseDialog()/alertDialog() 入队并返回 Promise，
-// 由 App.vue 中唯一的 ConfirmModal 依次展示队首，关闭后自动展示下一个。
-// 因此天然支持弹窗嵌套（如确认框的回调里再弹确认）或多个异步链并发触发弹窗，
-// 不会出现「单例 state 被覆盖导致前一个 Promise 永不 resolve」的问题。
+// Queue: every confirmDialog()/chooseDialog()/alertDialog() call enqueues a request and returns a Promise;
+// the single ConfirmModal in App.vue displays the head of the queue in order and automatically shows the next one after closing.
+// This naturally supports nested dialogs (e.g. a confirm inside a confirm callback) or multiple async chains triggering dialogs concurrently,
+// without the problem of "the singleton state being overwritten so the previous Promise never resolves".
 const queue: ConfirmRequest[] = []
 
 const state = reactive({
@@ -72,32 +72,32 @@ function enqueue(options: ConfirmOptions, resolve: (value: ConfirmChoice) => voi
     primaryConfirm: options.primaryConfirm ?? true,
     resolve,
   })
-  // 当前没有弹窗在展示时才立即展示；否则等待队首关闭后由 resolveConfirm 自动展示下一个
+  // Show immediately only when no dialog is currently displayed; otherwise wait for the head to close, then resolveConfirm shows the next one
   if (!state.visible) showFront()
 }
 
 /**
- * 打开确认弹窗，返回用户是否点击「确认」。
- * 替代原生 window.confirm，统一项目弹窗样式。
+ * Opens a confirmation dialog and returns whether the user clicked "Confirm".
+ * Replaces the native window.confirm with the project's unified dialog style.
  */
 export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
   return new Promise<boolean>((resolve) => enqueue(options, (value) => resolve(value === 'confirm')))
 }
 
-/** 打开三选一弹窗，返回被点击的按钮标识（Esc 与点击遮罩算「取消」） */
+/** Opens a three-way choice dialog and returns the clicked button identifier (Esc and overlay clicks count as "cancel") */
 export function chooseDialog(options: ChooseOptions): Promise<ConfirmChoice> {
   return new Promise<ConfirmChoice>((resolve) => enqueue(options, resolve, options.secondaryText))
 }
 
 /**
- * 打开提示弹窗（仅确认按钮），返回 Promise<void>。
- * 替代原生 window.alert，统一项目弹窗样式。
+ * Opens an alert dialog (confirm button only) and returns Promise<void>.
+ * Replaces the native window.alert with the project's unified dialog style.
  */
 export function alertDialog(options: Omit<ConfirmOptions, 'cancelText'>): Promise<void> {
   return new Promise<void>((resolve) => enqueue({ ...options, cancelText: '' }, () => resolve()))
 }
 
-/** 由 ConfirmModal 在用户点击某个按钮或点击遮罩时调用 */
+/** Called by ConfirmModal when the user clicks a button or the overlay */
 export function resolveConfirm(value: ConfirmChoice) {
   const front = queue.shift()
   if (!front) return
@@ -105,7 +105,7 @@ export function resolveConfirm(value: ConfirmChoice) {
   showFront()
 }
 
-/** 暴露响应式状态，供 App.vue 全局唯一挂载的 ConfirmModal 绑定 */
+/** Exposes reactive state for the globally mounted ConfirmModal in App.vue to bind to */
 export function useConfirmState() {
   return state
 }

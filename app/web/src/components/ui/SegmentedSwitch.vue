@@ -1,9 +1,9 @@
 <script setup lang="ts">
-/** 分段切换项 */
+/** Segmented switch option */
 export interface SegmentedOption {
   value: string
   label: string
-  /** 悬停提示（可选） */
+  /** Hover tooltip (optional) */
   title?: string
 }
 
@@ -22,7 +22,7 @@ function select(opt: SegmentedOption) {
 </script>
 
 <template>
-  <!-- 分段切换：相邻按钮共享边框，选中项高亮 -->
+  <!-- Segmented switch: adjacent buttons share borders, active option highlighted -->
   <div class="segmented">
     <button
       v-for="opt in options"
@@ -72,7 +72,7 @@ function select(opt: SegmentedOption) {
   border-color: var(--accent);
 }
 
-/* 选中项右侧相邻按钮补齐左边框颜色，保持分隔线连续 */
+/* The button right after the active one takes the left border color so the divider stays continuous */
 .segmented-btn.active + .segmented-btn {
   border-left-color: var(--accent);
 }

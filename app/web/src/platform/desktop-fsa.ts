@@ -1,10 +1,11 @@
 /**
- * 桌面端的 File System Access API 模拟层。
+ * File System Access API shim for the desktop shell.
  *
- * 桌面外壳中的渲染进程通过 `window.schemaEditorDesktop` 拿到文件系统桥接，
- * 这里把「路径」包装成与浏览器句柄相同的方法集合（getDirectoryHandle /
- * getFileHandle / values / createWritable / removeEntry），使 core/workspace
- * 下的既有读写、结构升级、外部变更检测逻辑零改动运行。
+ * The renderer process in the desktop shell obtains the file system bridge via
+ * `window.schemaEditorDesktop`. Here a "path" is wrapped in the same method set
+ * as browser handles (getDirectoryHandle / getFileHandle / values /
+ * createWritable / removeEntry), so the existing read/write, structure upgrade
+ * and external change detection logic under core/workspace runs unchanged.
  */
 import type { DesktopBridge, DesktopFsErrorCode, DesktopFsResult } from 'schema-editor-bridge'
 
@@ -47,13 +48,13 @@ export class DesktopFileHandle {
     this.name = entryName(path)
   }
 
-  /** 返回当前内容的快照，只实现读写链路实际用到的 text() */
+  /** Returns a snapshot of the current content; only text(), which the read path actually uses, is implemented */
   async getFile(): Promise<File> {
     const text = unwrap(await this.bridge.readText(this.path))
     return { name: this.name, text: async () => text } as unknown as File
   }
 
-  /** 内容先缓存在内存，close 时一次性写入；abort 丢弃缓冲 */
+  /** Content is buffered in memory and written once on close; abort discards the buffer */
   async createWritable(): Promise<FileSystemWritableFileStream> {
     let content: string | null = null
     const { bridge, path } = this
@@ -103,7 +104,7 @@ export class DesktopDirectoryHandle {
     if (kind === 'directory') throw typeMismatchError()
     if (kind === null) {
       if (options.create !== true) throw notFoundError()
-      // 与浏览器语义一致：create 时立即产生空文件
+      // Matches browser semantics: create immediately produces an empty file
       unwrap(await this.bridge.writeText(path, ''))
     }
     return new DesktopFileHandle(this.bridge, path)
@@ -123,7 +124,7 @@ export class DesktopDirectoryHandle {
   }
 }
 
-/** FileSystemObserver 的桌面实现：事件来自主进程的 fs.watch */
+/** Desktop implementation of FileSystemObserver: events come from fs.watch in the main process */
 export class DesktopFileSystemObserver implements FileSystemObserver {
   private id: number | null = null
 
@@ -154,7 +155,7 @@ export class DesktopFileSystemObserver implements FileSystemObserver {
   }
 }
 
-/** 把桌面桥接安装为 window 上的 File System Access 模拟实现（仅桌面端调用） */
+/** Installs the desktop bridge as a File System Access shim on window (desktop only) */
 export function installDesktopFsa(bridge: DesktopBridge, target: Window = window): void {
   target.showDirectoryPicker = async () => {
     const path = await bridge.pickDirectory()

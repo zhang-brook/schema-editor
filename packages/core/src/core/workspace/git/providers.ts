@@ -19,7 +19,7 @@ export interface GitCommitInput {
 export interface GitRemote {
   defaultBranch(): Promise<string>
   headSha(branch: string): Promise<string>
-  /** 目标子目录下的文件索引：工作区相对路径 → blob sha */
+  /** File index under the target subdirectory: workspace-relative path -> blob sha */
   listWorkspaceFiles(headSha: string): Promise<Map<string, string>>
   readText(blobSha: string): Promise<string>
   commit(input: GitCommitInput): Promise<void>
@@ -34,7 +34,7 @@ export function encodeBase64(text: string): string {
 }
 
 export function decodeBase64(base64: string): string {
-  // GitHub 的 blob 内容按 60 字符折行，解码前去掉全部空白
+  // GitHub folds blob content every 60 characters, so strip all whitespace before decoding
   const binary = atob(base64.replace(/\s+/g, ''))
   const bytes = Uint8Array.from(binary, char => char.charCodeAt(0))
   return new TextDecoder().decode(bytes)
@@ -90,7 +90,7 @@ abstract class GitRemoteBase implements GitRemote {
       }
       return files
     }
-    // 超大仓库的递归列表会被截断：回退为只遍历目标子目录的逐层请求
+    // The recursive listing of very large repositories gets truncated: fall back to level-by-level requests that walk only the target subdirectory
     await this.walkTree(headSha, '', files)
     return files
   }
@@ -112,7 +112,7 @@ abstract class GitRemoteBase implements GitRemote {
   private async walkTree(sha: string, dir: string, files: Map<string, string>): Promise<void> {
     const { entries } = await this.tree(sha, false)
     for (const entry of entries) {
-      // 非递归列表的 path 在不同平台上可能是名称或仓库相对路径，按形态归一为后者
+      // In non-recursive listings the path may be a name or a repository-relative path depending on the platform; normalize both forms to the latter
       const path = entry.path.includes('/') ? entry.path : (dir ? `${dir}/${entry.path}` : entry.path)
       if (entry.type === 'tree') {
         if (this.relevantDir(path)) await this.walkTree(entry.sha, path, files)
@@ -185,7 +185,7 @@ class GithubRemote extends GitRemoteBase {
       method: 'POST',
       body: JSON.stringify({ message, tree: tree.sha, parents: [headSha] }),
     })
-    // force: false 让服务端做快进校验：分支被他人推进时返回 422，即提交冲突
+    // force: false makes the server enforce fast-forward: it returns 422 when someone else advanced the branch, i.e. a commit conflict
     await this.request(`${this.repoUrl}/git/refs/heads/${branch}`, {
       method: 'PATCH',
       body: JSON.stringify({ sha: commit.sha, force: false }),
@@ -234,7 +234,7 @@ class GiteeRemote extends GitRemoteBase {
           content: encodeBase64(change.content),
           encoding: 'base64',
         })
-    // 该端点没有服务端冲突原语，写入器已在上游做 head 预检；此处只能兜住服务端显式报错
+    // This endpoint has no server-side conflict primitive; the writer already pre-checks the head upstream, so here we only map explicit server errors
     await this.request(`${this.repoUrl}/commits`, {
       method: 'POST',
       body: JSON.stringify({ branch, message, actions }),
@@ -283,7 +283,7 @@ class GiteaRemote extends GitRemoteBase {
           content: encodeBase64(change.content!),
           sha: change.sha,
         })
-    // 更新/删除携带快照 blob sha，文件被他人改过后由服务端拒绝（409/422）
+    // Updates/deletes carry the snapshot blob sha, so the server rejects them (409/422) once the file has been changed by someone else
     await this.request(`${this.repoUrl}/contents`, {
       method: 'POST',
       body: JSON.stringify({ branch, message, files }),

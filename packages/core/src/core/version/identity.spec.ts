@@ -29,7 +29,7 @@ function entry(from: string, to: string, source: RenameEntry['source'] = 'manual
 }
 
 describe('parsePath / rebuildPath', () => {
-  it('解析各层级路径', () => {
+  it('parses paths at every level', () => {
     expect(parsePath('db')).toEqual({ kind: 'schema', schema: 'db' })
     expect(parsePath('db/users')).toEqual({ kind: 'table', schema: 'db', table: 'users' })
     expect(parsePath('db/users.name')).toEqual({
@@ -46,15 +46,15 @@ describe('parsePath / rebuildPath', () => {
     })
   })
 
-  it('重建路径与解析互为逆操作', () => {
+  it('rebuilds paths as the inverse of parsing', () => {
     for (const p of ['db', 'db/users', 'db/users.name', 'db/users#idx_name']) {
       expect(rebuildPath(parsePath(p))).toBe(p)
     }
   })
 })
 
-describe('路径构造函数', () => {
-  it('按约定拼接分隔符', () => {
+describe('path builders', () => {
+  it('joins separators by convention', () => {
     expect(tablePath('db', 'users')).toBe('db/users')
     expect(fieldPath('db', 'users', 'name')).toBe('db/users.name')
     expect(indexPath('db', 'users', 'idx_name')).toBe('db/users#idx_name')
@@ -62,7 +62,7 @@ describe('路径构造函数', () => {
 })
 
 describe('buildRenameMap', () => {
-  it('求传递闭包：a→b 与 b→c 合并出 a→c', () => {
+  it('computes the transitive closure: a→b and b→c merge into a→c', () => {
     const { map } = buildRenameMap([
       entry('db/users', 'db/accounts'),
       entry('db/accounts', 'db/members'),
@@ -71,12 +71,12 @@ describe('buildRenameMap', () => {
     expect(map.get('db/accounts')).toBe('db/members')
   })
 
-  it('过滤未发生变化的记录', () => {
+  it('filters out records that did not change', () => {
     const { map } = buildRenameMap([entry('db/users', 'db/users')])
     expect(map.size).toBe(0)
   })
 
-  it('同一源指向多个目标时记为冲突，并采用 editor/manual 优先', () => {
+  it('records a conflict when one source points to multiple targets, preferring editor/manual', () => {
     const { map, conflicts } = buildRenameMap([
       { kind: 'table', from: 'db/a', to: 'db/b', source: 'auto', confidence: 0.9 },
       entry('db/a', 'db/c', 'manual'),
@@ -86,7 +86,7 @@ describe('buildRenameMap', () => {
     expect(conflicts[0]?.targets.sort()).toEqual(['db/b', 'db/c'])
   })
 
-  it('检测到环时保持原样并登记', () => {
+  it('leaves cycles unchanged and records them', () => {
     const { map, cyclic } = buildRenameMap([entry('db/a', 'db/b'), entry('db/b', 'db/a')])
     expect(map.get('db/a')).toBeUndefined()
     expect(cyclic.sort()).toEqual(['db/a', 'db/b'])
@@ -94,34 +94,34 @@ describe('buildRenameMap', () => {
 })
 
 describe('resolveOldPath', () => {
-  it('无改名记录时原样返回', () => {
+  it('returns the path unchanged when there are no rename records', () => {
     const lookup = buildRenameLookup(new Map())
     expect(resolveOldPath('db/users.name', lookup)).toBe('db/users.name')
   })
 
-  it('表改名时，其下字段路径随之解析到旧表', () => {
+  it('resolves field paths under a renamed table back to the old table', () => {
     const lookup = buildRenameLookup(buildRenameMap([entry('db/users', 'db/accounts')]).map)
     expect(resolveOldPath('db/accounts.name', lookup)).toBe('db/users.name')
     expect(resolveOldPath('db/accounts#idx_name', lookup)).toBe('db/users#idx_name')
   })
 
-  it('schema 改名时，其下所有对象路径随之解析', () => {
+  it('resolves paths of all objects under a renamed schema', () => {
     const lookup = buildRenameLookup(buildRenameMap([entry('db', 'main')]).map)
     expect(resolveOldPath('main/users', lookup)).toBe('db/users')
     expect(resolveOldPath('main/users.name', lookup)).toBe('db/users.name')
   })
 
-  it('schema 与 table 分别改名时仍能解析到旧路径', () => {
+  it('still resolves to the old path when both schema and table are renamed', () => {
     const lookup = buildRenameLookup(
       buildRenameMap([entry('db', 'main'), entry('db/users', 'db/accounts')]).map,
     )
-    // 新路径 main/accounts：先经 schema 反查为 db，再查 db/accounts 得到 db/users
+    // new path main/accounts: reverse the schema to db first, then look up db/accounts to get db/users
     expect(resolveOldPath('main/accounts', lookup)).toBe('db/users')
   })
 })
 
 describe('suggestRenames', () => {
-  it('为字段集合相同但表名变化的表产出建议', () => {
+  it('suggests renames for tables with identical field sets but changed names', () => {
     const olds = [schema('db', [{ name: 'user', fields: [field('id'), field('name')] }])]
     const news = [schema('db', [{ name: 'users', fields: [field('id'), field('name')] }])]
     const result = suggestRenames(olds, news)
@@ -130,13 +130,13 @@ describe('suggestRenames', () => {
     expect(result[0]?.entry.source).toBe('auto')
   })
 
-  it('结构完全无关时不产出建议', () => {
+  it('suggests nothing when structures are entirely unrelated', () => {
     const olds = [schema('db', [{ name: 'user', fields: [field('id'), field('name')] }])]
     const news = [schema('db', [{ name: 'order', fields: [field('amount'), field('price')] }])]
     expect(suggestRenames(olds, news)).toEqual([])
   })
 
-  it('表对齐后继续推断字段改名', () => {
+  it('infers field renames after aligning tables', () => {
     const olds = [schema('db', [{ name: 't', fields: [field('user_name'), field('id')] }])]
     const news = [schema('db', [{ name: 't', fields: [field('username'), field('id')] }])]
     const result = suggestRenames(olds, news)
@@ -148,7 +148,7 @@ describe('suggestRenames', () => {
     })
   })
 
-  it('schema 改名时同时推断其下对象', () => {
+  it('infers nested objects when a schema is renamed', () => {
     const olds = [schema('old_db', [{ name: 't', fields: [field('id')] }])]
     const news = [schema('new_db', [{ name: 't', fields: [field('id')] }])]
     const result = suggestRenames(olds, news)

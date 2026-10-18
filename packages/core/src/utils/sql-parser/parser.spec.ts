@@ -9,14 +9,14 @@ import { generateTablePostgreSQL } from '../sql-generator/postgresql'
 import { generateSchemaSQLite } from '../sql-generator/sqlite'
 
 /**
- * SQL 解析回归测试：
- * 覆盖 CREATE TABLE 解析（固定样例断言）、方言检测、类型映射三级回退，
- * 以及「生成 → 解析」往返一致性。
+ * SQL parsing regression tests:
+ * Covers CREATE TABLE parsing (assertions on fixed samples), dialect detection,
+ * three-level type mapping fallback, and "generate → parse" round-trip consistency.
  */
 
-// ===== 固定样例：CREATE TABLE 解析 =====
+// ===== Fixed samples: CREATE TABLE parsing =====
 
-describe('parseCreateTableStatements — MySQL 固定样例', () => {
+describe('parseCreateTableStatements — MySQL fixed sample', () => {
   const sql = `
     DROP TABLE IF EXISTS \`users\`;
     CREATE TABLE \`users\` (
@@ -31,12 +31,12 @@ describe('parseCreateTableStatements — MySQL 固定样例', () => {
   const result = parseCreateTableStatements(sql)
   const table = result.tables[0]!
 
-  it('DROP 被跳过，仅解析出一张表', () => {
+  it('DROP is skipped and exactly one table is parsed', () => {
     expect(result.tables).toHaveLength(1)
     expect(table.name).toBe('users')
   })
 
-  it('列类型/长度/scale 解析（关键字类型大写化）', () => {
+  it('parses column type/length/scale (keyword types are uppercased)', () => {
     const id = table.columns.find(c => c.name === 'id')!
     expect(id.rawType).toBe('BIGINT')
     expect(id.notNull).toBe(true)
@@ -53,7 +53,7 @@ describe('parseCreateTableStatements — MySQL 固定样例', () => {
     expect(price.scale).toBe(2)
   })
 
-  it('主键 / 唯一键 / 普通索引约束解析', () => {
+  it('parses primary key / unique key / regular index constraints', () => {
     const pk = table.constraints.find(c => c.type === 'PRIMARY_KEY')!
     expect(pk.columns.map(c => c.name)).toEqual(['id'])
 
@@ -66,7 +66,7 @@ describe('parseCreateTableStatements — MySQL 固定样例', () => {
     expect(idx.name).toBe('idx_price')
   })
 
-  it('表选项解析：engine / comment / rowFormat', () => {
+  it('parses table options: engine / comment / rowFormat', () => {
     expect(table.options.engine).toBe('InnoDB')
     expect(table.options.comment).toBe('用户表')
     expect(table.options.rowFormat).toBe('DYNAMIC')
@@ -86,23 +86,23 @@ describe('parseCreateTableStatements — ON UPDATE CURRENT_TIMESTAMP', () => {
   const col = table.columns.find(c => c.name === 'last_modified_at')!
   const plain = table.columns.find(c => c.name === 'updated_at')!
 
-  it('解析出 ON UPDATE 及其精度', () => {
+  it('parses ON UPDATE and its precision', () => {
     expect(col.onUpdateCurrentTimestamp).toBe(true)
     expect(col.onUpdateCurrentTimestampPrecision).toBe(3)
     expect(col.defaultValue).toBe('CURRENT_TIMESTAMP(3)')
   })
 
-  it('无括号时精度为 null', () => {
+  it('precision is null when there are no parentheses', () => {
     expect(plain.onUpdateCurrentTimestamp).toBe(true)
     expect(plain.onUpdateCurrentTimestampPrecision).toBeNull()
   })
 
-  it('未写 ON UPDATE 的列不误报', () => {
+  it('columns without ON UPDATE are not falsely reported', () => {
     expect(table.columns.find(c => c.name === 'id')!.onUpdateCurrentTimestamp).toBe(false)
   })
 })
 
-describe('parseCreateTableStatements — PostgreSQL + COMMENT ON 固定样例', () => {
+describe('parseCreateTableStatements — PostgreSQL + COMMENT ON fixed sample', () => {
   const sql = `
     CREATE TABLE "public"."account" (
       "id" SERIAL NOT NULL,
@@ -117,57 +117,57 @@ describe('parseCreateTableStatements — PostgreSQL + COMMENT ON 固定样例', 
   const result = parseCreateTableStatements(sql)
   const table = result.tables[0]!
 
-  it('限定名解析出 schema 与 table', () => {
+  it('parses schema and table from a qualified name', () => {
     expect(table.schema).toBe('public')
     expect(table.name).toBe('account')
   })
 
-  it('双引号标识符保留原始大小写', () => {
+  it('double-quoted identifiers preserve their original case', () => {
     expect(table.columns.map(c => c.name)).toEqual(['id', 'email', 'balance'])
   })
 
-  it('COMMENT ON 语句应用到表与列', () => {
+  it('COMMENT ON statements are applied to the table and columns', () => {
     expect(table.comment).toBe('账户表')
     expect(table.columns.find(c => c.name === 'email')!.comment).toBe('邮箱')
   })
 
-  it('命名约束保留名称', () => {
+  it('named constraints preserve their names', () => {
     expect(table.constraints.find(c => c.type === 'PRIMARY_KEY')!.name).toBe('pk_account')
     expect(table.constraints.find(c => c.type === 'UNIQUE')!.name).toBe('uk_email')
   })
 })
 
-// ===== 方言检测 =====
+// ===== Dialect detection =====
 
-describe('detectDialect — MySQL / PostgreSQL 方言差异分别断言', () => {
-  it('反引号 + ENGINE + AUTO_INCREMENT 判定为 mysql', () => {
+describe('detectDialect — MySQL / PostgreSQL dialect differences asserted separately', () => {
+  it('backticks + ENGINE + AUTO_INCREMENT is detected as mysql', () => {
     const mysql = 'CREATE TABLE `t` (`id` bigint NOT NULL AUTO_INCREMENT, PRIMARY KEY (`id`)) ENGINE = InnoDB;'
     expect(detectDialect(mysql)).toBe('mysql')
   })
 
-  it('SERIAL + 双引号 + COMMENT ON 判定为 postgresql', () => {
+  it('SERIAL + double quotes + COMMENT ON is detected as postgresql', () => {
     const pg = 'CREATE TABLE "t" ("id" SERIAL NOT NULL, PRIMARY KEY ("id"));\nCOMMENT ON TABLE "t" IS \'x\';'
     expect(detectDialect(pg)).toBe('postgresql')
   })
 
-  it('无明显特征时返回 unknown', () => {
+  it('returns unknown when there are no clear traits', () => {
     expect(detectDialect('CREATE TABLE t (id int, PRIMARY KEY (id));')).toBe('unknown')
   })
 
-  it('AUTOINCREMENT + 双引号判定为 sqlite（而非 postgresql）', () => {
+  it('AUTOINCREMENT + double quotes is detected as sqlite (not postgresql)', () => {
     const sqlite = 'CREATE TABLE "t" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "name" TEXT);'
     expect(detectDialect(sqlite)).toBe('sqlite')
   })
 
-  it('WITHOUT ROWID 判定为 sqlite', () => {
+  it('WITHOUT ROWID is detected as sqlite', () => {
     const sqlite = 'CREATE TABLE "t" ("id" INTEGER PRIMARY KEY, "v" TEXT) WITHOUT ROWID;'
     expect(detectDialect(sqlite)).toBe('sqlite')
   })
 })
 
-// ===== 类型映射（三级回退 + 方言差异）=====
+// ===== Type mapping (three-level fallback + dialect differences) =====
 
-describe('mapSqlTypeToField — 统一类型与回退', () => {
+describe('mapSqlTypeToField — unified types and fallback', () => {
   const unifiedTypes: UnifiedTypeDefinition[] = [
     { name: 'ts', mysql: { type: 'datetime' }, postgresql: { type: 'timestamp' }, sqlite: { type: 'TEXT' } },
   ]
@@ -188,24 +188,24 @@ describe('mapSqlTypeToField — 统一类型与回退', () => {
     }
   }
 
-  it('方言差异：datetime(MySQL) 与 timestamp(PostgreSQL) 命中同一统一类型', () => {
+  it('dialect difference: datetime (MySQL) and timestamp (PostgreSQL) hit the same unified type', () => {
     expect(mapSqlTypeToField(col('datetime'), 'mysql', unifiedTypes).unified_type).toBe('ts')
     expect(mapSqlTypeToField(col('timestamp'), 'postgresql', unifiedTypes).unified_type).toBe('ts')
   })
 
-  it('无匹配时回退到原始类型（Level 3），并保留长度', () => {
+  it('falls back to the raw type when nothing matches (Level 3), preserving length', () => {
     const r = mapSqlTypeToField(col('varchar', 200), 'mysql', unifiedTypes)
     expect(r.unified_type).toBeUndefined()
     expect(r.field_type).toBe('VARCHAR')
     expect(r.field_length).toBe(200)
   })
 
-  it('Level 3 回退保留原始类型名（大写化）', () => {
+  it('Level 3 fallback preserves the raw type name (uppercased)', () => {
     const r = mapSqlTypeToField(col('int4'), 'postgresql', unifiedTypes)
     expect(r.field_type).toBe('INT4')
   })
 
-  it('SQLite：按类型亲和规则归一化（VARCHAR → TEXT）后命中统一类型', () => {
+  it('SQLite: normalized by type affinity (VARCHAR → TEXT) then matches the unified type', () => {
     const ut: UnifiedTypeDefinition[] = [
       { name: 'str', mysql: { type: 'varchar' }, postgresql: { type: 'varchar' }, sqlite: { type: 'TEXT' } },
     ]
@@ -214,7 +214,7 @@ describe('mapSqlTypeToField — 统一类型与回退', () => {
     expect(r.field_length).toBe(255)
   })
 
-  it('SQLite：无匹配时回退到原始类型，INTEGER 视为无参数类型', () => {
+  it('SQLite: falls back to the raw type when nothing matches; INTEGER is treated as parameterless', () => {
     const r = mapSqlTypeToField(col('integer'), 'sqlite', [])
     expect(r.unified_type).toBeUndefined()
     expect(r.field_type).toBe('INTEGER')
@@ -222,9 +222,9 @@ describe('mapSqlTypeToField — 统一类型与回退', () => {
   })
 })
 
-// ===== 往返：生成 → 解析 =====
+// ===== Round trip: generate → parse =====
 
-describe('往返一致性：generate → parse', () => {
+describe('round-trip consistency: generate → parse', () => {
   const commonConfig: CommonConfig = {
     default_config: {
       table_ddl_mode: 'create',
@@ -249,7 +249,7 @@ describe('往返一致性：generate → parse', () => {
     ],
   }
 
-  it('MySQL 生成结果可被检测为 mysql 并解析出原表', () => {
+  it('MySQL-generated SQL is detected as mysql and parses back to the original table', () => {
     const sql = generateTableMySQL(table, commonConfig)
     expect(detectDialect(sql)).toBe('mysql')
     const parsed = parseCreateTableStatements(sql).tables[0]!
@@ -257,7 +257,7 @@ describe('往返一致性：generate → parse', () => {
     expect(parsed.columns.map(c => c.name)).toEqual(['id', 'name'])
   })
 
-  it('PostgreSQL 生成结果可被检测为 postgresql 并解析出 schema.table', () => {
+  it('PostgreSQL-generated SQL is detected as postgresql and parses back schema.table', () => {
     const sql = generateTablePostgreSQL(table, 'public', commonConfig)
     expect(detectDialect(sql)).toBe('postgresql')
     const parsed = parseCreateTableStatements(sql).tables[0]!
@@ -266,7 +266,7 @@ describe('往返一致性：generate → parse', () => {
     expect(parsed.columns.map(c => c.name)).toEqual(['id', 'name'])
   })
 
-  it('SQLite 生成结果可被检测为 sqlite 并解析出原表（无 schema 前缀）', () => {
+  it('SQLite-generated SQL is detected as sqlite and parses back the original table (no schema prefix)', () => {
     const sql = generateSchemaSQLite({ schema: 'public', tables: [table] }, commonConfig)
     expect(detectDialect(sql)).toBe('sqlite')
     const parsed = parseCreateTableStatements(sql).tables[0]!

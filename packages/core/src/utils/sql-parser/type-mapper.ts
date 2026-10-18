@@ -1,52 +1,52 @@
 /**
- * SQL 类型映射器 — 三级回退策略
+ * SQL type mapper — three-level fallback strategy
  *
- * 将解析出的 SQL 原始类型映射到项目的 Field 结构。
- * Level 1: 精确匹配统一类型（比较类型名 + 可选长度/scale）
- * Level 2: 匹配统一类型但覆盖 SQL 中的具体长度/scale
- * Level 3: 无匹配时回退到原始 SQL 类型
+ * Maps parsed raw SQL types to the project's Field structure.
+ * Level 1: exact match of a unified type (compares type name + optional length/scale)
+ * Level 2: matches a unified type but overrides the concrete length/scale from the SQL
+ * Level 3: falls back to the raw SQL type when nothing matches
  */
 
 import type { UnifiedTypeDefinition, Field } from '../../types/schema'
 import type { ParsedColumn } from './create-table-parser'
 import type { SqlDialect } from '../sql-generator/shared'
 
-/** 类型映射结果 */
+/** Type mapping result */
 export interface TypeMappingResult {
-  /** 匹配到的统一类型名（Level 1/2 时有效） */
+  /** Matched unified type name (valid for Level 1/2) */
   unified_type?: string
-  /** 未匹配到统一类型时的原始类型名（Level 3 时有效） */
+  /** Raw type name when no unified type matched (valid for Level 3) */
   field_type?: string
-  /** 字段长度 */
+  /** Field length */
   field_length?: number | null
-  /** 小数位 */
+  /** Decimal scale */
   field_scale?: number | null
-  /** 默认值是否需要引号包裹 */
+  /** Whether the default value needs to be wrapped in quotes */
   quote_default?: boolean
-  /** 勾选后强制跳过长度输出 */
+  /** Force skipping length output when checked */
   field_length_disabled?: boolean
-  /** 勾选后强制跳过小数位输出 */
+  /** Force skipping scale output when checked */
   field_scale_disabled?: boolean
 }
 
-// ===== MySQL 类型别名规范化 =====
+// ===== MySQL type alias normalization =====
 
 /**
- * MySQL 有些类型是别名，需要规范化为标准名再匹配
- * 返回规范化后的类型名
+ * Some MySQL types are aliases and must be normalized to canonical names before matching
+ * Returns the normalized type name
  */
 function normalizeMySqlType(rawType: string): { type: string; length?: number | null; scale?: number | null } {
   const upper = rawType.toUpperCase()
 
-  // BOOLEAN / BOOL 在 MySQL 中等同于 TINYINT(1)
+  // BOOLEAN / BOOL are equivalent to TINYINT(1) in MySQL
   if (upper === 'BOOLEAN' || upper === 'BOOL') {
     return { type: 'TINYINT', length: 1 }
   }
 
-  // INT 别名
+  // INT alias
   if (upper === 'INTEGER') return { type: 'INT' }
 
-  // DEC / FIXED 别名
+  // DEC / FIXED aliases
   if (upper === 'DEC' || upper === 'FIXED') return { type: 'DECIMAL' }
 
   // CHARACTER → CHAR
@@ -58,7 +58,7 @@ function normalizeMySqlType(rawType: string): { type: string; length?: number | 
   // DOUBLE PRECISION → DOUBLE
   if (upper === 'DOUBLE PRECISION') return { type: 'DOUBLE' }
 
-  // REAL → FLOAT (MySQL 中 REAL 是 FLOAT 的同义词)
+  // REAL → FLOAT (in MySQL, REAL is a synonym for FLOAT)
   if (upper === 'REAL') return { type: 'FLOAT' }
 
   // NUMERIC → DECIMAL
@@ -70,7 +70,7 @@ function normalizeMySqlType(rawType: string): { type: string; length?: number | 
   return { type: upper }
 }
 
-// ===== PostgreSQL 类型别名规范化 =====
+// ===== PostgreSQL type alias normalization =====
 
 function normalizePgSqlType(rawType: string): { type: string; length?: number | null; scale?: number | null } {
   const upper = rawType.toUpperCase()
@@ -84,7 +84,7 @@ function normalizePgSqlType(rawType: string): { type: string; length?: number | 
   // SMALLINT / INT2 → SMALLINT
   if (upper === 'INT2') return { type: 'SMALLINT' }
 
-  // SERIAL → INTEGER (PG 中 SERIAL 本质是 INTEGER + auto-increment)
+  // SERIAL → INTEGER (in PG, SERIAL is essentially INTEGER + auto-increment)
   if (upper === 'SERIAL') return { type: 'INTEGER' }
 
   // BIGSERIAL → BIGINT
@@ -120,17 +120,17 @@ function normalizePgSqlType(rawType: string): { type: string; length?: number | 
   return { type: upper }
 }
 
-// ===== SQLite 类型别名规范化 =====
+// ===== SQLite type alias normalization =====
 
 /**
- * 按 SQLite 的「类型亲和（type affinity）」规则把声明类型归到五大存储类。
- * 规则顺序与官方文档一致：INT → INTEGER；CHAR/CLOB/TEXT → TEXT；BLOB → BLOB；
- * REAL/FLOA/DOUB → REAL；其余 → NUMERIC。
+ * Classifies declared types into the five storage classes according to SQLite's
+ * "type affinity" rules. The rule order matches the official documentation:
+ * INT → INTEGER; CHAR/CLOB/TEXT → TEXT; BLOB → BLOB; REAL/FLOA/DOUB → REAL; everything else → NUMERIC.
  */
 function normalizeSqliteType(rawType: string): { type: string; length?: number | null; scale?: number | null } {
   const upper = rawType.toUpperCase()
 
-  // BOOLEAN / BOOL 无原生类型，惯例以 0/1 存储
+  // BOOLEAN / BOOL have no native type; conventionally stored as 0/1
   if (upper === 'BOOLEAN' || upper === 'BOOL') return { type: 'INTEGER', length: 1 }
 
   if (upper.includes('INT')) return { type: 'INTEGER' }
@@ -141,22 +141,22 @@ function normalizeSqliteType(rawType: string): { type: string; length?: number |
   return { type: 'NUMERIC' }
 }
 
-// ===== 主映射函数 =====
+// ===== Main mapping function =====
 
 /**
- * 将解析出的 SQL 列类型映射到项目的 Field 结构
+ * Maps a parsed SQL column type to the project's Field structure
  *
- * @param column - 解析后的列定义
- * @param dialect - 数据库方言
- * @param unifiedTypes - 统一类型列表
- * @returns 类型映射结果
+ * @param column - Parsed column definition
+ * @param dialect - Database dialect
+ * @param unifiedTypes - List of unified types
+ * @returns Type mapping result
  */
 export function mapSqlTypeToField(
   column: ParsedColumn,
   dialect: SqlDialect,
   unifiedTypes: UnifiedTypeDefinition[],
 ): TypeMappingResult {
-  // 规范化类型名
+  // Normalize the type name
   let normalized: { type: string; length?: number | null; scale?: number | null }
   if (dialect === 'mysql') {
     normalized = normalizeMySqlType(column.rawType)
@@ -170,34 +170,34 @@ export function mapSqlTypeToField(
 
   const normType = normalized.type
 
-  // 使用 SQL 中的长度/scale，除非规范化过程中已经指定了
+  // Use the length/scale from SQL unless the normalization step already specified them
   const sqlLength = normalized.length !== undefined ? normalized.length : column.length
   const sqlScale = normalized.scale !== undefined ? normalized.scale : column.scale
 
-  // ===== Level 1: 精确匹配统一类型 =====
+  // ===== Level 1: exact match of a unified type =====
   for (const ut of unifiedTypes) {
     const mapping = ut[dialect]
     if (!mapping) continue
 
-    // 类型名比较（大小写不敏感）
+    // Type name comparison (case-insensitive)
     if (mapping.type.toUpperCase() !== normType.toUpperCase()) continue
 
-    // 长度比较：undefined 表示不限制（任意长度都匹配）
+    // Length comparison: undefined means unrestricted (any length matches)
     if (mapping.length !== undefined && mapping.length !== null) {
       if (sqlLength !== mapping.length) continue
     }
 
-    // scale 比较：undefined 表示不限制
+    // Scale comparison: undefined means unrestricted
     if (mapping.scale !== undefined && mapping.scale !== null) {
       if (sqlScale !== mapping.scale) continue
     }
 
-    // Level 1 精确匹配！
+    // Level 1 exact match!
     const result: TypeMappingResult = {
       unified_type: ut.name,
     }
 
-    // Level 2: 如果 SQL 中提供了具体值但统一类型未指定，设置为字段级覆盖
+    // Level 2: if SQL provides a concrete value but the unified type does not specify one, set it as a field-level override
     if ((mapping.length === undefined || mapping.length === null) && sqlLength != null) {
       result.field_length = sqlLength
     }
@@ -205,12 +205,12 @@ export function mapSqlTypeToField(
       result.field_scale = sqlScale
     }
 
-    // quote_default 从统一类型定义获取
+    // quote_default comes from the unified type definition
     if (ut.quote_default !== undefined) {
       result.quote_default = ut.quote_default
     }
 
-    // 长度/scale 禁用标记
+    // Length/scale disable flags
     if (mapping.length === null) {
       result.field_length_disabled = true
     }
@@ -218,7 +218,7 @@ export function mapSqlTypeToField(
       result.field_scale_disabled = true
     }
 
-    // 特殊处理：SERIAL 类型
+    // Special case: SERIAL types
     if (column.rawType.toUpperCase() === 'SERIAL' || column.rawType.toUpperCase() === 'BIGSERIAL') {
       result.field_length_disabled = true
     }
@@ -226,14 +226,14 @@ export function mapSqlTypeToField(
     return result
   }
 
-  // ===== Level 2: 部分匹配（类型名匹配但长度/scale 不满足精确条件）=====
+  // ===== Level 2: partial match (type name matches but length/scale does not meet the exact criteria) =====
   for (const ut of unifiedTypes) {
     const mapping = ut[dialect]
     if (!mapping) continue
 
     if (mapping.type.toUpperCase() !== normType.toUpperCase()) continue
 
-    // 类型名匹配但长度或 scale 不匹配 → 仍使用统一类型，但覆盖具体值
+    // Type name matches but length or scale does not → still use the unified type, but override with the concrete values
     const result: TypeMappingResult = {
       unified_type: ut.name,
     }
@@ -252,7 +252,7 @@ export function mapSqlTypeToField(
     return result
   }
 
-  // ===== Level 3: 回退到原始类型 =====
+  // ===== Level 3: fall back to the raw type =====
   const result: TypeMappingResult = {
     field_type: column.rawType.toUpperCase(),
   }
@@ -264,9 +264,9 @@ export function mapSqlTypeToField(
     result.field_scale = sqlScale
   }
 
-  // 无参数类型默认禁用长度/scale
+  // Parameterless types disable length/scale by default
   if (sqlLength == null && sqlScale == null) {
-    // 检查是否是典型的无参数类型（含 SQLite 的五大存储类）
+    // Check whether it is a typical parameterless type (including SQLite's five storage classes)
     const noParamTypes = new Set([
       'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
       'DATE', 'DATETIME', 'TIME', 'TIMESTAMP', 'TIMESTAMPTZ', 'YEAR',
@@ -274,7 +274,7 @@ export function mapSqlTypeToField(
       'BLOB', 'LONGBLOB', 'MEDIUMBLOB', 'TINYBLOB',
       'BYTEA', 'UUID', 'INTERVAL', 'INET', 'CIDR',
       'SERIAL', 'BIGSERIAL', 'SMALLSERIAL',
-      // SQLite 存储类（INTEGER / REAL / NUMERIC / TEXT / BLOB）
+      // SQLite storage classes (INTEGER / REAL / NUMERIC / TEXT / BLOB)
       'INTEGER', 'REAL', 'NUMERIC', 'CLOB',
     ])
     if (noParamTypes.has(normType)) {
@@ -287,7 +287,7 @@ export function mapSqlTypeToField(
 }
 
 /**
- * 将 ParsedColumn 转换为项目的 Field 对象
+ * Converts a ParsedColumn into the project's Field object
  */
 export function convertColumnToField(
   column: ParsedColumn,
@@ -300,7 +300,7 @@ export function convertColumnToField(
     field_name: column.name,
   }
 
-  // 设置类型信息
+  // Set type information
   if (typeInfo.unified_type) {
     field.unified_type = typeInfo.unified_type
   }
@@ -323,7 +323,7 @@ export function convertColumnToField(
     field.field_scale_disabled = true
   }
 
-  // 约束
+  // Constraints
   if (column.notNull || column.primaryKey || (dialect === 'postgresql' && ['SERIAL', 'BIGSERIAL'].includes(column.rawType.toUpperCase()))) {
     field.not_null = true
   }

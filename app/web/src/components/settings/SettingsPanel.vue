@@ -10,10 +10,10 @@ const store = useEditorStore()
 
 <template>
   <div class="ps-root">
-    <!-- 最左侧：VSCode 风格的页面切换列 -->
+    <!-- Far left: VSCode-style page switch rail -->
     <SettingsRail />
 
-    <!-- 右侧内容区：三个页面各自布局、各自持有样式 -->
+    <!-- Right content area: three pages, each with its own layout and styles -->
     <div class="ps-content">
       <ProjectConfigPage v-if="store.settingsTab === 'project'" />
       <StructureDesignPage v-else-if="store.settingsTab === 'structure'" />
@@ -33,7 +33,7 @@ const store = useEditorStore()
   user-select: none;
 }
 
-/* 右侧内容：flex 纵向，子项默认 stretch 横向撑满 */
+/* Right content: vertical flex; children stretch to full width by default */
 .ps-content {
   flex: 1;
   min-width: 0;

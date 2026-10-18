@@ -243,7 +243,7 @@ describe('createWorkspaceSession', () => {
     expect(writer.saved.flat().map(change => change.path)).toEqual([editedTable()])
     expect(coordinator.state.dirty).toBe(true)
 
-    // 勾选同步 SQL 会连带开启项目文件保存，并补齐此前积压的派生文件
+    // Enabling SQL sync also turns on project-file saving and flushes previously queued derived files
     coordinator.setAutoSave({ outputs: true })
     expect(coordinator.autoSaveOptions).toEqual({ docs: true, outputs: true })
     await coordinator.saveChanges()
@@ -311,7 +311,7 @@ describe('createWorkspaceSession', () => {
 
   it('regenerates missing derived SQL on manual save even without any edit', async () => {
     const { writer } = fixture()
-    // 打开前 output/ 已被删除：派生文件不在内存基线里，只能靠「保存」重建
+    // output/ was deleted before opening: derived files are not in the in-memory baseline and can only be rebuilt by saving
     const staleOutput = [...writer.tree.keys()].filter(path => path.startsWith('output/'))
     for (const path of staleOutput) writer.tree.delete(path)
     const { project, files } = await loadWorkspaceDocuments(writer)

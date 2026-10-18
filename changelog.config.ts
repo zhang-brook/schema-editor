@@ -1,7 +1,7 @@
 import type { ChangelogConfig } from 'changelogen'
 
-// 分组的先后顺序沿用 changelogen 默认（feat/perf/fix/refactor/docs/build/chore/test/style/ci），此处只改标题
-// 把某个类型设为 false 可直接隐藏该组，例如 chore: false
+// Group order follows the changelogen default (feat/perf/fix/refactor/docs/build/chore/test/style/ci); only the titles are overridden here
+// Set a type to false to hide that group entirely, e.g. chore: false
 export default {
   noAuthors: true,
   types: {

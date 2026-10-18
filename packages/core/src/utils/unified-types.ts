@@ -1,13 +1,13 @@
 import type { UnifiedTypeDefinition } from '../types/schema'
 
 /**
- * 内置默认统一类型集 — 首次加载时若 common.json 中无 unified_types 则自动填充
+ * Built-in default unified type set — auto-populated on first load when common.json has no unified_types
  *
  */
 export const DEFAULT_UNIFIED_TYPES: UnifiedTypeDefinition[] = [
   /**
-   * SQLite 采用「类型亲和（type affinity）」而非严格类型，此处按官方亲和规则映射：
-   * 整数→INTEGER、浮点→REAL、精确小数→NUMERIC、其余（文本/日期/JSON/UUID）→TEXT。
+   * SQLite uses "type affinity" rather than strict types; the mapping below follows the official affinity rules:
+   * integers→INTEGER, floating point→REAL, exact decimals→NUMERIC, the rest (text/date/JSON/UUID)→TEXT.
    */
   {
     name: 'String',

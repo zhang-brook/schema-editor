@@ -7,7 +7,7 @@ import { initTheme } from './composables/useTheme'
 import { initDensity } from './composables/useDensity'
 import { installDesktopFsa } from './platform/desktop-fsa'
 
-// 桌面外壳下用桥接实现替换浏览器的目录选择与文件监听
+// Under the desktop shell, replace the browser's directory picker and file watching with the bridge implementation
 if (window.schemaEditorDesktop) installDesktopFsa(window.schemaEditorDesktop)
 
 initTheme()
@@ -17,7 +17,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(i18n)
 
-// 根据检测到的 locale 设置 HTML lang 和页面标题
+// Set the HTML lang and page title from the detected locale
 document.documentElement.lang = i18n.global.locale.value
 document.title = i18n.global.t('app.title')
 

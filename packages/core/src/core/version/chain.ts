@@ -1,32 +1,34 @@
 /**
- * 版本链：把离散的版本按父子关系串成线性时间轴，并标注相邻版本之间缺失的迁移。
+ * Version chain: threads discrete versions into a linear timeline via parent-child links and flags
+ * migrations missing between adjacent versions.
  *
- * 版本在快照上记录 parent_id，链即由此推导；早期版本没有 parent_id，
- * 退化为按 created_at 排序，行为与旧版一致。
- * 分叉（同一父版本有多个子版本）会被标记，但当前仍线性化展示，分支支持留待后续。
+ * Versions record parent_id on their snapshots, and the chain is derived from it; early versions
+ * have no parent_id, so they fall back to created_at ordering, matching the previous behavior.
+ * Forks (one parent version with multiple children) are flagged but still displayed linearly for now;
+ * branch support is left for later.
  */
 import type { Migration, VersionSummary } from './types'
 
-/** 相邻版本之间的一段连接 */
+/** A link between two adjacent versions */
 export interface ChainSegment {
   from: VersionSummary
   to: VersionSummary
-  /** 覆盖该段的迁移，为 null 表示缺口 */
+  /** Migration covering this segment; null means a gap */
   migration: Migration | null
 }
 
 export interface VersionChain {
-  /** 按链顺序排列的版本（旧 → 新） */
+  /** Versions in chain order (old → new) */
   versions: VersionSummary[]
-  /** 相邻版本之间的连接，长度为 versions.length - 1 */
+  /** Links between adjacent versions; length is versions.length - 1 */
   segments: ChainSegment[]
-  /** 缺失迁移的连接 */
+  /** Links missing a migration */
   gaps: ChainSegment[]
-  /** 是否出现过分叉（同一父版本有多个子版本） */
+  /** Whether a fork ever occurred (one parent version with multiple children) */
   branched: boolean
 }
 
-/** 按父子关系排序；无 parent_id 时按创建时间排序兜底 */
+/** Order by parent-child links; falls back to creation time when no parent_id exists */
 function orderByParent(versions: VersionSummary[]): {
   ordered: VersionSummary[]
   branched: boolean
@@ -56,7 +58,7 @@ function orderByParent(versions: VersionSummary[]): {
   let branched = false
 
   const walk = (node: VersionSummary) => {
-    if (visiting.has(node.id)) return // 环保护
+    if (visiting.has(node.id)) return // cycle guard
     visiting.add(node.id)
     ordered.push(node)
     const kids = children.get(node.id) ?? []
@@ -65,7 +67,7 @@ function orderByParent(versions: VersionSummary[]): {
   }
   for (const root of roots) walk(root)
 
-  // 兜底：未覆盖到的（孤立或成环）按时间追加
+  // Fallback: append anything not covered (orphans or cycles) in time order
   if (ordered.length !== byTime.length) {
     const covered = new Set(ordered.map((v) => v.id))
     for (const v of byTime) if (!covered.has(v.id)) ordered.push(v)
@@ -74,7 +76,7 @@ function orderByParent(versions: VersionSummary[]): {
   return { ordered, branched }
 }
 
-/** 构建版本链并标注迁移缺口 */
+/** Build the version chain and flag missing migrations */
 export function buildVersionChain(
   versions: VersionSummary[],
   migrations: Migration[],

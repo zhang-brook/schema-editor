@@ -2,21 +2,22 @@ import type { CommonConfig } from '../../types/schema'
 import { CURRENT_STRUCT_VERSION } from '../../core/workspace/layout'
 
 /**
- * 版本判定与比较工具（从原 version-upgrader.ts 迁入）。
- * structure-migrations 统一接管「版本判定 + 逐版本迁移」，
- * 本文件只保留纯函数，不依赖具体迁移步骤实现。
+ * Version detection and comparison utilities (moved from the former version-upgrader.ts).
+ * structure-migrations takes over "version detection + version-by-version migration" uniformly;
+ * this file keeps only pure functions and does not depend on any concrete migration step.
  */
 
 export interface VersionCheckResult {
-  ok: boolean // 可以继续加载
-  needsUpgrade: boolean // 需要执行升级
-  fromVersion?: string // 当前项目版本（需要升级时提供）
-  error?: string // 错误消息（版本过高时）
+  ok: boolean // safe to continue loading
+  needsUpgrade: boolean // an upgrade is required
+  fromVersion?: string // current project version (provided when an upgrade is needed)
+  error?: string // error message (when the version is too high)
 }
 
 /**
- * 读取旧字段名（历史兼容）。
- * 磁盘内容不可信，这里只按键取值并返回 unknown，形态是否可用由调用方判断。
+ * Read a legacy field name (backward compatibility).
+ * Disk content is untrusted, so the value is read by key and returned as unknown; the caller
+ * decides whether the shape is usable.
  */
 export function readLegacyField(obj: object, legacyKey: string, fallback?: unknown): unknown {
   const v = (obj as Record<string, unknown>)[legacyKey]
@@ -24,8 +25,9 @@ export function readLegacyField(obj: object, legacyKey: string, fallback?: unkno
 }
 
 /**
- * 语义化版本比较
- * a >= b 返回 >= 0，a < b 返回 < 0（仅比较数字段，忽略非数字后缀）
+ * Semantic version comparison
+ * Returns >= 0 when a >= b, < 0 when a < b (only numeric segments are compared, non-numeric
+ * suffixes are ignored)
  */
 export function compareStructVersion(a: string, b: string): number {
   const aParts = a.split('.').map((n) => parseInt(n, 10) || 0)
@@ -39,8 +41,8 @@ export function compareStructVersion(a: string, b: string): number {
 }
 
 /**
- * 检查项目结构版本，返回是否可加载以及是否需要升级
- * @param commonConfig - 已加载的 commonConfig（可能为 null）
+ * Check the project structure version and return whether it can be loaded and whether it needs an upgrade
+ * @param commonConfig - the loaded commonConfig (may be null)
  */
 export function checkVersion(commonConfig: CommonConfig | null): VersionCheckResult {
   const version = commonConfig?.struct_version || '0.0'

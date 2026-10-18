@@ -13,12 +13,12 @@ import type {
 import { ALL_SQL_DIALECTS } from '../../utils/sql-generator/shared'
 import { stripDisabledFieldMetrics } from '../../utils/field-utils'
 
-/** current/schemas/<schema>/schema.json：元信息与表定义分开保存。 */
+/** current/schemas/<schema>/schema.json: metadata and table definitions are stored separately. */
 export interface SchemaWriteData extends Pick<Schema, 'schema' | 'pre_sql' | 'post_sql'> {
   table_order: string[]
 }
 
-/** 根 common.json 不携带 schema_order（由 current/database.json 保存）。 */
+/** The root common.json does not carry schema_order (it is stored in current/database.json). */
 export function buildCommonWriteData(commonConfig: CommonConfig | null): Omit<Partial<CommonConfig>, 'schema_order'> {
   const data = { ...commonConfig }
   delete data.schema_order
@@ -44,7 +44,7 @@ function buildSchemaSqlData(schema: Schema): Pick<Schema, 'pre_sql' | 'post_sql'
   return data
 }
 
-/** 新布局的 schema 元信息；保留非空 SQL 配置，不嵌入 tables。 */
+/** Schema metadata for the new layout; keeps non-empty SQL configuration and does not embed tables. */
 export function buildSchemaWriteData(schema: Schema): SchemaWriteData {
   return {
     schema: schema.schema,
@@ -53,7 +53,7 @@ export function buildSchemaWriteData(schema: Schema): SchemaWriteData {
   }
 }
 
-/** 完整 schema 导出（含表定义），兼容现有 CRUD API。 */
+/** Full schema export (including table definitions), compatible with the existing CRUD API. */
 export function buildSchemaExportData(schema: Schema): Schema {
   return {
     schema: schema.schema,
@@ -62,7 +62,7 @@ export function buildSchemaExportData(schema: Schema): Schema {
   }
 }
 
-/** 将单表内存态转换为可写出的 table.json 对象，不修改入参。 */
+/** Convert a single table's in-memory state into a writable table.json object without mutating the input. */
 export function buildTableExportData(table: Table): Table {
   const tableData: Partial<Table> = {
     name: table.name,
@@ -98,7 +98,7 @@ export function buildTableExportData(table: Table): Table {
     if (Object.keys(mysqlData).length > 0) tableData.mysql = mysqlData
   }
 
-  // partition（按方言配置，空时不写出）
+  // partition (configured per dialect; omitted when empty)
   if (table.partition && Object.keys(table.partition).length > 0) {
     const resolved: TablePartitionConfig = {}
     for (const dialect of ALL_SQL_DIALECTS) {
@@ -120,10 +120,10 @@ export function buildTableExportData(table: Table): Table {
     if (field.use_common_used_fields) {
       f.use_common_used_fields = true
     } else {
-      // 导出 unified_type（仅当有值时）
+      // Export unified_type (only when a value exists)
       if (field.unified_type) {
         f.unified_type = field.unified_type
-        // 有 unified_type 时不导出冗余的 field_type/field_length/field_scale（除非有显式字段级覆盖）
+        // With unified_type, skip redundant field_type/field_length/field_scale (unless explicitly overridden at the field level)
         if (field.field_type !== undefined && field.field_type !== '') f.field_type = field.field_type
         if (field.field_length !== undefined) f.field_length = field.field_length
         if (field.field_scale !== undefined) f.field_scale = field.field_scale
@@ -133,13 +133,13 @@ export function buildTableExportData(table: Table): Table {
         if (field.field_scale !== undefined) f.field_scale = field.field_scale
       }
       if (field.not_null !== undefined) f.not_null = field.not_null
-      // primary_key：仅当为 true 时写出（false/undefined 视为默认，省略该属性，精简 JSON）
+      // primary_key: write only when true (false/undefined are treated as the default; omit the property to keep the JSON lean)
       if (field.primary_key === true) f.primary_key = true
       if (field.default !== undefined) f.default = field.default
-      // 保留显式的 false / 0 / null，避免丢失 ON UPDATE 配置或精度 0。
+      // Preserve explicit false / 0 / null so ON UPDATE configuration or precision 0 is not lost.
       if (field.on_update_current_timestamp !== undefined) f.on_update_current_timestamp = field.on_update_current_timestamp
       if (field.on_update_current_timestamp_precision !== undefined) f.on_update_current_timestamp_precision = field.on_update_current_timestamp_precision
-      // 仅自定义类型字段导出 quote_default（统一类型字段从类型定义中获取）
+      // Export quote_default only for custom-type fields (unified-type fields take it from the type definition)
       if (!field.unified_type && field.quote_default !== undefined) f.quote_default = field.quote_default
       if (field.comment !== undefined) f.comment = field.comment
       if (field.comment_options_enabled) f.comment_options_enabled = true
@@ -160,14 +160,14 @@ export function buildTableExportData(table: Table): Table {
       if (field.postgresql && Object.keys(field.postgresql).length > 0) f.postgresql = { ...field.postgresql }
       if (field.sqlite && Object.keys(field.sqlite).length > 0) f.sqlite = { ...field.sqlite }
     }
-    // 已禁用长度/小数位时不再输出对应数值（disabled 已完全决定输出，保留数值只会误导）
+    // When length/scale is disabled, do not output the corresponding value (the disabled flag fully determines output; keeping the value is only misleading)
     return stripDisabledFieldMetrics(f)
   })
 
   // indexes
   tableData.indexes = table.indexes.map(index => {
     const idx: Partial<Index> = {}
-    // 使用默认索引名时不再导出 name（该名字不参与 SQL 生成，避免留下误导性的冗余字段）
+    // When the default index name is used, do not export name (that name does not participate in SQL generation, avoiding a misleading redundant field)
     if (index.use_default_name) {
       idx.use_default_name = true
     } else if (index.name) {
@@ -175,7 +175,7 @@ export function buildTableExportData(table: Table): Table {
     }
     if (index.type) idx.type = index.type
     if (index.using) idx.using = index.using
-    // 逻辑删除感知：仅约束未删除行 + 索引级覆盖（逐键覆盖项目级配置）
+    // Logical-delete awareness: constrain only non-deleted rows + index-level overrides (per-key overrides of project-level configuration)
     if (index.active_only) idx.active_only = true
     if (index.logical_delete && Object.keys(index.logical_delete).length > 0) {
       idx.logical_delete = { ...index.logical_delete }

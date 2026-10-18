@@ -1,12 +1,12 @@
 import { ref } from 'vue'
 
-/** 界面密度：影响数据表格行高与列表行间距 */
+/** UI density: affects data table row height and list row spacing */
 export type DensityPreference = 'compact' | 'normal' | 'relaxed'
 
 const DENSITY_PREF = 'schema-editor.density'
 const PREFERENCES: readonly DensityPreference[] = ['compact', 'normal', 'relaxed']
 
-/** 非法偏好值一律回退到 normal */
+/** Invalid preference values always fall back to normal */
 export function normalizeDensity(value: unknown): DensityPreference {
   return typeof value === 'string' && (PREFERENCES as readonly string[]).includes(value)
     ? (value as DensityPreference)
@@ -31,7 +31,7 @@ export function setDensity(next: DensityPreference) {
   apply()
 }
 
-/** 应用密度偏好（应用启动时调用一次） */
+/** Applies the density preference (called once at app startup) */
 export function initDensity() {
   apply()
 }

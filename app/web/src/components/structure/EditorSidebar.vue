@@ -10,18 +10,18 @@ import CollapseAllIcon from '@/components/icon/CollapseAllIcon.vue'
 const store = useEditorStore()
 const { t } = useI18n()
 
-// 每个 schema 的展开/折叠状态（默认全部展开）
+// Expansion/collapse state for each schema (all expanded by default)
 const expandedMap = ref<Record<number, boolean>>({})
 
 function isExpanded(sIdx: number) {
-  return expandedMap.value[sIdx] !== false // 默认展开
+  return expandedMap.value[sIdx] !== false // Expanded by default
 }
 
 function toggleExpand(sIdx: number) {
   expandedMap.value[sIdx] = !isExpanded(sIdx)
 }
 
-// 全部展开 / 全部折叠
+// Expand all / collapse all
 function expandAllSchemas() {
   store.schemas.forEach((_, i) => { expandedMap.value[i] = true })
 }
@@ -30,7 +30,7 @@ function collapseAllSchemas() {
   store.schemas.forEach((_, i) => { expandedMap.value[i] = false })
 }
 
-// 拖拽状态
+// Drag state
 const dragSchemaIdx = ref(-1)
 const dragTableIdx = ref(-1)
 
@@ -43,7 +43,7 @@ function onDragStart(e: DragEvent, sIdx: number, tIdx: number) {
   ;(e.target as HTMLElement)?.classList.add('dragging')
 }
 
-// Schema 拖拽排序：dragTableIdx === -1 表示拖拽的是 schema 本身
+// Schema drag sorting: dragTableIdx === -1 means a schema itself is being dragged
 function onSchemaDragStart(e: DragEvent, sIdx: number) {
   dragSchemaIdx.value = sIdx
   dragTableIdx.value = -1
@@ -58,7 +58,7 @@ function onDragOver(e: DragEvent) {
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
   }
-  // 拖拽 schema 时，表项不显示引导线
+  // While dragging a schema, table rows do not show the guide line
   if (dragTableIdx.value < 0) return
   ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
 }
@@ -73,21 +73,21 @@ function onDrop(e: DragEvent, sIdx: number, tIdx: number) {
   e.preventDefault()
   ;(e.currentTarget as HTMLElement)?.classList.remove('drag-over')
   if (dragSchemaIdx.value === sIdx && dragTableIdx.value === tIdx) return
-  // 拖拽的是 schema，不处理表项上的 drop
+  // A schema is being dragged; ignore drops on table rows
   if (dragTableIdx.value < 0) return
-  // 跨 schema 移动
+  // Move across schemas
   if (dragSchemaIdx.value !== sIdx) {
     store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, tIdx)
-    // 自动展开目标 schema
+    // Auto-expand the target schema
     expandedMap.value[sIdx] = true
   } else {
     store.moveTable(sIdx, dragTableIdx.value, tIdx)
   }
 }
 
-// Schema header 上的 drop 处理：
-//   - 拖拽表：将表追加到目标 schema 末尾（虚线框引导）
-//   - 拖拽 schema：调整 schema 顺序（实线引导线）
+// Drop handling on the schema header:
+//   - Table drag: append the table to the end of the target schema (dashed outline guide)
+//   - Schema drag: reorder schemas (solid guide line)
 function onSchemaDragOver(e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
@@ -96,10 +96,10 @@ function onSchemaDragOver(e: DragEvent) {
   if (dragSchemaIdx.value < 0) return
   const el = e.currentTarget as HTMLElement
   if (dragTableIdx.value < 0) {
-    // 拖拽 schema：显示实线引导线
+    // Schema drag: show the solid guide line
     el.classList.add('drag-over-line')
   } else {
-    // 拖拽 table：显示虚线框
+    // Table drag: show the dashed outline
     el.classList.add('drag-over')
   }
 }
@@ -111,32 +111,32 @@ function onSchemaDrop(e: DragEvent, sIdx: number) {
   el?.classList.remove('drag-over-line')
   if (dragSchemaIdx.value < 0) return
 
-  // 拖拽的是 schema（非 table），执行 schema 排序
+  // A schema (not a table) is being dragged; perform schema reordering
   if (dragTableIdx.value < 0) {
     const fromIdx = dragSchemaIdx.value
-    // 延迟到 nextTick：避免在 drop 事件中同步修改 DOM 导致浏览器撤销拖拽
+    // Defer to nextTick: mutating the DOM synchronously in the drop event makes the browser cancel the drag
     nextTick(() => {
       store.moveSchema(fromIdx, sIdx)
     })
     return
   }
 
-  // 原有逻辑：将表追加到目标 schema 末尾
+  // Existing behavior: append the table to the end of the target schema
   const schema = store.schemas[sIdx]
   if (!schema) return
   store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, schema.tables.length)
-  // 自动展开目标 schema
+  // Auto-expand the target schema
   expandedMap.value[sIdx] = true
 }
 
-// 尾部 drop 区域：拖到当前 schema 最后一个表之后
+// Tail drop zone: drop after the last table of the current schema
 function onDropTailOver(e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'
   }
   if (dragSchemaIdx.value < 0) return
-  // 拖拽 schema 时，表尾 drop 区域不显示引导线
+  // While dragging a schema, the table tail drop zone shows no guide line
   if (dragTableIdx.value < 0) return
   ;(e.currentTarget as HTMLElement)?.classList.add('drag-over')
 }
@@ -152,14 +152,14 @@ function onDropTail(e: DragEvent, sIdx: number) {
     store.moveTableToSchema(dragSchemaIdx.value, dragTableIdx.value, sIdx, targetIdx)
     expandedMap.value[sIdx] = true
   } else {
-    // 同 schema 内移到末尾（toIdx = tables.length 表示追加到最后）
+    // Move to the end within the same schema (toIdx = tables.length appends to the end)
     store.moveTable(sIdx, dragTableIdx.value, schema.tables.length)
   }
 }
 
 function onDragEnd(e: DragEvent) {
   ;(e.target as HTMLElement)?.classList.remove('dragging')
-  // 清除所有 drag-over 状态
+  // Clear all drag-over states
   const overEls = document.querySelectorAll('.sidebar-item.drag-over, .sidebar-item.drag-over-line, .drop-tail.drag-over, .schema-drag-tail.drag-over')
   overEls.forEach(el => {
     el.classList.remove('drag-over')
@@ -169,7 +169,7 @@ function onDragEnd(e: DragEvent) {
   dragTableIdx.value = -1
 }
 
-// Schema 尾部 drop：将拖拽的 schema 移到列表末尾
+// Schema tail drop: move the dragged schema to the end of the list
 function onSchemaTailOver(e: DragEvent) {
   if (dragSchemaIdx.value < 0 || dragTableIdx.value >= 0) return
   e.preventDefault()
@@ -197,13 +197,13 @@ function handleAddSchema() {
   }
 }
 
-// ===== Schema 原地重命名 =====
+// ===== Inline schema rename =====
 const editingSchemaIdx = ref(-1)
 const editingSchemaName = ref('')
 const renameInputEl = ref<HTMLInputElement | null>(null)
 let renameFocused = false
 
-// 输入框挂载时聚焦并全选（仅首次，避免连续输入时重新选中覆盖字符）
+// Focus and select all when the input mounts (first time only, so re-selection does not overwrite typed characters)
 function setRenameInputRef(el: unknown) {
   if (el instanceof HTMLInputElement) {
     renameInputEl.value = el
@@ -326,8 +326,8 @@ function cancelRenameSchema() {
             <span class="item-action delete-action" @click.stop="store.deleteTable(sIdx, tIdx)" :title="$t('sidebar.deleteTable')">&times;</span>
           </span>
         </div>
-        <!-- 尾部 drop 区域：拖到当前 schema 最后一个表之后 -->
-        <!-- 始终占位，用 opacity 控制可见性，避免拖拽开始时布局变化 -->
+        <!-- Tail drop zone: drop after the last table of the current schema -->
+        <!-- Always occupies space; visibility is controlled via opacity to avoid layout shifts when dragging starts -->
         <div
           v-show="isExpanded(sIdx) && schema.tables.length > 0"
           class="drop-tail"
@@ -338,7 +338,7 @@ function cancelRenameSchema() {
         ></div>
       </template>
 
-      <!-- Schema 尾部 drop 区域：拖拽 schema 到列表末尾 -->
+      <!-- Schema tail drop zone: drag a schema to the end of the list -->
       <div
         v-if="store.schemas.length > 0"
         class="schema-drag-tail"
@@ -424,7 +424,7 @@ function cancelRenameSchema() {
   cursor: pointer;
 }
 
-/* 箭头旋转动画 */
+/* Arrow rotation animation */
 .arrow-icon {
   display: inline-block;
   transition: transform 0.2s ease;
@@ -466,8 +466,8 @@ function cancelRenameSchema() {
   flex-shrink: 0;
 }
 
-/* 行内操作按钮组：绝对定位于行右侧，不占布局空间（不悬浮时不会留白）。
-   悬浮时按钮淡入，并用渐变遮罩其下的文字；渐变从第一个按钮的左边缘开始变实。 */
+/* Inline action button group: absolutely positioned on the right side of the row without taking layout space (no blank area when not hovered).
+   On hover the buttons fade in and cover the text beneath with a gradient; the gradient becomes solid starting at the left edge of the first button. */
 .item-actions {
   --actions-fade: 28px;
   position: absolute;
@@ -478,10 +478,10 @@ function cancelRenameSchema() {
   align-items: center;
   gap: 6px;
   z-index: 1;
-  pointer-events: none;       /* 容器本身不拦截点击，保证行可选中 */
+  pointer-events: none;       /* The container itself does not intercept clicks, so rows remain selectable */
 }
 
-/* 渐变遮罩：左侧透明（露出文字）→ 到第一个按钮左缘变为行背景色（遮住文字） */
+/* Gradient mask: transparent on the left (reveals text) -> row background color at the left edge of the first button (covers text) */
 .item-actions::before {
   content: "";
   position: absolute;
@@ -604,7 +604,7 @@ function cancelRenameSchema() {
   color: var(--accent-hover);
 }
 
-/* Schema / 表项的操作按钮样式统一由上方 .item-actions / .item-action / .item-count 处理 */
+/* Styles for schema / table row action buttons are handled uniformly by .item-actions / .item-action / .item-count above */
 
 /* ===== Drag-and-Drop ===== */
 .sidebar-item.table-item.dragging {

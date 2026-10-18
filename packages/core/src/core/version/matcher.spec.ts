@@ -21,100 +21,100 @@ function table(name: string, fields: Field[]): Table {
 }
 
 describe('levenshtein', () => {
-  it('相同字符串距离为 0', () => {
+  it('returns 0 for identical strings', () => {
     expect(levenshtein('abc', 'abc')).toBe(0)
   })
 
-  it('空串距离为另一串长度', () => {
+  it('returns the other string length for an empty string', () => {
     expect(levenshtein('', 'abc')).toBe(3)
     expect(levenshtein('abc', '')).toBe(3)
   })
 
-  it('单字符替换距离为 1', () => {
+  it('returns distance 1 for a single character substitution', () => {
     expect(levenshtein('user', 'users')).toBe(1)
     expect(levenshtein('user', 'usir')).toBe(1)
   })
 })
 
 describe('nameSimilarity', () => {
-  it('完全相等为 1', () => {
+  it('returns 1 for exactly equal names', () => {
     expect(nameSimilarity('user', 'user')).toBe(1)
   })
 
-  it('忽略大小写与分隔符差异', () => {
+  it('ignores case and separator differences', () => {
     expect(nameSimilarity('user_name', 'userName')).toBe(1)
     expect(nameSimilarity('user-name', 'USER_NAME')).toBe(1)
   })
 
-  it('两个空串为 1，一侧为空为 0', () => {
+  it('returns 1 for two empty strings and 0 when one side is empty', () => {
     expect(nameSimilarity('', '')).toBe(1)
     expect(nameSimilarity('a', '')).toBe(0)
   })
 
-  it('按较长串归一化编辑距离', () => {
-    // 'user' -> 'users' 距离 1，较长串长度 5
+  it('normalizes edit distance by the longer string', () => {
+    // 'user' -> 'users' has distance 1, longer string length 5
     expect(nameSimilarity('user', 'users')).toBeCloseTo(0.8, 5)
   })
 
-  it('毫无共同字符时为 0', () => {
+  it('returns 0 when there are no common characters', () => {
     expect(nameSimilarity('abc', 'xyz')).toBe(0)
   })
 })
 
 describe('jaccard', () => {
-  it('两个空集为 1', () => {
+  it('returns 1 for two empty sets', () => {
     expect(jaccard(new Set(), new Set())).toBe(1)
   })
 
-  it('一侧为空为 0', () => {
+  it('returns 0 when one side is empty', () => {
     expect(jaccard(new Set(['a']), new Set())).toBe(0)
   })
 
-  it('交集除以并集', () => {
+  it('divides the intersection by the union', () => {
     expect(jaccard(new Set(['a', 'b']), new Set(['b', 'c']))).toBeCloseTo(1 / 3, 5)
     expect(jaccard(new Set(['a', 'b']), new Set(['a', 'b']))).toBe(1)
   })
 })
 
 describe('tableSimilarity', () => {
-  it('字段集合相同、名称不同时得分为字段权重', () => {
-    // 字段 Jaccard = 1，名称相似度 = 0（a 与 b 无共同字符）
+  it('scores the field weight when field sets match but names differ', () => {
+    // field Jaccard = 1, name similarity = 0 (a and b share no characters)
     const a = table('a', [field('id'), field('name')])
     const b = table('b', [field('id'), field('name')])
     expect(tableSimilarity(a, b)).toBeCloseTo(0.7, 5)
   })
 
-  it('字段集合完全不同且名称无关时为 0', () => {
+  it('returns 0 when field sets are disjoint and names unrelated', () => {
     const a = table('a', [field('id'), field('name')])
     const b = table('b', [field('x'), field('y')])
     expect(tableSimilarity(a, b)).toBe(0)
   })
 
-  it('完全一致为 1', () => {
+  it('returns 1 for identical tables', () => {
     const a = table('t', [field('id')])
     expect(tableSimilarity(a, table('t', [field('id')]))).toBe(1)
   })
 })
 
 describe('fieldSimilarity', () => {
-  it('语义属性相同、名称不同时为名称权重', () => {
+  it('scores the name weight when semantic attributes match but names differ', () => {
     const a = field('a', { field_type: 'int', not_null: true })
     const b = field('b', { field_type: 'int', not_null: true })
-    // 语义全同 = 1，名称相似度 = 0
+    // all semantics identical = 1, name similarity = 0
     expect(fieldSimilarity(a, b)).toBeCloseTo(0.5, 5)
   })
 
-  it('类型不同会降低分数', () => {
+  it('lowers the score when types differ', () => {
     const a = field('a', { field_type: 'int' })
     const different = field('a', { field_type: 'varchar' })
     const same = field('a', { field_type: 'int' })
-    // 语义属性匹配比例为 0，仅剩名称权重
+    // semantic attribute match ratio is 0, only the name weight remains
     expect(fieldSimilarity(a, different)).toBeCloseTo(0.5, 5)
     expect(fieldSimilarity(a, different)).toBeLessThan(fieldSimilarity(a, same))
   })
 
-  it('忽略两侧都未设置的属性', () => {
-    // 只有 field_type 有值且相同，其余均为 undefined，语义匹配比例应为 1
+  it('ignores attributes unset on both sides', () => {
+    // only field_type is set and equal, the rest are undefined, so the semantic match ratio should be 1
     const a = field('a', { field_type: 'int' })
     const b = field('a', { field_type: 'int' })
     expect(fieldSimilarity(a, b)).toBe(1)
@@ -122,7 +122,7 @@ describe('fieldSimilarity', () => {
 })
 
 describe('matchByScore', () => {
-  it('按分数降序贪心配对，两端不重复使用', () => {
+  it('pairs greedily by descending score without reusing either side', () => {
     const scores = [
       [1.0, 0.9],
       [0.9, 1.0],
@@ -136,15 +136,15 @@ describe('matchByScore', () => {
     expect(result.unmatchedTo).toEqual([])
   })
 
-  it('低于阈值的候选不参与配对', () => {
+  it('does not pair candidates below the threshold', () => {
     const result = matchByScore(1, 1, () => 0.4, { threshold: 0.5 })
     expect(result.pairs).toEqual([])
     expect(result.unmatchedFrom).toEqual([0])
     expect(result.unmatchedTo).toEqual([0])
   })
 
-  it('分数接近时标注歧义', () => {
-    // from 0 对 to 0/1 分数分别为 0.9 / 0.85，差值 0.05 < 0.12
+  it('flags ambiguity when scores are close', () => {
+    // from 0 scores 0.9 / 0.85 against to 0/1, difference 0.05 < 0.12
     const scores = [
       [0.9, 0.85],
       [0.1, 0.1],
@@ -155,7 +155,7 @@ describe('matchByScore', () => {
     expect(result.ambiguous[0]?.map(c => c.to)).toEqual([0, 1])
   })
 
-  it('分数差距明显时不标注歧义', () => {
+  it('does not flag ambiguity when scores differ clearly', () => {
     const scores = [
       [0.95, 0.6],
       [0.1, 0.1],
@@ -166,7 +166,7 @@ describe('matchByScore', () => {
 })
 
 describe('matchTables', () => {
-  it('识别字段集合相同但名称变更的表', () => {
+  it('detects tables with identical field sets but changed names', () => {
     const olds = [table('user', [field('id'), field('name')])]
     const news = [table('users', [field('id'), field('name')])]
     const result = matchTables(olds, news)
@@ -174,19 +174,19 @@ describe('matchTables', () => {
     expect(result.pairs[0]).toMatchObject({ from: 0, to: 0 })
   })
 
-  it('结构无关的表不配对', () => {
+  it('does not pair structurally unrelated tables', () => {
     const olds = [table('user', [field('id'), field('name')])]
     const news = [table('order', [field('amount'), field('price')])]
     const result = matchTables(olds, news)
     expect(result.pairs).toEqual([])
   })
 
-  it('已知限制：字段集合完全一致的名称对调被保守判为未变', () => {
-    // b 与 c 字段集合完全相同，对调后 b->b、c->c 分数均为 1，高于交叉配对的 0.7
+  it('known limitation: swapped names with identical field sets are conservatively treated as unchanged', () => {
+    // b and c have exactly the same field sets; after swapping, b->b and c->c both score 1, higher than 0.7 for cross pairing
     const olds = [table('b', [field('id')]), table('c', [field('id')])]
     const news = [table('c', [field('id')]), table('b', [field('id')])]
     const result = matchTables(olds, news)
-    // 判为 b->b、c->c 即「未变」，这类场景需用户手工连线纠正
+    // judged as b->b, c->c, i.e. "unchanged"; such cases need manual linking by the user
     expect(result.pairs).toEqual([
       { from: 0, to: 1, score: 1 },
       { from: 1, to: 0, score: 1 },
@@ -195,7 +195,7 @@ describe('matchTables', () => {
 })
 
 describe('matchFields', () => {
-  it('识别同类型字段的改名', () => {
+  it('detects renames of fields with the same type', () => {
     const olds = [field('user_name', { field_type: 'varchar', field_length: 64 })]
     const news = [field('username', { field_type: 'varchar', field_length: 64 })]
     const result = matchFields(olds, news)
@@ -203,7 +203,7 @@ describe('matchFields', () => {
     expect(result.pairs[0]?.score).toBeGreaterThan(0.9)
   })
 
-  it('类型与名称均不同的字段不配对', () => {
+  it('does not pair fields differing in both type and name', () => {
     const olds = [field('age', { field_type: 'int' })]
     const news = [field('zzz', { field_type: 'text' })]
     const result = matchFields(olds, news)
@@ -211,8 +211,8 @@ describe('matchFields', () => {
   })
 })
 
-describe('索引级配对', () => {
-  it('列集合相同、名称变更时仍可配对', async () => {
+describe('index-level matching', () => {
+  it('still pairs when column sets match but names changed', async () => {
     const { matchIndexes } = await import('./matcher')
     const mk = (name: string): Index => ({ name, type: 'index', columns: [{ name: 'user_id' }] })
     const result = matchIndexes([mk('idx_uid')], [mk('idx_user_id')])
@@ -221,7 +221,7 @@ describe('索引级配对', () => {
 })
 
 describe('diffSemantics', () => {
-  it('只报告变化的键，值为新旧二元组', () => {
+  it('reports only changed keys with old/new tuples as values', () => {
     const a = field('u', { field_type: 'varchar', field_length: 32, not_null: true })
     const b = field('u', { field_type: 'varchar', field_length: 64, not_null: true })
     expect(diffSemantics(a, b, ['field_type', 'field_length', 'not_null'])).toEqual({
@@ -229,11 +229,11 @@ describe('diffSemantics', () => {
     })
   })
 
-  it('缺省键与显式 undefined 视为相同', () => {
+  it('treats a missing key and an explicit undefined as equal', () => {
     expect(diffSemantics(field('u'), field('u', { comment: undefined }), ['comment'])).toEqual({})
   })
 
-  it('null 与空串、false 与 0 都算变更', () => {
+  it('treats null vs empty string and false vs 0 as changes', () => {
     expect(diffSemantics(field('u', { default: null }), field('u', { default: '' }), ['default'])).toEqual({
       default: [null, ''],
     })
@@ -242,7 +242,7 @@ describe('diffSemantics', () => {
     })
   })
 
-  it('嵌套结构按键名顺序敏感比较', () => {
+  it('compares nested structures with key order sensitivity', () => {
     const keys = ['mysql'] as const
     const a = field('u', { mysql: { field_type: 'int', default: 1 } })
     const b = field('u', { mysql: { default: 1, field_type: 'int' } })
@@ -250,7 +250,7 @@ describe('diffSemantics', () => {
     expect(diffSemantics(a, field('u', { mysql: { field_type: 'int', default: 1 } }), keys)).toEqual({})
   })
 
-  it('无变更时返回空对象', () => {
+  it('returns an empty object when nothing changed', () => {
     const a = field('u', { field_type: 'int', field_length: 4 })
     expect(diffSemantics(a, { ...a }, ['field_type', 'field_length'])).toEqual({})
   })

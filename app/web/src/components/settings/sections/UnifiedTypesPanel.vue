@@ -94,7 +94,7 @@ function handleDeleteUnifiedType(idx: number) {
   store.deleteUnifiedType(idx)
 }
 
-/** 读取 SQLite 映射值（未配置时返回空串） */
+/** Read a SQLite mapping value (returns an empty string when unset) */
 function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'): string {
   const value = ut.sqlite?.[key]
   return value === undefined || value === null ? '' : String(value)
@@ -267,7 +267,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
                 >&times;</button>
               </td>
             </tr>
-            <!-- 尾部 drop 区域 -->
+            <!-- Tail drop zone -->
             <tr
               v-if="localUnifiedTypes.length > 0"
               class="drop-tail-row"

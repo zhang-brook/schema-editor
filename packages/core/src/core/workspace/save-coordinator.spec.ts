@@ -114,16 +114,16 @@ describe('SaveCoordinator', () => {
   })
 
   it('ties SQL sync to project-file saving so output never leads the documents', () => {
-    // 不一致的初始值收敛为「两者都关」，不存在只同步 SQL 的状态
+    // Inconsistent initial values collapse to both off; there is no SQL-sync-only state
     const { coordinator } = fixture({ autoSave: { docs: false, outputs: true } })
     expect(coordinator.autoSaveOptions).toEqual(manual)
 
     coordinator.setAutoSave(allAuto)
     expect(coordinator.autoSaveOptions).toEqual(allAuto)
-    // 取消项目文件保存 → 连带关闭 SQL 同步
+    // Disabling project-file saving also disables SQL sync
     coordinator.setAutoSave({ docs: false })
     expect(coordinator.autoSaveOptions).toEqual(manual)
-    // 勾选 SQL 同步 → 连带开启项目文件保存
+    // Enabling SQL sync also enables project-file saving
     coordinator.setAutoSave({ outputs: true })
     expect(coordinator.autoSaveOptions).toEqual(allAuto)
   })

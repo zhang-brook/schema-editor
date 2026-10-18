@@ -1,8 +1,8 @@
 /**
- * 删除守卫：判断某个版本能否安全删除，并给出具体原因供 UI 提示。
+ * Delete guards: determine whether a version can be safely deleted and provide specific reasons for UI prompts.
  *
- * 版本被迁移脚本（作为源或目标）或被环境关联时不允许删除，
- * 否则会让版本链断裂、迁移与环境指向不存在的版本。
+ * A version cannot be deleted while it is used by a migration (as source or target) or linked to
+ * an environment, otherwise the version chain breaks and migrations/environments point to a nonexistent version.
  */
 import type { Environment, Migration } from './types'
 
@@ -11,7 +11,7 @@ export type DeleteBlockReason =
       type: 'migration'
       id: string
       name: string
-      /** 该版本在迁移中扮演的角色 */
+      /** Role this version plays in the migration */
       role: 'from' | 'to'
     }
   | {
@@ -25,7 +25,7 @@ export interface DeleteCheckResult {
   reasons: DeleteBlockReason[]
 }
 
-/** 检查版本是否可删除 */
+/** Check whether a version can be deleted */
 export function canDeleteVersion(
   versionId: string,
   migrations: Migration[],

@@ -14,7 +14,7 @@ const fsService = createFsService()
 
 autoUpdater.autoInstallOnAppQuit = false
 
-/** 更新状态推送到所有未销毁窗口 */
+/** Push update status to all windows that have not been destroyed */
 function publishUpdateStatus(status: DesktopUpdateStatus): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed()) window.webContents.send(DESKTOP_CHANNELS.updateStatus, status)
@@ -23,7 +23,7 @@ function publishUpdateStatus(status: DesktopUpdateStatus): void {
 
 const updater = createUpdater(
   {
-    // 免安装 exe 无法自我覆盖；macOS 未签名时系统会拒绝更新包，签名后再开放
+    // A portable exe cannot overwrite itself; macOS rejects unsigned updates, so enable after signing
     updateSupported:
       app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR && process.platform !== 'darwin',
     currentVersion: app.getVersion(),
@@ -50,7 +50,7 @@ function registerIpcHandlers(recentFolders: RecentFolders): void {
   ipcMain.handle(DESKTOP_CHANNELS.pickDirectory, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = { properties: ['openDirectory'] }
-    // 默认定位到上次打开的文件夹；已被删除则退回系统默认位置
+    // Default to the last opened folder; fall back to the system default if it was deleted
     const lastFolder = await recentFolders.mostRecent()
     if (lastFolder && await isDirectory(lastFolder)) options.defaultPath = lastFolder
     const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
@@ -89,7 +89,7 @@ function registerIpcHandlers(recentFolders: RecentFolders): void {
   ipcMain.handle(DESKTOP_CHANNELS.installUpdate, () => updater.install())
 }
 
-/** 开发模式下 Vite 服务可能尚未就绪，失败后重试直至可用 */
+/** In dev mode the Vite server may not be ready yet; retry until it is available */
 async function loadDevServer(window: BrowserWindow): Promise<void> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -130,7 +130,7 @@ async function createWindow(): Promise<void> {
     event.preventDefault()
     void shell.openExternal(url)
   })
-  // 更新已就绪要退出安装时，放行页面卸载，避免未保存提醒挡住重启
+  // Allow page unload when an update is ready to quit and install, so the unsaved prompt cannot block restart
   window.webContents.on('will-prevent-unload', event => {
     if (updater.isInstalling()) event.preventDefault()
   })

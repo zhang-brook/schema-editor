@@ -1,7 +1,7 @@
 /**
- * SQL 解析器 — 统一导出入口
+ * SQL parser — unified export entry
  *
- * 用法:
+ * Usage:
  *   import { parseCreateTableStatements, detectDialect } from './'
  *   const result = parseCreateTableStatements(sqlText)
  *   const dialect = detectDialect(sqlText)

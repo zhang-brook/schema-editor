@@ -1,19 +1,24 @@
 /**
- * 结构迁移脚本：v0.4 → v1.0
+ * Structure migration script: v0.4 → v1.0
  *
- * 这是一条「完整磁盘布局迁移」：读取旧结构（根 common.json + schemas/*.json + initial-data/*），
- * 改写为新结构（current/ 每表独立文件 + 行内化初始数据），并清理已迁移的旧文件
- * （杜绝回退导致新结构字段丢失）。
+ * This is a "full disk layout migration": read the old structure (root common.json + schemas/*.json
+ * + initial-data/*), rewrite it into the new structure (one file per table under current/ with
+ * inlined initial data), and clean up the already migrated old files (to prevent a rollback from
+ * losing fields of the new structure).
  *
- * 设计为「自包含」：每个 step 文件都从当前磁盘读取 from 版本、写出 to 版本，
- * 因此支持用户落后多个版本时「逐个版本」依次跑（见 structure-migrations/index.ts 的注册表）。
- * 注意：0.0→0.4 的数据级字段升级已由单独的 v0_x-to-v0_y 步骤在旧盘上逐一完成，
- * 本步骤拿到的内存态 oldSchemas 已是 0.4 数据态，只需做布局层面的改写。
+ * Designed to be "self-contained": every step file reads the from version from the current disk and
+ * writes the to version, so users who are several versions behind can be upgraded "version by
+ * version" (see the registry in structure-migrations/index.ts).
+ * Note: the 0.0→0.4 data-level field upgrades have already been done one by one on the old disk by
+ * the separate v0_x-to-v0_y steps; the in-memory oldSchemas this step receives are already in the
+ * 0.4 data state, so only layout-level rewriting is needed here.
  *
- * 说明：「0.4」是数据级升级链的当前末端版本，旧磁盘格式（schemas/ 平行目录 +
- * initial-data/ 平行目录）对应的结构版本即记为 0.4；「1.0」是引入 current/ 新布局后的
- * 第一个结构版本（= CURRENT_STRUCT_VERSION）。本步骤同时完成 initial-data 行内化
- * （读旧盘时经 normalizeInitialData 转行内、写新盘时经 buildInitialDataExport 只写行内）。
+ * Note: "0.4" is the current end of the data-level upgrade chain; the structure version
+ * corresponding to the old disk format (parallel schemas/ directory + parallel initial-data/
+ * directory) is recorded as 0.4; "1.0" is the first structure version after introducing the new
+ * current/ layout (= CURRENT_STRUCT_VERSION). This step also performs initial-data inlining (reading
+ * the old disk converts to inline via normalizeInitialData, writing the new disk emits inline only
+ * via buildInitialDataExport).
  */
 
 import {
@@ -25,42 +30,44 @@ import { readInitialDataFromHandle } from '../initial-data-io'
 import type { Schema, Table } from '../../types/schema'
 import { readProject, type CommonDocument } from './structure-io'
 
-/** 本步骤的终点版本（引入 current/ 新布局后的第一个结构版本） */
+/** End version of this step (the first structure version after introducing the new current/ layout) */
 const V1_0 = '1.0'
 
-/** 结构迁移依赖（由调度器注入） */
+/** Structure migration dependencies (injected by the dispatcher) */
 export interface StructureMigrationDeps {
-  /** 将内存态单表序列化为可写出的 table.json 对象 */
+  /** Serialize a single in-memory table into a table.json object ready to be written */
   transformTable: (schema: Schema, table: Table) => Table
 }
 
 /**
- * 执行 v0.4 → v1.0 迁移。
- * @param rootHandle 项目根目录句柄
- * @param deps 注入的序列化函数
+ * Run the v0.4 → v1.0 migration.
+ * @param rootHandle project root directory handle
+ * @param deps injected serialization function
  */
 export async function migrate(
   rootHandle: FileSystemDirectoryHandle,
   deps?: StructureMigrationDeps,
 ): Promise<void> {
   if (!deps) throw new Error('[v0_4-to-v1_0] transformTable 依赖未注入')
-  // 1. 读取旧结构（每个 step 都从磁盘重新读取，支持链式多版本升级）
+  // 1. Read the old structure (every step re-reads from disk to support chained multi-version upgrades)
   const oldCommon = (await readProject(rootHandle, '0.4')).common
   const oldSchemas = await readOldSchemasFromHandle(rootHandle)
   const oldInitialData = await readInitialDataFromHandle(rootHandle)
 
-  // 2. 数据级升级已在 0.0→0.4 各独立步骤中完成，此处内存态 oldSchemas 已是 0.4 数据态
-  //    仅推进到本步骤终点 1.0（后续 1.0→1.1 由独立步骤链式接力，不可在此直接跳到最终版本）
+  // 2. Data-level upgrades were already done by the separate 0.0→0.4 steps, so the in-memory
+  //    oldSchemas are already in the 0.4 data state; only advance to this step's end version 1.0
+  //    (a later 1.0→1.1 is handed off to a separate chained step and must not be skipped to here)
   if (oldCommon) oldCommon.struct_version = V1_0
 
-  // 3. 构造新结构写盘数据
+  // 3. Build the data to write for the new structure
   const newCommon: CommonDocument = oldCommon ?? { struct_version: V1_0 }
-  // 将 schema_order 从根 common 迁入 database.json：
-  // - 旧 common 中若存在 schema_order，原样沿用（必须和之前保持一致）；
-  // - 旧 common 中若不存在，则不写该字段（使用方 applySchemaOrder 已兼容「排序不存在」的情况，
-  //   缺失时会按内存/目录顺序展示，属于预期行为，不应凭空生成顺序）。
-  //   注意：必须在 delete 之前先取出，因为 newCommon 与 oldCommon 是同一对象引用，
-  //   若先 delete 再读会得到 undefined，导致 schema_order 丢失。
+  // Move schema_order from the root common into database.json:
+  // - if the old common has schema_order, carry it over as is (it must stay consistent with before);
+  // - if the old common does not have it, do not write the field (the consumer applySchemaOrder
+  //   already handles "no ordering" by displaying in memory/directory order, which is expected
+  //   behavior; an ordering should not be invented out of thin air).
+  //   Note: it must be read before delete, because newCommon and oldCommon are the same object
+  //   reference; reading after delete would yield undefined and lose schema_order.
   const preservedSchemaOrder =
     oldCommon && Array.isArray(oldCommon.schema_order) && oldCommon.schema_order.length > 0
       ? (oldCommon.schema_order as string[])
@@ -71,7 +78,7 @@ export async function migrate(
     databaseData.schema_order = preservedSchemaOrder
   }
 
-  // 4. 写入新结构（current/ 每表独立文件 + 行内化初始数据）
+  // 4. Write the new structure (one file per table under current/ + inlined initial data)
   await migrateOldToNewStructure(rootHandle, {
     commonConfig: newCommon,
     databaseData,
@@ -80,7 +87,7 @@ export async function migrate(
     initialData: oldInitialData,
   })
 
-  // 5. 清理已迁移的旧文件（升级了哪里就处理哪里）
+  // 5. Clean up the already migrated old files (whatever was upgraded is cleaned up)
   const oldInitialDataKeys = oldInitialData.map((x) => x.key)
   await cleanupOldStructure(rootHandle, oldSchemas, oldInitialDataKeys)
 }

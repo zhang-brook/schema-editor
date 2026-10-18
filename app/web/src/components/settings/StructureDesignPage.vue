@@ -8,7 +8,7 @@ import TableEditor from '@/components/structure/TableEditor.vue'
 
 const store = useEditorStore()
 
-// ===== 左侧菜单与右侧面板之间的可拖拽分隔 =====
+// ===== Draggable divider between the left menu and the right panel =====
 const SIDEBAR_WIDTH_KEY = 'schema-editor.structureSidebarWidth'
 const MIN_W = 180
 const MAX_W = 480
@@ -54,7 +54,7 @@ onBeforeUnmount(stopResize)
 </script>
 
 <template>
-  <!-- 库结构设计：左侧树形导航 + 可拖拽分隔 + 右侧编辑面板 -->
+  <!-- Schema structure design: left tree navigation + draggable divider + right edit panel -->
   <div class="ps-structure" :style="{ '--sidebar-width': sidebarWidth + 'px' }">
     <EditorSidebar />
     <div
@@ -85,7 +85,7 @@ onBeforeUnmount(stopResize)
   overflow: hidden;
 }
 
-/* 左侧菜单与右侧面板之间的可拖拽分隔条 */
+/* Draggable divider bar between the left menu and the right panel */
 .ps-resizer {
   flex-shrink: 0;
   width: 5px;
@@ -128,7 +128,7 @@ onBeforeUnmount(stopResize)
   overflow: hidden;
 }
 
-/* 标签栏固定在顶部，仅内容区滚动 */
+/* Tab bar stays fixed at the top; only the content area scrolls */
 .ps-structure-body {
   flex: 1;
   min-height: 0;

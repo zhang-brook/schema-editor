@@ -38,7 +38,7 @@ function json<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-// 显式列出所有声明字段：类型新增属性时，测试必须同步声明其序列化预期。
+// List every declared field explicitly: when the type gains a property, tests must declare its serialization expectation too.
 type PropertyCases<T> = { [K in keyof Required<T>]: { input: Partial<T>; expected: Partial<T> } }
 
 const fieldCases: PropertyCases<Field> = {
@@ -104,20 +104,20 @@ describe('buildTableExportData', () => {
     post_sql: { mysql: 'SET @after = 1;', postgresql: 'SELECT 2;', sqlite: 'PRAGMA foreign_keys = ON;' },
   } satisfies Required<Table>)
 
-  it.each(Object.keys(fullTable) as (keyof Table)[])('保留 Table.%s', key => {
+  it.each(Object.keys(fullTable) as (keyof Table)[])('preserves Table.%s', key => {
     expect(buildTableExportData(fullTable)[key]).toStrictEqual(fullTable[key])
   })
 
-  it.each(Object.entries(fieldCases))('处理 Field.%s', (_key, { input, expected }) => {
+  it.each(Object.entries(fieldCases))('handles Field.%s', (_key, { input, expected }) => {
     expect(exportField(freeze(input))).toStrictEqual({ field_name: 'value', ...expected })
   })
 
-  it.each(Object.entries(indexCases))('处理 Index.%s', (_key, { input, expected }) => {
+  it.each(Object.entries(indexCases))('handles Index.%s', (_key, { input, expected }) => {
     const source: Index = freeze({ type: 'index', columns: [], ...input })
     expect(buildTableExportData(table([], [source])).indexes[0]).toStrictEqual({ type: 'index', columns: [], ...expected })
   })
 
-  it('保留索引列的所有字段及三种方言排序覆盖', () => {
+  it('preserves all index column fields and sort overrides for all three dialects', () => {
     const column = freeze({
       name: 'value',
       sort_order: 'ASC',
@@ -130,21 +130,21 @@ describe('buildTableExportData', () => {
     expect(out.indexes[0]!.columns[0]).not.toBe(column)
   })
 
-  it.each(['mysql', 'postgresql', 'sqlite'] as const)('保留 %s 字段覆盖的所有声明属性与空值', dialect => {
+  it.each(['mysql', 'postgresql', 'sqlite'] as const)('preserves every declared property and empty value in %s field overrides', dialect => {
     const override = freeze({ field_type: '', field_length: null, field_scale: 0, default: false } satisfies Required<FieldOverride>)
     const out = exportField({ [dialect]: override })
     expect(out[dialect]).toStrictEqual(override)
     expect(out[dialect]).not.toBe(override)
   })
 
-  it('公共字段引用仅保存名称和引用标志，忽略所有冗余覆盖', () => {
+  it('common field references keep only the name and reference flag, ignoring all redundant overrides', () => {
     const field: Field = Object.assign({ field_name: 'updated_at' }, ...Object.values(fieldCases).map(c => c.input))
     field.field_name = 'updated_at'
     field.use_common_used_fields = true
     expect(exportField(freeze(field))).toStrictEqual({ field_name: 'updated_at', use_common_used_fields: true })
   })
 
-  it('统一类型省略空 field_type 和 quote_default，但保留显式类型/度量/ON UPDATE 覆盖', () => {
+  it('unified types omit empty field_type and quote_default but keep explicit type/metrics/ON UPDATE overrides', () => {
     expect(exportField({ unified_type: 'timestamp', field_type: '', quote_default: true })).toStrictEqual({
       field_name: 'value', unified_type: 'timestamp',
     })
@@ -165,29 +165,29 @@ describe('buildTableExportData', () => {
     { input: { field_length: 12, field_scale: 2, field_length_disabled: true }, expected: { field_scale: 2, field_length_disabled: true } },
     { input: { field_length: 12, field_scale: 2, field_scale_disabled: true }, expected: { field_length: 12, field_scale_disabled: true } },
     { input: { field_length: 12, field_scale: 2, field_length_disabled: true, field_scale_disabled: true }, expected: { field_length_disabled: true, field_scale_disabled: true } },
-  ])('清理空/禁用长度和小数位：$input', ({ input, expected }) => {
+  ])('clears empty/disabled length and scale: $input', ({ input, expected }) => {
     expect(exportField(freeze(input))).toStrictEqual({ field_name: 'value', ...expected })
   })
 
-  it.each([undefined, false, 0, null, '', 'CURRENT_TIMESTAMP'])('默认值 %s 不使用 truthy 判定', value => {
+  it.each([undefined, false, 0, null, '', 'CURRENT_TIMESTAMP'])('default value %s is not evaluated by truthiness', value => {
     const out = exportField({ default: value })
     if (value === undefined) expect(out).not.toHaveProperty('default')
     else expect(out).toHaveProperty('default', value)
   })
 
-  it.each([undefined, false, true])('ON UPDATE 开关 %s 保留显式值', value => {
+  it.each([undefined, false, true])('ON UPDATE flag %s preserves the explicit value', value => {
     const out = exportField({ on_update_current_timestamp: value })
     if (value === undefined) expect(out).not.toHaveProperty('on_update_current_timestamp')
     else expect(out).toHaveProperty('on_update_current_timestamp', value)
   })
 
-  it.each([undefined, null, 0, 3, 6])('ON UPDATE 精度 %s 不丢失', value => {
+  it.each([undefined, null, 0, 3, 6])('ON UPDATE precision %s is not lost', value => {
     const out = exportField({ on_update_current_timestamp: true, on_update_current_timestamp_precision: value })
     if (value === undefined) expect(out).not.toHaveProperty('on_update_current_timestamp_precision')
     else expect(out).toHaveProperty('on_update_current_timestamp_precision', value)
   })
 
-  it('延续字段 false 默认省略规则，但保留 not_null/quote_default/default 的 false', () => {
+  it('keeps the default omission rule for field false values but preserves false for not_null/quote_default/default', () => {
     expect(exportField({
       use_common_used_fields: false, not_null: false, primary_key: false, quote_default: false,
       default: false, comment: '', comment_options_enabled: false, comment_options: [],
@@ -196,7 +196,7 @@ describe('buildTableExportData', () => {
     })).toStrictEqual({ field_name: 'value', not_null: false, quote_default: false, default: false, comment: '' })
   })
 
-  it('注释选项省略空方言覆盖，保留通用空值及非空覆盖', () => {
+  it('comment options omit empty dialect overrides while keeping generic empty values and non-empty overrides', () => {
     expect(exportField({ comment_options: [
       { label: '', value: '', mysql: '', postgresql: undefined, sqlite: '' },
       { label: '关闭', value: '0', mysql: '0', postgresql: 'FALSE', sqlite: '0' },
@@ -206,7 +206,7 @@ describe('buildTableExportData', () => {
     ] })
   })
 
-  it('空表配置、索引配置及列方言覆盖继续省略', () => {
+  it('empty table config, index config and column dialect overrides remain omitted', () => {
     const out = buildTableExportData({
       ...table(), comment_before_table: '', comment_before_fields: {}, pre_sql: {}, post_sql: {},
       mysql: { mysql_engine: '', mysql_charset: '', mysql_collation: '' },
@@ -220,7 +220,7 @@ describe('buildTableExportData', () => {
     expect(out).toStrictEqual({ ...table(), indexes: [{ columns: [{ name: 'id' }] }] })
   })
 
-  it('默认索引名只省略顶层 name，不改写现有方言覆盖', () => {
+  it('default index names omit only the top-level name without rewriting existing dialect overrides', () => {
     const out = buildTableExportData(table([], [{
       type: 'unique', use_default_name: true, name: 'ignored', columns: [],
       mysql: { name: 'mysql_name' }, postgresql: { name: 'pg_name' }, sqlite: { name: 'sqlite_name' },
@@ -231,12 +231,12 @@ describe('buildTableExportData', () => {
     })
   })
 
-  it('表前注释支持字符串，字段前注释中的空字符串/null 不丢失', () => {
+  it('table pre-comments accept strings and empty strings/null in field pre-comments are preserved', () => {
     const source = { ...table(), comment_before_table: 'before', comment_before_fields: { id: '', value: [null, ''] } }
     expect(buildTableExportData(freeze(source))).toStrictEqual(source)
   })
 
-  it('序列化不修改源数据，JSON 往返后可重复序列化', () => {
+  it('serialization does not mutate source data and is repeatable after a JSON round trip', () => {
     const before = json(fullTable)
     const out = buildTableExportData(fullTable)
     expect(fullTable).toStrictEqual(before)
@@ -246,8 +246,8 @@ describe('buildTableExportData', () => {
   })
 })
 
-describe('schema 与 common 序列化', () => {
-  it('schema 元信息保存表顺序及非空 SQL，完整导出保存 tables 而非 table_order', () => {
+describe('schema and common serialization', () => {
+  it('schema metadata keeps table order and non-empty SQL while full export keeps tables instead of table_order', () => {
     const source: Schema = freeze({
       schema: '业务',
       tables: [{ ...table([{ field_name: 'updated_at', on_update_current_timestamp: true }]), name: 'z' }, { ...table(), name: 'a' }],
@@ -262,7 +262,7 @@ describe('schema 与 common 序列化', () => {
     expect(metadata.pre_sql).not.toBe(source.pre_sql)
   })
 
-  it('schema 空 SQL 对象省略，非空对象保持既有逐键内容（不额外裁剪 SQL）', () => {
+  it('empty schema SQL objects are omitted while non-empty objects keep their existing per-key content (no extra SQL trimming)', () => {
     const source: Schema = { schema: 'public', tables: [], pre_sql: {}, post_sql: {} }
     expect(buildSchemaWriteData(source)).toStrictEqual({ schema: 'public', table_order: [] })
     expect(buildSchemaExportData(source)).toStrictEqual({ schema: 'public', tables: [] })
@@ -271,7 +271,7 @@ describe('schema 与 common 序列化', () => {
     })
   })
 
-  it('common 所有声明字段保留，仅分离 schema_order 并清理公共字段长度/小数位', () => {
+  it('common keeps all declared fields, only separating schema_order and clearing length/scale of common fields', () => {
     const source = freeze({
       struct_version: '1.0', project_name: '', project_description: 'project', enabled_dialects: ['mysql', 'sqlite'],
       default_config: {
@@ -302,8 +302,8 @@ describe('schema 与 common 序列化', () => {
   })
 })
 
-describe('已有 initial data 序列化函数回归（不改实现）', () => {
-  it('保留所有行内字段、SQL、值及表达式标记，省略 undefined 数据值', () => {
+describe('existing initial data serialization regression (implementation unchanged)', () => {
+  it('preserves all inline fields, SQL, values and expression markers while omitting undefined data values', () => {
     const row = {
       data: { zero: 0, disabled: false, empty: '', nil: null, absent: undefined, expr: 'CURRENT_TIMESTAMP' },
       field_comments: { zero: 'zero' }, expr_fields: { expr: true, disabled: false },
@@ -319,13 +319,13 @@ describe('已有 initial data 序列化函数回归（不改实现）', () => {
     expect(normalizeInitialData(serialized)).toStrictEqual(serialized)
   })
 
-  it('空对象、空行集合、禁用行标记与空注释延续既有省略规则', () => {
+  it('empty objects, empty row sets, disabled row markers and empty comments follow the existing omission rules', () => {
     expect(buildInitialDataExport({ pre_sql: {}, post_sql: {} })).toStrictEqual({})
     expect(buildInitialDataExport({ rows: [] })).toStrictEqual({ rows: [] })
     expect(buildInitialDataExport({ rows: [{ data: {}, is_skip: false, row_comment: '', field_comments: {}, expr_fields: {} }] })).toStrictEqual({ rows: [{ data: {} }] })
   })
 
-  it('旧平行数组归一化后只导出行内格式，保留 SQL 与 false/0/null', () => {
+  it('legacy parallel arrays normalize to inline format only, preserving SQL and false/0/null', () => {
     const normalized = normalizeInitialData({
       rows: [{ id: 0, enabled: false, value: null }], row_comments: ['row'],
       field_comments: [{ id: 'id' }], skip_rows: [true],

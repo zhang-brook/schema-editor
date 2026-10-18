@@ -14,8 +14,8 @@ import {
   INITIAL_DATA_FILE,
 } from './layout'
 
-describe('layout 路径常量', () => {
-  it('新旧结构关键文件名/目录名符合预期', () => {
+describe('layout path constants', () => {
+  it('key file and directory names match expectations for old and new layouts', () => {
     expect(COMMON_FILE).toBe('common.json')
     expect(SCHEMAS_DIR).toBe('schemas')
     expect(INITIAL_DATA_DIR).toBe('initial-data')
@@ -31,31 +31,31 @@ describe('layout 路径常量', () => {
 })
 
 describe('sanitizeName', () => {
-  it('保留常规字母数字与中划线/下划线/点', () => {
+  it('keeps regular alphanumerics, hyphens, underscores and dots', () => {
     expect(sanitizeName('user_profile')).toBe('user_profile')
     expect(sanitizeName('order-items.v2')).toBe('order-items.v2')
   })
 
-  it('将路径分隔符与非法字符替换为下划线', () => {
+  it('replaces path separators and illegal characters with underscores', () => {
     expect(sanitizeName('a/b\\c')).toBe('a_b_c')
     expect(sanitizeName('a<b>c:d"e|f?g*h')).toBe('a_b_c_d_e_f_g_h')
   })
 
-  it('折叠连续下划线并去除首尾下划线', () => {
+  it('collapses consecutive underscores and trims leading and trailing underscores', () => {
     expect(sanitizeName('a//b')).toBe('a_b')
     expect(sanitizeName('__name__')).toBe('name')
     expect(sanitizeName('  name  ')).toBe('name')
   })
 
-  it('空字符串返回空', () => {
+  it('returns empty for an empty string', () => {
     expect(sanitizeName('')).toBe('')
   })
 
-  it('保留原名称大小写', () => {
+  it('preserves the case of the original name', () => {
     expect(sanitizeName('UserTable')).toBe('UserTable')
   })
 
-  it('处理中文与空格文件名友好化（仅替换非法字符，空格保留）', () => {
+  it('sanitizes Chinese and spaced file names (only illegal characters are replaced, spaces kept)', () => {
     expect(sanitizeName('用户 / 表')).toBe('用户 _ 表')
   })
 })

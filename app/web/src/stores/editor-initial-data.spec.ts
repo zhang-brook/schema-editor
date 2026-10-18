@@ -30,7 +30,7 @@ function setup(data?: InitialData) {
 }
 
 const expectedFiles = [affectedInitialData('public', 'users'), affectedSql()]
-/** 单元格里的嵌套结构：深拷贝断言与变异都要按形态收窄 */
+/** Nested structures inside a cell: both deep-copy assertions and mutations must narrow by shape */
 const nested = <T>(value: JsonValue): T => value as T
 const richRow = (): InitialDataRow => ({
   data: { id: 0, enabled: false, value: null, missing: undefined, time: 'CURRENT_TIMESTAMP()', nested: { items: [0, false, null] } },

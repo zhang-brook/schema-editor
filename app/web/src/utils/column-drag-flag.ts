@@ -1,8 +1,9 @@
 import { ref } from 'vue'
 
 /**
- * 标记当前是否正在拖拽「索引列项」（而非索引行）。
- * 索引列编辑器在拖拽开始时置 true、结束时置 false；
- * 索引表据此忽略行级拖拽高亮 / 投放，避免把列拖到其它行上时出现整行目标线。
+ * Marks whether an "index column item" (rather than an index row) is being dragged.
+ * The index column editor sets this to true when a drag starts and false when it ends;
+ * the index table uses it to ignore row-level drag highlight / drop, so dragging a column
+ * over other rows does not draw a full-row target line.
  */
 export const isColumnDragging = ref(false)

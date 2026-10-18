@@ -1,14 +1,15 @@
 /**
- * 迁移脚本 → 变更 DDL 生成器（MySQL + PostgreSQL + SQLite 三方言）。
+ * Migration script → change DDL generator (MySQL + PostgreSQL + SQLite dialects).
  *
- * 输入：结构 diff（auto_diff 步骤） + clear_column / sql_transform / custom_sql 步骤。
- * 输出：合并后的最终变更 SQL（按方言）。
+ * Input: structure diff (auto_diff step) + clear_column / sql_transform / custom_sql steps.
+ * Output: merged final change SQL (per dialect).
  *
- * 复用 sql-generator/shared 的字段解析原语，仅新增 ALTER TABLE 片段构造逻辑，
- * 不改动现有全量 DDL 生成器。
+ * Reuses the field resolution primitives from sql-generator/shared; only ALTER TABLE
+ * fragment construction is added, leaving the existing full DDL generator untouched.
  *
- * SQLite 的 ALTER 能力有限（仅 ADD COLUMN / DROP COLUMN / RENAME COLUMN / RENAME TO，
- * 且无 schema 前缀、无 USING 子句），修改列属性需重建表，故此处输出提示性注释。
+ * SQLite has limited ALTER support (only ADD COLUMN / DROP COLUMN / RENAME COLUMN / RENAME TO,
+ * with no schema prefix and no USING clause), so changing column attributes requires a table
+ * rebuild; advisory comments are emitted here instead.
  */
 import type { CommonConfig, Field, Index, IndexOverride, Table } from '../../types/schema'
 import type { SqlDialect } from '../../utils/sql-generator/shared'
@@ -31,7 +32,7 @@ import type {
 
 const DIALECTS: SqlDialect[] = ['mysql', 'postgresql', 'sqlite']
 
-/** 标识符引用（按方言） */
+/** Identifier quoting (per dialect) */
 function quoteIdent(dialect: SqlDialect, name: string, commonConfig: CommonConfig | null): string {
   if (dialect === 'mysql') {
     return `\`${name}\``
@@ -48,8 +49,8 @@ function quoteIdent(dialect: SqlDialect, name: string, commonConfig: CommonConfi
 }
 
 /**
- * 表名限定（按方言）。
- * SQLite 无 schema 概念（schema 对应数据库文件），不加 schema 前缀。
+ * Table name qualification (per dialect).
+ * SQLite has no schema concept (a schema maps to a database file), so no schema prefix is added.
  */
 function qualifyTable(
   dialect: SqlDialect,
@@ -61,7 +62,7 @@ function qualifyTable(
   return `${quoteIdent(dialect, schemaName, commonConfig)}.${quoteIdent(dialect, tableName, commonConfig)}`
 }
 
-/** 按方言累积 DDL 片段的容器 */
+/** Container accumulating DDL fragments per dialect */
 type DialectLines = Record<SqlDialect, string[]>
 
 function emptyDialectLines(): DialectLines {
@@ -72,7 +73,7 @@ function emptyDialectLines(): DialectLines {
   }
 }
 
-/** 生成单字段定义片段（用于 ADD COLUMN），返回不含前缀的片段，如 `name VARCHAR(255) NOT NULL` */
+/** Build a single field definition fragment (for ADD COLUMN), returning a prefix-free fragment such as `name VARCHAR(255) NOT NULL` */
 function getFieldDefinition(
   dialect: SqlDialect,
   field: Field,
@@ -107,7 +108,7 @@ function getFieldDefinition(
     }
   }
 
-  // ON UPDATE CURRENT_TIMESTAMP[(n)]（仅 MySQL）
+  // ON UPDATE CURRENT_TIMESTAMP[(n)] (MySQL only)
   if (dialect === 'mysql' && field.on_update_current_timestamp) {
     const precision = field.on_update_current_timestamp_precision
     def += typeof precision === 'number'
@@ -122,7 +123,7 @@ function getFieldDefinition(
   return def
 }
 
-/** 生成单字段的完整 ALTER ADD（含 COMMENT ON 语句，PG 风格） */
+/** Build the full ALTER ADD for a single field (including COMMENT ON, PG style) */
 function buildAddColumn(
   dialect: SqlDialect,
   schemaName: string,
@@ -161,11 +162,11 @@ function buildRenameColumn(
   const qTable = qualifyTable(dialect, schemaName, tableName, commonConfig)
   const qOld = quoteIdent(dialect, oldName, commonConfig)
   const qNew = quoteIdent(dialect, newName, commonConfig)
-  // MySQL 8 / PostgreSQL / SQLite(3.25+) 统一使用 RENAME COLUMN
+  // MySQL 8 / PostgreSQL / SQLite(3.25+) all use RENAME COLUMN
   return `ALTER TABLE ${qTable} RENAME COLUMN ${qOld} TO ${qNew};`
 }
 
-/** 修改字段属性（类型/长度/默认值/非空/注释等） */
+/** Modify field attributes (type/length/default/nullability/comment, etc.) */
 function buildModifyColumn(
   dialect: SqlDialect,
   schemaName: string,
@@ -183,7 +184,7 @@ function buildModifyColumn(
   }
 
   if (dialect === 'postgresql') {
-    // PostgreSQL：类型与约束分开
+    // PostgreSQL: types and constraints are handled separately
     const resolved = resolveFieldTypeForDialect(field, dialect, commonConfig)
     if (resolved.type) {
       let typeStr = resolved.type
@@ -202,7 +203,7 @@ function buildModifyColumn(
   }
 
   if (dialect === 'sqlite') {
-    // SQLite 的 ALTER TABLE 不支持修改列属性，只能「建新表 → 搬数据 → 换名 → 删旧表」
+    // SQLite's ALTER TABLE cannot modify column attributes; only "create new table → copy data → rename → drop old table" works
     const resolved = resolveFieldTypeForDialect(field, dialect, commonConfig)
     let typeStr = resolved.type
     if (typeof resolved.scale === 'number' && typeof resolved.length === 'number') {
@@ -223,7 +224,7 @@ function buildModifyColumn(
   return ''
 }
 
-/** 索引定义片段（按方言） */
+/** Index definition fragment (per dialect) */
 function buildIndexDefinition(
   dialect: SqlDialect,
   schemaName: string,
@@ -243,7 +244,7 @@ function buildIndexDefinition(
   }
   indexName = (indexName ?? '').replace('{pre}', indexType === 'unique' ? 'uk_' : 'idx_').replace('{post}', '') || (indexType === 'unique' ? 'uk_col' : 'idx_col')
 
-  // 逻辑删除感知：MySQL 走函数索引 / 删除列并入索引列，PostgreSQL / SQLite 走部分索引
+  // Logical-delete awareness: MySQL uses functional indexes / folds the delete column into the index columns; PostgreSQL / SQLite use partial indexes
   const logicalDelete = resolveIndexLogicalDelete(index, table, dialect, commonConfig)
   const useMysqlExpression = dialect === 'mysql' && logicalDelete?.mysqlStrategy === 'functional'
   const appendDeleteColumn =
@@ -262,7 +263,7 @@ function buildIndexDefinition(
     return quoteIdent(dialect, name, commonConfig) + sortPart
   }).join(', ')
 
-  // MySQL 无部分索引语法，其余方言在索引定义后追加 WHERE
+  // MySQL has no partial index syntax; the other dialects append WHERE after the index definition
   const whereClause = logicalDelete && dialect !== 'mysql' ? ` WHERE ${logicalDelete.predicate}` : ''
 
   const qIndexName = quoteIdent(dialect, indexName, commonConfig)
@@ -270,17 +271,17 @@ function buildIndexDefinition(
   const keyword = indexType === 'unique' ? 'CREATE UNIQUE INDEX' : 'CREATE INDEX'
 
 
-  // MySQL：USING 作为索引选项位于列列表之后
+  // MySQL: USING is an index option placed after the column list
   if(dialect === 'mysql') {
     const finalIndexUsing = indexUsing ? ` USING ${indexUsing.toUpperCase()}` : ''
     return `${keyword} ${qIndexName} ON ${qTable} (${colList})${finalIndexUsing};`
   }
-  // PostgreSQL：USING 子句位于列列表之前
+  // PostgreSQL: the USING clause comes before the column list
   if (dialect === 'postgresql') {
     const using = indexUsing ? ` USING ${indexUsing.toLowerCase()}` : ''
     return `${keyword} ${qIndexName} ON ${qTable}${using} (${colList})${whereClause};`
   }
-  // SQLite 不支持 USING 子句，索引方法由 SQLite 自行决定
+  // SQLite does not support the USING clause; the index method is left to SQLite
   if (dialect === 'sqlite') {
     return `${keyword} ${qIndexName} ON ${qTable} (${colList})${whereClause};`
   }
@@ -290,8 +291,8 @@ function buildIndexDefinition(
 // ===== diff → DDL =====
 
 /**
- * 根据结构 diff 生成三方言的变更 DDL（auto_diff 部分）。
- * 需要传入「目标结构完整 schema 定义」以拿到字段/索引的完整属性。
+ * Generate change DDL for all three dialects from the structure diff (auto_diff part).
+ * Requires the full target schema definition to obtain complete field/index attributes.
  */
 function generateDiffDdl(
   diff: StructureDiff,
@@ -305,18 +306,18 @@ function generateDiffDdl(
       for (const dialect of DIALECTS) {
         const lines = out[dialect]
         if (td.type === 'table_added' || td.type === 'table_renamed') {
-          // 新增表的完整 CREATE（复用现有生成器更稳妥，但这里仅做 ALTER 体系，新增表用简化 CREATE）
+          // Full CREATE for added tables (reusing the existing generator is safer, but this only covers the ALTER system, so added tables use a simplified CREATE)
           const targetTable = findTargetTable(targetSchemas, sd.schema, td.new_name!)
           if (targetTable && td.type === 'table_added') {
             lines.push(...buildCreateTable(dialect, sd.schema, targetTable, commonConfig))
           }
-          // rename 表名
+          // rename table name
           if (td.type === 'table_renamed' && td.old_name && td.new_name) {
             const qOld = qualifyTable(dialect, sd.schema, td.old_name, commonConfig)
             const qNew = quoteIdent(dialect, td.new_name, commonConfig)
             lines.push(`ALTER TABLE ${qOld} RENAME TO ${qNew};`)
           }
-          // 内部字段/索引变更（rename 场景）
+          // Inner field/index changes (rename case)
           for (const fd of td.fields) lines.push(...buildFieldDdl(dialect, sd.schema, td.new_name!, fd, targetSchemas))
           for (const id of td.indexes) lines.push(...buildIndexDdl(dialect, sd.schema, td.new_name!, id, targetSchemas, commonConfig))
         } else if (td.type === 'table_removed') {
@@ -407,12 +408,12 @@ function buildIndexDdl(
   if (id.type === 'index_removed') {
     const idxName = id.old_name || 'idx_col'
     const qIndexName = quoteIdent(dialect, idxName, null)
-    // MySQL 要求 DROP INDEX ... ON <table>
+    // MySQL requires DROP INDEX ... ON <table>
     if (dialect === 'mysql') {
       const qTable = qualifyTable(dialect, schemaName, tableName, null)
       return [`DROP INDEX ${qIndexName} ON ${qTable};`]
     }
-    // SQLite 的索引名在整个数据库内唯一，DROP INDEX 不带 schema 限定
+    // SQLite index names are unique across the whole database, so DROP INDEX takes no schema qualifier
     if (dialect === 'sqlite') {
       return [`DROP INDEX ${qIndexName};`]
     }
@@ -421,14 +422,14 @@ function buildIndexDdl(
   return []
 }
 
-// ===== 顶层：合并所有步骤 → 最终预览 =====
+// ===== Top level: merge all steps → final preview =====
 
 /**
- * 根据迁移脚本（steps）与目标结构生成最终合并 DDL。
- * @param migration 迁移脚本定义
- * @param diff 已计算的两个版本的结构 diff（供 auto_diff 步骤使用）
- * @param targetSchemas 目标结构完整 schema 定义
- * @param commonConfig 公共配置（用于类型解析、标识符引用）
+ * Generate the final merged DDL from the migration script (steps) and the target structure.
+ * @param migration Migration script definition
+ * @param diff Structure diff between the two versions, already computed (used by the auto_diff step)
+ * @param targetSchemas Full schema definition of the target structure
+ * @param commonConfig Common config (for type resolution and identifier quoting)
  */
 export function generateMigrationDdl(
   migration: Migration,

@@ -10,11 +10,11 @@ import {
 import { writeJsonFile } from '../core/workspace/handles'
 import { sanitizeName } from '../core/workspace/layout'
 
-// ===== Initial Data 文件读写 =====
+// ===== Initial Data file read/write =====
 
 /**
- * 将初始数据写入 current/schemas/<schema>/<table>/initial-data.json
- * v1.1+：永远使用行内结构（rows: [{ data, field_comments?, is_skip?, row_comment? }]）。
+ * Write initial data to current/schemas/<schema>/<table>/initial-data.json
+ * v1.1+: always uses the inline structure (rows: [{ data, field_comments?, is_skip?, row_comment? }]).
  */
 export async function writeInitialDataToNewStructure(
   rootHandle: FileSystemDirectoryHandle,
@@ -28,18 +28,18 @@ export async function writeInitialDataToNewStructure(
   const tableDir = await getTableDirUnderSchema(schemaDir, sanitizeName(tableName))
   const handle = await getInitialDataFileHandle(tableDir)
 
-  // 构建干净的导出对象（行内结构，只写非空字段）
+  // Build a clean export object (inline structure, only non-empty fields)
   const exportData = buildInitialDataExport(data)
 
   await writeJsonFile(handle, exportData)
 }
 
-// ===== Initial Data 文件读取与归一化 =====
+// ===== Initial Data file reading and normalization =====
 
 /**
- * 从 initial-data/ 目录读取所有初始数据文件
- * 向后兼容：旧格式纯数组自动升级为 { rows: [...] }
- * // 以前: 返回 [{ key: "schemaName/tableName", data: [...] }, ...]
+ * Read all initial data files from the initial-data/ directory
+ * Backward compatible: the old plain-array format is automatically upgraded to { rows: [...] }
+ * // Previously: returned [{ key: "schemaName/tableName", data: [...] }, ...]
  */
 export async function readInitialDataFromHandle(
   rootHandle: FileSystemDirectoryHandle
@@ -50,23 +50,23 @@ export async function readInitialDataFromHandle(
   try {
     initialDataHandle = await getInitialDataDir(rootHandle, false)
   } catch {
-    // initial-data/ 目录不存在，返回空
+    // initial-data/ directory does not exist, return empty
     return result
   }
 
-  // 遍历 schema 子目录
+  // Iterate over schema subdirectories
   for await (const schemaEntry of initialDataHandle.values()) {
     const schemaHandle: FileSystemDirectoryHandle | FileSystemFileHandle = schemaEntry
     if (schemaHandle.kind !== 'directory') continue
     const schemaName: string = schemaHandle.name
 
-    // 遍历每个 schema 目录下的 .json 文件
+    // Iterate over the .json files in each schema directory
     for await (const fileEntry of schemaHandle.values()) {
       const fHandle: FileSystemFileHandle | FileSystemDirectoryHandle = fileEntry
       const fName: string = fHandle.name
       if (!fName.endsWith('.json') || fHandle.kind !== 'file') continue
 
-      const tableName = fName.slice(0, -5) // 去掉 .json
+      const tableName = fName.slice(0, -5) // strip .json
       try {
         const file = await fHandle.getFile()
         const parsed = JSON.parse(await file.text())
@@ -87,20 +87,20 @@ export async function readInitialDataFromHandle(
 }
 
 /**
- * 归一化原始 JSON 数据为行内 InitialData 结构（幂等）。
- * 兼容三种输入：
- *   1. 纯数组 [...]          → { rows: [{ data: r }] }
- *   2. 旧「平行数组」对象     → 合并 rows/row_comments/field_comments/skip_rows 为行内
- *   3. 新「行内」对象         → 原样返回（rows 元素带 data）
+ * Normalizes raw JSON data into the inline InitialData structure (idempotent).
+ * Handles three input shapes:
+ *   1. plain array [...]            → { rows: [{ data: r }] }
+ *   2. old "parallel arrays" object → merges rows/row_comments/field_comments/skip_rows into inline rows
+ *   3. new "inline" object          → returned as-is (rows elements carry data)
  */
 export function normalizeInitialData(raw: unknown): InitialData | null {
-  // 纯数组：直接包成行内 rows
+  // Plain array: wrap directly into inline rows
   if (Array.isArray(raw)) {
     return { rows: raw.map((r: unknown) => ({ data: (r ?? {}) as JsonObject })) }
   }
 
   if (raw && typeof raw === 'object') {
-    // 磁盘旧格式按 LegacyInitialData 视图取值，内部逐字段仍做运行时防御
+    // The old on-disk format is read through the LegacyInitialData view, with per-field runtime guards
     const obj = raw as LegacyInitialData
     const result: InitialData = {}
 
@@ -116,9 +116,9 @@ export function normalizeInitialData(raw: unknown): InitialData | null {
 }
 
 /**
- * 将「平行数组」或「已行内化」的 rows 统一合并为行内 InitialDataRow[]（幂等）。
- * - 若 rows 元素已是 { data: ... } 行内格式，原样保留（补齐平行数组中的注释/跳过标记）。
- * - 若 rows 元素是裸数据对象（旧格式），则包成 { data: ... } 并从平行数组读取注释/跳过标记。
+ * Merges "parallel array" or already-inlined rows into inline InitialDataRow[] (idempotent).
+ * - If a rows element is already inline ({ data: ... }), keep it as-is (fill in comments/skip marks from the parallel arrays).
+ * - If a rows element is a bare data object (old format), wrap it as { data: ... } and read comments/skip marks from the parallel arrays.
  */
 function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
   const rows = obj.rows ?? []
@@ -128,7 +128,7 @@ function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
 
   return rows.map((r, i) => {
     const raw = r ?? {}
-    // 已是行内格式（带 data 键）：原样沿用，仅在缺省时从平行数组补齐
+    // Already inline (has a data key): keep as-is, fill from the parallel arrays only when missing
     const isInline = raw.data !== undefined && typeof raw.data === 'object'
     const row: InitialDataRow = isInline
       ? {
@@ -154,7 +154,7 @@ function mergeToInlineRows(obj: LegacyInitialData): InitialDataRow[] {
   })
 }
 
-/** 写出到 initial-data.json 的干净文档（行内结构，只含非空字段）；用 type 别名以便结构式赋值 */
+/** Clean document written to initial-data.json (inline structure, non-empty fields only); a type alias to allow structural assignment */
 type InlineRowExport = {
   data: JsonObject
   field_comments?: Record<string, string>
@@ -170,8 +170,8 @@ type InitialDataExportDocument = {
 }
 
 /**
- * 构建行内 InitialData 的干净导出对象：只写非空字段，保持磁盘文件精简。
- * 每行仅在有值时输出 field_comments / is_skip / row_comment。
+ * Builds a clean export object for inline InitialData: writes only non-empty fields to keep on-disk files lean.
+ * Each row emits field_comments / is_skip / row_comment only when they have values.
  */
 export function buildInitialDataExport(data: InitialData): InitialDataExportDocument {
   const exportData: InitialDataExportDocument = {}

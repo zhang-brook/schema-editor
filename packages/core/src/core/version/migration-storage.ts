@@ -1,7 +1,7 @@
 /**
- * 迁移脚本(migration)磁盘读写层。
+ * Migration on-disk read/write layer.
  *
- * 存储：migrations/<id>.json。
+ * Storage: migrations/<id>.json.
  */
 import {
   getMigrationsDir,
@@ -12,13 +12,13 @@ import type { Migration } from './types'
 
 const MIGRATION_FILE_SUFFIX = '.json'
 
-/** 归一化：兼容早期无 renames 字段的迁移文件 */
+/** Normalize: tolerate early migration files that lack a renames field */
 function normalize(data: Migration): Migration {
   if (!Array.isArray(data.renames)) data.renames = []
   return data
 }
 
-/** 列出所有迁移摘要（按更新时间升序） */
+/** List all migration summaries (ascending by update time) */
 export async function listMigrations(
   rootHandle: FileSystemDirectoryHandle,
 ): Promise<Migration[]> {
@@ -37,7 +37,7 @@ export async function listMigrations(
       if (!data?.id) continue
       result.push(normalize(data))
     } catch {
-      // 损坏跳过
+      // Skip corrupted entries
     }
   }
   result.sort((a, b) => a.updated_at.localeCompare(b.updated_at))
@@ -75,6 +75,6 @@ export async function deleteMigration(
     const dir = await getMigrationsDir(rootHandle, false)
     await removeEntry(dir, `${id}${MIGRATION_FILE_SUFFIX}`)
   } catch {
-    // 已不存在忽略
+    // Ignore if it no longer exists
   }
 }

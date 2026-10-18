@@ -54,7 +54,7 @@ export const useEditorStore = defineStore('editor', () => {
   const selectedTableIdx = ref(-1)
   const expandedFields = reactive(new Set<string>())
   const expandedIndexes = reactive(new Set<string>())
-  // ===== 项目设置（VSCode 风格：左侧 tab 切换） =====
+  // ===== Project settings (VSCode style: left tab switch) =====
   const settingsTab = ref<SettingsTab>('structure')
   const toastMsg = ref('')
   const toastVisible = ref(false)
@@ -71,7 +71,7 @@ export const useEditorStore = defineStore('editor', () => {
   const rootDirHandle = ref<FileSystemDirectoryHandle | null>(null)
   const projectOpened = ref(false)
 
-  // ===== Git 仓库模式：远端分支即数据源，无本地目录句柄 =====
+  // ===== Git repository mode: the remote branch is the data source, no local directory handle =====
   const gitRepo = ref<GitRepoInfo | null>(null)
   const showOpenGitModal = ref(false)
   const commitDialogVisible = ref(false)
@@ -79,11 +79,11 @@ export const useEditorStore = defineStore('editor', () => {
   const commitMessage = ref('')
   let commitResolve: ((confirmed: boolean) => void) | null = null
 
-  // ===== 项目设置：是否在用户打开的文件夹中生成/更新 AI JSON 结构指南 =====
-  // 该设置随项目保存到 common.json（commonConfig.generate_ai_guide），缺省为 false
+  // ===== Project setting: whether to generate/update the AI JSON structure guide in the user-opened folder =====
+  // This setting is saved with the project to common.json (commonConfig.generate_ai_guide), defaults to false
   const generateAiGuide = ref<boolean>(false)
 
-  // ===== 保存：改动经工作区会话增量落盘 =====
+  // ===== Saving: changes are incrementally persisted through the workspace session =====
   const AUTO_SAVE_PREF = 'schema-editor.autosave'
   const AUTO_SYNC_OUTPUTS_PREF = 'schema-editor.autosave-outputs'
 
@@ -99,16 +99,16 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 实时保存项目文件（浏览器本地偏好，默认开启）。关闭后改动只留在内存，等用户点保存。
-   * 派生文件（output/ 下的 SQL）由 autoSyncOutputsEnabled 控制，且依赖本项目文件开关。
+   * Live-save project files (browser-local preference, enabled by default). When off, changes stay in memory until the user saves.
+   * Derived files (SQL under output/) are controlled by autoSyncOutputsEnabled and depend on this project-file switch.
    */
   const autoSaveEnabled = ref(readBoolPref(AUTO_SAVE_PREF, true))
-  /** 变更后同步更新 SQL：未单独设置过时跟随「实时保存」，项目文件开关关闭时恒为关闭 */
+  /** Sync SQL after changes: follows "live save" until set separately; always off when the project-file switch is off */
   const autoSyncOutputsEnabled = ref(autoSaveEnabled.value && readBoolPref(AUTO_SYNC_OUTPUTS_PREF, autoSaveEnabled.value))
   const saveState = ref<SaveState>({ dirty: false, saving: false, error: null, pendingFiles: 0 })
   const hasUnsavedChanges = computed(() => saveState.value.dirty)
   let session: WorkspaceSession | null = null
-  /** 最近一次保存是否真正产生了提交（Git 模式），供保存反馈选择文案 */
+  /** Whether the last save actually produced a commit (Git mode); used to pick the save feedback message */
   let lastSaveCommitted = false
 
   // ===== Versions / Migrations =====
@@ -116,25 +116,25 @@ export const useEditorStore = defineStore('editor', () => {
   const hasVersions = computed(() => versions.value.length > 0)
   const migrations = ref<Migration[]>([])
   const environments = ref<Environment[]>([])
-  /** 版本链：按父子关系串成的时间轴，并标注相邻版本之间缺失的迁移 */
+  /** Version chain: a timeline linked by parent-child relations, marking migrations missing between adjacent versions */
   const versionChain = computed(() => buildVersionChain(versions.value, migrations.value))
 
-  // 版本预览状态
+  // Version preview state
   const selectedVersionSnapshot = ref<VersionSnapshot | null>(null)
   const versionPreviewLoading = ref(false)
 
-  // Initial Data —— 独立存储在 initial-data/<schema>/<table>.json
+  // Initial Data -- stored separately in initial-data/<schema>/<table>.json
   const initialDataMap = reactive(new Map<string, InitialData>())
   const initialDataDeletedKeys = reactive(new Set<string>())
 
-  // ===== Undo/Redo (命令模式) =====
+  // ===== Undo/Redo (command pattern) =====
   const history = new CommandManager()
   const canUndo = ref(false)
   const canRedo = ref(false)
   const undoLabel = ref<string | null>(null)
   const redoLabel = ref<string | null>(null)
 
-  /** 同步 undo/redo 可用态到 UI */
+  /** Sync undo/redo availability to the UI */
   function refreshHistoryFlags() {
     canUndo.value = history.canUndo
     canRedo.value = history.canRedo
@@ -152,7 +152,7 @@ export const useEditorStore = defineStore('editor', () => {
   const importSqlTargetSchemaIdx = ref(-1)
   const importSqlNewSchemaName = ref('')
   const importSqlDetectedSchema = ref<string | null>(null)
-  /** 用户修改后的表名，key 为 parsedTables 中的索引 */
+  /** Table names edited by the user; the key is the index in parsedTables */
   const importSqlTableNameEdits = reactive<Record<number, string>>({})
 
   // ===== Computed =====
@@ -189,11 +189,11 @@ export const useEditorStore = defineStore('editor', () => {
     return map
   })
 
-  // ===== 项目信息（common.json）：名称展示在网页标题与顶部菜单栏 =====
+  // ===== Project info (common.json): the name is shown in the page title and the top menu bar =====
   const projectName = computed(() => commonConfig.value?.project_name ?? '')
   const projectDescription = computed(() => commonConfig.value?.project_description ?? '')
 
-  // 菜单栏标题点击后的一次性请求：打开「项目设置 → 项目信息」
+  // One-shot request when the menu bar title is clicked: open "Project settings -> Project info"
   const projectInfoTabRequest = ref(false)
 
   function openProjectInfoSettings() {
@@ -201,16 +201,16 @@ export const useEditorStore = defineStore('editor', () => {
     projectInfoTabRequest.value = true
   }
 
-  /** 读取并清除一次性请求；ProjectConfigPage 挂载时调用，未请求则回退到「全局配置」 */
+  /** Read and clear the one-shot request; called when ProjectConfigPage mounts, falls back to "global config" when not requested */
   function consumeProjectInfoTabRequest(): boolean {
     if (!projectInfoTabRequest.value) return false
     projectInfoTabRequest.value = false
     return true
   }
 
-  // ===== 启用的 SQL 方言（项目级，存于 common.json.enabled_dialects） =====
+  // ===== Enabled SQL dialects (project level, stored in common.json.enabled_dialects) =====
 
-  /** 当前启用且受支持的方言（按支持顺序）；未配置或为空时视为全部启用 */
+  /** Currently enabled and supported dialects (in supported order); unset or empty means all enabled */
   const enabledDialects = computed<SqlDialect[]>(() => {
     const list = commonConfig.value?.enabled_dialects
     if (!list || list.length === 0) return [...ALL_SQL_DIALECTS]
@@ -222,8 +222,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 切换方言启用状态：写入 common.json 并声明受影响文件。
-   * 取消勾选会删除 output/ 下该方言已生成的 SQL（json 中的方言配置保留）；至少保留一种方言。
+   * Toggle a dialect: write it to common.json and declare the affected files.
+   * Unchecking deletes the generated SQL for that dialect under output/ (the dialect config in json is kept); at least one dialect must remain.
    */
   function setDialectEnabled(dialect: SqlDialect, enabled: boolean) {
     if (!commonConfig.value) return
@@ -255,9 +255,9 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== Open Project Folder =====
 
-  /** 升级确认弹窗状态（打开旧结构项目时由用户手动触发迁移） */
+  /** Upgrade confirmation dialog state (migration is triggered manually by the user when opening a legacy-structure project) */
   const pendingUpgradeRootHandle = ref<FileSystemDirectoryHandle | null>(null)
-  /** 全局加载遮罩：升级旧结构 / 打开项目加载期间展示，全局唯一实例 */
+  /** Global loading overlay: shown while upgrading a legacy structure / opening a project; a single global instance */
   const overlayVisible = ref(false)
   const overlayText = ref('')
 
@@ -266,13 +266,13 @@ export const useEditorStore = defineStore('editor', () => {
     overlayVisible.value = true
   }
 
-  /** 需要在等待用户决策前撤下遮罩（遮罩语义是「加载中」），故单独抽出 */
+  /** The overlay must be removed before waiting for user decisions (it means "loading"), hence a separate helper */
   function hideOverlay() {
     overlayVisible.value = false
     overlayText.value = ''
   }
 
-  /** 选择项目文件夹并加载内容，之后按自动保存设置增量落盘 */
+  /** Pick a project folder and load its content, then persist incrementally per the auto-save setting */
   async function openProject() {
     if (!isFileSystemAccessSupported()) {
       // showToast(t('toast.browserNotSupported'))
@@ -291,7 +291,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 接收拖入的文件夹 handle 直接打开项目（跳过目录选择器） */
+  /** Open a project directly from a dropped folder handle (skipping the directory picker) */
   async function openProjectFromHandle(handle: FileSystemDirectoryHandle) {
     if (!isFileSystemAccessSupported()) {
       await alertDialog({ title: t('alertTitle'), message: t('toast.browserNotSupported') })
@@ -309,7 +309,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 统一打开入口：检测新/旧结构，新结构直接加载，旧结构弹升级窗 */
+  /** Unified open entry: detect new/legacy structure; load the new one directly, show the upgrade dialog for the legacy one */
   async function _openRootHandle(rootHandle: FileSystemDirectoryHandle) {
     rootDirHandle.value = rootHandle
 
@@ -319,7 +319,7 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
 
-    // 空文件夹：视作全新项目，直接以新结构初始化（写入默认 common.json），不提示升级
+    // Empty folder: treat as a brand-new project, initialize with the new structure (write default common.json), no upgrade prompt
     if (await isEmptyFolder(rootHandle)) {
       const writer = new BrowserWorkspaceWriter(rootHandle)
       await writer.save([{ path: COMMON_FILE, content: jsonContent(createDefaultCommonConfig()) }])
@@ -327,8 +327,8 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
 
-    // 旧结构：弹升级确认窗，未确认不加载（也不允许编辑）
-    // 先撤下「正在打开项目」遮罩：等待用户决策不算加载中，且遮罩会压住确认弹窗
+    // Legacy structure: show the upgrade confirmation dialog; do not load (or allow editing) without confirmation
+    // Remove the "opening project" overlay first: waiting for the user is not loading, and the overlay would cover the confirmation dialog
     hideOverlay()
     pendingUpgradeRootHandle.value = rootHandle
     const upgraded = await confirmDialog({
@@ -344,7 +344,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 用户确认升级：迁移旧结构到新结构，然后加载 */
+  /** User confirmed the upgrade: migrate the legacy structure to the new one, then load */
   async function confirmUpgradeStructure() {
     const rootHandle = pendingUpgradeRootHandle.value
     if (!rootHandle) return
@@ -360,21 +360,21 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 取消升级：关闭项目，返回空状态（不再保留旧结构打开态，不弹关闭提示） */
+  /** Upgrade cancelled: close the project and return to the empty state (keep no legacy open state, no close toast) */
   function cancelUpgradeStructure() {
     pendingUpgradeRootHandle.value = null
     void closeProject(true)
   }
 
-  // ===== Git 仓库数据源 =====
+  // ===== Git repository data source =====
 
-  /** 打开「打开 Git 仓库」弹窗 */
+  /** Open the "Open Git repository" dialog */
   function openGitRepoModal() {
     if (projectOpened.value) return
     showOpenGitModal.value = true
   }
 
-  /** 把加载期的异常统一映射为带 code 的仓库错误（网络失败、文档缺失等） */
+  /** Map load-time exceptions to repository errors with a code (network failure, missing documents, etc.) */
   function _asRepoError(error: unknown): GitRepoError {
     if (error instanceof GitRepoError) return error
     if (error instanceof TypeError) return new GitRepoError('network', error.message, error)
@@ -382,8 +382,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 连接 Git 仓库并挂载为当前项目：解析地址 → 解析默认分支 → 建立文件快照 → 加载文档。
-   * 失败抛 GitRepoError，由弹窗按 code 展示错误文案；返回 false 表示版本检查未通过。
+   * Connect a Git repository and mount it as the current project: parse URL -> resolve default branch -> build file snapshot -> load documents.
+   * Throws GitRepoError on failure; the dialog shows the error message by code. Returns false when the version check fails.
    */
   async function openGitRepository(input: { url: string; branch: string; subdir: string; token: string; remember: boolean }): Promise<boolean> {
     if (projectOpened.value && !(await confirmLeaveUnsaved())) return false
@@ -409,7 +409,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** Git 模式重新加载：从远端重新拉取分支快照（未保存改动先经离开保护） */
+  /** Git-mode reload: re-fetch the branch snapshot from the remote (unsaved changes go through the leave guard first) */
   async function _reloadGitRepo() {
     const current = gitRepo.value
     if (!current) return
@@ -435,7 +435,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 提交弹窗：展示待提交文件并等待用户确认提交信息 */
+  /** Commit dialog: show the files to commit and wait for the user to confirm the commit message */
   function requestCommitMessage(staged: StagedChange[]): Promise<boolean> {
     commitPendingChanges.value = staged
     commitMessage.value = t('commitDialog.defaultMessage', { n: staged.length })
@@ -443,14 +443,14 @@ export const useEditorStore = defineStore('editor', () => {
     return new Promise(resolve => { commitResolve = resolve })
   }
 
-  /** 提交弹窗：确认（信息为空时回退默认文案） */
+  /** Commit dialog: confirm (falls back to the default message when empty) */
   function confirmCommit() {
     const count = commitPendingChanges.value.length
     session?.setCommitMessage(commitMessage.value.trim() || t('commitDialog.defaultMessage', { n: count }))
     _closeCommitDialog(true)
   }
 
-  /** 提交弹窗：取消本次提交 */
+  /** Commit dialog: cancel this commit */
   function cancelCommit() {
     _closeCommitDialog(false)
   }
@@ -465,7 +465,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== Close Project =====
 
-  /** 关闭当前项目文件夹，清空所有编辑状态。silent=true 时不弹「项目已关闭」提示（如取消升级场景） */
+  /** Close the current project folder and clear all editing state. With silent=true no "project closed" toast is shown (e.g. when cancelling an upgrade) */
   async function closeProject(silent = false) {
     _stopFileObserver()
     const closing = session
@@ -479,7 +479,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (!silent) showToast(t('toast.projectClosed'))
   }
 
-  /** 换项目或关闭时丢弃当前内存态；调用前必须已确认未保存改动 */
+  /** Discard the current in-memory state when switching or closing projects; unsaved changes must be confirmed beforehand */
   function _resetMemory() {
     commonConfig.value = null
     generateAiGuide.value = false
@@ -534,10 +534,10 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Load Project (current/) =====
 
   /**
-   * 加载并挂载工作区（本地文件夹与 Git 仓库共用）：
-   * 一次性读出 common.json / database.json / 各 schema、table、initial-data 文档，
-   * 用读到的原文建立保存基线，之后由工作区会话只写真正变化的文件。
-   * 返回 false 表示版本检查未通过。
+   * Load and mount a workspace (shared by local folders and Git repositories):
+   * read common.json / database.json / all schema, table and initial-data documents at once,
+   * use the text read as the save baseline so the workspace session only writes files that actually changed.
+   * Returns false when the version check fails.
    */
   async function _mountWorkspace(writer: SessionWriter, source: 'folder' | 'git'): Promise<boolean> {
     const { project, files } = await loadWorkspaceDocuments(writer)
@@ -548,7 +548,7 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
     if (versionResult.needsUpgrade) {
-      // 旧结构升级仅支持本地文件夹（升级器依赖目录句柄）；Git 模式只能提示
+      // Legacy upgrade is only supported for local folders (the upgrader needs a directory handle); in Git mode only notify
       if (source === 'git') await alertDialog({ title: t('alertTitle'), message: t('gitRepo.upgradeUnsupported') })
       return false
     }
@@ -563,7 +563,7 @@ export const useEditorStore = defineStore('editor', () => {
     for (const [key, data] of project.initialData) initialDataMap.set(key, data)
     generateAiGuide.value = loadGenerateAiGuide(commonConfig.value)
 
-    // 自动选中第一个 schema
+    // Auto-select the first schema
     if (schemas.length > 0) {
       selectedSchemaIdx.value = 0
       selectedTableIdx.value = schemas[0]!.tables.length > 0 ? 0 : -1
@@ -577,10 +577,10 @@ export const useEditorStore = defineStore('editor', () => {
       autoSave: { docs: autoSaveEnabled.value, outputs: autoSyncOutputsEnabled.value },
       onStateChange: state => { saveState.value = state },
     })
-    // 新会话只在首次变更时上报状态，这里先对齐一次，避免残留上一个项目的保存失败标记
+    // A new session reports state only on the first change; align once here to avoid a stale save-error flag from the previous project
     saveState.value = session.coordinator.state
 
-    // 加载版本/迁移列表（只读元数据，不加载完整快照）
+    // Load version/migration lists (metadata only, no full snapshots)
     await loadVersionsAndMigrations()
     const parts: string[] = []
     if (schemas.length > 0) parts.push(`${schemas.length} schema(s)`)
@@ -589,7 +589,7 @@ export const useEditorStore = defineStore('editor', () => {
     return true
   }
 
-  /** 打开本地文件夹：挂载后启动文件监听（Git 模式无本地文件可监听） */
+  /** Open a local folder: start file observation after mounting (Git mode has no local files to observe) */
   async function _loadNewStructure(rootHandle: FileSystemDirectoryHandle): Promise<boolean> {
     const ok = await _mountWorkspace(new BrowserWorkspaceWriter(rootHandle), 'folder')
     if (ok) await _startFileObserver()
@@ -597,11 +597,11 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 旧结构项目升级：读旧盘 → 经升级器处理 → 写新结构 → 清理已迁移的旧文件 → 加载新结构。
-   * 升级后不允许回退旧结构（新结构新增字段回退会丢失），迁移脚本内部会清理对应的旧文件。
+   * Legacy project upgrade: read old disk -> run the upgrader -> write the new structure -> clean up migrated old files -> load the new structure.
+   * No rollback to the legacy structure is allowed after upgrading (fields added by the new structure would be lost); the migration scripts clean up the corresponding old files.
    */
   async function _migrateAndLoad(rootHandle: FileSystemDirectoryHandle): Promise<void> {
-    // 读取根 common.json 用于版本判定
+    // Read the root common.json for the version check
     let oldCommon: CommonConfig | null = null
     try {
       const commonText = await new BrowserWorkspaceWriter(rootHandle).read(COMMON_FILE)
@@ -616,14 +616,14 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
     if (!versionResult.needsUpgrade) {
-      // 无需升级（理论不会走到这里，因为 _openRootHandle 已按版本分流）
+      // No upgrade needed (should not happen in theory, since _openRootHandle already routes by version)
       await _loadNewStructure(rootHandle)
       return
     }
 
     console.log('[migrateAndLoad] upgrading structure', versionResult.fromVersion, '→', CURRENT_STRUCT_VERSION)
 
-    // 按注册表逐版本执行结构迁移（落后者会依次跑 1.0→1.1、1.1→1.2……）
+    // Run structure migrations version by version from the registry (laggards run 1.0->1.1, 1.1->1.2, ... in order)
     await runStructureMigrations(
       rootHandle,
       versionResult.fromVersion!,
@@ -641,7 +641,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   // ===== Reload from Disk =====
 
-  /** 用户入口：放弃网页中的编辑，从数据源重新读取所有数据（未保存改动先经离开保护） */
+  /** User entry: discard edits in the page and reload all data from the data source (unsaved changes go through the leave guard first) */
   async function reloadFromDisk() {
     if (gitRepo.value) {
       if (!(await confirmLeaveUnsaved())) return
@@ -668,9 +668,9 @@ export const useEditorStore = defineStore('editor', () => {
       await closing?.coordinator.dispose()
       const ok = await _loadNewStructure(rootH)
       if (!ok) {
-        // 版本不匹配（磁盘结构版本高于/低于当前编辑器支持版本）：
-        // 重新加载本质等价于「关闭项目后重新打开」，因此关闭后重新走打开流程，
-        // 由 _openRootHandle 自然分流——旧结构弹升级窗、版本过高则提示升级编辑器。
+        // Version mismatch (disk structure version is newer/older than this editor supports):
+        // reloading is equivalent to "close the project and open it again", so close and re-run the open flow,
+        // letting _openRootHandle route naturally: legacy structure shows the upgrade dialog, too-new shows an editor upgrade hint.
         await closeProject(true)
         await _openRootHandle(rootH)
         return
@@ -689,7 +689,7 @@ export const useEditorStore = defineStore('editor', () => {
   let _observerSetup = false
   let _popupDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  /** 启动 FileSystemObserver 监听根目录文件变化 */
+  /** Start FileSystemObserver to watch for file changes in the root directory */
   async function _startFileObserver() {
     if (_observerSetup) return
     _observerSetup = true
@@ -703,20 +703,20 @@ export const useEditorStore = defineStore('editor', () => {
       _fileObserver = new FileSystemObserver((records) => {
         if (_reloading || !projectOpened.value || !session) return
 
-        // 只关注 common.json 与 current/ 下的源文档，忽略 output/ 等派生文件
+        // Only care about common.json and source documents under current/; ignore derived files such as output/
         const paths = [...new Set(records.map(r => r.relativePathComponents.join('/')))]
           .filter(path => path === COMMON_FILE || path.startsWith(`${CURRENT_DIR}/`))
         if (paths.length === 0) return
-        // 自身写入尚未结束时忽略：写完后的内容与基线一致，不构成外部改动
+        // Ignore while our own write is in flight: the written content matches the baseline, so it is not an external change
         if (session.coordinator.state.saving) return
         console.log('[FileSystemObserver] relevant changes:', paths.join(', '))
 
-        // 防抖：同一次外部修改可能触发多次回调，只弹一次窗
+        // Debounce: one external edit may fire multiple callbacks; show the dialog only once
         if (_popupDebounceTimer) clearTimeout(_popupDebounceTimer)
         _popupDebounceTimer = setTimeout(() => { void _handleExternalChanges(paths) }, 400)
       })
 
-      // recursive: true 确保监听 schemas/ 等子目录下的文件变更
+      // recursive: true ensures changes in subdirectories such as schemas/ are observed
       await _fileObserver.observe(rootDirHandle.value, { recursive: true })
       console.log('[FileSystemObserver] now observing root directory (recursive)')
     } catch (e) {
@@ -725,7 +725,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 比对磁盘内容与保存基线，确认确有外部改动后再提示重新加载 */
+  /** Compare disk content with the save baseline and prompt to reload only when an external change is confirmed */
   async function _handleExternalChanges(paths: string[]) {
     const current = session
     if (_reloading || !projectOpened.value || !current) return
@@ -733,7 +733,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (!(await current.hasExternalChanges(paths))) return
 
     if (hasUnsavedChanges.value) {
-      // 磁盘和内存同时有改动：先决定内存改动是否保留，再重新加载
+      // Changes on disk and in memory: decide whether to keep the in-memory changes first, then reload
       if (!(await confirmLeaveUnsaved())) return
       await _reloadFromDisk()
       return
@@ -747,7 +747,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (ok) await _reloadFromDisk()
   }
 
-  /** 停止 FileSystemObserver */
+  /** Stop FileSystemObserver */
   function _stopFileObserver() {
     if (_fileObserver) {
       _fileObserver.disconnect()
@@ -760,18 +760,18 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  // ===== Undo/Redo 接入 =====
+  // ===== Undo/Redo wiring =====
 
-  /** 命令执行/撤销/重做后声明受影响文件，由工作区会话按需落盘 */
+  /** Declare affected files after command execute/undo/redo; the workspace session persists them on demand */
   history.setPersistHook((files) => { markChanged(files) })
 
-  /** 经命令管理器执行一个命令（apply + 入栈 + 按需写盘） */
+  /** Execute a command through the command manager (apply + push to stack + persist on demand) */
   function executeCommand(cmd: Command) {
     history.execute(cmd)
     refreshHistoryFlags()
   }
 
-  /** 撤销 */
+  /** Undo */
   function undo() {
     if (!history.canUndo) return
     history.undo()
@@ -779,7 +779,7 @@ export const useEditorStore = defineStore('editor', () => {
     showToast(t('toast.undo'))
   }
 
-  /** 重做 */
+  /** Redo */
   function redo() {
     if (!history.canRedo) return
     history.redo()
@@ -790,17 +790,17 @@ export const useEditorStore = defineStore('editor', () => {
   // ===== Save =====
 
   /**
-   * 声明本次改动涉及的文件集合，交由工作区会话增量落盘。
-   * 自动保存开启时协调器防抖后只写这些文件（及其派生 SQL）；关闭时仅标记为未保存。
+   * Declare the set of files touched by this change; the workspace session persists them incrementally.
+   * With auto-save on, the coordinator writes only these files (and their derived SQL) after debouncing; with it off, they are only marked unsaved.
    */
   function markChanged(files: AffectedFile[]) {
     session?.changed(files)
   }
 
   /**
-   * 手动保存：整批写出内存里的项目文档，并重建全部派生文件（output/ 下的 SQL、AI 指南）。
-   * 因此即使当前没有改动也可以保存——磁盘上的派生文件被外部删除后，靠它恢复。
-   * Git 模式先弹提交弹窗收集提交信息，确认后连同全部改动提交一次。
+   * Manual save: write the in-memory project documents as a batch and rebuild every derived file (SQL under output/, AI guide).
+   * So saving works even with no pending changes: it restores derived files that were deleted externally from disk.
+   * In Git mode, first show the commit dialog to collect the commit message, then commit all changes at once after confirmation.
    */
   async function saveProject() {
     lastSaveCommitted = false
@@ -823,7 +823,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 点击保存按钮：保存完成后提示结果（失败或取消时 saveProject 已提示，且未保存态保持不变） */
+  /** Save button click: report the result after saving (on failure/cancel saveProject already reported and the unsaved state is unchanged) */
   async function saveProjectWithFeedback() {
     if (!session) return
     await saveProject()
@@ -835,7 +835,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  /** 只改状态与偏好，不触碰会话；供两个开关互相连带时复用 */
+  /** Only change state and preference, without touching the session; reused when the two switches affect each other */
   function writeAutoSavePref(enabled: boolean) {
     autoSaveEnabled.value = enabled
     writeBoolPref(AUTO_SAVE_PREF, enabled)
@@ -846,14 +846,14 @@ export const useEditorStore = defineStore('editor', () => {
     writeBoolPref(AUTO_SYNC_OUTPUTS_PREF, enabled)
   }
 
-  /** 切换「实时保存项目文件」：派生文件依赖它，关闭时连带关闭「同步 SQL」 */
+  /** Toggle "live-save project files": derived files depend on it, so turning it off also turns off "sync SQL" */
   function setAutoSave(enabled: boolean) {
     writeAutoSavePref(enabled)
     if (!enabled) writeAutoSyncOutputsPref(false)
     session?.coordinator.setAutoSave({ docs: enabled })
   }
 
-  /** 切换「变更后同步更新 SQL」：只覆盖 output/ 下的派生文件，开启时连带开启项目文件保存 */
+  /** Toggle "sync SQL after changes": covers only derived files under output/, and turning it on also turns on project-file saving */
   function setAutoSyncOutputs(enabled: boolean) {
     writeAutoSyncOutputsPref(enabled)
     if (enabled) writeAutoSavePref(true)
@@ -861,8 +861,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   /**
-   * 离开保护：有未保存改动时询问「保存 / 不保存 / 取消」。
-   * 返回 false 表示用户取消或保存失败，调用方（关闭项目、换目录、重新加载）应中止。
+   * Leave guard: with unsaved changes, ask "save / discard / cancel".
+   * Returns false when the user cancels or saving fails; callers (close project, switch folder, reload) should abort.
    */
   async function confirmLeaveUnsaved(): Promise<boolean> {
     if (!hasUnsavedChanges.value) return true
@@ -879,14 +879,14 @@ export const useEditorStore = defineStore('editor', () => {
     return !hasUnsavedChanges.value
   }
 
-  /** 用户入口：关闭项目前先处理未保存改动；返回 false 表示用户取消 */
+  /** User entry: handle unsaved changes before closing the project; returns false when the user cancels */
   async function requestCloseProject(silent = false): Promise<boolean> {
     if (!(await confirmLeaveUnsaved())) return false
     await closeProject(silent)
     return true
   }
 
-  /** 切换「是否生成 AI 指南」开关：写入 common.json，指南文件随本次改动生成或删除 */
+  /** Toggle "generate AI guide": writes to common.json; the guide file is created or deleted with this change */
   function setGenerateAiGuide(enabled: boolean) {
     generateAiGuide.value = enabled
     saveGenerateAiGuide(commonConfig.value, enabled)
@@ -1132,7 +1132,7 @@ export const useEditorStore = defineStore('editor', () => {
     currentInitialDataKey,
     currentInitialData,
 
-    // 启用的 SQL 方言
+    // Enabled SQL dialects
     enabledDialects,
     isDialectEnabled,
     setDialectEnabled,
@@ -1153,7 +1153,7 @@ export const useEditorStore = defineStore('editor', () => {
     confirmUpgradeStructure,
     cancelUpgradeStructure,
 
-    // Git 仓库数据源
+    // Git repository data source
     gitRepo,
     openGitRepoModal,
     showOpenGitModal,
@@ -1164,7 +1164,7 @@ export const useEditorStore = defineStore('editor', () => {
     confirmCommit,
     cancelCommit,
 
-    // 保存：项目文件 / 派生 SQL 两个独立开关、未保存态与手动全量保存
+    // Saving: two independent switches for project files / derived SQL, unsaved state and manual full save
     autoSaveEnabled,
     setAutoSave,
     autoSyncOutputsEnabled,
@@ -1276,7 +1276,7 @@ export const useEditorStore = defineStore('editor', () => {
     setTableMysqlCharset,
     setTableMysqlCollation,
 
-    // Table Partition（按方言）
+    // Table Partition (per dialect)
     getTablePartition,
     setTablePartition,
 

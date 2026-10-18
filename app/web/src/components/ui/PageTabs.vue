@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends string">
-/** 页面级 tab：下划线指示当前页，用于同层级的页内切换 */
+/** Page-level tabs: the underline marks the current page, used for in-page switching between sibling views */
 defineProps<{
   modelValue: T
   options: { value: T; label: string }[]

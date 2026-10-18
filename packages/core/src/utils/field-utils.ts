@@ -1,14 +1,16 @@
 import type { Field } from '../types/schema'
 
 /**
- * 落盘前剔除字段上「无意义」的度量属性（field_length / field_scale）。
+ * Strips meaningless metric attributes (field_length / field_scale) from a field before persisting.
  *
- * 两类情况都视为噪音、导出时直接省略（返回新对象，不修改入参）：
- * 1. 被禁用：field_length_disabled=true 时长度已完全不参与 SQL 生成（生成链最后一步强制置 null），
- *    保留数值只会让读 JSON 的人/AI 误以为字段仍有长度。
- * 2. 被清空为 null：用户清空输入框后 parseFieldLengthInput 返回 null，而 SQL 生成侧以
- *    `!= null` / `?? null` 处理，null 与「未设置」完全等价，落盘写 "x": null 纯属冗余。
- * field_scale 同理。无改动时原样返回。
+ * Both cases count as noise and are omitted on export (returns a new object, does not mutate the input):
+ * 1. Disabled: when field_length_disabled=true the length no longer participates in SQL generation at all
+ *    (the last step of the generation chain forces it to null), so keeping the value only makes
+ *    humans/AI reading the JSON think the field still has a length.
+ * 2. Cleared to null: after the user empties the input, parseFieldLengthInput returns null, and the SQL
+ *    generation side handles it with `!= null` / `?? null`, so null is fully equivalent to "not set" and
+ *    writing "x": null to disk is pure redundancy.
+ * Same for field_scale. Returns the original when nothing changes.
  */
 export function stripDisabledFieldMetrics(field: Field): Field {
   const dropLength = field.field_length_disabled || field.field_length === null

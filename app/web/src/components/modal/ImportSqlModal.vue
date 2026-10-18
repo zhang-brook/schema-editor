@@ -6,7 +6,7 @@ import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
 const store = useEditorStore()
 
-// 行号
+// Line numbers
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const lineNumbersRef = ref<HTMLElement | null>(null)
 
@@ -22,7 +22,7 @@ function syncLineNumbersScroll() {
   }
 }
 
-// 防抖解析
+// Debounced parsing
 let parseTimer: ReturnType<typeof setTimeout> | null = null
 watch(
   () => store.importSqlText,
@@ -32,7 +32,7 @@ watch(
   },
 )
 
-// 预览摘要
+// Preview summary
 const parsedSummary = computed(() => {
   const tables = store.importSqlParsedTables
   if (tables.length === 0) return null
@@ -41,17 +41,17 @@ const parsedSummary = computed(() => {
   return { tableCount: tables.length, fieldCount: totalFields, constraintCount: totalConstraints }
 })
 
-// 目标 schema 已就绪、导入按钮可用时才允许回车确认
+// Allow Enter to confirm only when the target schema is ready and the import button is enabled
 const canImport = computed(() =>
   !!parsedSummary.value && (store.importSqlTargetMode !== 'existing' || store.importSqlTargetSchemaIdx >= 0),
 )
 
-// Schema 列表（用于目标选择）
+// Schema list (used for target selection)
 const schemaOptions = computed(() => {
   return store.schemas.map((s, i) => ({ name: s.schema, index: i }))
 })
 
-// 展开/折叠表预览
+// Expand/collapse table preview
 const expandedTables = ref(new Set<number>())
 function toggleTableExpand(idx: number) {
   if (expandedTables.value.has(idx)) {
@@ -61,7 +61,7 @@ function toggleTableExpand(idx: number) {
   }
 }
 
-// 方言选项
+// Dialect options
 const dialectOptions = [
   { value: 'auto' as const, label: 'auto' },
   { value: 'mysql' as const, label: 'MySQL' },
@@ -69,7 +69,7 @@ const dialectOptions = [
   { value: 'sqlite' as const, label: 'SQLite' },
 ]
 
-// 格式化列类型显示
+// Format column type for display
 function formatColType(col: import('schema-editor-core/utils/sql-parser').ParsedColumn): string {
   let display = col.rawType
   if (col.length != null) {
@@ -99,11 +99,11 @@ function formatConstraintType(type: string): string {
   return map[type] || type
 }
 
-// 错误和警告分类
+// Categorize errors and warnings
 const errors = computed(() => store.importSqlErrors.filter(e => e.type === 'error'))
 const warnings = computed(() => store.importSqlErrors.filter(e => e.type === 'warning'))
 
-// SQL 中检测到的 schema 提示
+// Hint for the schema detected in the SQL
 const detectedSchemaHint = computed(() => {
   const schema = store.importSqlDetectedSchema
   if (!schema) return null
@@ -111,14 +111,14 @@ const detectedSchemaHint = computed(() => {
   return { schema, matched }
 })
 
-/** 获取第 idx 个解析表的有效显示表名（编辑名或原始解析名） */
+/** Get the effective display name of the parsed table at idx (edited name or original parsed name) */
 function getEffectiveTableName(idx: number): string {
   const edited = store.importSqlTableNameEdits[idx]
   if (edited !== undefined && edited.trim()) return edited.trim()
   return store.importSqlParsedTables[idx]?.name ?? ''
 }
 
-/** 处理用户编辑表名 */
+/** Handle user edits to the table name */
 function onTableNameEdit(idx: number, val: string) {
   const trimmed = val.trim()
   const originalName = store.importSqlParsedTables[idx]?.name ?? ''
@@ -129,10 +129,10 @@ function onTableNameEdit(idx: number, val: string) {
   }
 }
 
-// ESC 关闭弹窗
+// ESC closes the modal
 useEscClose(computed(() => store.showImportSqlModal), () => { store.showImportSqlModal = false })
 
-// ENTER 导入：焦点落在 SQL 文本域内时用 Ctrl/Cmd + ENTER（避免与换行冲突）
+// ENTER to import: use Ctrl/Cmd + ENTER when focus is in the SQL textarea (avoids conflict with newline)
 useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   if (canImport.value) store.confirmImportSql()
 }, textareaRef)
@@ -146,7 +146,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
         <button class="modal-close-btn" @click="store.showImportSqlModal = false">&times;</button>
       </div>
 
-      <!-- 方言选择 -->
+      <!-- Dialect selection -->
       <div class="form-group">
         <label class="form-label">{{ $t('importSqlModal.dialect') }}</label>
         <div class="radio-group">
@@ -162,7 +162,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
         </div>
       </div>
 
-      <!-- SQL 输入区 -->
+      <!-- SQL input area -->
       <div class="form-group">
         <label class="form-label">{{ $t('importSqlModal.sqlInput') }}</label>
         <div class="sql-input-container">
@@ -180,21 +180,21 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
         </div>
       </div>
 
-      <!-- 解析错误 -->
+      <!-- Parse errors -->
       <div v-if="errors.length > 0" class="parse-errors">
         <div v-for="(err, i) in errors" :key="'err-' + i" class="parse-msg parse-msg-error">
           <span v-if="err.line > 0">L{{ err.line }}: </span>{{ err.message }}
         </div>
       </div>
 
-      <!-- 解析警告 -->
+      <!-- Parse warnings -->
       <div v-if="warnings.length > 0" class="parse-warnings">
         <div v-for="(warn, i) in warnings" :key="'warn-' + i" class="parse-msg parse-msg-warning">
           <span v-if="warn.line > 0">L{{ warn.line }}: </span>{{ warn.message }}
         </div>
       </div>
 
-      <!-- 解析结果预览 -->
+      <!-- Parsed result preview -->
       <div v-if="parsedSummary" class="preview-section">
         <div class="preview-header">
           <span class="preview-title">{{ $t('importSqlModal.parsedTables') }}</span>
@@ -232,7 +232,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
               </span>
             </div>
             <div v-if="expandedTables.has(ti)" class="table-card-body">
-              <!-- 字段列表 -->
+              <!-- Column list -->
               <table v-if="table.columns.length > 0" class="preview-table">
                 <thead>
                   <tr>
@@ -252,7 +252,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
                 </tbody>
               </table>
 
-              <!-- 约束列表 -->
+              <!-- Constraint list -->
               <div v-if="table.constraints.length > 0" class="constraint-section">
                 <span class="constraint-title">{{ $t('importSqlModal.constraints') }}:</span>
                 <span
@@ -272,11 +272,11 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
         </div>
       </div>
 
-      <!-- 导入目标 -->
+      <!-- Import target -->
       <div v-if="parsedSummary" class="import-target">
         <label class="form-label">{{ $t('importSqlModal.target') }}</label>
 
-        <!-- SQL schema 智能检测提示 -->
+        <!-- Smart detection hint for SQL schema -->
         <div v-if="detectedSchemaHint" class="schema-detect-hint">
           <template v-if="detectedSchemaHint.matched">
             {{ $t('importSqlModal.schemaDetectedMatched', { schema: detectedSchemaHint.schema }) }}
@@ -318,7 +318,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
         </div>
       </div>
 
-      <!-- 操作按钮 -->
+      <!-- Action buttons -->
       <div class="modal-actions">
         <button class="btn" @click="store.showImportSqlModal = false">
           {{ $t('importSqlModal.cancel') }}
@@ -391,7 +391,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   margin-bottom: 12px;
 }
 
-/* 方言选择器 */
+/* Dialect selector */
 .radio-group {
   display: flex;
   gap: 12px;
@@ -412,7 +412,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   cursor: pointer;
 }
 
-/* SQL 文本框 — 带行号 */
+/* SQL textarea — with line numbers */
 .sql-input-container {
   display: flex;
   border: 1px solid var(--border);
@@ -465,7 +465,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   color: var(--fg-subtle);
 }
 
-/* 解析消息 */
+/* Parse messages */
 .parse-errors,
 .parse-warnings {
   margin-bottom: 10px;
@@ -490,7 +490,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   border: 1px solid var(--warning-border);
 }
 
-/* 预览区 */
+/* Preview section */
 .preview-section {
   margin-bottom: 14px;
   border: 1px solid var(--border);
@@ -518,7 +518,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   color: var(--fg-muted);
 }
 
-/* 表卡片列表 */
+/* Table card list */
 .table-list {
   max-height: 260px;
   overflow-y: auto;
@@ -558,7 +558,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   color: var(--fg);
 }
 
-/* 表名编辑输入框 */
+/* Table name edit input */
 .table-name-input {
   font-size: 13px;
   font-weight: 600;
@@ -597,7 +597,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   background: var(--surface-2);
 }
 
-/* 预览表格 */
+/* Preview table */
 .preview-table {
   width: 100%;
   border-collapse: collapse;
@@ -645,7 +645,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   white-space: nowrap;
 }
 
-/* 约束 */
+/* Constraints */
 .constraint-section {
   display: flex;
   flex-wrap: wrap;
@@ -668,7 +668,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
-/* SQL schema 检测提示 */
+/* SQL schema detection hint */
 .schema-detect-hint {
   font-size: 11px;
   color: var(--accent);
@@ -679,7 +679,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   border: 1px solid var(--accent-border);
 }
 
-/* 导入目标 */
+/* Import target */
 .import-target {
   margin-bottom: 14px;
 }
@@ -693,7 +693,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   box-sizing: border-box;
 }
 
-/* 操作按钮 */
+/* Action buttons */
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);

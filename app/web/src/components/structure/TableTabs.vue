@@ -5,7 +5,7 @@ const { openTabs, isActive, activate, close } = useTableTabs()
 </script>
 
 <template>
-  <!-- 已打开的表：点击切换，× 关闭；无标签时不占位 -->
+  <!-- Open tables: click to switch, × to close; takes no space when there are no tabs -->
   <div v-if="openTabs.length" class="table-tabs">
     <div
       v-for="tab in openTabs"

@@ -4,7 +4,7 @@ import type { SettingsTab } from '@/types/settings'
 
 const store = useEditorStore()
 
-// 数组顺序即页面展示顺序
+// Array order is the display order of the pages
 const tabs: SettingsTab[] = ['structure', 'version', 'project']
 </script>
 
@@ -22,7 +22,7 @@ const tabs: SettingsTab[] = ['structure', 'version', 'project']
 </template>
 
 <style scoped>
-/* VSCode 风格页面切换列 */
+/* VSCode-style page switch rail */
 .ps-rail {
   width: 200px;
   min-width: 200px;

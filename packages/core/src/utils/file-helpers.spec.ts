@@ -18,7 +18,7 @@ import {
 import { buildInitialDataExport, writeInitialDataToNewStructure } from './initial-data-io'
 import { runStructureMigrations } from './structure-migrations'
 
-// 仅内存 File System Access API mock；不打开真实目录、不访问项目数据。
+// In-memory File System Access API mock only; no real directories are opened and no project data is accessed.
 class MemoryFile {
   readonly kind = 'file' as const
   content = ''
@@ -154,8 +154,8 @@ async function entriesOf(dir: FileSystemDirectoryHandle): Promise<string[]> {
 }
 
 /**
- * 直接读回磁盘上的新布局产物并逐路径比对内存态。
- * 写入结果即事实来源，不借助任何加载器，避免「写入工具与其读取方一起改坏」。
+ * Read the new-layout artifacts on disk back directly and compare them path by path against the in-memory state.
+ * The written result is the source of truth; no loader is involved, avoiding the case where the writer and its reader break together.
  */
 async function expectRoundTrip(
   root: FileSystemDirectoryHandle,
@@ -192,13 +192,13 @@ async function expectRoundTrip(
   }
 }
 
-describe('新布局序列化 File System Access API 内存 roundtrip', () => {
-  it('多 schema、多表、排序、三级 SQL、字段及 initial data 写入后完整加载', async () => {
+describe('new-layout serialization File System Access API in-memory roundtrip', () => {
+  it('fully loads after writing multiple schemas, multiple tables, ordering, three-level SQL, fields and initial data', async () => {
     const root = asHandle(new MemoryDirectory(''))
     const source = fixture()
     await writeCommonToHandle(root, buildCommonWriteData(source.common))
     await writeDatabaseToHandle(root, { schema_order: source.common.schema_order })
-    // 目录创建顺序故意不同于 metadata 排序，验证 loader 使用持久化顺序。
+    // Directory creation order intentionally differs from metadata ordering to verify the loader uses the persisted order.
     for (const schema of source.schemas) {
       await writeSchemaJsonToHandle(root, schema.schema, buildSchemaWriteData(schema))
       for (const table of [...schema.tables].reverse()) await writeTableToHandle(root, schema.schema, buildTableExportData(table))
@@ -209,7 +209,7 @@ describe('新布局序列化 File System Access API 内存 roundtrip', () => {
     }
     await expectRoundTrip(root, source)
 
-    // 再写再读；清空 SQL 时旧值必须消失，而非合并残留。
+    // Write and read again; when SQL is cleared, the old value must disappear rather than linger from a merge.
     const changed = source.schemas[0]!
     changed.pre_sql = {}
     changed.post_sql = {}
@@ -217,7 +217,7 @@ describe('新布局序列化 File System Access API 内存 roundtrip', () => {
     await expectRoundTrip(root, source)
   })
 
-  it('migrateOldToNewStructure 复用 schema 元信息序列化，保留 SQL 与原有布局/版本', async () => {
+  it('migrateOldToNewStructure reuses schema metadata serialization, preserving SQL and the original layout/version', async () => {
     const root = asHandle(new MemoryDirectory(''))
     const source = fixture()
     const transformTable = vi.fn((_schema: Schema, table: Table) => buildTableExportData(table))
@@ -232,7 +232,7 @@ describe('新布局序列化 File System Access API 内存 roundtrip', () => {
     await expectRoundTrip(root, source)
   })
 
-  it('真实旧布局迁移入口读取 schema SQL 并带入 current/，schema_order 仍只迁入 database', async () => {
+  it('the real old-layout migration entry reads schema SQL and carries it into current/, while schema_order is still migrated only into database', async () => {
     const root = asHandle(new MemoryDirectory(''))
     const source = fixture()
     await writeCommonToHandle(root, { ...buildCommonWriteData(source.common), struct_version: '0.4', schema_order: source.common.schema_order })

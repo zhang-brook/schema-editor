@@ -4,7 +4,7 @@ import {
   getSchemasDir,
   getInitialDataDir,
   removeOldInitialDataFile,
-  // ===== 新结构（current/）路径解析 =====
+  // ===== New structure (current/) path resolution =====
   getCurrentDir,
   getCurrentDatabaseFileHandle,
   getCurrentSchemasDir,
@@ -26,10 +26,10 @@ import { buildSchemaWriteData, type SchemaWriteData } from '../core/workspace/se
 
 const jsonFileIndent = 4
 
-// ===== File System Access API —— 基于 handle 的文件夹读写 =====
+// ===== File System Access API — handle-based folder read/write =====
 
 /**
- *  检查浏览器是否支持 File System Access API
+ *  Check whether the browser supports the File System Access API
  *
  * see: https://developer.mozilla.org/zh-CN/docs/Web/API/File_System_API
  */
@@ -37,27 +37,29 @@ export function isFileSystemAccessSupported(): boolean {
   return typeof window !== 'undefined' && 'showDirectoryPicker' in window
 }
 
-// ===== 新结构（current/）读写 =====
+// ===== New structure (current/) read/write =====
 //
-// 目录布局：
-//   common.json                      根配置（default_config / unified_types / common_used_fields）
+// Directory layout:
+//   common.json                      root config (default_config / unified_types / common_used_fields)
 //   current/
-//     database.json                  schema_order（按版本可能不同的项）
+//     database.json                  schema_order (entries that may differ by version)
 //     schemas/
-//       <schema>/                   文件名友好的模式名（sanitizeName）
-//         schema.json               { schema: 原始名, table_order: string[] }
-//         <table>/                  文件名友好的表名
-//           table.json              单表定义
-//           initial-data.json       行内化初始数据（对象格式）
+//       <schema>/                   file-name-friendly schema name (sanitizeName)
+//         schema.json               { schema: original name, table_order: string[] }
+//         <table>/                  file-name-friendly table name
+//           table.json              single table definition
+//           initial-data.json       inlined initial data (object format)
 //
-// 旧的 schemas/、initial-data/ 平行目录仅在「从旧结构迁移」(migrateOldToNewStructure) 时读取。
+// The old parallel schemas/ and initial-data/ directories are only read when migrating from the old structure (migrateOldToNewStructure).
 
 /**
- * 判断根目录是否已是最新结构。
+ * Checks whether the root directory is already in the latest structure.
  *
- * 以根 common.json 中的 struct_version 与代码中 CURRENT_STRUCT_VERSION 比对，
- * 而非依赖 current/ 目录是否存在（空目录残留会误判为已升级）。
- * 版本 >= 当前版本即视为新结构；无 common.json 或版本更低则视为旧结构，需升级。
+ * Compares struct_version in the root common.json against CURRENT_STRUCT_VERSION in code,
+ * rather than checking whether the current/ directory exists (leftover empty directories
+ * would be misdetected as upgraded).
+ * A version >= the current version counts as the new structure; a missing common.json or a
+ * lower version means the old structure, which needs upgrading.
  */
 export async function isNewStructure(rootHandle: FileSystemDirectoryHandle): Promise<boolean> {
   try {
@@ -66,14 +68,15 @@ export async function isNewStructure(rootHandle: FileSystemDirectoryHandle): Pro
     const version = data?.struct_version || '0.0'
     return compareStructVersion(version, CURRENT_STRUCT_VERSION) >= 0
   } catch {
-    // 无根 common.json：视为旧结构，需走升级流程
+    // No root common.json: treat as the old structure, run the upgrade flow
     return false
   }
 }
 
 /**
- * 判断根目录是否为空文件夹（无任何条目）。
- * 空文件夹视为「全新项目」，应直接初始化为新结构，而非提示升级旧结构。
+ * Checks whether the root directory is an empty folder (no entries at all).
+ * An empty folder counts as a "brand-new project" and should be initialized directly as the
+ * new structure instead of prompting an old-structure upgrade.
  */
 export async function isEmptyFolder(rootHandle: FileSystemDirectoryHandle): Promise<boolean> {
   for await (const _entry of rootHandle.values()) {
@@ -82,7 +85,7 @@ export async function isEmptyFolder(rootHandle: FileSystemDirectoryHandle): Prom
   return true
 }
 
-/** 将 database.json 写入 current/ */
+/** Write database.json into current/ */
 export async function writeDatabaseToHandle(
   rootHandle: FileSystemDirectoryHandle,
   data: { schema_order?: string[] },
@@ -92,7 +95,7 @@ export async function writeDatabaseToHandle(
   await writeJsonFile(handle, data)
 }
 
-/** 将 schema.json 写入 current/schemas/<schema>/ */
+/** Write schema.json into current/schemas/<schema>/ */
 export async function writeSchemaJsonToHandle(
   rootHandle: FileSystemDirectoryHandle,
   schemaName: string,
@@ -105,7 +108,7 @@ export async function writeSchemaJsonToHandle(
   await writeJsonFile(handle, data)
 }
 
-/** 将单表 table.json 写入 current/schemas/<schema>/<table>/ */
+/** Write one table's table.json into current/schemas/<schema>/<table>/ */
 export async function writeTableToHandle(
   rootHandle: FileSystemDirectoryHandle,
   schemaName: string,
@@ -119,17 +122,18 @@ export async function writeTableToHandle(
   await writeJsonFile(handle, table)
 }
 
-// ===== 旧结构 → 新结构迁移（打开旧项目时一次性触发） =====
+// ===== Old structure → new structure migration (triggered once when opening an old project) =====
 
 /**
- * 将已准备好的内存态（旧结构经升级器处理后的结果）写入新结构磁盘布局。
- * 旧文件保留不删除（便于回退）。写盘后该项目即成为新结构。
+ * Writes the prepared in-memory state (the old structure after the upgrader runs) to the
+ * new-structure on-disk layout. Old files are kept, not deleted (to allow rollback). After
+ * writing, the project is a new-structure project.
  *
- * @param commonConfig  保留在根 common.json 的部分（与版本无关的配置）
- * @param databaseData  current/database.json 内容（schema_order 等）
- * @param schemas       升级后的完整内存态（含 tables）
- * @param transformTable 将内存态中的单表转换为可写出的 table.json 对象
- * @param initialData   行内化到各 table 目录的初始数据
+ * @param commonConfig  Part kept in the root common.json (version-independent config)
+ * @param databaseData  Content of current/database.json (schema_order, etc.)
+ * @param schemas       Full upgraded in-memory state (including tables)
+ * @param transformTable Converts one in-memory table into the table.json object to write out
+ * @param initialData   Initial data to inline into each table directory
  */
 export async function migrateOldToNewStructure(
   rootHandle: FileSystemDirectoryHandle,
@@ -141,13 +145,13 @@ export async function migrateOldToNewStructure(
     initialData: { key: string; data: InitialData }[]
   },
 ): Promise<void> {
-  // 1. 根 common.json（仅保留与版本无关的配置）
+  // 1. Root common.json (only version-independent config)
   await writeCommonToHandle(rootHandle, data.commonConfig)
 
   // 2. current/database.json
   await writeDatabaseToHandle(rootHandle, data.databaseData)
 
-  // 3. 各 schema 目录与 table 目录
+  // 3. Schema directories and table directories
   for (const schema of data.schemas) {
     await writeSchemaJsonToHandle(rootHandle, schema.schema, buildSchemaWriteData(schema))
     for (const table of schema.tables) {
@@ -156,7 +160,7 @@ export async function migrateOldToNewStructure(
     }
   }
 
-  // 4. initial-data 行内化到各 table 目录
+  // 4. Initial data inlined into each table directory
   for (const { key, data: initData } of data.initialData) {
     const sep = key.indexOf('/')
     const schemaName = key.substring(0, sep)
@@ -166,30 +170,31 @@ export async function migrateOldToNewStructure(
 }
 
 /**
- * 迁移完成后清理「已迁移」的旧结构文件，杜绝回退导致新结构字段丢失。
+ * After migration, cleans up the migrated old-structure files so a rollback cannot cause
+ * new-structure fields to be lost.
  *
- * 原则：升级了哪里就处理哪里——只删除已被整体迁移的旧文件，不删除整个目录
- * （目录可能含用户其他无关文件）：
- *   - 每个旧 schemas/<schema>.json（已迁移为 current/schemas/<schema>/ 下文件）
- *   - 每个旧 initial-data/<schema>/<table>.json（已行内化为 current/.../initial-data.json）
- * 旧根 common.json 在迁移时已被覆盖重写为新结构，无需删除。
+ * Principle: handle exactly what was upgraded — delete only old files that were fully
+ * migrated, never whole directories (a directory may hold unrelated user files):
+ *   - each old schemas/<schema>.json (migrated to files under current/schemas/<schema>/)
+ *   - each old initial-data/<schema>/<table>.json (inlined into current/.../initial-data.json)
+ * The old root common.json was overwritten with the new structure during migration, so it needs no deletion.
  */
 export async function cleanupOldStructure(
   rootHandle: FileSystemDirectoryHandle,
   oldSchemas: Schema[],
   oldInitialDataKeys: string[],
 ): Promise<void> {
-  // 1. 删除旧 schemas/<schema>.json
+  // 1. Delete old schemas/<schema>.json
   try {
     const sdHandle = await getSchemasDir(rootHandle, false)
     for (const schema of oldSchemas) {
       await removeEntry(sdHandle, `${sanitizeName(schema.schema)}.json`)
     }
   } catch {
-    // 无 schemas/ 目录，跳过
+    // No schemas/ directory, skip
   }
 
-  // 2. 删除旧 initial-data/<schema>/<table>.json
+  // 2. Delete old initial-data/<schema>/<table>.json
   try {
     const idHandle = await getInitialDataDir(rootHandle, false)
     for (const key of oldInitialDataKeys) {
@@ -200,15 +205,15 @@ export async function cleanupOldStructure(
         const schemaDir = await getOrCreateDir(idHandle, sanitizeName(schemaName), false)
         await removeOldInitialDataFile(schemaDir, sanitizeName(tableName))
       } catch {
-        // 该旧 initial-data 文件不存在，跳过
+        // This old initial-data file does not exist, skip
       }
     }
   } catch {
-    // 无 initial-data/ 目录，跳过
+    // No initial-data/ directory, skip
   }
 }
 
-/** 读取旧结构 schemas/*.json 到内存态（供迁移升级使用） */
+/** Read old-structure schemas/*.json into memory (used by the migration upgrade) */
 export async function readOldSchemasFromHandle(
   rootHandle: FileSystemDirectoryHandle,
 ): Promise<Schema[]> {
@@ -229,13 +234,13 @@ export async function readOldSchemasFromHandle(
       }
     }
   } catch {
-    // 无 schemas/ 目录
+    // No schemas/ directory
   }
   return result
 }
 
 /**
- * 将数据写入 common.json
+ * Write data to common.json
  */
 export async function writeCommonToHandle(rootHandle: FileSystemDirectoryHandle, data: unknown): Promise<void> {
   const handle = await getCommonFileHandle(rootHandle)
@@ -244,11 +249,11 @@ export async function writeCommonToHandle(rootHandle: FileSystemDirectoryHandle,
   await writable.close()
 }
 
-// ===== 业务无关的工具函数 =====
+// ===== Business-agnostic utility functions =====
 
 
 /**
- * 解析默认值输入
+ * Parse default value input
  */
 export function parseDefaultInput(val: string) {
   if (val === '' || val === undefined) return undefined
@@ -261,7 +266,7 @@ export function parseDefaultInput(val: string) {
 }
 
 /**
- * 格式化显示默认值
+ * Format a default value for display
  */
 export function displayDefault(val: JsonValue): string {
   if (val === undefined || val === null) return ''
@@ -269,7 +274,7 @@ export function displayDefault(val: JsonValue): string {
 }
 
 /**
- * 解析字段长度
+ * Parse field length
  */
 export function parseFieldLengthInput(val: string): number | null {
   if (val === '' || val === undefined || val === null) return null
@@ -280,7 +285,7 @@ export function parseFieldLengthInput(val: string): number | null {
 }
 
 /**
- * 格式化显示字段长度
+ * Format field length for display
  */
 export function displayFieldLength(val: number | null | undefined): string {
   if (val === null || val === undefined) return ''
@@ -288,14 +293,14 @@ export function displayFieldLength(val: number | null | undefined): string {
 }
 
 /**
- * 解析字段小数位
+ * Parse field decimal places
  */
 export function parseFieldScaleInput(val: string): number | null {
   return parseFieldLengthInput(val)
 }
 
 /**
- * 格式化显示字段小数位
+ * Format field decimal places for display
  */
 export function displayFieldScale(val: number | null | undefined): string {
   return displayFieldLength(val)

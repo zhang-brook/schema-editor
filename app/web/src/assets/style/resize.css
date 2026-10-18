@@ -1,4 +1,4 @@
-/* ===== 表头列宽拖拽（手柄贴在表头右缘）===== */
+/* ===== Header column resize (handle sits on the right edge of the header) ===== */
 
 .resizable-th {
   position: relative;
@@ -25,7 +25,7 @@
   background: var(--accent);
 }
 
-/* 拖拽期间全局保持列宽光标，避免掠过输入框等元素时光标跳变 */
+/* Keep the column-resize cursor globally while dragging to avoid cursor flicker when passing over inputs and similar elements */
 body.col-resizing {
   cursor: col-resize;
   user-select: none;

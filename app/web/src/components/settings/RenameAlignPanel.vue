@@ -1,10 +1,9 @@
 <script setup lang="ts">
 /**
- * 身份对齐面板：确认「旧结构中消失的对象」与「新结构中新增的对象」是否同一个。
+ * Identity alignment panel: confirm whether an object that disappeared from the old structure and an object added in the new structure are the same.
  *
- * 候选由相似度自动推断（source: auto），未经用户确认不会影响 diff；
- * 确认后以 source: manual 写入迁移的 renames，成为后续 diff 的匹配依据。
- * 字段集合完全一致的名称对调在数学上不可判定，这类会标为歧义并优先展示。
+ * Candidates are inferred automatically by similarity (source: auto) and do not affect the diff until confirmed by the user; once confirmed, they are written into the migration renames as source: manual and become the matching basis for later diffs.
+ * Swapping names whose field sets are exactly identical is mathematically undecidable; such cases are marked ambiguous and shown first.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -50,14 +49,14 @@ const rows = computed<Row[]>(() =>
   }),
 )
 
-/** 歧义项排前面，让用户优先处理 */
+/** Ambiguous items come first so the user handles them first */
 const pending = computed(() => {
   const list = rows.value.filter(r => !r.confirmedEntry)
   return [...list].sort((a, b) => Number(b.ambiguous) - Number(a.ambiguous) || b.score - a.score)
 })
 const confirmedRows = computed(() => rows.value.filter(r => r.confirmedEntry))
 
-/** 已确认但不在当前候选中（历史记录或跨版本沿用） */
+/** Confirmed but not in the current candidates (history or carried over across versions) */
 const extraConfirmed = computed(() =>
   props.confirmed.filter(
     c => !props.suggestions.some(s => s.entry.from === c.from && s.entry.kind === c.kind),

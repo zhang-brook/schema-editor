@@ -1,13 +1,13 @@
 /**
- * SQL 词法分析器 — 状态机驱动的通用 Tokenizer
+ * SQL lexer — state-machine-driven generic tokenizer
  *
- * 将原始 SQL 文本转化为 Token 流，每个 Token 携带：
- * - type: Token 类型
- * - value: 原始文本值
- * - line / column: 1-based 位置（用于错误报告）
+ * Converts raw SQL text into a token stream; each token carries:
+ * - type: token type
+ * - value: raw text value
+ * - line / column: 1-based position (used for error reporting)
  */
 
-/** Token 类型枚举 */
+/** Token type enum */
 export const enum TokenType {
   KEYWORD = 'KEYWORD',
   IDENTIFIER = 'IDENTIFIER',
@@ -21,7 +21,7 @@ export const enum TokenType {
   EOF = 'EOF',
 }
 
-/** 单个 Token */
+/** A single token */
 export interface Token {
   type: TokenType
   value: string
@@ -29,7 +29,7 @@ export interface Token {
   column: number
 }
 
-// ===== SQL 关键字集合（大小写不敏感） =====
+// ===== SQL keyword set (case-insensitive) =====
 
 const KEYWORDS = new Set([
   // DDL
@@ -40,26 +40,26 @@ const KEYWORDS = new Set([
   'UNIQUE', 'FULLTEXT', 'SPATIAL', 'CHECK',
   'USING', 'BTREE', 'HASH', 'GIST', 'GIN', 'SPGIST', 'BRIN',
   'ASC', 'DESC',
-  // 列约束
+  // Column constraints
   'NULL', 'DEFAULT', 'AUTO_INCREMENT', 'COMMENT',
   'CHARACTER', 'CHARSET', 'COLLATE', 'UNSIGNED', 'ZEROFILL',
   'GENERATED', 'ALWAYS', 'BY', 'AS', 'IDENTITY', 'INCREMENT',
   'ON', 'UPDATE', 'CURRENT_TIMESTAMP', 'NOW', 'IS',
   'CASCADE', 'RESTRICT', 'SET', 'NO', 'ACTION',
-  // 表选项
+  // Table options
   'ENGINE', 'ROW_FORMAT', 'DYNAMIC', 'COMPACT', 'REDUNDANT', 'COMPRESSED',
   'AUTOEXTEND_SIZE', 'AVG_ROW_LENGTH', 'CHECKSUM', 'CONNECTION',
   'DATA', 'DIRECTORY', 'DELAY_KEY_WRITE', 'ENCRYPTION',
   'INSERT_METHOD', 'KEY_BLOCK_SIZE', 'MAX_ROWS', 'MIN_ROWS',
   'PACK_KEYS', 'PASSWORD', 'STATS_AUTO_RECALC', 'STATS_PERSISTENT',
   'STATS_SAMPLE_PAGES', 'TABLESPACE', 'UNION',
-  // LIKE / SELECT (用于跳过 CREATE TABLE ... LIKE/AS SELECT)
+  // LIKE / SELECT (used to skip CREATE TABLE ... LIKE/AS SELECT)
   'LIKE', 'SELECT', 'FROM', 'WHERE', 'AND',
   'INHERITS', 'PARTITION', 'WITH', 'OIDS',
   // PostgreSQL
   'SERIAL', 'BIGSERIAL', 'SMALLSERIAL',
   'SCHEMA',
-  // 类型关键字（也作为 KEYWORD token，解析器根据上下文区分）
+  // Type keywords (also emitted as KEYWORD tokens; the parser disambiguates by context)
   'VARCHAR', 'CHAR', 'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'MEDIUMINT', 'TINYINT',
   'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
   'DECIMAL', 'NUMERIC', 'FLOAT', 'DOUBLE', 'REAL',
@@ -72,7 +72,7 @@ const KEYWORDS = new Set([
   'ARRAY',
 ])
 
-// 复合关键字（多词组合，用于分词时合并相邻 KEYWORD）
+// Compound keywords (multi-word combinations, used to merge adjacent KEYWORDs during tokenization)
 const COMPOUND_KEYWORDS: Record<string, string> = {
   'IF NOT EXISTS': 'IF_NOT_EXISTS',
   'OR REPLACE': 'OR_REPLACE',
@@ -96,12 +96,12 @@ const COMPOUND_KEYWORDS: Record<string, string> = {
   'WITH TIME ZONE': 'WITH_TZ',
 }
 
-/** 检查字符串是否为 SQL 关键字 */
+/** Checks whether a string is an SQL keyword */
 export function isKeyword(word: string): boolean {
   return KEYWORDS.has(word.toUpperCase())
 }
 
-// ===== Tokenizer 状态机 =====
+// ===== Tokenizer state machine =====
 
 export function tokenize(input: string): Token[] {
   const tokens: Token[] = []
@@ -133,13 +133,13 @@ export function tokenize(input: string): Token[] {
     const startLine = line
     const startColumn = column
 
-    // 空白字符
+    // Whitespace
     if (ch === ' ' || ch === '\t' || ch === '\r') {
       advance()
       continue
     }
 
-    // 换行
+    // Newline
     if (ch === '\n') {
       line++
       column = 1
@@ -147,7 +147,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 行注释 --
+    // Line comment --
     if (ch === '-' && peek(1) === '-' && (peek(2) === ' ' || peek(2) === '\t' || peek(2) === '\n' || peek(2) === '\r' || peek(2) === '' || peek(2) === '-')) {
       let value = ''
       advance(2) // skip --
@@ -159,7 +159,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 块注释 /* ... */
+    // Block comment /* ... */
     if (ch === '/' && peek(1) === '*') {
       let value = ''
       advance(2) // skip /*
@@ -182,7 +182,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 反引号标识符 `...`
+    // Backtick identifier `...`
     if (ch === '`') {
       let value = ''
       advance() // skip opening `
@@ -206,7 +206,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 双引号标识符 "..."
+    // Double-quoted identifier "..."
     if (ch === '"') {
       let value = ''
       advance() // skip opening "
@@ -230,7 +230,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 单引号字符串 '...'
+    // Single-quoted string '...'
     if (ch === "'") {
       let value = ''
       advance() // skip opening '
@@ -254,7 +254,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // PostgreSQL 转义字符串 E'...'
+    // PostgreSQL escape string E'...'
     if ((ch === 'E' || ch === 'e') && peek(1) === "'") {
       let value = ''
       advance(2) // skip E'
@@ -282,7 +282,7 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // PostgreSQL 美元引号字符串 $tag$...$tag$
+    // PostgreSQL dollar-quoted string $tag$...$tag$
     if (ch === '$') {
       // Find the tag
       let tagEnd = pos + 1
@@ -318,7 +318,7 @@ export function tokenize(input: string): Token[] {
       }
     }
 
-    // 数字
+    // Number
     if ((ch >= '0' && ch <= '9') || (ch === '.' && peek(1) >= '0' && peek(1) <= '9')) {
       let value = ''
       while (pos < len && input[pos]! >= '0' && input[pos]! <= '9') {
@@ -337,21 +337,21 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 符号
+    // Symbol
     if ('(),;=.'.includes(ch)) {
       pushToken(TokenType.SYMBOL, ch, startLine, startColumn)
       advance()
       continue
     }
 
-    // PostgreSQL 类型转换 ::
+    // PostgreSQL type cast ::
     if (ch === ':' && peek(1) === ':') {
       pushToken(TokenType.SYMBOL, '::', startLine, startColumn)
       advance(2)
       continue
     }
 
-    // 标识符 / 关键字
+    // Identifier / keyword
     if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_') {
       let value = ''
       while (pos < len) {
@@ -364,7 +364,7 @@ export function tokenize(input: string): Token[] {
         }
       }
 
-      // 检查是否为关键字（大小写不敏感）
+      // Check whether it is a keyword (case-insensitive)
       if (KEYWORDS.has(value.toUpperCase())) {
         pushToken(TokenType.KEYWORD, value.toUpperCase(), startLine, startColumn)
       } else {
@@ -373,30 +373,30 @@ export function tokenize(input: string): Token[] {
       continue
     }
 
-    // 未知字符 — 跳过（宽容模式）
+    // Unknown character — skip (lenient mode)
     advance()
   }
 
-  // 添加 EOF
+  // Append EOF
   pushToken(TokenType.EOF, '', line, column)
 
   return tokens
 }
 
 /**
- * 合并相邻的 KEYWORD token 为复合关键字 token
- * 例如: NOT + NULL → NOT_NULL（复合关键字作为单个 KEYWORD token）
- *       DOUBLE + PRECISION → DOUBLE_PRECISION
+ * Merges adjacent KEYWORD tokens into compound keyword tokens
+ * e.g. NOT + NULL → NOT_NULL (a compound keyword becomes a single KEYWORD token)
+ *      DOUBLE + PRECISION → DOUBLE_PRECISION
  */
 export function mergeCompoundKeywords(tokens: Token[]): Token[] {
   const result: Token[] = []
   let i = 0
 
   while (i < tokens.length) {
-    // 尝试匹配复合关键字（2-3个连续 KEYWORD）
+    // Try to match a compound keyword (2-3 consecutive KEYWORDs)
     let merged = false
 
-    // 尝试 3 词组合
+    // Try 3-word combinations
     if (i + 2 < tokens.length) {
       const three = `${tokens[i]!.value} ${tokens[i + 1]!.value} ${tokens[i + 2]!.value}`
       if (COMPOUND_KEYWORDS[three]) {
@@ -411,7 +411,7 @@ export function mergeCompoundKeywords(tokens: Token[]): Token[] {
       }
     }
 
-    // 尝试 2 词组合
+    // Try 2-word combinations
     if (!merged && i + 1 < tokens.length) {
       const two = `${tokens[i]!.value} ${tokens[i + 1]!.value}`
       if (COMPOUND_KEYWORDS[two]) {
@@ -436,7 +436,7 @@ export function mergeCompoundKeywords(tokens: Token[]): Token[] {
 }
 
 /**
- * 对 token 流进行完整词法分析：tokenize + 复合关键字合并
+ * Performs full lexical analysis on the token stream: tokenize + compound keyword merging
  */
 export function lex(input: string): Token[] {
   const tokens = tokenize(input)

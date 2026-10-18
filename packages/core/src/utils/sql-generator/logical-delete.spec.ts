@@ -5,9 +5,9 @@ import { generateTablePostgreSQL } from './postgresql'
 import { generateTableSQLite } from './sqlite'
 
 /**
- * 逻辑删除 × 唯一索引的回归测试：
- * 唯一索引只看物理行，软删除后相同业务键再插入会撞 Duplicate entry。
- * 各方言的绕法不同，此处逐方言断言落地形态。
+ * Regression tests for logical delete × unique index:
+ * A unique index only sees physical rows, so re-inserting the same business key after a soft delete hits Duplicate entry.
+ * Each dialect works around this differently; the resulting shape is asserted per dialect here.
  */
 
 const baseCommon: CommonConfig = {
@@ -40,23 +40,23 @@ function makeTable(index: Partial<Index> = {}): Table {
   }
 }
 
-describe('逻辑删除未启用时保持原样', () => {
+describe('unchanged when logical delete is not enabled', () => {
   const common = makeCommon({ enabled: false, field: 'deleted_at' })
 
-  it('MySQL 仍是普通唯一索引', () => {
+  it('MySQL still uses a plain unique index', () => {
     const sql = generateTableMySQL(makeTable({ active_only: true }), common)
     expect(sql).toContain('UNIQUE KEY `uk_name` (`name`)')
     expect(sql).not.toContain('IF(')
   })
 
-  it('PostgreSQL 仍是表内 UNIQUE 约束', () => {
+  it('PostgreSQL still uses an in-table UNIQUE constraint', () => {
     const sql = generateTablePostgreSQL(makeTable({ active_only: true }), 'public', common)
     expect(sql).toContain('CONSTRAINT "uk_name" UNIQUE ("name")')
     expect(sql).not.toContain('WHERE')
   })
 })
 
-describe('表中不存在逻辑删除字段时降级', () => {
+describe('degrades when the logical delete field is absent from the table', () => {
   const common = makeCommon({ enabled: true, field: 'deleted_at' })
   const table: Table = {
     name: 'users',
@@ -65,40 +65,40 @@ describe('表中不存在逻辑删除字段时降级', () => {
     indexes: [{ name: 'uk_name', type: 'unique', columns: [{ name: 'name' }], active_only: true }],
   }
 
-  it('PostgreSQL 回退为表内 UNIQUE 约束', () => {
+  it('PostgreSQL falls back to an in-table UNIQUE constraint', () => {
     expect(generateTablePostgreSQL(table, 'public', common)).toContain('CONSTRAINT "uk_name" UNIQUE ("name")')
   })
 })
 
 describe('MySQL', () => {
-  it('函数索引：已删除行映射为 NULL', () => {
+  it('functional index: deleted rows map to NULL', () => {
     const common = makeCommon({ enabled: true, field: 'deleted_at', mysql_strategy: 'functional' })
     const sql = generateTableMySQL(makeTable({ active_only: true }), common)
     expect(sql).toContain('UNIQUE KEY `uk_name` ((IF(`deleted_at` IS NULL, `name`, NULL)))')
   })
 
-  it('删除列并入索引列（兼容 5.7）', () => {
+  it('delete column merged into the index columns (5.7 compatible)', () => {
     const common = makeCommon({ enabled: true, field: 'deleted_at', mysql_strategy: 'timestamp_union' })
     const sql = generateTableMySQL(makeTable({ active_only: true }), common)
     expect(sql).toContain('UNIQUE KEY `uk_name` (`name`, `deleted_at`)')
   })
 
-  it('未勾选 active_only 时不处理', () => {
+  it('not handled when active_only is not enabled', () => {
     const common = makeCommon({ enabled: true, field: 'deleted_at' })
     expect(generateTableMySQL(makeTable(), common)).toContain('UNIQUE KEY `uk_name` (`name`)')
   })
 })
 
 describe('PostgreSQL', () => {
-  it('部分唯一索引：降级为建表后的 CREATE UNIQUE INDEX ... WHERE', () => {
+  it('partial unique index: degrades to CREATE UNIQUE INDEX ... WHERE after table creation', () => {
     const common = makeCommon({ enabled: true, field: 'deleted_at' })
     const sql = generateTablePostgreSQL(makeTable({ active_only: true }), 'public', common)
     expect(sql).toContain('CREATE UNIQUE INDEX "uk_name" ON "public"."users" ("name") WHERE deleted_at IS NULL;')
-    // 表级 UNIQUE 约束不支持 WHERE，故不应再出现在建表语句内
+    // A table-level UNIQUE constraint does not support WHERE, so it should no longer appear in the CREATE TABLE statement
     expect(sql).not.toContain('CONSTRAINT "uk_name" UNIQUE')
   })
 
-  it('字段与谓词可由索引级覆盖', () => {
+  it('field and predicate can be overridden at index level', () => {
     const common = makeCommon({ enabled: true, field: 'deleted_at' })
     const sql = generateTablePostgreSQL(
       makeTable({ active_only: true, logical_delete: { field: 'is_deleted', predicate: 'is_deleted = 0' } }),
@@ -110,7 +110,7 @@ describe('PostgreSQL', () => {
 })
 
 describe('SQLite', () => {
-  it('部分唯一索引：CREATE UNIQUE INDEX ... WHERE', () => {
+  it('partial unique index: CREATE UNIQUE INDEX ... WHERE', () => {
     const common = makeCommon({ enabled: true, field: 'deleted_at' })
     const sql = generateTableSQLite(makeTable({ active_only: true }), common)
     expect(sql).toContain('CREATE UNIQUE INDEX "uk_name" ON "users" ("name") WHERE deleted_at IS NULL;')

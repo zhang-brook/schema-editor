@@ -45,7 +45,7 @@ describe('CommandManager', () => {
     vi.useRealTimers()
   })
 
-  it('空历史的 undo/redo/clear/断合并均无副作用', () => {
+  it('undo/redo/clear/breakCoalescing on an empty history have no side effects', () => {
     manager.undo()
     manager.redo()
     manager.clear()
@@ -58,7 +58,7 @@ describe('CommandManager', () => {
     expect(persist).not.toHaveBeenCalled()
   })
 
-  it('未设置合并键的命令按顺序 execute、undo、redo，并更新标签', () => {
+  it('executes, undoes, and redoes commands without a coalesce key in order, updating labels', () => {
     const first = edit(state, 'a')
     manager.execute(first)
     const second = edit(state, 'ab')
@@ -93,7 +93,7 @@ describe('CommandManager', () => {
     expect(persist).toHaveBeenCalledTimes(6)
   })
 
-  it('abc 合并保留首个 revert、最终 apply/label，重复 undo/redo 不丢字', () => {
+  it('abc coalescing keeps the first revert and the final apply/label, and repeated undo/redo loses no characters', () => {
     const first = edit(state, 'a', 'typing')
     manager.execute(first)
     vi.advanceTimersByTime(100)
@@ -123,7 +123,7 @@ describe('CommandManager', () => {
     expect(last.apply).toHaveBeenCalledTimes(3)
   })
 
-  it.each([799, 800, 801])('合并窗口边界：间隔 %i ms', delay => {
+  it.each([799, 800, 801])('coalescing window boundary: gap of %i ms', delay => {
     manager.execute(edit(state, 'a', 'typing'))
     vi.advanceTimersByTime(delay)
     manager.execute(edit(state, 'ab', 'typing'))
@@ -134,7 +134,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('ab')
   })
 
-  it('窗口从最近一次输入计时，而非从首个命令计时', () => {
+  it('times the window from the latest input, not from the first command', () => {
     manager.execute(edit(state, 'a', 'typing'))
     vi.advanceTimersByTime(600)
     manager.execute(edit(state, 'ab', 'typing'))
@@ -147,7 +147,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('abc')
   })
 
-  it('时钟回退不会将命令误判为窗口内输入', () => {
+  it('does not misclassify a command as within the window when the clock rolls back', () => {
     vi.setSystemTime(1000)
     manager.execute(edit(state, 'a', 'typing'))
     vi.setSystemTime(900)
@@ -161,7 +161,7 @@ describe('CommandManager', () => {
     [undefined, undefined],
     ['typing', undefined],
     [undefined, 'typing'],
-  ])('不同或缺失 key 不合并：%s / %s', (firstKey, secondKey) => {
+  ])('different or missing keys do not coalesce: %s / %s', (firstKey, secondKey) => {
     manager.execute(edit(state, 'a', firstKey))
     manager.execute(edit(state, 'ab', secondKey))
     manager.undo()
@@ -170,7 +170,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('')
   })
 
-  it('空字符串仍是有效的显式合并键', () => {
+  it('still treats an empty string as a valid explicit coalesce key', () => {
     manager.execute(edit(state, 'a', ''))
     manager.execute(edit(state, 'ab', ''))
     manager.undo()
@@ -179,12 +179,12 @@ describe('CommandManager', () => {
   })
 
   it.each([
-    ['不同 schema', affectedTable('first', 'users'), affectedTable('second', 'users')],
-    ['不同 table', affectedTable('public', 'users'), affectedTable('public', 'orders')],
-    ['冒号名称', affectedTable('a:b', 'c'), affectedTable('a', 'b:c')],
-    ['不同种类', affectedTable('public', 'users'), affectedInitialData('public', 'users')],
-    ['不同全局文件', affectedCommon(), affectedDatabase()],
-  ])('同 key 但%s不合并，即使共享 SQL 文件', (_label, firstFile, secondFile) => {
+    ['different schema', affectedTable('first', 'users'), affectedTable('second', 'users')],
+    ['different table', affectedTable('public', 'users'), affectedTable('public', 'orders')],
+    ['colon in name', affectedTable('a:b', 'c'), affectedTable('a', 'b:c')],
+    ['different kind', affectedTable('public', 'users'), affectedInitialData('public', 'users')],
+    ['different global files', affectedCommon(), affectedDatabase()],
+  ])('same key but %s does not coalesce, even when sharing the SQL file', (_label, firstFile, secondFile) => {
     manager.execute(edit(state, 'a', 'typing', [firstFile, affectedSql()]))
     manager.execute(edit(state, 'ab', 'typing', [secondFile, affectedSql()]))
     manager.undo()
@@ -195,7 +195,7 @@ describe('CommandManager', () => {
     expect(persist).toHaveBeenLastCalledWith([firstFile, affectedSql()])
   })
 
-  it('目标文件集合必须相同，不能仅有部分重合', () => {
+  it('requires identical affected file sets, not merely partial overlap', () => {
     const table = affectedTable('public', 'users')
     manager.execute(edit(state, 'a', 'typing', [table]))
     manager.execute(edit(state, 'ab', 'typing', [table, affectedSql()]))
@@ -203,7 +203,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('a')
   })
 
-  it('文件顺序及重复项不影响身份比较', () => {
+  it('file order and duplicates do not affect identity comparison', () => {
     const table = affectedTable('public', 'users')
     const sql = affectedSql()
     manager.execute(edit(state, 'a', 'typing', [table, sql, { ...table }]))
@@ -214,7 +214,7 @@ describe('CommandManager', () => {
     expect(persist).toHaveBeenLastCalledWith([table, sql])
   })
 
-  it('身份比较使用执行时快照，不受复用文件描述对象的修改影响', () => {
+  it('identity comparison uses the execution-time snapshot and ignores later mutations of reused file descriptors', () => {
     const file = affectedTable('public', 'users')
     manager.execute(edit(state, 'a', 'typing', [file]))
     file.table = 'orders'
@@ -224,7 +224,7 @@ describe('CommandManager', () => {
     expect(manager.canUndo).toBe(true)
   })
 
-  it('撤销后新编辑丢弃 redo 分支，且不与剩余栈顶合并', () => {
+  it('discards the redo branch on a new edit after undo and does not coalesce with the remaining stack top', () => {
     manager.execute(edit(state, 'a', 'typing'))
     const discarded = edit(state, 'ab', 'other')
     manager.execute(discarded)
@@ -247,7 +247,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('ac')
   })
 
-  it('撤销整个合并记录后新输入同样丢弃旧分支', () => {
+  it('new input after undoing a whole coalesced record also discards the old branch', () => {
     manager.execute(edit(state, 'a', 'typing'))
     manager.execute(edit(state, 'ab', 'typing'))
     manager.undo()
@@ -259,7 +259,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('x')
   })
 
-  it('redo 打断后续同键输入合并', () => {
+  it('redo breaks coalescing of subsequent same-key input', () => {
     manager.execute(edit(state, 'a', 'typing'))
     manager.undo()
     manager.redo()
@@ -270,7 +270,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('')
   })
 
-  it('无可重做记录时调用 redo 也会打断合并', () => {
+  it('calling redo with nothing to redo also breaks coalescing', () => {
     manager.execute(edit(state, 'a', 'typing'))
     manager.redo()
     expect(persist).toHaveBeenCalledTimes(1)
@@ -279,7 +279,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('a')
   })
 
-  it('显式 breakCoalescing 保留历史及 hook，边界后的输入可重新合并', () => {
+  it('explicit breakCoalescing keeps history and the hook, and input after the boundary can coalesce again', () => {
     manager.execute(edit(state, 'a', 'typing'))
     manager.breakCoalescing()
     manager.breakCoalescing()
@@ -298,7 +298,7 @@ describe('CommandManager', () => {
     expect(state.value).toBe('abc')
   })
 
-  it('clear 同时清空两栈且不回滚/写盘；之后从新快照开始合并', () => {
+  it('clear empties both stacks without reverting or writing; coalescing then starts from a new snapshot', () => {
     manager.execute(edit(state, 'a', 'typing'))
     manager.execute(edit(state, 'ab', 'other'))
     manager.undo()
@@ -324,7 +324,7 @@ describe('CommandManager', () => {
     expect(persist).toHaveBeenCalledTimes(4)
   })
 
-  it('execute hook 仅含本次文件，合并 undo/redo hook 含全部旧路径且在内存更新后触发', () => {
+  it('execute hook gets only the files of this call; coalesced undo/redo hooks get all old paths and fire after the in-memory update', () => {
     manager.execute(edit(state, 'baseline', undefined, [affectedCommon()]))
     const snapshots: string[] = []
     persist = vi.fn<(files: AffectedFile[]) => void>(() => { snapshots.push(state.value) })
@@ -348,7 +348,7 @@ describe('CommandManager', () => {
     ])
   })
 
-  it('未合并命令仍在 undo/redo 后动态计算 affectedFiles，保留方法 this 绑定', () => {
+  it('uncoalesced commands still compute affectedFiles dynamically after undo/redo, preserving method this binding', () => {
     const command = {
       label: '重命名',
       before: 'old',
@@ -368,7 +368,7 @@ describe('CommandManager', () => {
     ])
   })
 
-  it('未注册 persist hook 时也支持执行和历史操作', () => {
+  it('execution and history operations work without a registered persist hook', () => {
     const withoutHook = new CommandManager()
     withoutHook.execute(edit(state, 'a', 'typing'))
     withoutHook.execute(edit(state, 'ab', 'typing'))
@@ -379,7 +379,7 @@ describe('CommandManager', () => {
     expect(persist).not.toHaveBeenCalled()
   })
 
-  it('大量连续输入只调用首/末闭包，不递归重放中间命令', () => {
+  it('heavy consecutive input only invokes the first/last closures, without recursively replaying intermediate commands', () => {
     const withoutHook = new CommandManager()
     let applies = 0
     let reverts = 0
@@ -406,11 +406,11 @@ describe('CommandManager', () => {
 })
 
 describe('mergeAffectedFiles', () => {
-  it('空集合返回空数组', () => {
+  it('returns an empty array for an empty set', () => {
     expect(mergeAffectedFiles([])).toEqual([])
   })
 
-  it('所有文件种类均去重，保持首项引用和顺序且不修改输入', () => {
+  it('deduplicates all file kinds, keeping first-item references and order without mutating the input', () => {
     const files = [
       affectedTable('public', 'users'),
       affectedInitialData('public', 'users'),
@@ -426,7 +426,7 @@ describe('mergeAffectedFiles', () => {
     files.forEach((file, index) => { expect(result[index]).toBe(file) })
   })
 
-  it('tuple 身份区分冒号、引号、反斜线、换行、空字符串与缺省值', () => {
+  it('tuple identity distinguishes colons, quotes, backslashes, newlines, empty strings, and defaults', () => {
     const files: AffectedFile[] = [
       affectedTable('a:b', 'c'),
       affectedTable('a', 'b:c'),
@@ -448,7 +448,7 @@ describe('mergeAffectedFiles', () => {
     expect(mergeAffectedFiles([...files, ...files.map(file => ({ ...file }))])).toEqual(files)
   })
 
-  it.each(['table', 'initial-data', 'schema'] as const)('%s 保留不同 oldSchema/oldTable，只去重完整身份', kind => {
+  it.each(['table', 'initial-data', 'schema'] as const)('%s keeps distinct oldSchema/oldTable and deduplicates only on full identity', kind => {
     const target: AffectedFile = { kind, schema: 'current', table: 'users' }
     const files: AffectedFile[] = [
       target,

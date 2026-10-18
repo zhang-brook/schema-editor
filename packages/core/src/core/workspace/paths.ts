@@ -1,10 +1,10 @@
 /**
- * 业务路径解析：组合 `layout.ts`（路径常量）与 `handles.ts`（句柄原语），
- * 对 `editor.ts` / `file-helpers.ts` 暴露语义化的目录/文件句柄获取。
+ * Business path resolution: combines `layout.ts` (path constants) and `handles.ts` (handle primitives),
+ * exposing semantic directory/file handle acquisition to `editor.ts` / `file-helpers.ts`.
  *
- * 同时覆盖「旧结构（重构前）」与「新结构（current/versions/migrations）」两种布局，
- * 旧结构兼容读取经本模块解析，便于「升级项目结构」时做一次性迁移（见 `utils/structure-migrations/`）。
- * 派生 SQL 不再由本模块解析：output/ 下的文件由工作区会话按路径直接写入。
+ * Covers both the legacy layout (before the refactor) and the new layout (current/versions/migrations);
+ * legacy-compatible reads resolve through this module so that "upgrade project structure" can perform a one-time migration (see `utils/structure-migrations/`).
+ * Derived SQL is no longer resolved here: files under output/ are written directly by path by the workspace session.
  */
 
 import {
@@ -26,9 +26,9 @@ import {
   removeEntry,
 } from './handles'
 
-// ===== 旧结构（重构前）路径解析 =====
+// ===== Legacy layout (before the refactor) path resolution =====
 
-/** 根目录 common.json 文件句柄 */
+/** File handle for the root common.json */
 export function getCommonFileHandle(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -36,7 +36,7 @@ export function getCommonFileHandle(
   return getFileHandleSafe(root, COMMON_FILE, create)
 }
 
-/** 旧结构 schemas/ 目录句柄 */
+/** Directory handle for the legacy schemas/ directory */
 export function getSchemasDir(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -44,7 +44,7 @@ export function getSchemasDir(
   return getOrCreateDir(root, SCHEMAS_DIR, create)
 }
 
-/** 旧结构 initial-data/ 目录句柄 */
+/** Directory handle for the legacy initial-data/ directory */
 export function getInitialDataDir(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -52,7 +52,7 @@ export function getInitialDataDir(
   return getOrCreateDir(root, INITIAL_DATA_DIR, create)
 }
 
-/** 删除旧结构 initial-data/<schema>/<table>.json */
+/** Remove the legacy initial-data/<schema>/<table>.json */
 export function removeOldInitialDataFile(
   schemaDir: FileSystemDirectoryHandle,
   tableName: string,
@@ -60,9 +60,9 @@ export function removeOldInitialDataFile(
   return removeEntry(schemaDir, `${tableName}.json`)
 }
 
-// ===== 新结构（current/versions/migrations）路径解析 =====
+// ===== New layout (current/versions/migrations) path resolution =====
 
-/** current/ 目录句柄 */
+/** Directory handle for current/ */
 export function getCurrentDir(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -70,7 +70,7 @@ export function getCurrentDir(
   return getOrCreateDir(root, CURRENT_DIR, create)
 }
 
-/** current/database.json 文件句柄 */
+/** File handle for current/database.json */
 export function getCurrentDatabaseFileHandle(
   currentDir: FileSystemDirectoryHandle,
   create = true,
@@ -78,7 +78,7 @@ export function getCurrentDatabaseFileHandle(
   return getFileHandleSafe(currentDir, DATABASE_FILE, create)
 }
 
-/** current/schemas/ 目录句柄 */
+/** Directory handle for current/schemas/ */
 export function getCurrentSchemasDir(
   currentDir: FileSystemDirectoryHandle,
   create = true,
@@ -86,7 +86,7 @@ export function getCurrentSchemasDir(
   return getOrCreateDir(currentDir, SCHEMAS_DIR, create)
 }
 
-/** current/schemas/<schemaName>/ 目录句柄 */
+/** Directory handle for current/schemas/<schemaName>/ */
 export function getSchemaDirUnderCurrent(
   schemasDir: FileSystemDirectoryHandle,
   schemaName: string,
@@ -95,7 +95,7 @@ export function getSchemaDirUnderCurrent(
   return getOrCreateDir(schemasDir, schemaName, create)
 }
 
-/** current/schemas/<schemaName>/<tableName>/ 目录句柄 */
+/** Directory handle for current/schemas/<schemaName>/<tableName>/ */
 export function getTableDirUnderSchema(
   schemaDir: FileSystemDirectoryHandle,
   tableName: string,
@@ -104,7 +104,7 @@ export function getTableDirUnderSchema(
   return getOrCreateDir(schemaDir, tableName, create)
 }
 
-/** table.json 文件句柄（位于 table 目录下） */
+/** File handle for table.json (inside the table directory) */
 export function getTableFileHandle(
   tableDir: FileSystemDirectoryHandle,
   create = true,
@@ -112,7 +112,7 @@ export function getTableFileHandle(
   return getFileHandleSafe(tableDir, TABLE_FILE, create)
 }
 
-/** initial-data.json 文件句柄（位于 table 目录下） */
+/** File handle for initial-data.json (inside the table directory) */
 export function getInitialDataFileHandle(
   tableDir: FileSystemDirectoryHandle,
   create = true,
@@ -120,7 +120,7 @@ export function getInitialDataFileHandle(
   return getFileHandleSafe(tableDir, INITIAL_DATA_FILE, create)
 }
 
-/** versions/ 目录句柄 */
+/** Directory handle for versions/ */
 export function getVersionsDir(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -128,7 +128,7 @@ export function getVersionsDir(
   return getOrCreateDir(root, VERSIONS_DIR, create)
 }
 
-/** versions/<id>.json 文件句柄 */
+/** File handle for versions/<id>.json */
 export function getVersionFileHandle(
   versionsDir: FileSystemDirectoryHandle,
   id: string,
@@ -137,7 +137,7 @@ export function getVersionFileHandle(
   return getFileHandleSafe(versionsDir, `${id}.json`, create)
 }
 
-/** migrations/ 目录句柄 */
+/** Directory handle for migrations/ */
 export function getMigrationsDir(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -145,7 +145,7 @@ export function getMigrationsDir(
   return getOrCreateDir(root, MIGRATIONS_DIR, create)
 }
 
-/** migrations/<id>.json 文件句柄 */
+/** File handle for migrations/<id>.json */
 export function getMigrationFileHandle(
   migrationsDir: FileSystemDirectoryHandle,
   id: string,
@@ -154,7 +154,7 @@ export function getMigrationFileHandle(
   return getFileHandleSafe(migrationsDir, `${id}.json`, create)
 }
 
-/** environments/ 目录句柄 */
+/** Directory handle for environments/ */
 export function getEnvironmentsDir(
   root: FileSystemDirectoryHandle,
   create = true,
@@ -162,7 +162,7 @@ export function getEnvironmentsDir(
   return getOrCreateDir(root, ENVIRONMENTS_DIR, create)
 }
 
-/** environments/<id>.json 文件句柄 */
+/** File handle for environments/<id>.json */
 export function getEnvironmentFileHandle(
   environmentsDir: FileSystemDirectoryHandle,
   id: string,

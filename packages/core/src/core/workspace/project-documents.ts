@@ -93,7 +93,7 @@ export function affectedSourceChanges(project: ProjectDocuments, affected: reado
   return [...changes].map(([path, content]) => ({ path, content }))
 }
 
-/** 手动全量保存：把内存里的每一份源文档都写入，并清掉已消失的项目文件。 */
+/** Full manual save: write every in-memory source document and remove project files that no longer exist. */
 export function fullSourceChanges(project: ProjectDocuments, previous: ReadonlyMap<string, string>): FileChange[] {
   const files = projectSourceFiles(project)
   const changes: FileChange[] = [...files].map(([path, content]) => ({ path, content }))

@@ -25,7 +25,7 @@ const emit = defineEmits<{
   'update:sqlitePost': [value: string]
 }>()
 
-// 只展示已启用的方言；当前方言被禁用时自动回落
+// Only show enabled dialects; fall back automatically when the active one is disabled
 const { dialectOptions, activeDialect } = useEnabledDialect()
 
 const preValue = computed(() =>
@@ -68,7 +68,7 @@ function updatePost(val: string) {
     </div>
     <div class="section-body">
       <div class="sql-grid">
-        <!-- 前置 SQL -->
+        <!-- Pre SQL -->
         <div class="sql-group">
           <label class="sql-label">{{ $t('prePostSql.pre') }}</label>
           <textarea
@@ -79,7 +79,7 @@ function updatePost(val: string) {
             :rows="rows ?? 4"
           ></textarea>
         </div>
-        <!-- 后置 SQL -->
+        <!-- Post SQL -->
         <div class="sql-group">
           <label class="sql-label">{{ $t('prePostSql.post') }}</label>
           <textarea

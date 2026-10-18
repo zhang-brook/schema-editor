@@ -14,7 +14,7 @@ import { isColumnDragging } from '@/utils/column-drag-flag'
 const store = useEditorStore()
 const { t } = useI18n()
 
-// 可拖拽列：宽度沿用上次调整结果（未调整过则用默认值）
+// Resizable columns: widths reuse the last adjustment (default width if never adjusted)
 const { widthStyle, onResizeStart } = useColumnResize('schema-editor.indexTableColWidths', [
   { key: 'name', min: 260, defaultWidth: 320 },
   { key: 'type', min: 96, defaultWidth: 100 },
@@ -27,9 +27,9 @@ const availableFieldNames = computed(() => {
   return store.currentTable.fields.map(f => f.field_name)
 })
 
-// ===== 逻辑删除感知 =====
+// ===== Logical delete awareness =====
 
-/** 项目级逻辑删除字段（作为索引级覆盖的占位提示） */
+/** Project-level logical delete field (used as a placeholder hint for index-level overrides) */
 const projectDeleteField = computed(() => store.getLogicalDelete().field ?? '')
 
 function updateIndex(index: Index, patch: Partial<Index>, key?: string) {
@@ -40,7 +40,7 @@ function setActiveOnly(index: Index, val: boolean) {
   updateIndex(index, { active_only: val ? true : undefined })
 }
 
-/** 该索引在任一方言下是否为唯一索引（普通索引无唯一性冲突，不提供开关） */
+/** Whether this index is unique under any dialect (plain indexes have no uniqueness conflict, so no toggle is provided) */
 function isUniqueIndex(index: Index): boolean {
   return (
     index.type === 'unique' ||
@@ -50,7 +50,7 @@ function isUniqueIndex(index: Index): boolean {
   )
 }
 
-/** 索引级覆盖值（空串表示继承项目级） */
+/** Index-level override value (an empty string means inheriting the project-level value) */
 function ldOverrideValue(index: Index, key: 'field' | 'predicate' | 'mysql_strategy'): string {
   return (index.logical_delete?.[key] as string) ?? ''
 }
@@ -64,8 +64,8 @@ function setLdOverride(index: Index, key: 'field' | 'predicate' | 'mysql_strateg
 }
 
 /**
- * 解析后效果预览：MySQL 给出索引列形态，PostgreSQL / SQLite 给出 WHERE 条件。
- * 未生效时给出具体降级原因（静默降级最难排查，故逐条显式说明）。
+ * Resolved effect preview: MySQL shows the index column form, PostgreSQL / SQLite show the WHERE condition.
+ * When not in effect, the specific fallback reason is given (silent fallback is the hardest to debug, so each case is stated explicitly).
  */
 function ldEffect(index: Index, dialect: SqlDialect): string {
   const table = store.currentTable
@@ -92,12 +92,12 @@ function ldEffect(index: Index, dialect: SqlDialect): string {
   return `WHERE ${resolved.predicate}`
 }
 
-// 索引名称采用「{pre} + 核心名 + {post}」三段式：用户只需填写中间核心部分，
-// 前后缀占位符在生成 SQL 时按方言与索引类型自动展开；且前后缀均可点击徽标自由开关。
+// Index names use a three-part "{pre} + core name + {post}" scheme: users only fill in the middle core part,
+// and the prefix/suffix placeholders are expanded automatically per dialect and index type when generating SQL; both can be toggled freely by clicking the badges.
 const PRE = '{pre}'
 const POST = '{post}'
 
-// 新建（未设置名称）时默认开启前后缀；已有名称则依据是否包含占位符判断
+// Pre/post affixes are enabled by default for new (unnamed) indexes; for existing names they are inferred from whether the placeholder is present
 function hasPre(index: Index): boolean {
   const name = index.name
   if (name == null) return true
@@ -110,7 +110,7 @@ function hasPost(index: Index): boolean {
   return name.endsWith(POST)
 }
 
-// 从存储的完整名称中剥离首尾占位符，得到中间可编辑的核心名
+// Strip the leading/trailing placeholders from the stored full name to get the editable core name
 function getIndexCore(index: Index): string {
   let name = index.name ?? ''
   if (name.startsWith(PRE)) name = name.slice(PRE.length)
@@ -118,17 +118,17 @@ function getIndexCore(index: Index): string {
   return name
 }
 
-// 按前后缀开关状态重建完整名称
+// Rebuild the full name from the pre/post toggle states
 function composeIndexName(core: string, pre: boolean, post: boolean): string {
   return `${pre ? PRE : ''}${core}${post ? POST : ''}`
 }
 
-// 回写核心名时保留当前前后缀开关状态
+// Preserve the current pre/post toggle states when writing back the core name
 function setIndexCore(index: Index, core: string) {
   updateIndex(index, { name: composeIndexName(core, hasPre(index), hasPost(index)) })
 }
 
-// 点击徽标：切换是否自动添加前缀 / 后缀
+// Click badge: toggle whether the prefix / suffix is added automatically
 function togglePre(index: Index) {
   updateIndex(index, { name: composeIndexName(getIndexCore(index), !hasPre(index), hasPost(index)) }, 'name-pre')
 }
@@ -137,7 +137,7 @@ function togglePost(index: Index) {
   updateIndex(index, { name: composeIndexName(getIndexCore(index), hasPre(index), !hasPost(index)) }, 'name-post')
 }
 
-/** 未勾选「自定义名称」即使用默认索引名（底层字段 use_default_name 语义相反，此处做翻转） */
+/** When "custom name" is unchecked, the default index name is used (the underlying field use_default_name has the opposite semantics, hence the inversion here) */
 function isDefaultName(index: Index): boolean {
   return index.use_default_name === true
 }
@@ -159,7 +159,7 @@ function onDragStart(e: DragEvent, idx: number) {
 }
 
 function onDragOver(e: DragEvent) {
-  // 正在拖拽索引列项时，忽略行级拖拽高亮
+  // Ignore row-level drag highlight while dragging an index column item
   if (isColumnDragging.value) return
   e.preventDefault()
   if (e.dataTransfer) {
@@ -319,7 +319,7 @@ function onDropTail(e: DragEvent) {
                 <input class="table-input" :value="index.comment" @input="updateIndex(index, { comment: ($event.target as HTMLInputElement).value })" :placeholder="$t('indexTable.commentPlaceholder')" style="min-width:100px;">
               </td>
               <td>
-                <!-- 逻辑删除感知开关：仅 unique 索引可勾选，直接暴露在行内避免遗漏 -->
+                <!-- Logical delete awareness toggle: only unique indexes can be checked; exposed inline to avoid omissions -->
                 <label v-if="isUniqueIndex(index)" class="ld-cell" :title="$t('indexTable.activeOnlyTip')">
                   <input type="checkbox" :checked="index.active_only === true" @change="setActiveOnly(index, ($event.target as HTMLInputElement).checked)">
                 </label>
@@ -337,7 +337,7 @@ function onDropTail(e: DragEvent) {
             <tr v-if="store.expandedIndexes.has(store.indexKey(store.currentSchema!, store.currentTable!, index, iIdx))">
               <td colspan="9">
                 <div class="field-expand-content">
-                  <!-- 解析后名称预览 -->
+                  <!-- Resolved name preview -->
                   <div class="expand-section">
                     <div class="expand-section-title">{{ $t('indexTable.resolvedName') }}</div>
                     <div class="resolved-type-row">
@@ -422,7 +422,7 @@ function onDropTail(e: DragEvent) {
               </td>
             </tr>
           </template>
-          <!-- 尾部 drop 区域 -->
+          <!-- Tail drop zone -->
           <tr
             v-if="store.currentTable.indexes.length > 0"
             class="drop-tail-row"
@@ -453,7 +453,7 @@ function onDropTail(e: DragEvent) {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-  /* 固定布局：列宽完全由表头宽度决定，拖拽收窄才能即时生效 */
+  /* Fixed layout: column widths are fully determined by the header widths, so narrowing by dragging takes effect immediately */
   table-layout: fixed;
 }
 
@@ -493,7 +493,7 @@ function onDropTail(e: DragEvent) {
   border-color: var(--accent);
 }
 
-/* 三段式索引名输入：「自定义名称」复选框 + {pre} 徽标 + 核心名 + {post} 徽标（始终单行） */
+/* Three-part index name input: "custom name" checkbox + {pre} badge + core name + {post} badge (always a single line) */
 .index-name-group {
   display: flex;
   align-items: center;
@@ -501,7 +501,7 @@ function onDropTail(e: DragEvent) {
   min-width: 220px;
 }
 
-/* 「自定义名称」复选框：不勾选即交给数据库 / 生成器默认命名 */
+/* "Custom name" checkbox: when unchecked, naming is left to the database / generator defaults */
 .index-name-custom {
   display: flex;
   align-items: center;
@@ -540,7 +540,7 @@ function onDropTail(e: DragEvent) {
   opacity: 1;
 }
 
-/* 启用态（蓝色实线）：会自动添加对应前/后缀；关闭态为灰色虚线 */
+/* Enabled state (solid blue): the corresponding pre/post affix is added automatically; the disabled state is a gray dashed border */
 .index-name-affix.is-active {
   background: var(--accent-subtle);
   color: var(--accent);
@@ -549,14 +549,14 @@ function onDropTail(e: DragEvent) {
   opacity: 1;
 }
 
-/* 覆盖 .table-input 的 width:100%，避免在 flex 行内独占一行把 {post} 挤到下一行 */
+/* Overrides width:100% from .table-input so the input does not take a whole line in the flex row and push {post} onto the next line */
 .index-name-core {
   flex: 1 1 auto;
   width: auto;
   min-width: 90px;
 }
 
-/* 未勾选「自定义名称」时置灰，表示当前不参与名称解析 */
+/* Dimmed when "custom name" is unchecked, indicating it does not participate in name resolution */
 .index-name-affix:disabled,
 .index-name-core:disabled {
   opacity: 0.4;
@@ -569,7 +569,7 @@ function onDropTail(e: DragEvent) {
   opacity: 0.4;
 }
 
-/* 行内「仅约束未删除行」开关 */
+/* Inline "only constrain non-deleted rows" toggle */
 .ld-cell {
   display: flex;
   align-items: center;
@@ -588,7 +588,7 @@ function onDropTail(e: DragEvent) {
   color: var(--fg-subtle);
 }
 
-/* 逻辑删除覆盖行：字段名 + MySQL 策略 */
+/* Logical delete override row: field name + MySQL strategy */
 .ld-override-grid {
   display: flex;
   align-items: center;
@@ -601,7 +601,7 @@ function onDropTail(e: DragEvent) {
   min-width: 120px;
 }
 
-/* 解析后名称预览（与 FieldTable 的解析类型预览保持一致） */
+/* Resolved name preview (kept consistent with the resolved type preview in FieldTable) */
 .resolved-type-row {
   display: flex;
   align-items: center;
@@ -651,7 +651,7 @@ function onDropTail(e: DragEvent) {
   background: var(--danger-subtle);
 }
 
-/* 拖拽排序样式 */
+/* Drag-and-drop sorting styles */
 .drag-handle-cell {
   cursor: grab;
   text-align: center;

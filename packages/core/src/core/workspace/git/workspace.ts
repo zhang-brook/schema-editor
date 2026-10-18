@@ -7,9 +7,9 @@ import { repoWebUrl } from './url'
 const FALLBACK_COMMIT_MESSAGE = 'Update schema project'
 
 /**
- * 以 Git 仓库分支为数据源的写入器。
- * 不支持实时保存（supportsAutoSave=false，协调器会强制关闭两个自动保存开关），
- * 每次手动保存都是「一次提交」：只提交与载入快照存在差异的文件。
+ * Writer that uses a Git repository branch as its data source.
+ * Real-time saving is not supported (supportsAutoSave=false; the coordinator force-disables both auto-save toggles),
+ * so every manual save is "one commit": only files that differ from the loaded snapshot are committed.
  */
 export class GitWorkspaceWriter implements SessionWriter {
   readonly supportsAutoSave = false
@@ -49,12 +49,12 @@ export class GitWorkspaceWriter implements SessionWriter {
     return [...this.snapshot.keys()].filter(path => path.startsWith(prefix))
   }
 
-  /** 快照校验只认分支头：任何他人推送都会使整个快照失效 */
+  /** Snapshot validation only trusts the branch head: any push by someone else invalidates the whole snapshot */
   async hasExternalChanges(_paths: readonly string[]): Promise<boolean> {
     return await this.remote.headSha(this.info.branch) !== this.headSha
   }
 
-  /** 提交预览：把保存口径的文件集合换算为相对远端快照的真实差异 */
+  /** Commit preview: converts the file set produced by saving into the real diff against the remote snapshot */
   previewCommit(changes: readonly FileChange[]): StagedChange[] {
     return this.plan(changes).map(({ path, kind }) => ({ path, kind }))
   }
@@ -105,7 +105,7 @@ export class GitWorkspaceWriter implements SessionWriter {
   }
 }
 
-/** 连接仓库：解析默认分支 → 取分支头提交 → 建立子目录文件快照 */
+/** Connects to the repository: resolve the default branch -> read the branch head commit -> build the subdirectory file snapshot */
 export async function connectGitWorkspace(
   target: GitRepoTarget,
   token: string,

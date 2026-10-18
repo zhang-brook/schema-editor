@@ -64,14 +64,14 @@ function setUpdater(updateSupported = true) {
 }
 
 describe('createUpdater', () => {
-  it('未打包运行时不发起检查', async () => {
+  it('does not check when running unpackaged', async () => {
     const { host, updater } = setUpdater(false)
     expect(updater.status()).toEqual({ state: 'unsupported', currentVersion: '0.8.0' })
     expect(await updater.check()).toEqual({ state: 'unsupported', currentVersion: '0.8.0' })
     expect(host.checkCalls).toBe(0)
   })
 
-  it('检查中的重复请求复用同一次网络检查', async () => {
+  it('duplicate requests while checking reuse the same network check', async () => {
     const { host, updater } = setUpdater()
     const first = updater.check()
     const second = updater.check()
@@ -82,7 +82,7 @@ describe('createUpdater', () => {
     expect(updater.status().state).toBe('up-to-date')
   })
 
-  it('有新版时依次进入下载中与待安装', async () => {
+  it('moves through downloading and ready when a new version exists', async () => {
     const { host, updater, published } = setUpdater()
     const check = updater.check()
     host.emitAvailable('0.9.0')
@@ -104,7 +104,7 @@ describe('createUpdater', () => {
     ])
   })
 
-  it('无事件时按检查完成收尾，界面不会停在检查中', async () => {
+  it('finishes as up-to-date without events so the UI does not stay in checking', async () => {
     const { host, updater } = setUpdater()
     const check = updater.check()
     host.emitProgress(80)
@@ -113,7 +113,7 @@ describe('createUpdater', () => {
     expect(updater.status().state).toBe('up-to-date')
   })
 
-  it('检查失败标记为可重试且只推送一次', async () => {
+  it('marks a failed check as retryable and pushes it only once', async () => {
     const { host, updater, published } = setUpdater()
     const check = updater.check()
     host.emitError()
@@ -122,7 +122,7 @@ describe('createUpdater', () => {
     expect(published.filter(item => item.state === 'failed')).toHaveLength(1)
   })
 
-  it('待安装前忽略安装请求，之后只退出一次', async () => {
+  it('ignores install before ready, then quits only once', async () => {
     const { host, updater } = setUpdater()
     await updater.install()
     expect(host.installCalls).toBe(0)

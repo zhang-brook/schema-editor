@@ -1,10 +1,10 @@
 /**
- * 身份识别层：路径构造、改名记录的聚合与传递闭包、基于相似度的改名建议。
+ * Identity layer: path construction, aggregation of rename records with transitive closure, and similarity-based rename suggestions.
  *
- * 与持久化 id 方案的对应关系：
- * - 结构对象自身不带 id，"两个版本里的对象是否为同一实体"由路径 + 改名记录回答。
- * - 改名记录累积在迁移脚本上（Migration.renames），这里负责把零散记录聚合为可查询的映射。
- * - 记录缺失时退化为相似度推断（suggestRenames），结论需经用户确认后才落盘。
+ * Relation to a persisted-id approach:
+ * - Structure objects carry no ids; "are objects in two versions the same entity" is answered by paths + rename records.
+ * - Rename records accumulate on migration scripts (Migration.renames); this module aggregates scattered records into queryable maps.
+ * - When records are missing, this degrades to similarity inference (suggestRenames); results are persisted only after user confirmation.
  */
 import type { Schema } from '../../types/schema'
 import type { ObjectPath, RenameEntry, RenameKind } from './types'
@@ -20,10 +20,10 @@ import {
   normalizeName,
 } from './matcher'
 
-/** 传递闭包的最大跳数，防止异常数据导致死循环 */
+/** Max hops for the transitive closure, preventing infinite loops on malformed data */
 const MAX_CHAIN_HOPS = 32
 
-// ===== 路径构造与解析 =====
+// ===== Path construction and parsing =====
 
 export function schemaPath(schema: string): ObjectPath {
   return schema
@@ -44,13 +44,13 @@ export function indexPath(schema: string, table: string, index: string): ObjectP
 export interface ParsedPath {
   kind: RenameKind
   schema: string
-  /** 表名，kind 为 table / field / index 时存在 */
+  /** Table name; present when kind is table / field / index */
   table?: string
-  /** 字段名或索引名，kind 为 field / index 时存在 */
+  /** Field or index name; present when kind is field / index */
   name?: string
 }
 
-/** 解析对象路径。分隔符判定顺序：#（索引）→ .（字段）→ /（表）→ 其余视为 schema */
+/** Parse an object path. Separator check order: # (index) → . (field) → / (table) → otherwise treat as schema */
 export function parsePath(path: ObjectPath): ParsedPath {
   const hashIdx = path.lastIndexOf(PATH_INDEX_SEP)
   if (hashIdx >= 0) {
@@ -69,7 +69,7 @@ export function parsePath(path: ObjectPath): ParsedPath {
   return { kind: 'schema', schema: path }
 }
 
-/** 由解析结果重建路径 */
+/** Rebuild a path from its parsed form */
 export function rebuildPath(p: ParsedPath): ObjectPath {
   switch (p.kind) {
     case 'table':
@@ -83,35 +83,35 @@ export function rebuildPath(p: ParsedPath): ObjectPath {
   }
 }
 
-// ===== 改名记录聚合 =====
+// ===== Rename record aggregation =====
 
 export interface RenameConflict {
-  /** 同一个源被指向了多个不同目标 */
+  /** The same source is pointed at multiple different targets */
   from: ObjectPath
   targets: ObjectPath[]
 }
 
 export interface RenameMap {
-  /** 源路径 → 最终目标路径（已求传递闭包），仅保留确实发生变化的项 */
+  /** Source path → final target path (transitive closure applied); only entries that actually changed are kept */
   map: Map<ObjectPath, ObjectPath>
-  /** 同一源指向多个目标时记录，供 UI 提示用户裁决 */
+  /** Recorded when one source points to multiple targets, so the UI can ask the user to decide */
   conflicts: RenameConflict[]
-  /** 检测到的环（如 a→b 且 b→a），这些源保持原样不做映射 */
+  /** Detected cycles (e.g. a→b and b→a); these sources are left unmapped */
   cyclic: ObjectPath[]
 }
 
-/** 改名记录优先级：editor / manual 恒高于 auto，同级比较置信度 */
+/** Rename record priority: editor / manual always outrank auto; ties are broken by confidence */
 function entryPriority(e: RenameEntry): number {
   const base = e.source === 'auto' ? 0 : 10
   return base + (e.confidence ?? (e.source === 'auto' ? 0 : 1))
 }
 
 /**
- * 聚合改名记录并求传递闭包：a→b 与 b→c 会合并出 a→c，
- * 使跨多个迁移的身份识别（v1 → v3）无需逐段重放。
+ * Aggregate rename records and compute the transitive closure: a→b and b→c combine into a→c,
+ * so identity resolution across multiple migrations (v1 → v3) needs no step-by-step replay.
  */
 export function buildRenameMap(entries: RenameEntry[]): RenameMap {
-  // 1. 直接映射：同一源出现多个目标时按优先级裁决
+  // 1. Direct mapping: when one source has multiple targets, pick by priority
   const direct = new Map<ObjectPath, ObjectPath>()
   const chosen = new Map<ObjectPath, RenameEntry>()
   const targetCount = new Map<ObjectPath, Set<ObjectPath>>()
@@ -133,7 +133,7 @@ export function buildRenameMap(entries: RenameEntry[]): RenameMap {
     if (targets.size > 1) conflicts.push({ from, targets: [...targets] })
   }
 
-  // 2. 传递闭包
+  // 2. Transitive closure
   const map = new Map<ObjectPath, ObjectPath>()
   const cyclic: ObjectPath[] = []
   for (const from of direct.keys()) {
@@ -160,22 +160,22 @@ export function buildRenameMap(entries: RenameEntry[]): RenameMap {
   return { map, conflicts, cyclic }
 }
 
-/** 反转映射，供 diff 由新结构反查旧对象 */
+/** Invert the map so diff can look up old objects from the new structure */
 export function invertRenameMap(map: Map<ObjectPath, ObjectPath>): Map<ObjectPath, ObjectPath> {
   const out = new Map<ObjectPath, ObjectPath>()
   for (const [from, to] of map) if (!out.has(to)) out.set(to, from)
   return out
 }
 
-/** diff 使用的反查表：新结构路径 → 旧结构路径 */
+/** Lookup table used by diff: new structure path → old structure path */
 export interface RenameLookup {
-  /** 完整路径级（表 / 字段 / 索引改名） */
+  /** Full-path level (table / field / index renames) */
   full: Map<ObjectPath, ObjectPath>
-  /** schema 名级（schema 改名） */
+  /** Schema-name level (schema renames) */
   schema: Map<ObjectPath, ObjectPath>
 }
 
-/** 由 rename 映射（旧 → 新）构造反查表 */
+/** Build the lookup table from the rename map (old → new) */
 export function buildRenameLookup(map: Map<ObjectPath, ObjectPath>): RenameLookup {
   const full = invertRenameMap(map)
   const schema = new Map<ObjectPath, ObjectPath>()
@@ -185,19 +185,19 @@ export function buildRenameLookup(map: Map<ObjectPath, ObjectPath>): RenameLooku
   return { full, schema }
 }
 
-/** 空反查表，diff 在未获得改名记录时使用 */
+/** Empty lookup table, used by diff when no rename records are available */
 export const EMPTY_RENAME_LOOKUP: RenameLookup = {
   full: new Map(),
   schema: new Map(),
 }
 
 /**
- * 由新结构路径反查旧结构路径，按以下顺序尝试：
- * 1. 表级记录直接命中（记录形如 `db/users` → `db/accounts`）
- * 2. schema 级命中后，用旧 schema 名再查一次表级记录
- *    （应对 schema 与 table 改名分别落在不同迁移的情况）
- * 3. 仅替换 schema 段
- * 4. 都没有则原样返回（名称未变）
+ * Resolve an old structure path from a new one, trying in this order:
+ * 1. Direct hit on a table-level record (records look like `db/users` → `db/accounts`)
+ * 2. After a schema-level hit, look up table-level records again using the old schema name
+ *    (covers schema and table renames recorded in different migrations)
+ * 3. Replace only the schema segment
+ * 4. Otherwise return as-is (the name did not change)
  */
 export function resolveOldPath(newPath: ObjectPath, lookup: RenameLookup): ObjectPath {
   const parsed = parsePath(newPath)
@@ -231,7 +231,7 @@ export function resolveOldPath(newPath: ObjectPath, lookup: RenameLookup): Objec
   return rebuildPath({ kind: parsed.kind, schema: oldSchema, table: oldTable, name: parsed.name })
 }
 
-// ===== 改名建议 =====
+// ===== Rename suggestions =====
 
 export interface RenameCandidate {
   to: ObjectPath
@@ -239,28 +239,28 @@ export interface RenameCandidate {
 }
 
 export interface RenameSuggestion {
-  /** 建议的改名记录，source 恒为 auto，需用户确认后才应落盘 */
+  /** Suggested rename entry; source is always auto and should only be persisted after user confirmation */
   entry: RenameEntry
-  /** 竞争候选（含中选者），按分数降序 */
+  /** Competing candidates (including the chosen one), in descending score order */
   candidates: RenameCandidate[]
-  /** 存在分数接近的竞争者，UI 应提示用户确认 */
+  /** A close-scoring competitor exists; the UI should ask the user to confirm */
   ambiguous: boolean
 }
 
-/** schema 级相似度：表集合为主，名称为辅 */
+/** Schema-level similarity: table sets primary, names secondary */
 function schemaSimilarity(a: Schema, b: Schema): number {
   const ta = new Set(a.tables.map(t => normalizeName(t.name ?? '')))
   const tb = new Set(b.tables.map(t => normalizeName(t.name ?? '')))
   return 0.6 * jaccard(ta, tb) + 0.4 * nameSimilarity(a.schema ?? '', b.schema ?? '')
 }
 
-/** 歧义项：竞争者的下标与分数 */
+/** Ambiguity entry: index and score of a competitor */
 export interface AmbiguityEntry {
   index: number
   score: number
 }
 
-/** 建立「源下标 → 竞争候选」索引，用于标注歧义 */
+/** Build a source index → competing candidates map, used to flag ambiguity */
 function ambiguityIndex(result: MatchResult): Map<number, AmbiguityEntry[]> {
   const out = new Map<number, AmbiguityEntry[]>()
   for (const group of result.ambiguous) {
@@ -275,10 +275,10 @@ function ambiguityIndex(result: MatchResult): Map<number, AmbiguityEntry[]> {
 }
 
 /**
- * 基于相似度推断两版本之间的改名关系。
+ * Infer rename relationships between two versions based on similarity.
  *
- * 只处理「按名称无法直接对应」的对象，已同名的对象不产生建议。
- * 自顶向下收敛搜索空间：先对齐 schema，再在已对齐的 schema 内对齐 table，依次到 field / index。
+ * Only objects that cannot be matched by name are handled; objects already sharing a name produce no suggestion.
+ * The search space narrows top-down: align schemas first, then tables within aligned schemas, then fields / indexes.
  */
 export function suggestRenames(
   oldSchemas: Schema[],
@@ -302,7 +302,7 @@ export function suggestRenames(
     })
   }
 
-  // --- schema 级
+  // --- Schema level
   const newSchemaByName = new Map(newSchemas.map(s => [s.schema, s]))
   const oldSchemaByName = new Map(oldSchemas.map(s => [s.schema, s]))
   const looseOldSchemas = oldSchemas.filter(s => !newSchemaByName.has(s.schema))
@@ -338,7 +338,7 @@ export function suggestRenames(
     push('schema', schemaPath(os.schema), schemaPath(ns.schema), p.score, candidates)
   }
 
-  // --- table 级（在已对齐的 schema 内）
+  // --- Table level (within aligned schemas)
   for (const [os, ns] of schemaPairs) {
     const newTableByName = new Map(ns.tables.map(t => [t.name, t]))
     const oldTableByName = new Map(os.tables.map(t => [t.name, t]))
@@ -347,7 +347,7 @@ export function suggestRenames(
     const res = matchTables(looseOldTables, looseNewTables)
     const ambiguous = ambiguityIndex(res)
 
-    // [旧 schema, 旧表名, 新 schema, 新表名]
+    // [old schema, old table name, new schema, new table name]
     const tablePairs: [Schema, string, Schema, string][] = []
     for (const ot of os.tables) {
       const nt = newTableByName.get(ot.name)
@@ -366,13 +366,13 @@ export function suggestRenames(
       tablePairs.push([os, ot.name, ns, nt.name])
     }
 
-    // --- field 与 index（在已对齐的 table 内）
+    // --- Fields and indexes (within aligned tables)
     for (const [osRef, oldTableName, nsRef, newTableName] of tablePairs) {
       const ot = osRef.tables.find(t => t.name === oldTableName)
       const nt = nsRef.tables.find(t => t.name === newTableName)
       if (!ot || !nt) continue
 
-      // 字段
+      // Fields
       const newFieldByName = new Map(nt.fields.map(f => [f.field_name, f]))
       const oldFieldByName = new Map(ot.fields.map(f => [f.field_name, f]))
       const looseOldFields = ot.fields.filter(f => !newFieldByName.has(f.field_name))
@@ -399,7 +399,7 @@ export function suggestRenames(
         )
       }
 
-      // 索引：仅处理有名称的索引，无名索引依赖列签名直接匹配
+      // Indexes: only named indexes are handled; unnamed ones rely on direct column-signature matching
       const namedOld = ot.indexes.filter(i => i.name && !nt.indexes.some(n => n.name === i.name))
       const namedNew = nt.indexes.filter(i => i.name && !ot.indexes.some(o => o.name === i.name))
       const indexRes = matchIndexes(namedOld, namedNew)
@@ -428,3 +428,4 @@ export function suggestRenames(
 
   return out
 }
+

@@ -10,12 +10,12 @@ const cfg = computed(() => store.getLogicalDelete())
 
 const enabled = computed(() => cfg.value.enabled === true)
 
-/** 未删除谓词：未填写时展示自动推导结果作为占位提示 */
+/** Not-deleted predicate: when empty, show the derived result as the placeholder hint */
 const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ?? ''))
 </script>
 
 <template>
-  <!-- 逻辑删除：声明删除标记字段，并决定唯一索引如何绕开已删除行 -->
+  <!-- Logical delete: declare the deletion marker field and decide how unique indexes bypass deleted rows -->
   <div class="section-card">
     <div class="section-header">{{ $t('logicalDelete.title') }}</div>
     <div class="section-body">
@@ -97,7 +97,7 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
   cursor: pointer;
 }
 
-/* 复用 DdlOptionsPanel 的单选卡片样式 */
+/* Reuse the radio card styles from DdlOptionsPanel */
 .radio-group {
   display: flex;
   flex-direction: column;

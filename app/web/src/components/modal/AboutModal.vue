@@ -17,7 +17,7 @@ const emit = defineEmits<{
 
 const { locale, t } = useI18n()
 
-// 在线更新只在打包后的桌面端可用
+// Online update is only available in the packaged desktop app
 const { status, supported, checkUpdate, installUpdate } = useDesktopUpdate()
 const isChecking = computed(() => status.value?.state === 'checking')
 const isReady = computed(() => status.value?.state === 'ready')
@@ -25,7 +25,7 @@ const updateText = computed(() =>
   updateStatusLabel(status.value, (key, params) => (params ? t(key, params) : t(key))),
 )
 
-// ESC/ENTER 关闭弹窗
+// ESC/ENTER closes the modal
 const closeBtn = ref<HTMLButtonElement | null>(null)
 const visibleFlag = computed(() => props.visible)
 
@@ -35,7 +35,7 @@ useEscClose(
 )
 useEnterConfirm(visibleFlag, () => emit('close'), closeBtn)
 
-// 构建时刻转为本地时区展示
+// Display the build time converted to the local time zone
 const formattedBuildTime = computed(() => {
   if (!BUILD_TIME) return BUILD_TIME
   const date = new Date(BUILD_TIME)
@@ -55,7 +55,7 @@ const commitUrl = computed(() =>
   COMMIT_ID && COMMIT_ID !== 'unknown' ? `${GITHUB_REPO_URL}/commit/${COMMIT_ID}` : '',
 )
 
-// 弹窗可见时每秒刷新「x 秒前」，便于一眼看出构建新鲜度
+// Refresh "x seconds ago" every second while the modal is visible, so build freshness is easy to see
 const now = ref(Date.now())
 let ticker: number | undefined
 
@@ -82,7 +82,7 @@ const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['month', 12],
 ]
 
-/** 构建时刻相对当前的时长，如「3 分钟前」；时间无效时返回空串 */
+/** Time elapsed since the build, e.g. "3 minutes ago"; returns an empty string when the time is invalid */
 const relativeBuildTime = computed(() => {
   const date = new Date(BUILD_TIME)
   if (!BUILD_TIME || Number.isNaN(date.getTime())) return ''
@@ -96,7 +96,7 @@ const relativeBuildTime = computed(() => {
   return rtf.format(value, 'year')
 })
 
-// 中文用全角括号，英文保持半角
+// Use full-width parentheses for Chinese and half-width for English
 const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] : ['(', ')']))
 </script>
 

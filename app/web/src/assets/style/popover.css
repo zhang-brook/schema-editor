@@ -1,4 +1,4 @@
-/* ===== Popover（工具型浮层面板，内容经 Portal 渲染在 body 下）===== */
+/* ===== Popover (tool-style floating panel, content rendered via Portal under body) ===== */
 
 .appearance-popover {
   background: var(--surface);
@@ -8,11 +8,11 @@
   min-width: 264px;
   z-index: 200;
   padding: 12px 14px;
-  /* 位置由浮层组件内联样式控制，仅做淡入，避免与定位变换冲突 */
+  /* Position is controlled by the floating layer component's inline styles; fade in only, to avoid conflicts with positioning transforms */
   animation: appearance-popover-in .12s ease;
 }
 
-/* 面板容器默认接收焦点，不显示全局焦点环 */
+/* The panel container receives focus by default but shows no global focus ring */
 .appearance-popover:focus-visible {
   outline: none;
   box-shadow: var(--shadow-md);

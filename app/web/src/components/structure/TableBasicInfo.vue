@@ -7,36 +7,36 @@ import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 
 const store = useEditorStore()
 
-/** 更多设置（表前注释 / MySQL 引擎等）默认折叠 */
+/** More settings (comment before table / MySQL engine, etc.) are collapsed by default */
 const showMore = ref(false)
 
-/** 表名失焦确认时触发改名：同步迁移初始数据 key 并清理旧目录 */
+/** Rename on table-name blur confirm: migrate initial-data keys and clean up the old directory */
 async function onTableNameChange(event: Event) {
   const target = event.target as HTMLInputElement
   const newName = target.value
   const table = store.currentTable
   if (!table) return
-  // 未变化（含空白）直接还原显示
+  // Unchanged (including blank): restore the displayed value directly
   if (newName.trim() === table.name) {
     target.value = table.name
     return
   }
   const ok = await store.renameTable(store.selectedSchemaIdx, store.selectedTableIdx, newName)
-  // 校验失败（重名/空）则还原为原名
+  // Validation failed (duplicate/empty): restore the original name
   if (!ok) target.value = table.name
 }
 
-// ===== 分区表配置（按方言） =====
+// ===== Partition table config (per dialect) =====
 const partitionDialect = ref<SqlDialect>('mysql')
 
-// 分区仅 MySQL / PostgreSQL 支持，再按项目启用的方言过滤
+// Partitioning is supported only by MySQL / PostgreSQL, then filtered by the dialects enabled in the project
 const PARTITION_DIALECTS: SqlDialect[] = ['mysql', 'postgresql']
 const partitionDialects = computed(() =>
   store.enabledDialects.filter(d => PARTITION_DIALECTS.includes(d)),
 )
 const partitionDialectOptions = computed(() => toDialectOptions(partitionDialects.value))
 
-// 当前分区方言被禁用时自动回落到第一个可用方言
+// Fall back to the first available dialect when the current partition dialect is disabled
 watch(partitionDialects, (list) => {
   if (list.length > 0 && !list.includes(partitionDialect.value)) {
     partitionDialect.value = list[0]!
@@ -67,7 +67,7 @@ const partitionConfig = computed<PartitionFormValue>({
   },
 })
 
-// 分区列：以逗号分隔的文本与数组互转
+// Partition columns: convert between a comma-separated text value and an array
 const partitionColumnsText = computed({
   get() {
     return partitionConfig.value.columns.join(', ')
@@ -146,7 +146,7 @@ const partitionExpression = computed({
           </div>
         </div>
 
-        <!-- Partition By（按方言） -->
+        <!-- Partition By (per dialect) -->
         <div v-if="partitionDialects.length > 0" class="form-row partition-block">
           <div class="partition-header">
             <label class="form-label">{{ $t('tableEditor.partition') }}</label>

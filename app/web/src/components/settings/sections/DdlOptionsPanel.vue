@@ -6,7 +6,7 @@ const store = useEditorStore()
 </script>
 
 <template>
-  <!-- DDL 生成选项 -->
+  <!-- DDL generation options -->
   <div class="section-card">
     <div class="section-header">{{ $t('commonConfig.ddlOptionsTitle') }}</div>
     <div class="section-body">

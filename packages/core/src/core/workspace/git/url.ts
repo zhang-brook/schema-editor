@@ -16,7 +16,7 @@ function providerKind(hostname: string): GitProviderKind {
   return 'gitea'
 }
 
-/** 规范化子目录：去掉首尾斜杠、折叠重复斜杠，并拒绝退出仓库根目录的相对片段 */
+/** Normalizes a subdirectory: trims leading/trailing slashes, collapses repeated slashes, and rejects relative segments that escape the repository root */
 export function normalizeSubdir(input: string): string {
   const cleaned = input.trim().replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/')
   if (!cleaned) return ''
@@ -27,10 +27,10 @@ export function normalizeSubdir(input: string): string {
 }
 
 /**
- * 解析仓库地址。支持在地址中直接带上浏览路径：
- * - GitHub / Gitee：https://host/owner/repo/tree/<分支>/<子目录>
- * - 自建 Gitea：https://host[/站点前缀]/owner/repo/src/branch/<分支>/<子目录>
- * 未带路径时取末尾两段为 owner/repo，之前的部分视为站点前缀。
+ * Parses a repository URL. Browse paths may be included directly in the URL:
+ * - GitHub / Gitee: https://host/owner/repo/tree/<branch>/<subdir>
+ * - Self-hosted Gitea: https://host[/site-prefix]/owner/repo/src/branch/<branch>/<subdir>
+ * Without a path, the last two segments are taken as owner/repo and anything before them is the site prefix.
  */
 export function parseRepoUrl(input: string): GitRepoTarget {
   let url: URL
@@ -46,7 +46,7 @@ export function parseRepoUrl(input: string): GitRepoTarget {
   const provider = providerKind(url.hostname)
   const segments = url.pathname.split('/').filter(Boolean).map(decodeSegment)
   const markers = provider === 'gitea' ? ['src'] : ['tree', 'blob']
-  // 前两段固定是 owner/repo，路径标记只会出现在其后（仓库名本身叫 tree/blob/src 时不受影响）
+  // The first two segments are always owner/repo; path markers can only appear after them (unaffected when the repository itself is named tree/blob/src)
   const markerIdx = segments.findIndex((segment, index) => index >= 2 && markers.includes(segment))
 
   const head = markerIdx === -1 ? segments : segments.slice(0, markerIdx)
@@ -67,7 +67,7 @@ export function parseRepoUrl(input: string): GitRepoTarget {
       subdir = normalizeSubdir(rest.slice(2).join('/'))
     } else {
       branch = rest[0] ?? ''
-      // blob 链接指向文件本身，工作区取其所在目录
+      // A blob link points at the file itself, so the workspace uses its containing directory
       const pathParts = segments[markerIdx] === 'blob' ? rest.slice(1, -1) : rest.slice(1)
       subdir = normalizeSubdir(pathParts.join('/'))
     }
@@ -85,7 +85,7 @@ export function parseRepoUrl(input: string): GitRepoTarget {
   }
 }
 
-/** 仓库 API 基地址（各平台各自的路由形态） */
+/** Repository API base URL (each platform has its own route shape) */
 export function repoApiUrl(target: GitRepoTarget): string {
   const path = `${target.owner}/${target.repo}`
   if (target.provider === 'github') return `https://api.github.com/repos/${path}`
@@ -94,7 +94,7 @@ export function repoApiUrl(target: GitRepoTarget): string {
   return `${base}/api/v1/repos/${path}`
 }
 
-/** 仓库网页地址（不含分支与子目录） */
+/** Repository web URL (without branch and subdirectory) */
 export function repoWebUrl(target: GitRepoTarget): string {
   const base = target.prefix ? `${target.origin}/${target.prefix}` : target.origin
   return `${base}/${target.owner}/${target.repo}`

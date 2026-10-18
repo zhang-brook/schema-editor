@@ -44,14 +44,14 @@ const {
   remove: removeRecentFolder,
 } = useRecentFolders()
 
-/** 主题三档：跟随系统 / 浅色 / 深色 */
+/** Theme options: follow system / light / dark */
 const themeOptions = [
   { value: 'system' as const, labelKey: 'toolbar.themeSystem', icon: MonitorIcon },
   { value: 'light' as const, labelKey: 'toolbar.themeLight', icon: SunIcon },
   { value: 'dark' as const, labelKey: 'toolbar.themeDark', icon: MoonIcon },
 ]
 
-/** 触发按钮图标随当前主题偏好变化 */
+/** Trigger button icon follows the current theme preference */
 const activeThemeIcon = computed(
   () => themeOptions.find(opt => opt.value === themePreference.value)?.icon ?? MonitorIcon,
 )
@@ -60,7 +60,7 @@ const themeSegments = computed(() =>
   themeOptions.map(opt => ({ value: opt.value, label: t(opt.labelKey) })),
 )
 
-/** 密度三档：紧凑 / 正常 / 宽松 */
+/** Density options: compact / normal / relaxed */
 const densitySegments = computed(() => [
   { value: 'compact', label: t('toolbar.densityCompact') },
   { value: 'normal', label: t('toolbar.densityNormal') },
@@ -79,10 +79,10 @@ const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userA
 
 const showAboutModal = ref(false)
 
-/** 顶部菜单栏居中标题：显示项目名称，未设置时留空 */
+/** Centered title in the top menu bar: shows the project name, empty when unset */
 const displayTitle = computed(() => store.projectName.trim())
 
-/** 网页标题：项目名称 - 应用名；未设置项目名时仅应用名。有未保存改动时加圆点标记 */
+/** Page title: project name - app name; app name only when no project name is set. A dot marker is added for unsaved changes */
 watchEffect(() => {
   const base = displayTitle.value
     ? `${displayTitle.value} - ${t('app.title')}`
@@ -90,7 +90,7 @@ watchEffect(() => {
   document.title = store.hasUnsavedChanges ? `● ${base}` : base
 })
 
-/** 右上角保存状态：保存中 / 保存失败 / 未保存 N 处 / 已保存 */
+/** Save state at top right: saving / save failed / N unsaved / saved */
 const saveBadge = computed(() => {
   const state = store.saveState
   if (state.saving) return t('toolbar.saving')
@@ -99,14 +99,14 @@ const saveBadge = computed(() => {
   return t('toolbar.saved')
 })
 
-/** Git 徽章提示：仓库地址 + 作为数据源的子目录 */
+/** Git badge tooltip: repository URL + subdirectory used as the data source */
 const gitBadgeTitle = computed(() => {
   const repo = store.gitRepo
   if (!repo) return ''
   return repo.subdir ? `${repo.webUrl} (${repo.subdir})` : repo.webUrl
 })
 
-/** 菜单展开时刷新最近列表，确保本次会话中新打开的文件夹立即出现 */
+/** Refresh the recent list when the menu opens, ensuring folders opened in this session appear immediately */
 function onFileMenuOpen(open: boolean) {
   if (open) void refreshRecentFolders()
 }
@@ -117,7 +117,7 @@ function switchLocale(newLocale: SupportedLocale) {
   document.documentElement.lang = newLocale
 }
 
-/** 判断事件目标是否处于可编辑元素（输入框/文本域/contenteditable），这类场景应使用原生撤销/重做 */
+/** Check whether the event target is an editable element (input/textarea/contenteditable); native undo/redo should be used in such cases */
 function isEditableTarget(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null
   if (!el) return false
@@ -130,7 +130,7 @@ function isEditableTarget(e: KeyboardEvent): boolean {
 function onKeydown(e: KeyboardEvent) {
   const mod = e.ctrlKey || e.metaKey
 
-  // 从磁盘重新加载（Alt/Option+R，仅项目打开时生效）
+  // Reload from disk (Alt/Option+R, only when a project is open)
   if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyR') {
     if (store.projectOpened) {
       e.preventDefault()
@@ -138,13 +138,13 @@ function onKeydown(e: KeyboardEvent) {
     }
     return
   }
-  // 打开文件夹（通用约定 Ctrl/Cmd+O），调用目录选择器
+  // Open folder (common Ctrl/Cmd+O convention), invokes the directory picker
   if (mod && (e.key === 'o' || e.key === 'O')) {
     e.preventDefault()
     store.openProject()
     return
   }
-  // 通过 SQL 导入（Ctrl/Cmd+I，仅项目打开时生效）
+  // Import via SQL (Ctrl/Cmd+I, only when a project is open)
   if (mod && !e.altKey && e.code === 'KeyI') {
     if (store.projectOpened) {
       e.preventDefault()
@@ -152,7 +152,7 @@ function onKeydown(e: KeyboardEvent) {
     }
     return
   }
-  // 保存到磁盘（Ctrl/Cmd+S，覆盖浏览器「保存网页」快捷键）
+  // Save to disk (Ctrl/Cmd+S, overrides the browser "Save page" shortcut)
   if (mod && !e.altKey && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
     if (store.projectOpened) {
       e.preventDefault()
@@ -160,7 +160,7 @@ function onKeydown(e: KeyboardEvent) {
     }
     return
   }
-  // 关闭文件夹（Ctrl/Cmd+E，避开浏览器保留的 Ctrl+W / Ctrl+Shift+W）
+  // Close folder (Ctrl/Cmd+E, avoiding the browser-reserved Ctrl+W / Ctrl+Shift+W)
   if (mod && (e.key === 'e' || e.key === 'E')) {
     if (store.projectOpened) {
       e.preventDefault()
@@ -168,9 +168,9 @@ function onKeydown(e: KeyboardEvent) {
     }
     return
   }
-  // Undo/Redo 快捷键（仅在项目打开时生效）。
-  // 当焦点位于输入框/文本域等可编辑元素时，交由浏览器原生撤销/重做处理，
-  // 避免拦截导致导入 SQL 弹窗等场景无法正确撤消重做。
+  // Undo/Redo shortcuts (only active when a project is open).
+  // When focus is in an editable element such as an input/textarea, let the browser handle native undo/redo,
+  // to avoid interception breaking undo/redo in scenarios such as the import SQL dialog.
   if (store.projectOpened && !isEditableTarget(e)) {
     if (mod && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault()
@@ -183,8 +183,8 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-// 关闭标签页/刷新前：有未保存改动时交给浏览器原生确认
-// （自动保存关闭后磁盘上的内容落后于网页，静默离开会丢改动）
+// Before closing the tab / refreshing: let the browser confirm natively when there are unsaved changes
+// (with autosave off, disk contents lag behind the page, so leaving silently loses changes)
 function onBeforeUnload(e: BeforeUnloadEvent) {
   if (!store.hasUnsavedChanges) return
   e.preventDefault()
@@ -343,7 +343,7 @@ onUnmounted(() => {
       </DropdownMenuPortal>
     </DropdownMenuRoot>
 
-    <!-- 居中标题：点击进入「项目设置 → 项目信息」 -->
+    <!-- Centered title: click to open "Project Settings → Project Info" -->
     <button
       v-if="displayTitle"
       class="menu-bar-title"
@@ -354,7 +354,7 @@ onUnmounted(() => {
 
     <!-- Right Side -->
     <div class="menu-bar-right">
-      <!-- Git 仓库模式：显示数据源仓库与分支，点击打开仓库页面 -->
+      <!-- Git repository mode: shows the data source repository and branch, click to open the repository page -->
       <a
         v-if="store.gitRepo"
         class="git-badge"
@@ -403,7 +403,7 @@ onUnmounted(() => {
         &#128190;&#xFE0E; {{ store.gitRepo ? $t('toolbar.commit') : $t('toolbar.save') }}
       </button>
 
-      <!-- 外观面板：主题 + 界面密度 -->
+      <!-- Appearance panel: theme + interface density -->
       <PopoverRoot>
         <PopoverTrigger class="appearance-btn" type="button" :title="$t('toolbar.theme')">
           <component :is="activeThemeIcon" />
@@ -466,7 +466,7 @@ onUnmounted(() => {
   margin: 0 6px 0 12px;
 }
 
-/* 品牌名：固定在左上角，不随项目变化 */
+/* Brand name: fixed at the top left, does not change with the project */
 .menu-bar-brand {
   font-size: 13px;
   font-weight: 600;
@@ -475,7 +475,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* 项目名称：绝对定位在菜单栏正中（不受左右宽度影响），样式低调、可点击 */
+/* Project name: absolutely positioned in the center of the menu bar (unaffected by side widths), understated and clickable */
 .menu-bar-title {
   position: absolute;
   left: 50%;
@@ -558,7 +558,7 @@ onUnmounted(() => {
   gap: 10px;
 }
 
-/* Git 数据源徽章：仓库与分支 */
+/* Git data source badge: repository and branch */
 .git-badge {
   display: inline-flex;
   align-items: center;
@@ -635,7 +635,7 @@ onUnmounted(() => {
   box-shadow: var(--focus-ring);
 }
 
-/* ===== 最近打开文件夹 ===== */
+/* ===== Recently Opened Folders ===== */
 .recent-folders-menu {
   min-width: 280px;
   max-width: 440px;
@@ -685,7 +685,7 @@ onUnmounted(() => {
   color: var(--danger);
 }
 
-/* ===== 外观按钮（打开主题 / 密度面板） ===== */
+/* ===== Appearance button (opens theme / density panel) ===== */
 .appearance-btn {
   display: inline-flex;
   align-items: center;

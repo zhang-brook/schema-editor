@@ -69,9 +69,9 @@ describe('partition by clause', () => {
       'public',
       commonConfig,
     )
-    // 合法语法：PARTITION BY 生成在右括号 ) 之后、分号之前
+    // Valid syntax: PARTITION BY is generated after the closing parenthesis ) and before the semicolon
     expect(sql).toContain(') PARTITION BY HASH ("model_id");')
-    // 不能出现非法拼接：PRIMARY KEY (...) PARTITION BY
+    // Invalid concatenation must not occur: PRIMARY KEY (...) PARTITION BY
     expect(sql).not.toContain('PRIMARY KEY ("id") PARTITION BY')
   })
 
@@ -90,7 +90,7 @@ describe('partition by clause', () => {
     expect(generateTableSQLite(makeTable(), commonConfig)).not.toContain('PARTITION BY')
   })
 
-  it('sqlite: partition 配置被忽略（SQLite 不支持 PARTITION BY）', () => {
+  it('sqlite: partition config is ignored (SQLite does not support PARTITION BY)', () => {
     const sql = generateTableSQLite(
       makeTable({ sqlite: { strategy: 'RANGE', columns: ['created_at'] } }),
       commonConfig,

@@ -138,7 +138,7 @@ describe('GitWorkspaceWriter', () => {
       { path: 'b.json', kind: 'update', content: 'B2', sha: oldSha },
       { path: 'c.json', kind: 'add', content: 'C' },
     ])
-    // 提交走的路径始终是工作区相对路径，子目录前缀由远端适配层补
+    // Commit paths are always workspace-relative; the remote adapter adds the subdirectory prefix
     expect(commit.changes.every(change => !change.path.startsWith('sql/db/'))).toBe(true)
     expect(remote.content('b.json')).toBe('B2')
     expect(remote.has('c.json')).toBe(true)

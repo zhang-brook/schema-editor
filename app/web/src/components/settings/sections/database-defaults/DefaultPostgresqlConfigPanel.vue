@@ -5,7 +5,7 @@ const store = useEditorStore()
 </script>
 
 <template>
-  <!-- PostgreSQL 默认配置（由 DatabaseDefaultsPanel 提供卡片外壳与标题） -->
+  <!-- PostgreSQL default config (card shell and title are provided by DatabaseDefaultsPanel) -->
   <div class="form-row">
     <div class="form-group">
       <label class="form-label">{{ $t('commonConfig.quoteIdentifiers') }}</label>

@@ -26,36 +26,36 @@ function environment(id: string, versionId: string): Environment {
 }
 
 describe('canDeleteVersion', () => {
-  it('无引用时可删除', () => {
+  it('can be deleted when unreferenced', () => {
     const result = canDeleteVersion('v1', [migration('m1', 'v2', 'v3')], [environment('e1', 'v2')])
     expect(result.ok).toBe(true)
     expect(result.reasons).toEqual([])
   })
 
-  it('作为迁移源版本时不可删除', () => {
+  it('cannot be deleted when used as a migration source version', () => {
     const result = canDeleteVersion('v1', [migration('m1', 'v1', 'v2')], [])
     expect(result.ok).toBe(false)
     expect(result.reasons).toEqual([{ type: 'migration', id: 'm1', name: 'm1', role: 'from' }])
   })
 
-  it('作为迁移目标版本时不可删除', () => {
+  it('cannot be deleted when used as a migration target version', () => {
     const result = canDeleteVersion('v2', [migration('m1', 'v1', 'v2')], [])
     expect(result.ok).toBe(false)
     expect(result.reasons).toEqual([{ type: 'migration', id: 'm1', name: 'm1', role: 'to' }])
   })
 
-  it('同一迁移首尾都指向它时给出两条原因', () => {
+  it('gives two reasons when one migration points to it at both ends', () => {
     const result = canDeleteVersion('v1', [migration('m1', 'v1', 'v1')], [])
     expect(result.reasons).toHaveLength(2)
   })
 
-  it('被环境关联时不可删除', () => {
+  it('cannot be deleted when linked to an environment', () => {
     const result = canDeleteVersion('v1', [], [environment('e1', 'v1')])
     expect(result.ok).toBe(false)
     expect(result.reasons).toEqual([{ type: 'environment', id: 'e1', name: 'e1' }])
   })
 
-  it('同时被迁移与环境引用时汇总所有原因', () => {
+  it('aggregates all reasons when referenced by both migrations and environments', () => {
     const result = canDeleteVersion(
       'v1',
       [migration('m1', 'v1', 'v2')],

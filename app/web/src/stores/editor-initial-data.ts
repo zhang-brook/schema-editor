@@ -51,12 +51,12 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     return [affectedInitialData(schema, table), affectedSql()]
   }
 
-  /** 快照恢复原对象身份；JSON 替换撤销后，之前捕获行对象的命令仍然有效。 */
+  /** Snapshots restore the original object identity; after a JSON replacement is undone, commands that captured row objects earlier still work. */
   function replaceEntry(schema: string, table: string, next: InitialData | undefined, label: string) {
     const key = initialDataKey(schema, table)
     const oldDeleted = initialDataDeletedKeys.has(key)
     const restoreBefore = captureValue(initialDataMap.get(key))
-    // 输入必须与调用者隔离，apply/redo 也不能读取已被外部修改的对象内容。
+    // The input must be isolated from the caller; apply/redo must not read object contents that have been mutated externally.
     const restoreAfter = captureValue(cloneValue(next))
     function install(data: InitialData | undefined, deleted: boolean) {
       if (data === undefined) initialDataMap.delete(key)
@@ -71,7 +71,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     })
   }
 
-  /** 显式初始化保留 {}；不同于 JSON 空对象（删除）及 rows: []（空行集合）。 */
+  /** Explicit initialization keeps {}; this differs from an empty JSON object (deletion) and rows: [] (an empty row set). */
   function addInitialData(schema: string, table: string) {
     if (initialDataMap.has(initialDataKey(schema, table))) return
     replaceEntry(schema, table, {}, t('initialData.init'))
@@ -88,7 +88,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
     replaceEntry(schema, table, undefined, t('history.deleteInitialData'))
   }
 
-  /** 局部快照同时保存属性存在性及行身份，不把整表复制成新的行对象。 */
+  /** Partial snapshots also preserve property presence and row identity instead of copying the whole table into new row objects. */
   function patchEntry(
     schema: string,
     table: string,
@@ -112,7 +112,7 @@ export function createInitialDataActions(deps: InitialDataDeps) {
           if (patch[prop] === undefined) delete data[prop]
           else Object.assign(data, { [prop]: patch[prop] })
         }
-        // 每次 apply 都安装条目：首次 SQL 输入与随后的输入合并后 redo 仍可原子创建。
+        // Install the entry on every apply: after the first SQL input coalesces with later input, redo can still create it atomically.
         initialDataMap.set(key, data)
         initialDataDeletedKeys.delete(key)
       },

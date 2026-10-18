@@ -1,11 +1,11 @@
 /**
- * 基于 File System Access API 的目录/文件句柄获取与创建原语（业务无关）。
+ * Primitives for acquiring and creating directory/file handles based on the File System Access API (business-agnostic).
  *
- * 仅封装 `getDirectoryHandle` / `getFileHandle` / `removeEntry` 等底层 API，
- * 不携带任何项目特定的路径语义。业务路径规则见 `layout.ts`，语义化路径解析见 `paths.ts`。
+ * Only wraps low-level APIs such as `getDirectoryHandle` / `getFileHandle` / `removeEntry`,
+ * and carries no project-specific path semantics. Business path rules live in `layout.ts`; semantic path resolution lives in `paths.ts`.
  */
 
-/** 获取（不存在时可选创建）子目录句柄 */
+/** Get a subdirectory handle (optionally creating it when missing) */
 export async function getOrCreateDir(
   parent: FileSystemDirectoryHandle,
   name: string,
@@ -14,7 +14,7 @@ export async function getOrCreateDir(
   return parent.getDirectoryHandle(name, { create })
 }
 
-/** 获取（不存在时可选创建）文件句柄 */
+/** Get a file handle (optionally creating it when missing) */
 export async function getFileHandleSafe(
   parent: FileSystemDirectoryHandle,
   name: string,
@@ -23,7 +23,7 @@ export async function getFileHandleSafe(
   return parent.getFileHandle(name, { create })
 }
 
-/** 删除目录下指定条目（文件或子目录），不存在时静默忽略 */
+/** Remove the specified entry (file or subdirectory) from a directory; silently ignore when missing */
 export async function removeEntry(
   parent: FileSystemDirectoryHandle,
   name: string,
@@ -32,17 +32,17 @@ export async function removeEntry(
   try {
     await parent.removeEntry(name, options)
   } catch {
-    // 条目不存在，静默忽略
+    // Entry does not exist; silently ignore
   }
 }
 
-/** 读取文件句柄的文本并 JSON 解析，失败时抛出供调用方处理 */
+/** Read the text of a file handle and parse it as JSON; rethrow on failure for the caller to handle */
 export async function readJsonFile<T = unknown>(handle: FileSystemFileHandle): Promise<T> {
   const file = await handle.getFile()
   return JSON.parse(await file.text()) as T
 }
 
-/** 将对象写入文件句柄（JSON 格式化，缩进 4） */
+/** Write an object to a file handle (JSON formatted, 4-space indent) */
 export async function writeJsonFile(
   handle: FileSystemFileHandle,
   data: unknown,

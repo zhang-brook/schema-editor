@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite'
 
-// 桌面外壳只构建主进程与 preload 脚本（CJS，供 Electron 直接加载）；
-// 渲染层直接复用前端构建产物（app/web 构建到 app/desktop/renderer），不在此处打包。
+// The desktop shell only builds the main process and preload scripts (CJS, loaded directly by Electron);
+// the renderer reuses the web build output (app/web builds into app/desktop/renderer) and is not bundled here.
 //
-// 两个入口分两次单入口构建：沙箱化的 preload 无法 require 额外文件，
-// 必须自包含，因此不能与主进程共享公共 chunk。
+// The two entries are built as two separate single-entry builds: a sandboxed preload cannot require extra files,
+// so it must be self-contained and cannot share a common chunk with the main process.
 const ENTRIES = {
   main: { name: 'main', path: 'src/main.ts' },
   preload: { name: 'preload', path: 'src/preload.ts' },
@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
       target: 'node22',
       rollupOptions: {
         input: { [entry.name]: entry.path },
-        // electron 由运行时提供；electron-updater 是生产依赖，随 asar 一起打包，不在主进程产物里内联
+        // electron is provided by the runtime; electron-updater is a production dependency shipped inside the asar, so it is not inlined into the main process bundle
         external: ['electron', 'electron-updater'],
         output: {
           format: 'cjs',

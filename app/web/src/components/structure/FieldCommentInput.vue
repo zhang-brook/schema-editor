@@ -11,10 +11,10 @@ const taRef = ref<HTMLTextAreaElement | null>(null)
 
 const value = computed(() => props.modelValue ?? '')
 
-/** 是否含换行：折叠态显示 ↵ 提示存在更多行 */
+/** Whether it contains newlines: the collapsed state shows ↵ to hint at more lines */
 const hasMoreLines = computed(() => value.value.includes('\n'))
 
-/** 折叠态仅展示首行，避免表格行变高 */
+/** The collapsed state shows only the first line to keep table rows from growing taller */
 const previewText = computed(() => value.value.split('\n')[0] ?? '')
 
 let closeTimer: ReturnType<typeof setTimeout> | undefined
@@ -32,7 +32,7 @@ async function openEditor() {
   }
 }
 
-/** 失焦后延迟折叠，避免行高变化打断正在进行的点击 */
+/** Collapse after a blur delay so row-height changes do not interrupt an in-progress click */
 function onBlur() {
   clearTimer()
   closeTimer = setTimeout(() => {
@@ -62,7 +62,7 @@ function onInput(e: Event) {
   autoResize(ta)
 }
 
-/** 高度随内容自适应（设上限防止撑爆布局） */
+/** Auto-fit the height to the content (capped to avoid breaking the layout) */
 function autoResize(ta: HTMLTextAreaElement) {
   ta.style.height = 'auto'
   ta.style.height = `${Math.min(ta.scrollHeight, 220)}px`
@@ -71,7 +71,7 @@ function autoResize(ta: HTMLTextAreaElement) {
 
 <template>
   <div class="comment-cell">
-    <!-- 折叠态：单击展开多行编辑 -->
+    <!-- Collapsed state: click to expand into multi-line editing -->
     <div
       v-if="!editing"
       class="comment-cell-preview"
@@ -85,7 +85,7 @@ function autoResize(ta: HTMLTextAreaElement) {
       <span class="preview-text">{{ previewText }}</span>
       <span v-if="hasMoreLines" class="preview-more">↵</span>
     </div>
-    <!-- 编辑态：多行输入（支持换行） -->
+    <!-- Editing state: multi-line input (newlines supported) -->
     <textarea
       v-else
       ref="taRef"

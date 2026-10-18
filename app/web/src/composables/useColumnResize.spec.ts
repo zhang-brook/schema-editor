@@ -19,8 +19,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('列宽持久化', () => {
-  it('无存储记录时使用默认宽度', () => {
+describe('column width persistence', () => {
+  it('uses default widths when no storage record exists', () => {
     stubStorage()
     const { widthStyle } = useColumnResize('test.cols', COLUMNS)
     expect(widthStyle('name')).toEqual({ width: '140px' })
@@ -28,21 +28,21 @@ describe('列宽持久化', () => {
     expect(widthStyle('unknown')).toBeUndefined()
   })
 
-  it('存储中的有效宽度覆盖默认值（取整）', () => {
+  it('valid stored widths override defaults (rounded)', () => {
     stubStorage({ 'test.cols': JSON.stringify({ name: 200.4 }) })
     const { widthStyle } = useColumnResize('test.cols', COLUMNS)
     expect(widthStyle('name')).toEqual({ width: '200px' })
     expect(widthStyle('comment')).toEqual({ width: '180px' })
   })
 
-  it('非法值回退默认值，小于下限的值收敛到下限', () => {
+  it('invalid values fall back to defaults and values below the minimum are clamped', () => {
     stubStorage({ 'test.cols': JSON.stringify({ name: 'abc', comment: -50 }) })
     const { widthStyle } = useColumnResize('test.cols', COLUMNS)
     expect(widthStyle('name')).toEqual({ width: '140px' })
     expect(widthStyle('comment')).toEqual({ width: '120px' })
   })
 
-  it('存储内容损坏时回退默认宽度', () => {
+  it('falls back to default widths when stored content is corrupt', () => {
     stubStorage({ 'test.cols': '{oops' })
     const { widthStyle } = useColumnResize('test.cols', COLUMNS)
     expect(widthStyle('name')).toEqual({ width: '140px' })

@@ -55,7 +55,7 @@ export function createFieldActions(deps: CrudDeps, ctx: ActionContext) {
   /** Field deletion deliberately preserves initial rows and partition expressions, as before. */
   function removeFieldReferences(table: Table, names: string[]) {
     const removedNames = new Set(names.filter(Boolean))
-    // 快照遍历：循环内会移除清空后的索引
+    // Iterate over a snapshot: the loop removes indexes that become empty
     for (const index of table.indexes.slice()) {
       if (!index.columns.some(col => removedNames.has(col.name))) continue
       index.columns = index.columns.filter(col => !removedNames.has(col.name))

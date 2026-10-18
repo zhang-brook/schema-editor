@@ -1,2 +1,2 @@
-/** 设置面板的三个页面：项目设置 / 库结构设计 / 版本管理 */
+/** The three pages of the settings panel: project settings / library structure design / version management */
 export type SettingsTab = 'project' | 'structure' | 'version'

@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-/** 可拖拽列：key 仅用于持久化与查找，min 为拖拽下限，defaultWidth 为初始宽度 */
+/** Resizable column: key is used only for persistence and lookup, min is the drag lower bound, and defaultWidth is the initial width */
 export interface ResizableColumn {
   key: string
   min: number
@@ -22,14 +22,14 @@ function loadWidths(storageKey: string, columns: ResizableColumn[]): Record<stri
       }
     }
   } catch {
-    // 存储内容损坏时回退默认宽度
+    // Fall back to default widths when stored content is corrupt
   }
   return widths
 }
 
 /**
- * 表头列宽拖拽：每列宽度按列持久化，未调整过的列使用默认值。
- * 表格需要 `table-layout: fixed` 才能让宽度收放都即时生效。
+ * Header column width dragging: each column width is persisted per column, and unadjusted columns use their defaults.
+ * The table needs `table-layout: fixed` for width changes to take effect immediately.
  */
 export function useColumnResize(storageKey: string, columns: ResizableColumn[]) {
   const widths = reactive<Record<string, number>>(loadWidths(storageKey, columns))
@@ -54,10 +54,10 @@ export function useColumnResize(storageKey: string, columns: ResizableColumn[]) 
     const startX = e.clientX
     const startWidth = th.getBoundingClientRect().width
     try {
-      // 指针捕获让光标在整段拖拽中保持 col-resize；部分环境无有效指针 id，失败不影响拖拽
+      // Pointer capture keeps the cursor as col-resize during the whole drag; some environments have no valid pointer id, and failure does not affect dragging
       handle.setPointerCapture(e.pointerId)
     } catch {
-      // 忽略
+      // Ignore
     }
     document.body.classList.add('col-resizing')
 

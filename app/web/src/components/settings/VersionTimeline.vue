@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * 版本时间轴：按版本链顺序展示版本节点，节点之间的一段代表一次迁移。
- * 虚线段表示「相邻版本之间还没有迁移」，点击可直接补建。
+ * Version timeline: displays version nodes in version-chain order; each segment between
+ * adjacent nodes represents one migration.
+ * A dashed segment means "there is no migration between adjacent versions yet"; click it to create one directly.
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,37 +22,39 @@ const props = defineProps<{ activeId?: string | null }>()
 const chain = computed(() => store.versionChain)
 
 /**
- * 展示顺序：新 → 旧。
- * 仅反转 UI 呈现顺序，底层版本链（版本父子关系、迁移方向）保持原样，
- * 使最新版本落在最左侧，无需横向滚动到末尾即可看到。
+ * Display order: newest → oldest.
+ * Only the UI presentation order is reversed; the underlying version chain
+ * (parent-child relationships, migration direction) stays as-is, so the newest
+ * version is leftmost and visible without scrolling horizontally to the end.
  */
 const displayVersions = computed(() => [...chain.value.versions].reverse())
 
 /**
- * 取第 index 个「展示节点」右侧的那一段连接。
- * 展示位置 index 对应原链下标 n-1-index，它与其右侧节点之间的连接下标为 n-2-index。
+ * Get the connector to the right of the index-th "displayed node".
+ * Display position index maps to original chain index n-1-index; the connector between
+ * it and its right-hand node has index n-2-index.
  */
 function segmentAfter(index: number) {
   const k = chain.value.versions.length - 2 - index
   return k >= 0 ? (chain.value.segments[k] ?? null) : null
 }
 
-/** ISO 时间截取到分钟，避免长串时间戳 */
+/** Truncate ISO time to minutes to avoid long timestamps */
 function shortTime(iso: string): string {
   return (iso ?? '').slice(0, 16).replace('T', ' ')
 }
 
-/** 改名：进入编辑态 / 提交 / 取消 */
+/** Rename: enter edit mode / commit / cancel */
 const editingId = ref<string | null>(null)
 const editingName = ref('')
 
-/** 进入改名态：回填当前名称并聚焦输入框 */
+/** Enter rename mode: prefill the current name and focus the input */
 function startRename(v: { id: string; name: string }) {
   editingId.value = v.id
   editingName.value = v.name
 }
 
-/** 提交改名（失焦或回车触发）；editingId 守卫避免重复提交 */
+/** Commit the rename (triggered by blur or Enter); the editingId guard prevents duplicate submits */
 function commitRename(id: string) {
   if (editingId.value !== id) return
   const name = editingName.value
@@ -59,12 +62,12 @@ function commitRename(id: string) {
   void store.renameVersion(id, name)
 }
 
-/** 取消改名（Esc） */
+/** Cancel the rename (Esc) */
 function cancelRename() {
   editingId.value = null
 }
 
-/** 进入编辑态后自动聚焦输入框 */
+/** Automatically focus the input after entering edit mode */
 const vFocus = {
   mounted: (el: Element) => (el as HTMLInputElement).focus(),
 }
@@ -266,7 +269,7 @@ const vFocus = {
   white-space: nowrap;
 }
 
-/* 版本之间的连线：带箭头的横线，操作文字居中浮在线的上方 */
+/* Connector between versions: a horizontal line with an arrow; the action label floats centered above the line */
 .tl-link {
   position: relative;
   box-sizing: border-box;
@@ -292,7 +295,7 @@ const vFocus = {
   background: var(--accent);
 }
 
-/* 左端箭头，指向左侧（更早的）版本 */
+/* Arrow on the left end, pointing to the left (older) version */
 .tl-link-line::before {
   content: '';
   position: absolute;

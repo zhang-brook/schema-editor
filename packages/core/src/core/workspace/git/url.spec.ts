@@ -95,7 +95,7 @@ describe('parseRepoUrl', () => {
   })
 
   it('reads only the first segment after the marker as the branch', () => {
-    // 网页链接无法区分含斜杠的分支名与子目录，取首段
+    // A web link cannot distinguish a branch name containing slashes from a subdirectory, so take the first segment
     expect(parseRepoUrl('https://github.com/acme/design/tree/feature/x/sql')).toMatchObject({ branch: 'feature', subdir: 'x/sql' })
   })
 

@@ -1,6 +1,6 @@
-/* ===== Menu（下拉菜单：栏内触发器 + 浮层内容）===== */
+/* ===== Menu (dropdown: in-bar trigger + floating content) ===== */
 
-/* 触发器：菜单栏内的文字项 */
+/* Trigger: text item inside the menu bar */
 .menu-item {
   padding: 5px 11px;
   margin-right: 2px;
@@ -21,7 +21,7 @@
   color: var(--accent);
 }
 
-/* 浮层内容：挂载在 body 下，位置由浮层组件计算 */
+/* Floating content: mounted under body, position computed by the floating layer component */
 .menu-dropdown {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -32,7 +32,7 @@
   padding: 6px 0;
 }
 
-/* 菜单容器本身接收焦点，不显示全局焦点环，高亮由菜单项承担 */
+/* The menu container itself receives focus but shows no global focus ring; highlighting is handled by menu items */
 .menu-dropdown:focus-visible {
   box-shadow: var(--shadow-md);
 }

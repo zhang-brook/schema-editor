@@ -20,19 +20,19 @@ export function createDefaultCommonConfig(): CommonConfig {
   }
 }
 
-/** 解析项目文档：只保证顶层是对象，字段形态由调用方逐项校验 */
+/** Parse a project document: only ensure the top level is an object; callers validate each field shape */
 function parseObject<T extends object>(content: string, path: string): T {
   const value: unknown = JSON.parse(content)
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid project document: ${path}`)
   return value as T
 }
 
-/** 磁盘上的 current/database.json */
+/** current/database.json on disk */
 interface DatabaseDocument {
   schema_order?: string[]
 }
 
-/** 磁盘上的 schema.json：表定义按目录分散存放，这里只承载元信息与排序 */
+/** schema.json on disk: table definitions are spread across directories, this only holds metadata and ordering */
 interface SchemaDocument {
   schema?: string
   table_order?: string[]
@@ -49,9 +49,9 @@ export interface SessionWriter extends WorkspaceWriter {
   load(paths: readonly string[]): Promise<Map<string, string>>
   listFiles(directory: string): Promise<string[]>
   hasExternalChanges(paths: readonly string[]): Promise<boolean>
-  /** 远端写入器（Git）：把保存口径的文件集合换算为相对快照的真实差异 */
+  /** Remote writer (Git): convert the saved file set into real diffs relative to the snapshot */
   previewCommit?(changes: readonly FileChange[]): StagedChange[]
-  /** 远端写入器（Git）：下一次保存使用的提交信息 */
+  /** Remote writer (Git): commit message used for the next save */
   setCommitMessage?(message: string): void
 }
 
@@ -128,7 +128,7 @@ export function createWorkspaceSession(options: {
     initialFiles: options.files,
     autoSave: options.autoSave,
     onStateChange: options.onStateChange,
-    // 项目文档与派生文件（output/ 下的 SQL、AI 指南）分开控制自动写入
+    // Project documents and derived files (SQL and AI guide under output/) are auto-written under separate switches
     classify: path => path.startsWith(`${OUTPUT_DIR}/`) || path === AI_GUIDE_FILE ? 'outputs' : 'docs',
     prepare: (changed, mode): FileChange[] => generatedFileChanges(options.project(), changed, coordinator.files, mode),
   })
@@ -137,12 +137,12 @@ export function createWorkspaceSession(options: {
     changed(files: AffectedFile[]) {
       coordinator.update(affectedSourceChanges(options.project(), files, coordinator.files))
     },
-    /** 手动保存：先补齐内存里的全部源文档，再整批落盘。 */
+    /** Manual save: fill in all in-memory source documents first, then write them to disk in one batch. */
     async saveAll() {
       coordinator.update(fullSourceChanges(options.project(), coordinator.files))
       await coordinator.saveAll()
     },
-    /** 提交预览：Git 模式下待提交的文件差异（其他写入器返回空） */
+    /** Commit preview: pending file diffs in Git mode (other writers return an empty list) */
     previewCommitChanges(): StagedChange[] {
       if (!options.writer.previewCommit) return []
       return options.writer.previewCommit(coordinator.previewAll())

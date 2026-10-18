@@ -28,8 +28,8 @@ function schemas(table: Schema['tables'][number]): Schema[] {
   return [{ schema: 'db', tables: [table] }]
 }
 
-describe('generateMigrationDdl：auto_diff 建表', () => {
-  it('新增表输出三方言 CREATE TABLE，字段默认值走方言覆盖', () => {
+describe('generateMigrationDdl: auto_diff table creation', () => {
+  it('emits CREATE TABLE for all three dialects on table addition, using dialect overrides for field defaults', () => {
     const f: Field = {
       field_name: 'flag',
       field_type: 'tinyint',
@@ -46,7 +46,7 @@ describe('generateMigrationDdl：auto_diff 建表', () => {
     expect(out.postgresql).toContain('"flag" boolean DEFAULT false')
   })
 
-  it('索引按方言覆盖取名称与类型', () => {
+  it('takes index name and type from dialect overrides', () => {
     const idx: Index = {
       type: 'index',
       name: 'idx_a',
@@ -61,13 +61,13 @@ describe('generateMigrationDdl：auto_diff 建表', () => {
       null,
     )
     expect(out.mysql).toContain('CREATE UNIQUE INDEX `uk_a` ON `db`.`t` (`id`) USING HASH;')
-    // 覆盖只改名时索引类型仍取顶层 type
+    // when the override only renames, the index type still comes from the top-level type
     expect(out.postgresql).toContain('CREATE INDEX "uk_p" ON "db"."t" ("id");')
-    // sqlite 无覆盖时回退顶层名称
+    // sqlite falls back to the top-level name when there is no override
     expect(out.sqlite).toContain('CREATE INDEX "idx_a" ON "t" ("id");')
   })
 
-  it('删除表与改名表分别生成 DROP / RENAME', () => {
+  it('generates DROP / RENAME for removed and renamed tables respectively', () => {
     const out = generateMigrationDdl(
       migration([{ type: 'auto_diff' }]),
       diff([
@@ -79,12 +79,12 @@ describe('generateMigrationDdl：auto_diff 建表', () => {
     )
     expect(out.mysql).toContain('DROP TABLE `db`.`old`;')
     expect(out.postgresql).toContain('ALTER TABLE "db"."old" RENAME TO "new";')
-    // SQLite 无 schema 前缀
+    // SQLite has no schema prefix
     expect(out.sqlite).toContain('DROP TABLE "old";')
     expect(out.sqlite).toContain('ALTER TABLE "old" RENAME TO "new";')
   })
 
-  it('字段增删改与索引变更按目标结构展开', () => {
+  it('expands field and index changes against the target structure', () => {
     const added: Field = { field_name: 'b', field_type: 'int', not_null: true }
     const out = generateMigrationDdl(
       migration([{ type: 'auto_diff' }]),
@@ -116,8 +116,8 @@ describe('generateMigrationDdl：auto_diff 建表', () => {
   })
 })
 
-describe('generateMigrationDdl：数据变换步骤', () => {
-  it('clear_column 按方言限定表名', () => {
+describe('generateMigrationDdl: data transformation steps', () => {
+  it('clear_column qualifies table names per dialect', () => {
     const out = generateMigrationDdl(
       migration([{ type: 'clear_column', schema: 'db', table: 't', column: 'c' }]),
       diff([]),
@@ -129,7 +129,7 @@ describe('generateMigrationDdl：数据变换步骤', () => {
     expect(out.sqlite).toContain('UPDATE "t" SET "c" = NULL;')
   })
 
-  it('sql_transform 补分号，custom_sql 原样拼接并保持步骤顺序', () => {
+  it('sql_transform appends a semicolon, custom_sql is concatenated verbatim, and step order is preserved', () => {
     const out = generateMigrationDdl(
       migration([
         { type: 'sql_transform', mysql: 'UPDATE t SET a = 1', postgresql: 'UPDATE t SET a = 1;', sqlite: '' },
@@ -144,7 +144,7 @@ describe('generateMigrationDdl：数据变换步骤', () => {
     expect(out.sqlite).toBe('-- tail\n')
   })
 
-  it('无步骤时仅输出换行', () => {
+  it('outputs only a newline when there are no steps', () => {
     const out = generateMigrationDdl(migration([]), diff([]), [], null)
     expect(out).toEqual({ mysql: '\n', postgresql: '\n', sqlite: '\n' })
   })

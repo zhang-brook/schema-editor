@@ -11,19 +11,19 @@ function label(state: DesktopUpdateStatus['state'], extra: Partial<DesktopUpdate
 }
 
 describe('updateStatusLabel', () => {
-  it('未检查与不支持更新时不显示文字', () => {
+  it('shows no text when not checked or updates are unsupported', () => {
     expect(updateStatusLabel(null, translate)).toBe('')
     expect(label('idle')).toBe('')
     expect(label('unsupported')).toBe('')
   })
 
-  it('逐一对应检查中、已最新、失败三种状态', () => {
+  it('maps checking, up-to-date and failed states respectively', () => {
     expect(label('checking')).toBe('about.update.checking')
     expect(label('up-to-date')).toBe('about.update.upToDate')
     expect(label('failed')).toBe('about.update.failed')
   })
 
-  it('下载中带出版本与百分比，缺失时回退为 0', () => {
+  it('downloading includes version and percentage, falling back to 0 when missing', () => {
     expect(label('downloading', { availableVersion: '0.9.0', percent: 45 })).toBe(
       'about.update.downloading|{"version":"0.9.0","percent":45}',
     )
@@ -32,7 +32,7 @@ describe('updateStatusLabel', () => {
     )
   })
 
-  it('待安装时带出版本号', () => {
+  it('ready includes the version number', () => {
     expect(label('ready', { availableVersion: '0.9.0' })).toBe('about.update.ready|{"version":"0.9.0"}')
   })
 })

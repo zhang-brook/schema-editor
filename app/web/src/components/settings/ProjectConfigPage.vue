@@ -22,7 +22,7 @@ type SubTab = (typeof subTabs)[number]
 
 const activeSubTab = ref<SubTab>('general')
 
-// 由菜单栏标题点击进入时切到「项目信息」；immediate 同时覆盖首次挂载与已挂载后再次点击
+// Switch to “Project Info” when entered by clicking the menu bar title; immediate also covers the first mount and repeated clicks after mounting
 watch(() => store.projectInfoTabRequest, (pending) => {
   if (!pending) return
   activeSubTab.value = 'project'
@@ -35,16 +35,16 @@ const subTabOptions = computed(() =>
 </script>
 
 <template>
-  <!-- ===== 项目设置页：四个子 tab ===== -->
+  <!-- ===== Project settings page: four sub-tabs ===== -->
   <div v-if="store.commonConfig" class="pcfg-page">
     <PageTabs v-model="activeSubTab" :options="subTabOptions" />
 
-    <!-- 项目信息 -->
+    <!-- Project info -->
     <template v-if="activeSubTab === 'project'">
       <ProjectInfoPanel />
     </template>
 
-    <!-- 全局配置 -->
+    <!-- General configuration -->
     <template v-else-if="activeSubTab === 'general'">
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.commonFields') }}</div>
@@ -60,7 +60,7 @@ const subTabOptions = computed(() =>
       </div>
     </template>
 
-    <!-- 方言配置 -->
+    <!-- Dialect configuration -->
     <template v-else-if="activeSubTab === 'dialect'">
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.dialect') }}</div>
@@ -75,7 +75,7 @@ const subTabOptions = computed(() =>
       </div>
     </template>
 
-    <!-- 大模型 -->
+    <!-- LLM -->
     <template v-else>
       <div class="pcfg-group">
         <div class="pcfg-group-title">{{ $t('settings.groups.aiPrompt') }}</div>
@@ -93,7 +93,7 @@ const subTabOptions = computed(() =>
   padding: 16px;
 }
 
-/* 分组小标题：仅作视觉分隔，不增加点击层级 */
+/* Group subheadings: purely visual separation, adds no click level */
 .pcfg-group-title {
   font-size: 11px;
   font-weight: 600;

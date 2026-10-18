@@ -1,16 +1,16 @@
 import { watch, onUnmounted, type Ref } from 'vue'
 
 /**
- * 弹窗 ESC 关闭 composable
+ * Dialog ESC-to-close composable
  *
- * 监听弹窗可见状态，显示时绑定 document keydown 事件，按 ESC 触发关闭回调；
- * 隐藏时移除事件监听，组件卸载时自动清理。
+ * Watches the dialog visibility state and binds a document keydown event while visible, triggering the close callback on ESC;
+ * removes the listener when hidden and cleans up automatically when the component unmounts.
  *
- * @param showFlag  弹窗可见性的 Ref（ref / computed / toRef 均可）
- * @param onClose   按下 ESC 时的关闭回调
+ * @param showFlag Ref of the dialog visibility (ref / computed / toRef all work)
+ * @param onClose  Close callback invoked when ESC is pressed
  *
  * @example
- * // 在弹窗组件中直接调用
+ * // Call directly inside the dialog component
  * useEscClose(computed(() => store.showSomeModal), () => { store.showSomeModal = false })
  * useEscClose(computed(() => props.visible), () => emit('close'))
  */

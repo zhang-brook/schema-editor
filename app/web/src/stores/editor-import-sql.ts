@@ -55,7 +55,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
 
   // ===== Import SQL =====
 
-  /** 将解析后的表定义转换为项目的 Table 结构 */
+  /** Convert a parsed table definition into the project's Table structure. */
   function parsedTableToTable(
     parsed: ParsedTable,
     dialect: SqlDialect,
@@ -67,10 +67,10 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
 
     const indexes: Index[] = []
 
-    // 处理列级 UNIQUE：转为表级索引
+    // Handle column-level UNIQUE: convert it into a table-level index
     for (const col of parsed.columns) {
       if (col.unique) {
-        // 检查是否已被表级约束覆盖
+        // Check whether a table-level constraint already covers it
         const alreadyCovered = parsed.constraints.some(
           c => c.type === 'UNIQUE' && c.columns.length === 1 && c.columns[0]!.name === col.name,
         )
@@ -84,11 +84,11 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       }
     }
 
-    // 转换表级约束
+    // Convert table-level constraints
     for (const constraint of parsed.constraints) {
       if (constraint.columns.length === 0) continue
 
-      // 主键只由字段标记承载：SQL 生成器一律从 field.primary_key 输出 PRIMARY KEY 子句
+      // Primary keys are carried only by field flags: the SQL generator always emits the PRIMARY KEY clause from field.primary_key
       if (constraint.type === 'PRIMARY_KEY') {
         for (const col of constraint.columns) {
           const field = fields.find(f => f.field_name === col.name)
@@ -120,7 +120,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
         index.comment = constraint.comment
       }
 
-      // 根据约束类型设置方言覆盖
+      // Set dialect overrides according to the constraint type
       if (constraint.type === 'UNIQUE') {
         index.type = 'unique'
       } else if (constraint.type === 'FULLTEXT') {
@@ -132,7 +132,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       indexes.push(index)
     }
 
-    // 构建 Table 对象
+    // Build the Table object
     const table: Table = {
       name: parsed.name,
       comment: parsed.comment || parsed.options.comment || '',
@@ -140,7 +140,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       indexes,
     }
 
-    // MySQL 表配置
+    // MySQL table options
     if (dialect === 'mysql' && (parsed.options.engine || parsed.options.charset || parsed.options.collation)) {
       table.mysql = {}
       if (parsed.options.engine) table.mysql.mysql_engine = parsed.options.engine
@@ -148,9 +148,9 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       if (parsed.options.collation) table.mysql.mysql_collation = parsed.options.collation
     }
 
-    // PostgreSQL SCHEMA 引用
+    // PostgreSQL SCHEMA reference
     if (parsed.schema) {
-      // 表名已包含在 parsed.name 中，不额外处理
+      // The table name is already part of parsed.name, so nothing extra is done here
     }
 
     return table
@@ -166,7 +166,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     importSqlTargetMode.value = targetSchemaIdx !== undefined ? 'existing' : 'new'
     importSqlTargetSchemaIdx.value = targetSchemaIdx ?? -1
     importSqlNewSchemaName.value = 'imported'
-    // 清空表名编辑
+    // Clear table name edits
     for (const key of Object.keys(importSqlTableNameEdits)) {
       delete importSqlTableNameEdits[Number(key)]
     }
@@ -186,7 +186,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       importSqlParsedTables.value = result.tables
       importSqlErrors.value = result.messages
 
-      // 如果自动检测方言，使用检测结果
+      // If detecting the dialect automatically, use the detection result
       if (importSqlDialect.value === 'auto') {
         const detected = detectDialect(text)
         if (detected !== 'unknown') {
@@ -194,7 +194,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
         }
       }
 
-      // 智能检测 SQL 中的 schema 并自动配置导入目标
+      // Detect the schema in the SQL and configure the import target automatically
       const parsedSchemas = new Set(
         result.tables
           .map(t => t.schema)
@@ -203,7 +203,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
       if (parsedSchemas.size > 0) {
         const sqlSchema = [...parsedSchemas][0]!
         importSqlDetectedSchema.value = sqlSchema
-        // 尝试匹配已有 schema
+        // Try to match an existing schema
         const existingIdx = schemas.findIndex(s => s.schema === sqlSchema)
         if (existingIdx >= 0) {
           importSqlTargetMode.value = 'existing'
@@ -226,7 +226,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     }
   }
 
-  /** 同时规避原名、sanitize 后磁盘名和大小写碰撞；保留可用的原始 SQL 名称。 */
+  /** Avoid collisions with the original name, the sanitized disk name, and case variants; keep usable original SQL names. */
   function importName(name: string, used: Set<string>, fallback: string): string {
     let base = name.trim() || fallback
     const disk = sanitizeName(base)
@@ -242,7 +242,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     const dialect: SqlDialect = importSqlDialect.value === 'auto' ? 'mysql' : importSqlDialect.value
     const unifiedTypes = commonConfig.value?.unified_types ?? DEFAULT_UNIFIED_TYPES
 
-    // 先使用原始解析索引读取改名，再过滤无效表，避免前方空表造成编辑索引错位。
+    // Read renames using the original parse indexes before filtering out invalid tables, so leading empty tables cannot shift edit indexes.
     const tables = importSqlParsedTables.value
       .map((pt, index) => ({ pt, editedName: importSqlTableNameEdits[index]?.trim() }))
       .filter(({ pt }) => pt.columns.length > 0 || pt.constraints.length > 0)
@@ -268,7 +268,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     const schemaName = isNew
       ? importName(importSqlNewSchemaName.value, new Set(schemas.map(schema => diskName(schema.schema))), 'imported')
       : target!.schema
-    // schema.json 已占用同级路径，不能作为表目录名。
+    // schema.json already occupies the sibling path, so it cannot be used as a table directory name.
     const used = new Set(['schema.json', ...(target?.tables.map(table => diskName(table.name)) ?? [])])
     for (const table of tables) table.name = importName(table.name, used, 'table')
 
@@ -276,7 +276,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
     const tableIndex = target?.tables.length ?? 0
     const oldSchemaIndex = selectedSchemaIdx.value
     const oldTableIndex = selectedTableIdx.value
-    // 解析结果、编辑输入、导入后的对象都不能污染 redo 快照；保留身份供后续表命令使用。
+    // Parse results, edited input, and imported objects must all stay out of redo snapshots; identities are retained for later table commands.
     const imported = cloneValue(tables)
     const restoreTables = captureValue(imported)
     const newSchema: Schema = { schema: schemaName, tables: imported }
@@ -290,7 +290,7 @@ export function createImportSqlActions(deps: ImportSqlDeps) {
 
     executeCommand({
       label: t('importSqlModal.title'),
-      // 批量结构命令禁止 coalesce。
+      // Batch structural commands must not coalesce.
       apply() {
         if (isNew) {
           schemas.splice(schemaIndex, 0, restoreSchema())

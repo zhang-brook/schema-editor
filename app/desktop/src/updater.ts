@@ -2,11 +2,11 @@ import type { DesktopUpdateStatus } from 'schema-editor-bridge'
 import { initialStatus, reduceUpdateStatus, type UpdateEvent } from './update-state'
 
 /**
- * 更新器依赖的外部能力：由主进程用 electron-updater 适配，
- * 状态推进逻辑与之解耦以便单独测试。
+ * External capabilities the updater depends on: adapted by the main process with electron-updater.
+ * The state advancing logic is decoupled from them so it can be tested on its own.
  */
 export interface UpdaterHost {
-  /** 打包运行才有更新源，开发模式为 false */
+  /** Only packaged builds have an update source; false in dev mode */
   readonly updateSupported: boolean
   readonly currentVersion: string
   checkForUpdates(): Promise<unknown>
@@ -22,11 +22,11 @@ export interface DesktopUpdater {
   status(): DesktopUpdateStatus
   check(): Promise<DesktopUpdateStatus>
   install(): Promise<void>
-  /** 已请求退出安装，渲染进程的离开保护需要放行 */
+  /** Quit-and-install has been requested; the renderer leave guard must allow unload */
   isInstalling(): boolean
 }
 
-/** 创建更新状态机；状态变化通过 publish 推给渲染端 */
+/** Create the update state machine; state changes are pushed to the renderer via publish */
 export function createUpdater(
   host: UpdaterHost,
   publish: (status: DesktopUpdateStatus) => void,
@@ -54,7 +54,7 @@ export function createUpdater(
     apply({ type: 'checking' })
     try {
       await host.checkForUpdates()
-      // 事件缺失时按「已检查完」收尾，避免界面停在检查中
+      // If events are missing, finish as up-to-date so the UI does not stay in checking
       if (currentState() === 'checking') apply({ type: 'up-to-date' })
     } catch {
       apply({ type: 'failed' })

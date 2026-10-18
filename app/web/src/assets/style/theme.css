@@ -1,6 +1,6 @@
-/* ===== Design Tokens（浅色 / 深色 双主题）=====
-   组件的颜色、圆角、阴影、字体一律从这里取值；
-   深色主题通过 html.dark 类切换（见 composables/useTheme.ts）。 */
+/* ===== Design Tokens (light / dark dual themes) =====
+   Component colors, radii, shadows, and fonts all take their values from here;
+   the dark theme is toggled via the html.dark class (see composables/useTheme.ts). */
 
 :root {
   color-scheme: light;
@@ -60,7 +60,7 @@
   --radius-lg: 10px;
   --radius-pill: 999px;
 
-  /* ===== 界面密度（随 html[data-density] 切换）===== */
+  /* ===== UI density (switched by html[data-density]) ===== */
   --pad-cell-y: 6px;
   --pad-row-y: 7px;
 
@@ -80,7 +80,7 @@
     "Consolas", "Monaco", "Courier New", monospace;
 }
 
-/* ===== 密度档位：紧凑 / 宽松（正常为默认值）===== */
+/* ===== Density levels: compact / relaxed (normal is the default) ===== */
 :root[data-density="compact"] {
   --pad-cell-y: 4px;
   --pad-row-y: 4px;

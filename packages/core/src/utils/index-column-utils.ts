@@ -3,7 +3,7 @@ import { resolveDialectOverride } from './dialect-resolver'
 import type { SqlDialect } from './sql-generator/shared'
 
 /**
- * 解析旧版纯字符串列格式 → 新版 IndexColumn
+ * Parses the legacy plain-string column format → new IndexColumn
  * "create_time DESC" → { name: "create_time", sort_order: "DESC" }
  * "biz_type" → { name: "biz_type" }
  */
@@ -20,7 +20,7 @@ export function parseLegacyColumn(raw: string): IndexColumn {
 }
 
 /**
- * 批量升级旧版 columns（string[] | IndexColumn[]）→ IndexColumn[]
+ * Batch-upgrades legacy columns (string[] | IndexColumn[]) → IndexColumn[]
  */
 export function upgradeIndexColumns(columns: string[]): IndexColumn[] {
   return columns.map(c => {
@@ -32,7 +32,7 @@ export function upgradeIndexColumns(columns: string[]): IndexColumn[] {
 }
 
 /**
- * 将 IndexColumn 格式化为显示用字符串
+ * Formats an IndexColumn into a display string
  * { name: "create_time", sort_order: "DESC" } → "create_time DESC"
  */
 export function formatIndexColumn(col: IndexColumn): string {
@@ -42,8 +42,8 @@ export function formatIndexColumn(col: IndexColumn): string {
 }
 
 /**
- * 供 SQL 生成器使用：分离列名和排序部分
- * @returns { name: "create_time", sortPart: " DESC" } （sortPart 带前导空格）
+ * For the SQL generator: separates the column name and the sort part
+ * @returns { name: "create_time", sortPart: " DESC" } (sortPart carries a leading space)
  */
 export function splitColumnForSql(col: IndexColumn, db?: SqlDialect): { name: string; sortPart: string } {
   const sort = db === undefined
@@ -52,30 +52,30 @@ export function splitColumnForSql(col: IndexColumn, db?: SqlDialect): { name: st
   return { name: col.name, sortPart: sort ? ` ${sort}` : '' }
 }
 
-/** 删除字段时同步清理索引引用的动作（供命令模式 apply/revert 使用） */
+/** Action that cleans up index references when a field is deleted (used by command-mode apply/revert) */
 export interface IndexFieldRemoval {
-  /** 执行清理：可重复调用，内部先回滚上一次的清理结果 */
+  /** Performs the cleanup; safe to call repeatedly, rolls back the previous result first */
   apply(): void
-  /** 回滚：恢复被移除的列，以及被整体移除的索引（含原位置） */
+  /** Reverts: restores the removed columns and any indexes removed entirely (including their original positions) */
   restore(): void
 }
 
 /**
- * 删除字段时同步清理索引中对该字段的引用：
- * - 索引含该列 → 移除该列；
- * - 移除后索引无任何列 → 整个索引一并移除。
+ * Cleans up references to a field in indexes when the field is deleted:
+ * - index contains that column → remove the column;
+ * - index has no columns left after removal → remove the whole index.
  *
- * 纯函数式（只操作传入的 indexes 数组），返回 apply/restore 两个动作，
- * 供命令模式在 apply/revert 中配对调用以完整支持撤销/重做。
+ * Purely functional (only mutates the passed-in indexes array); returns apply/restore actions
+ * for command mode to call as a pair in apply/revert so undo/redo works fully.
  */
 export function createIndexFieldRemoval(indexes: Index[], fieldName: string): IndexFieldRemoval {
-  /** 被改动索引的列快照（按下标从大到小记录） */
+  /** Column snapshots of the modified indexes (recorded in descending index order) */
   const snapshots: { index: Index; indexIdx: number; columns: IndexColumn[] }[] = []
-  /** 因清空而被整体移除的索引 */
+  /** Indexes removed entirely because they were emptied */
   const removedIndexes: { index: Index; indexIdx: number }[] = []
 
   function restore() {
-    // 逆序遍历即按下标升序放回，保证多个索引同时被移除时位置正确
+    // Reverse iteration reinserts in ascending index order, keeping positions correct when several indexes are removed at once
     for (let i = removedIndexes.length - 1; i >= 0; i--) {
       const item = removedIndexes[i]!
       if (!indexes.includes(item.index)) indexes.splice(item.indexIdx, 0, item.index)
@@ -90,7 +90,7 @@ export function createIndexFieldRemoval(indexes: Index[], fieldName: string): In
   function apply() {
     restore()
     if (!fieldName) return
-    // 倒序遍历，保证 splice 不影响尚未处理的下标
+    // Iterate backwards so splice does not affect indexes not yet processed
     for (let i = indexes.length - 1; i >= 0; i--) {
       const index = indexes[i]
       if (!index?.columns) continue

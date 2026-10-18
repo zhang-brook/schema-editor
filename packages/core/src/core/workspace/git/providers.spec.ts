@@ -172,7 +172,7 @@ describe('GithubRemote', () => {
       ],
       't-db': [
         { path: 'table.json', type: 'blob', sha: 'b-table' },
-        // 非递归列表在部分平台返回仓库相对路径
+        // Non-recursive listings return repository-relative paths on some platforms
         { path: 'sql/db/deep.json', type: 'blob', sha: 'b-deep' },
       ],
     }

@@ -3,16 +3,16 @@ import type { InitialData } from '../types/schema'
 import { buildInitialDataExport, normalizeInitialData } from './initial-data-io'
 
 describe('normalizeInitialData', () => {
-  it('纯数组包成行内 rows，null 行兜成空对象', () => {
+  it('wraps a plain array into inline rows and turns null rows into empty objects', () => {
     const result = normalizeInitialData([{ id: 1 }, null])
     expect(result).toEqual({ rows: [{ data: { id: 1 } }, { data: {} }] })
   })
 
-  it('空数组归一化为空 rows', () => {
+  it('normalizes an empty array to empty rows', () => {
     expect(normalizeInitialData([])).toEqual({ rows: [] })
   })
 
-  it('旧「平行数组」合并为行内结构', () => {
+  it('merges legacy "parallel arrays" into the inline structure', () => {
     const result = normalizeInitialData({
       rows: [{ id: 1, name: 'a' }, { id: 2, name: 'b' }, { id: 3, name: 'c' }],
       row_comments: ['首行', null, ''],
@@ -26,7 +26,7 @@ describe('normalizeInitialData', () => {
     ])
   })
 
-  it('已是行内格式时原样保留并按需补齐平行数组', () => {
+  it('preserves the already-inline format as-is and fills in parallel arrays as needed', () => {
     const result = normalizeInitialData({
       rows: [
         { data: { id: 1 }, row_comment: '行注释', is_skip: true, field_comments: { id: '标识' }, expr_fields: { id: true } },
@@ -40,12 +40,12 @@ describe('normalizeInitialData', () => {
     ])
   })
 
-  it('行内化是幂等的', () => {
+  it('inlining is idempotent', () => {
     const once = normalizeInitialData({ rows: [{ id: 1 }], skip_rows: [true] })
     expect(normalizeInitialData(once)).toEqual(once)
   })
 
-  it('保留 pre_sql / post_sql 的副本', () => {
+  it('keeps copies of pre_sql / post_sql', () => {
     const raw = { rows: [], pre_sql: { mysql: 'SET a=1' }, post_sql: { postgresql: 'SELECT 1' } }
     const result = normalizeInitialData(raw)
     expect(result?.pre_sql).toEqual({ mysql: 'SET a=1' })
@@ -53,12 +53,12 @@ describe('normalizeInitialData', () => {
     expect(result?.pre_sql).not.toBe(raw.pre_sql)
   })
 
-  it('丢弃形态非法的 rows 与 pre_sql', () => {
+  it('discards malformed rows and pre_sql', () => {
     expect(normalizeInitialData({ rows: 'not-an-array', pre_sql: 'sql' })).toEqual({})
     expect(normalizeInitialData({ post_sql: 42 })).toEqual({})
   })
 
-  it('非对象输入返回 null', () => {
+  it('returns null for non-object input', () => {
     expect(normalizeInitialData(null)).toBeNull()
     expect(normalizeInitialData(undefined)).toBeNull()
     expect(normalizeInitialData('json')).toBeNull()
@@ -67,7 +67,7 @@ describe('normalizeInitialData', () => {
 })
 
 describe('buildInitialDataExport', () => {
-  it('只写非空字段', () => {
+  it('writes only non-empty fields', () => {
     const data: InitialData = {
       rows: [
         { data: { id: 1 } },
@@ -80,16 +80,16 @@ describe('buildInitialDataExport', () => {
     })
   })
 
-  it('空 pre_sql / post_sql 对象不落盘', () => {
+  it('does not persist empty pre_sql / post_sql objects', () => {
     expect(buildInitialDataExport({ rows: [], pre_sql: {}, post_sql: {} })).toEqual({ rows: [] })
     expect(buildInitialDataExport({ pre_sql: { mysql: 'SELECT 1' } })).toEqual({ pre_sql: { mysql: 'SELECT 1' } })
   })
 
-  it('未初始化 rows 时输出空对象', () => {
+  it('outputs an empty object when rows is not initialized', () => {
     expect(buildInitialDataExport({})).toEqual({})
   })
 
-  it('导出时新建 rows 数组，不复用入参引用', () => {
+  it('creates a new rows array on export instead of reusing the input reference', () => {
     const data: InitialData = { rows: [{ data: { id: 1 } }] }
     const exportData = buildInitialDataExport(data)
     expect(exportData.rows).not.toBe(data.rows)

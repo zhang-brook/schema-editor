@@ -25,14 +25,14 @@ function migration(from: string, to: string): Migration {
 }
 
 describe('buildVersionChain', () => {
-  it('空版本集合返回空链', () => {
+  it('returns an empty chain for an empty version set', () => {
     const chain = buildVersionChain([], [])
     expect(chain.versions).toEqual([])
     expect(chain.segments).toEqual([])
     expect(chain.gaps).toEqual([])
   })
 
-  it('无 parent_id 时按创建时间排序', () => {
+  it('sorts by creation time when there is no parent_id', () => {
     const chain = buildVersionChain(
       [version('v3', '2026-03-01'), version('v1', '2026-01-01'), version('v2', '2026-02-01')],
       [],
@@ -41,7 +41,7 @@ describe('buildVersionChain', () => {
     expect(chain.branched).toBe(false)
   })
 
-  it('有 parent_id 时按父子关系串联', () => {
+  it('chains versions by parent-child relationships when parent_id exists', () => {
     const chain = buildVersionChain(
       [
         version('v1', '2026-01-01'),
@@ -53,7 +53,7 @@ describe('buildVersionChain', () => {
     expect(chain.versions.map((v) => v.id)).toEqual(['v1', 'v2', 'v3'])
   })
 
-  it('标注相邻版本之间缺失的迁移', () => {
+  it('flags migrations missing between adjacent versions', () => {
     const chain = buildVersionChain(
       [
         version('v1', '2026-01-01'),
@@ -67,7 +67,7 @@ describe('buildVersionChain', () => {
     expect(chain.gaps[0]).toMatchObject({ from: { id: 'v2' }, to: { id: 'v3' } })
   })
 
-  it('存在对应迁移时不计为缺口', () => {
+  it('does not report a gap when the matching migration exists', () => {
     const chain = buildVersionChain(
       [version('v1', '2026-01-01'), version('v2', '2026-02-01', 'v1')],
       [migration('v1', 'v2')],
@@ -75,7 +75,7 @@ describe('buildVersionChain', () => {
     expect(chain.gaps).toEqual([])
   })
 
-  it('同一父版本有多个子版本时标记为分叉', () => {
+  it('marks a fork when one parent version has multiple children', () => {
     const chain = buildVersionChain(
       [
         version('v1', '2026-01-01'),
@@ -88,7 +88,7 @@ describe('buildVersionChain', () => {
     expect(chain.versions.map((v) => v.id)).toEqual(['v1', 'v2', 'v2h'])
   })
 
-  it('parent_id 成环时不丢失版本', () => {
+  it('does not lose versions when parent_id forms a cycle', () => {
     const chain = buildVersionChain(
       [version('v1', '2026-01-01', 'v2'), version('v2', '2026-02-01', 'v1')],
       [],

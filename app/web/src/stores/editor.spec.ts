@@ -3,8 +3,8 @@ import editorSource from './editor.ts?raw'
 import toolbarSource from '@/components/EditorToolbar.vue?raw'
 import appSource from '@/App.vue?raw'
 
-// 保存链路的接线守卫：改动落盘必须经工作区会话按需写入，
-// 不允许回退到「深度 watch 项目对象 → 全量重写所有 json」的旧机制。
+// Wiring guard for the save path: persisted changes must go through the workspace
+// session on demand; the old "deep watch project object -> rewrite all json" mechanism is not allowed.
 describe('editor store save wiring', () => {
   it('routes command persistence through the workspace session only', () => {
     expect(editorSource).toContain('history.setPersistHook((files) => { markChanged(files) })')
@@ -29,7 +29,7 @@ describe('editor store save wiring', () => {
     expect(editorSource).toMatch(/async function requestCloseProject\(silent = false\): Promise<boolean> \{[\s\S]*?confirmLeaveUnsaved\(\)/)
   })
   it('keeps the save action available even when nothing changed', () => {
-    // 磁盘上的派生文件可能被外部删除：无改动时也要能点保存重建
+    // Derived files on disk may be deleted externally: saving must work even with no changes
     expect(editorSource).toMatch(/async function saveProjectWithFeedback\(\) \{\s*if \(!session\) return\s*await saveProject\(\)/)
     expect(toolbarSource).not.toContain(':disabled="!store.hasUnsavedChanges')
     expect(toolbarSource).toContain(':disabled="store.saveState.saving"')

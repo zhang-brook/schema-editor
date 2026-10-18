@@ -5,25 +5,25 @@ import { resolveDialectOverride } from '../dialect-resolver'
 import { resolveIndexLogicalDelete } from '../logical-delete'
 
 /*
-  SQL 生成器（SQLite 方言）
-  纯函数，不依赖 Node.js fs，可在浏览器端运行
+  SQL generator (SQLite dialect)
+  Pure functions, no dependency on Node.js fs; runs in the browser
 
-  与 MySQL / PostgreSQL 的差异：
-  - 无 CREATE SCHEMA：schema 仅作为注释标注（对应数据库文件或 ATTACH 别名）
-  - 无 COMMENT 语法：表/字段/索引注释一律以 `--` 注释行输出
-  - 无 PARTITION BY：分区配置不参与生成
-  - 外键开关用 PRAGMA foreign_keys（对应 MySQL 的 SET FOREIGN_KEY_CHECKS）
+  Differences from MySQL / PostgreSQL:
+  - No CREATE SCHEMA: the schema is only noted in a comment (it maps to the database file or an ATTACH alias)
+  - No COMMENT syntax: table/field/index comments are all emitted as `--` comment lines
+  - No PARTITION BY: partition settings are not used during generation
+  - Foreign keys are toggled with PRAGMA foreign_keys (equivalent to MySQL's SET FOREIGN_KEY_CHECKS)
 */
 
-// ===== 工具函数 =====
+// ===== Utility functions =====
 
-/** 根据 commonConfig 决定是否对 SQLite 标识符加双引号（双引号是 SQLite 的标准引用符） */
+/** Decide from commonConfig whether to double-quote SQLite identifiers (double quotes are SQLite's standard quoting character) */
 function quoteIdent(name: string, commonConfig: CommonConfig | null): string {
   const shouldQuote = commonConfig?.default_config?.sqlite?.quote_identifiers ?? true
   return shouldQuote ? `"${name}"` : name
 }
 
-/** 生成索引列列表（含排序方向） */
+/** Build the index column list (including sort direction) */
 function indexColumnList(columns: Table['indexes'][number]['columns'], commonConfig: CommonConfig | null): string {
   return columns.map(col => {
     const { name, sortPart } = splitColumnForSql(col, 'sqlite')
@@ -31,18 +31,18 @@ function indexColumnList(columns: Table['indexes'][number]['columns'], commonCon
   }).join(', ')
 }
 
-// ===== 表字段定义 =====
+// ===== Table field definitions =====
 
 function getFieldDefinitionSQLite(field: Field, commonConfig: CommonConfig | null): string {
   let fieldDef = quoteIdent(field.field_name, commonConfig)
 
-  // 使用统一类型解析链获取最终 type + length + scale
+  // Resolve the final type + length + scale through the unified type resolution chain
   const resolved = resolveFieldTypeForDialect(field, 'sqlite', commonConfig)
   const fieldType = resolved.type
   const fieldLength = resolved.length
   const fieldScale = resolved.scale
 
-  // 确定 default 值（不走 unified_type，保持字段级 → 方言覆盖链）
+  // Resolve the default (bypasses unified_type to keep the field-level → dialect override chain)
   const defaultValue = resolveDialectOverride(field, 'sqlite', 'default')
 
   if (fieldType) {
@@ -70,7 +70,7 @@ function getFieldDefinitionSQLite(field: Field, commonConfig: CommonConfig | nul
     }
   }
 
-  // SQLite 无字段级 COMMENT 语法，注释由建表逻辑以独立 `--` 行输出在字段定义之上
+  // SQLite has no field-level COMMENT syntax; the table builder emits comments as standalone `--` lines above the field definition
 
   if (field.is_commented_out) {
     fieldDef = `-- ${fieldDef}`
@@ -79,11 +79,11 @@ function getFieldDefinitionSQLite(field: Field, commonConfig: CommonConfig | nul
   return fieldDef
 }
 
-// ===== 生成单表 SQL =====
+// ===== Generate SQL for a single table =====
 
 /**
- * 生成单表建表 SQL。
- * 与 PostgreSQL 不同，SQLite 无 schema 前缀（schema 对应数据库文件），故无需 schemaName 参数。
+ * Generate the CREATE TABLE SQL for a single table.
+ * Unlike PostgreSQL, SQLite has no schema prefix (the schema maps to a database file), so no schemaName parameter is needed.
  */
 export function generateTableSQLite(table: Table, commonConfig: CommonConfig | null): string {
   const qTableName = quoteIdent(table.name, commonConfig)
@@ -94,17 +94,17 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
 
   sql += `-- ----------------------------\n`
   sql += `-- Table structure for ${table.name}\n`
-  // SQLite 无表级 COMMENT 语法，表注释落在表头注释块内
+  // SQLite has no table-level COMMENT syntax; the table comment goes inside the table header comment block
   if (table.comment) {
     sql += `-- ${table.comment}\n`
   }
   sql += `-- ----------------------------\n`
 
-  // 表前置 SQL
+  // Table pre-SQL
   const preSql = getTablePreSql(table, 'sqlite')
   if (preSql) sql += fmtPrePostSql(preSql) + '\n'
 
-  // DDL 生成策略：drop_and_create | create_if_not_exists | create
+  // DDL generation strategy: drop_and_create | create_if_not_exists | create
   const ddlMode = commonConfig?.default_config?.table_ddl_mode ?? 'drop_and_create'
   if (ddlMode === 'create_if_not_exists') {
     sql += `CREATE TABLE IF NOT EXISTS ${qTableName} (\n`
@@ -115,20 +115,20 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
     sql += `CREATE TABLE ${qTableName} (\n`
   }
 
-  // 字段定义
+  // Field definitions
   const fieldDefinitions = table.fields.map(field => {
     const fieldConfig = resolveField(field, commonConfig)
     let fieldDef = `  ${getFieldDefinitionSQLite(fieldConfig, commonConfig)}`
 
-    // 字段注释以独立注释行输出（SQLite 无 COMMENT 语法）
+    // Field comments are emitted as standalone comment lines (SQLite has no COMMENT syntax)
     const finalComment = buildFieldComment(fieldConfig, 'sqlite')
     if (finalComment) {
-      // 注释含换行时逐行加注释前缀，避免破坏后续 SQL
+      // When a comment spans multiple lines, prefix every line so the following SQL is not broken
       const commentLines = finalComment.split(/\r?\n/).map(l => (l ? `  -- ${l}` : '  --')).join('\n')
       fieldDef = `${commentLines}\n${fieldDef}`
     }
 
-    // 检查是否需要在字段前添加注释
+    // Check whether a comment needs to be added before the field
     if (table.comment_before_fields?.[field.field_name]) {
       fieldDef = renderCommentBeforeField(table.comment_before_fields[field.field_name]!) + fieldDef
     }
@@ -136,7 +136,7 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
     return fieldDef
   })
 
-  // 主键（支持复合主键）
+  // Primary key (composite primary keys supported)
   const primaryKeyFields = table.fields.filter(field => {
     const fieldConfig = resolveField(field, commonConfig)
     return fieldConfig.primary_key
@@ -148,15 +148,15 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
     indexDefinitions.push(`  PRIMARY KEY (${primaryKeyColumns})`)
   }
 
-  // UNIQUE 索引在建表语句中定义（SQLite 支持具名 CONSTRAINT ... UNIQUE）
-  // 例外：逻辑删除感知的唯一索引需带 WHERE，而表级 CONSTRAINT UNIQUE 不支持 WHERE，
-  // 只能降级为建表后的 CREATE UNIQUE INDEX ... WHERE（见下方普通索引循环）
+  // UNIQUE indexes are defined inside the CREATE TABLE statement (SQLite supports named CONSTRAINT ... UNIQUE)
+  // Exception: logical-delete-aware unique indexes need a WHERE clause, which a table-level CONSTRAINT UNIQUE
+  // does not support, so they fall back to CREATE UNIQUE INDEX ... WHERE after the table (see the regular index loop below)
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'sqlite', 'type', index.type)
     if (indexType === 'unique' && !resolveIndexLogicalDelete(index, table, 'sqlite', commonConfig)) {
       const indexName = resolveIndexName(index, 'sqlite', table.name)!
       let def = `  CONSTRAINT ${quoteIdent(indexName, commonConfig)} UNIQUE (${indexColumnList(index.columns, commonConfig)})`
-      // SQLite 无 COMMENT ON INDEX，索引注释以注释行输出
+      // SQLite has no COMMENT ON INDEX; index comments are emitted as comment lines
       if (index.comment) {
         def = `  -- ${index.comment}\n${def}`
       }
@@ -171,8 +171,8 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
   }
   sql += '\n);\n\n'
 
-  // 普通索引在建表语句下方定义
-  // 逻辑删除感知的唯一索引同样在此输出：部分唯一索引无法写成表内 CONSTRAINT
+  // Regular indexes are defined below the CREATE TABLE statement
+  // Logical-delete-aware unique indexes are also emitted here: a partial unique index cannot be written as an inline CONSTRAINT
   let hasCreateIndexSql = false
   table.indexes.forEach(index => {
     const indexType = resolveDialectOverride(index, 'sqlite', 'type', index.type)
@@ -187,7 +187,7 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
       if (index.comment) {
         sql += `-- ${index.comment}\n`
       }
-      // // 部分唯一索引：说明为何不在表内声明（表级 UNIQUE 约束不支持 WHERE）
+      // // Partial unique index: documents why it is not declared inline (table-level UNIQUE constraints do not support WHERE)
       // if (logicalDelete) {
       //   sql += `-- 部分唯一索引：${logicalDelete.predicate}\n`
       // }
@@ -203,14 +203,14 @@ export function generateTableSQLite(table: Table, commonConfig: CommonConfig | n
     sql += '\n'
   }
 
-  // 表后置 SQL
+  // Table post-SQL
   const postSql = getTablePostSql(table, 'sqlite')
   if (postSql) sql += '\n' + fmtPrePostSql(postSql)
 
   return sql
 }
 
-// ===== 生成整个 schema 的 SQL =====
+// ===== Generate SQL for the entire schema =====
 
 export function generateSchemaSQLite(schema: Schema, commonConfig: CommonConfig | null): string {
   let sql = ''
@@ -226,11 +226,11 @@ export function generateSchemaSQLite(schema: Schema, commonConfig: CommonConfig 
     '',
   ].join('\n')
 
-  // Schema 前置 SQL
+  // Schema pre-SQL
   const schemaPreSql = getSchemaPreSql(schema, 'sqlite')
   if (schemaPreSql) sql += fmtPrePostSql(schemaPreSql) + '\n'
 
-  // SQLite 无 CREATE SCHEMA：schema 对应数据库文件（或 ATTACH 别名），仅以注释标注
+  // SQLite has no CREATE SCHEMA: the schema maps to a database file (or ATTACH alias) and is only noted in a comment
   sql += `-- Schema: ${schema.schema}\n\n`
 
   schema.tables.forEach(table => {
@@ -240,7 +240,7 @@ export function generateSchemaSQLite(schema: Schema, commonConfig: CommonConfig 
 
   sql = sql.trimEnd() + '\n'
 
-  // Schema 后置 SQL
+  // Schema post-SQL
   const schemaPostSql = getSchemaPostSql(schema, 'sqlite')
   if (schemaPostSql) sql += fmtPrePostSql(schemaPostSql) + '\n'
 
@@ -249,9 +249,9 @@ export function generateSchemaSQLite(schema: Schema, commonConfig: CommonConfig 
   return sql
 }
 
-// ===== Initial Data INSERT 语句生成 =====
+// ===== Initial data INSERT statement generation =====
 
-/** 将 JS 值格式化为 SQL 字面量（SQLite 无原生布尔类型，以 1/0 表示） */
+/** Format a JS value as a SQL literal (SQLite has no native boolean type; values are represented as 1/0) */
 export function formatSqlValue(val: unknown, isExpr = false): string {
   if (val === null || val === undefined) return 'NULL'
   if (typeof val === 'boolean') {
@@ -262,22 +262,22 @@ export function formatSqlValue(val: unknown, isExpr = false): string {
     return String(val)
   }
   if (typeof val === 'string') {
-    // 标记为 SQL 表达式（如 CURRENT_TIMESTAMP()）：原样输出，不加引号
+    // Flagged as a SQL expression (e.g. CURRENT_TIMESTAMP()): emit as-is without quotes
     if (isExpr) return val
-    // 转义单引号：' → ''
+    // Escape single quotes: ' → ''
     return `'${val.replace(/'/g, "''")}'`
   }
-  // 对象/数组等：JSON 序列化后作为字符串
+  // Objects/arrays etc.: JSON-serialize, then treat as a string
   return `'${JSON.stringify(val).replace(/'/g, "''")}'`
 }
 
-/** 生成单表的 INSERT 语句 */
+/** Generate INSERT statements for a single table */
 export function generateInitialDataSQLite(
   table: Table,
-  rows: JsonObject[], // rows 应为已过滤掉 skip 行的有效数据
+  rows: JsonObject[], // rows must already contain only valid data with skipped rows removed
   rowComments: (string | null)[] | undefined,
   commonConfig: CommonConfig | null,
-  exprFields?: Record<string, boolean>[], // 与 rows 索引对齐：标记某字段值为 SQL 表达式（不加引号）
+  exprFields?: Record<string, boolean>[], // aligned with rows by index: marks a field value as a SQL expression (no quotes)
 ): string {
   const cols = getTableColumnNames(table, null)
   if (cols.length === 0 || rows.length === 0) return ''
@@ -285,7 +285,7 @@ export function generateInitialDataSQLite(
   const qTable = quoteIdent(table.name, commonConfig)
   const colList = cols.map(c => quoteIdent(c, commonConfig)).join(', ')
 
-  // 行注释（仅输出非 null 的）
+  // Row comments (only non-null ones are emitted)
   let comments = ''
   if (rowComments) {
     for (let i = 0; i < rowComments.length; i++) {
@@ -304,7 +304,7 @@ export function generateInitialDataSQLite(
   return `${comments}INSERT INTO ${qTable} (${colList}) VALUES\n${valueRows.join(',\n')};\n`
 }
 
-/** 生成所有 Schema 的 SQLite initial data INSERT 汇总 */
+/** Generate the combined SQLite initial data INSERT script for all schemas */
 export function generateInitialDataAllSQLite(
   schemas: Schema[],
   initialDataMap: Map<string, InitialData>,
@@ -332,10 +332,10 @@ export function generateInitialDataAllSQLite(
       const hasPreSql = !!initPreSql
       const hasPostSql = !!initPostSql
 
-      // 先过滤掉「不生成」的行，得到有效数据行（无 skip 逻辑残留）
+      // Filter out "do not generate" rows first to obtain the valid data rows (no leftover skip logic)
       const filtered = filterInitialDataRows(initData.rows)
 
-      // 无有效数据行且无 pre/post SQL 则跳过
+      // Skip when there are no valid rows and no pre/post SQL
       if (!filtered.hasRows && !hasPreSql && !hasPostSql) continue
 
       if (!isSchemaCommentHeaderPrinted) {
@@ -346,7 +346,7 @@ export function generateInitialDataAllSQLite(
         isSchemaCommentHeaderPrinted = true
       }
 
-      // initial-data 级别前置 SQL
+      // initial-data level pre-SQL
       if (hasPreSql) {
         sql += fmtPrePostSql(initPreSql) + '\n'
       }
@@ -358,7 +358,7 @@ export function generateInitialDataAllSQLite(
         sql += '\n'
       }
 
-      // initial-data 级别后置 SQL
+      // initial-data level post-SQL
       if (hasPostSql) {
         sql += fmtPrePostSql(initPostSql) + '\n'
       }

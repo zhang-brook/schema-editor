@@ -1,23 +1,23 @@
-// 方言解析辅助层：统一收敛带方言覆盖的属性读取，避免散落的 `obj.mysql?.attr ?? obj.attr ?? fallback` 写法。
+// Dialect resolution helper layer: centralizes property reads with dialect overrides and avoids scattered `obj.mysql?.attr ?? obj.attr ?? fallback` patterns.
 
 import type { SqlDialect } from "./sql-generator/shared"
 
-/** 实体上的方言子对象视图；实体形态由调用方保证，属性值统一按 unknown 取出 */
+/** View of an entity's dialect sub-object; the caller guarantees the entity shape, values are read as unknown */
 function dialectSubObject<T>(obj: T | null | undefined, dialect: SqlDialect): Record<string, unknown> | undefined {
   return (obj as Record<string, unknown> | null | undefined)?.[dialect] as Record<string, unknown> | undefined
 }
 
 /**
- * 读取带方言覆盖的属性：方言优先，其次顶层同名属性，最后回退默认值。
- * 等价于 `obj[dialect]?.[key] ?? obj[key] ?? fallback`。
+ * Read a property with dialect override: dialect value first, then the top-level property of the same name, then the fallback.
+ * Equivalent to `obj[dialect]?.[key] ?? obj[key] ?? fallback`.
  *
- * @typeParam T - 实体类型（如 Field / Index / IndexColumn）
- * @typeParam K - T 的顶层键名，`key` 受此约束以获得类型提示
- * @param obj - 目标实体对象
- * @param dialect - 当前方言
- * @param key - 待读取的属性键
- * @param fallback - 未命中时的回退值
- * @returns 最终解析出的属性值
+ * @typeParam T - Entity type (e.g. Field / Index / IndexColumn)
+ * @typeParam K - Top-level key of T; `key` is constrained to this for type hints
+ * @param obj - Target entity object
+ * @param dialect - Current dialect
+ * @param key - Property key to read
+ * @param fallback - Fallback value when not found
+ * @returns The resolved property value
  */
 export function resolveDialectOverride<T, K extends keyof T & string>(
   obj: T | null | undefined,
@@ -33,16 +33,16 @@ export function resolveDialectOverride<T, K extends keyof T & string>(
 }
 
 /**
- * 仅读取方言子对象上的覆盖值，未命中时回退 `fallback`（不回退顶层同名属性）。
- * 等价于 `obj[dialect]?.[key] ?? fallback`。
+ * Read only the override value on the dialect sub-object; falls back to `fallback` when missing (no fallback to the top-level property of the same name).
+ * Equivalent to `obj[dialect]?.[key] ?? fallback`.
  *
- * @typeParam T - 实体类型
- * @typeParam K - T 的顶层键名，`key` 受此约束以获得类型提示
- * @param obj - 目标实体对象
- * @param dialect - 当前方言
- * @param key - 待读取的属性键
- * @param fallback - 未命中时的回退值
- * @returns 方言子对象上的属性值或回退值
+ * @typeParam T - Entity type
+ * @typeParam K - Top-level key of T; `key` is constrained to this for type hints
+ * @param obj - Target entity object
+ * @param dialect - Current dialect
+ * @param key - Property key to read
+ * @param fallback - Fallback value when not found
+ * @returns The value on the dialect sub-object, or the fallback
  */
 export function getDialectOverrideValue<T, K extends keyof T & string>(
   obj: T | null | undefined,
@@ -55,15 +55,15 @@ export function getDialectOverrideValue<T, K extends keyof T & string>(
 }
 
 /**
- * 读取仅存在于方言子对象的配置项（如 `table.mysql.mysql_engine`），不存在时回退 `fallback`。
- * 与 `getDialectOverrideValue` 不同：此类属性不存在顶层同名键，因此不会回退顶层。
+ * Read a config item that exists only on the dialect sub-object (e.g. `table.mysql.mysql_engine`); falls back to `fallback` when absent.
+ * Unlike `getDialectOverrideValue`, such properties have no top-level key of the same name, so there is no top-level fallback.
  *
- * @typeParam O - 方言子对象类型（如 TableMysqlConfig / FieldOverride）
- * @typeParam K - O 的键名，`key` 受此约束以获得类型提示
- * @param subConfig - 方言子对象
- * @param key - 待读取的属性键
- * @param fallback - 未命中时的回退值
- * @returns 方言子对象上的属性值或回退值
+ * @typeParam O - Dialect sub-object type (e.g. TableMysqlConfig / FieldOverride)
+ * @typeParam K - Key of O; `key` is constrained to this for type hints
+ * @param subConfig - Dialect sub-object
+ * @param key - Property key to read
+ * @param fallback - Fallback value when not found
+ * @returns The value on the dialect sub-object, or the fallback
  */
 export function getDialectSubConfig<O, K extends keyof O & string>(
   subConfig: O | null | undefined,

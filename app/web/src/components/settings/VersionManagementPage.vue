@@ -24,14 +24,15 @@ import { canDeleteVersion } from 'schema-editor-core/core/version/guards'
 const store = useEditorStore()
 const { t } = useI18n()
 
-// ===== 版本管理（迁入自 VersionMigrationModal 的逻辑，去掉 modal 外壳） =====
+// ===== Version management (logic migrated from VersionMigrationModal, modal shell removed) =====
 const versionTab = ref<'version' | 'migration' | 'environment'>('version')
 const newVersionName = ref('')
 
 /**
- * 左侧版本列表展示顺序：新 → 旧。
- * 仅反转 UI 呈现顺序，store.versions 底层顺序（时间升序）不变，
- * 最新版本位于列表顶部，用户无需滚动到列表底部。
+ * Display order of the left-hand version list: newest → oldest.
+ * Only the UI presentation order is reversed; the underlying store.versions order
+ * (ascending by time) is unchanged, so the newest version sits at the top
+ * and the user does not need to scroll to the bottom of the list.
  */
 const displayVersions = computed(() => [...store.versions].reverse())
 
@@ -52,14 +53,14 @@ async function onDeleteVersion(id: string, name: string) {
   await store.deleteVersionById(id)
 }
 
-// ===== 版本删除保护 =====
+// ===== Version deletion protection =====
 
-/** 版本是否可删除（未被迁移、环境引用） */
+/** Whether the version can be deleted (not referenced by migrations or environments) */
 function versionDeletable(id: string): boolean {
   return canDeleteVersion(id, store.migrations, store.environments).ok
 }
 
-/** 不可删除时的原因提示，用于 tooltip */
+/** Reason text shown in the tooltip when deletion is not allowed */
 function versionDeleteTooltip(id: string): string {
   const { ok, reasons } = canDeleteVersion(id, store.migrations, store.environments)
   if (ok) return t('version.delete')
@@ -74,7 +75,7 @@ function versionDeleteTooltip(id: string): string {
   return `${t('version.cannotDelete')}\n${lines.join('\n')}`
 }
 
-// ===== 版本改名（列表内联编辑） =====
+// ===== Version rename (inline editing in the list) =====
 const editingId = ref<string | null>(null)
 const editingName = ref('')
 
@@ -99,13 +100,13 @@ const vFocus = {
 }
 
 const selectedMigrationId = ref<string | null>(null)
-// true => 右侧处于「新建迁移草稿」模式；false => 未选中任何项
+// true => the right side is in "new migration draft" mode; false => nothing is selected
 const isDrafting = ref(false)
 const draftFrom = ref('')
 const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
 const preview = ref<MigrationDdlPreview | null>(null)
-// 迁移预览：只展示已启用的方言
+// Migration preview: only show enabled dialects
 const { enabledDialects, dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
 
 const canCreateMigration = computed(
@@ -116,7 +117,7 @@ const canCreateMigration = computed(
     store.versions.length >= 2,
 )
 
-/** 根据版本 id 取名称（用于列表项副标题） */
+/** Get the version name by id (used as the list item subtitle) */
 function versionName(id: string): string {
   return store.versions.find(b => b.id === id)?.name ?? id
 }
@@ -131,11 +132,11 @@ async function selectMigration(m: Migration) {
   await loadRenameSuggestions()
 }
 
-// ===== 身份对齐 =====
+// ===== Identity alignment =====
 const renameSuggestions = ref<RenameSuggestion[]>([])
 const renameLoading = ref(false)
 
-/** 加载两版本之间的改名候选（自动推断，需用户确认后才生效） */
+/** Load rename candidates between two versions (auto-inferred, effective only after user confirmation) */
 async function loadRenameSuggestions() {
   const m = editingMigration.value
   if (!m || !m.from_version || !m.to_version || m.from_version === m.to_version) {
@@ -153,7 +154,7 @@ async function loadRenameSuggestions() {
   }
 }
 
-/** 确认一条改名：写入迁移的 renames 并立即持久化 */
+/** Confirm a rename: write it into the migration's renames and persist immediately */
 async function onConfirmRename(entry: RenameEntry) {
   const m = editingMigration.value
   if (!m) return
@@ -164,7 +165,7 @@ async function onConfirmRename(entry: RenameEntry) {
   await store.updateMigration(m)
 }
 
-/** 取消一条已确认的改名 */
+/** Remove a confirmed rename */
 async function onRemoveRename(from: string) {
   const m = editingMigration.value
   if (!m) return
@@ -172,19 +173,19 @@ async function onRemoveRename(from: string) {
   await store.updateMigration(m)
 }
 
-// ===== 各环境执行状态 =====
+// ===== Execution status per environment =====
 
-/** 取某环境在该迁移下的执行状态（缺省未执行） */
+/** Get an environment's execution status for this migration (defaults to not executed) */
 function envStatus(envId: string): EnvMigrationStatus {
   return editingMigration.value?.env_status?.[envId] ?? { executed: false }
 }
 
-/** 勾选框变化（模板无法写类型断言，故在此取值） */
+/** Checkbox change (templates cannot use type assertions, so the value is read here) */
 function onEnvExecutedToggle(envId: string, event: Event) {
   onToggleEnvExecuted(envId, (event.target as HTMLInputElement).checked)
 }
 
-/** 切换某环境的执行状态，并立即持久化 */
+/** Toggle an environment's execution status and persist immediately */
 async function onToggleEnvExecuted(envId: string, executed: boolean) {
   const m = editingMigration.value
   if (!m) return
@@ -194,12 +195,12 @@ async function onToggleEnvExecuted(envId: string, executed: boolean) {
   await store.updateMigration(m)
 }
 
-/** 备注输入变化（模板无法写类型断言，故在此取值） */
+/** Note input change (templates cannot use type assertions, so the value is read here) */
 function onEnvNoteInput(envId: string, event: Event) {
   onEnvNoteChange(envId, (event.target as HTMLInputElement).value)
 }
 
-/** 更新某环境的针对性备注 */
+/** Update the environment-specific note */
 async function onEnvNoteChange(envId: string, note: string) {
   const m = editingMigration.value
   if (!m) return
@@ -208,7 +209,7 @@ async function onEnvNoteChange(envId: string, note: string) {
   await store.updateMigration(m)
 }
 
-/** 迁移的源/目标版本变更：刷新预览与改名候选 */
+/** Migration source/target version changed: refresh preview and rename candidates */
 async function onMigrationVersionChange() {
   if (!editingMigration.value) return
   draftFrom.value = editingMigration.value.from_version
@@ -217,7 +218,7 @@ async function onMigrationVersionChange() {
   await loadRenameSuggestions()
 }
 
-/** 进入「新建迁移草稿」模式：清空选中态，默认选首尾两个版本作为 from/to */
+/** Enter "new migration draft" mode: clear the selection and default from/to to the first and last versions */
 function startNewMigration() {
   isDrafting.value = true
   editingMigration.value = null
@@ -228,7 +229,7 @@ function startNewMigration() {
   renameSuggestions.value = []
 }
 
-/** 点击时间轴上的迁移缺口：切到迁移页并预填 from/to，便于直接补建 */
+/** Click a migration gap on the timeline: switch to the migration tab and prefill from/to for quick creation */
 function onCreateMigrationForGap(from: string, to: string) {
   versionTab.value = 'migration'
   isDrafting.value = true
@@ -239,7 +240,7 @@ function onCreateMigrationForGap(from: string, to: string) {
   draftTo.value = to
 }
 
-/** 点击时间轴上已有迁移的连线：切到迁移页并选中该迁移脚本 */
+/** Click a line with an existing migration on the timeline: switch to the migration tab and select that migration */
 async function onViewMigration(id: string) {
   const m = store.migrations.find(x => x.id === id)
   if (!m) return
@@ -247,7 +248,7 @@ async function onViewMigration(id: string) {
   await selectMigration(m)
 }
 
-/** 取消草稿，回到「未选中」空白态 */
+/** Cancel the draft and return to the "nothing selected" empty state */
 function cancelDraft() {
   isDrafting.value = false
   editingMigration.value = null
@@ -310,7 +311,7 @@ function previewText(): string {
   return preview.value[previewDialect.value]
 }
 
-// ===== 版本预览 =====
+// ===== Version preview =====
 const previewVersionId = ref<string | null>(null)
 const { activeDialect: previewSqlDialect } = useEnabledDialect()
 
@@ -324,7 +325,7 @@ function onCloseVersionPreview() {
   store.clearVersionPreview()
 }
 
-/** 从版本快照生成 SQL */
+/** Generate SQL from the version snapshot */
 const versionSqlPreview = computed(() => {
   const snap = store.selectedVersionSnapshot
   if (!snap) return { mysql: '', postgresql: '', sqlite: '' }
@@ -350,7 +351,7 @@ const versionSqlText = computed(() => {
   return versionSqlPreview.value[previewSqlDialect.value]
 })
 
-/** 统计快照中的表/字段/索引总数 */
+/** Count total tables/fields/indexes in the snapshot */
 const versionSnapshotStats = computed(() => {
   const snap = store.selectedVersionSnapshot
   if (!snap) return { schemas: 0, tables: 0, fields: 0, indexes: 0 }
@@ -365,13 +366,13 @@ const versionSnapshotStats = computed(() => {
   return { schemas: snap.schemas.length, tables, fields, indexes }
 })
 
-/** 当前版本摘要（用于面板头标题） */
+/** Summary of the current version (used as the panel header title) */
 const previewVersionSummary = computed(() => {
   if (!previewVersionId.value) return null
   return store.versions.find(b => b.id === previewVersionId.value) ?? null
 })
 
-// 进入版本管理页时重置迁移编辑状态（保持未选中空白态，避免误以为在新建）
+// Reset the migration editor state when entering the version management page (stay in the unselected empty state to avoid confusion with creating a new one)
 onMounted(() => {
   versionTab.value = 'version'
   cancelDraft()
@@ -379,19 +380,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- 版本管理 -->
+  <!-- Version management -->
   <div class="ps-version">
     <div class="ps-version-tabs">
       <PageTabs v-model="versionTab" :options="versionTabOptions" />
     </div>
 
-    <!-- 版本 -->
+    <!-- Versions -->
     <div v-if="versionTab === 'version'" class="ps-version-tab">
       <VersionTimeline :active-id="previewVersionId" @select="onPreviewVersion"
         @create-migration="onCreateMigrationForGap" @view-migration="onViewMigration" />
 
       <div class="ps-version-body ps-version-root">
-      <!-- 左侧：版本列表 -->
+      <!-- Left: version list -->
       <div class="ps-version-list">
         <div class="ps-create-row">
           <input v-model="newVersionName" class="ps-input" :placeholder="$t('version.namePlaceholder')" />
@@ -423,24 +424,24 @@ onMounted(() => {
         </ul>
       </div>
 
-      <!-- 右侧：版本预览面板 -->
+      <!-- Right: version preview panel -->
       <div class="ps-version-preview">
-        <!-- 未选中版本 -->
+        <!-- No version selected -->
         <div v-if="!previewVersionId" class="ps-version-empty">
           {{ $t('version.previewEmpty') }}
         </div>
 
-        <!-- 加载中 -->
+        <!-- Loading -->
         <div v-else-if="store.versionPreviewLoading" class="ps-version-empty">
           {{ $t('app.loadingOpenProject') }}
         </div>
 
-        <!-- 快照加载失败 -->
+        <!-- Failed to load snapshot -->
         <div v-else-if="previewVersionId && !store.selectedVersionSnapshot" class="ps-version-empty">
           {{ $t('version.previewLoadFailed') }}
         </div>
 
-        <!-- 预览面板内容 -->
+        <!-- Preview panel content -->
         <template v-else-if="store.selectedVersionSnapshot">
           <div class="ps-bp-header">
             <div>
@@ -462,7 +463,7 @@ onMounted(() => {
             <span>{{ $t('version.previewStructVersion') }}: {{ store.selectedVersionSnapshot.struct_version }}</span>
           </div>
 
-          <!-- 结构树 -->
+          <!-- Structure tree -->
           <div class="ps-bp-tree">
             <template v-if="store.selectedVersionSnapshot.schemas.length === 0">
               <div class="ps-empty-sm">{{ $t('version.previewNoSchemas') }}</div>
@@ -473,7 +474,7 @@ onMounted(() => {
                 <div v-for="(table, ti) in schema.tables" :key="ti" class="ps-bp-table">
                   <details>
                     <summary class="ps-bp-table-name">{{ table.name }} <span class="ps-bp-table-comment">{{ table.comment }}</span></summary>
-                    <!-- 字段 -->
+                    <!-- Fields -->
                     <div class="ps-bp-fields">
                       <div class="ps-bp-field-head">
                         <span class="ps-bp-col ps-bp-col-name">{{ $t('fieldTable.fieldName') }}</span>
@@ -494,7 +495,7 @@ onMounted(() => {
                         <span class="ps-bp-col ps-bp-col-comment">{{ field.comment || '-' }}</span>
                       </div>
                     </div>
-                    <!-- 索引 -->
+                    <!-- Indexes -->
                     <div v-if="table.indexes.length > 0" class="ps-bp-indexes">
                       <div class="ps-bp-index-title">{{ $t('indexTable.indexes') }} ({{ table.indexes.length }})</div>
                       <div v-for="(idx, ii) in table.indexes" :key="ii" class="ps-bp-index-row">
@@ -509,7 +510,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- SQL 预览 -->
+          <!-- SQL preview -->
           <div class="ps-bp-sql-section">
             <div class="ps-bp-sql-header">
               <span>{{ $t('version.previewSqlTitle') }}</span>
@@ -522,7 +523,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 迁移 -->
+    <!-- Migrations -->
     <div v-else-if="versionTab === 'migration'" class="ps-version-body ps-mig">
       <div class="ps-mig-list">
         <button class="btn btn-primary btn-block" @click="startNewMigration">+ {{ $t('migration.create') }}</button>
@@ -538,7 +539,7 @@ onMounted(() => {
         </ul>
       </div>
 
-      <!-- 未选中任何项：引导说明 -->
+      <!-- Nothing selected: guidance -->
       <div v-if="!isDrafting && !editingMigration" class="ps-mig-editor ps-mig-guide">
         <div class="ps-guide-card">
           <div class="ps-guide-icon">⇄</div>
@@ -553,7 +554,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 新建迁移草稿 -->
+      <!-- New migration draft -->
       <div v-else-if="isDrafting && !editingMigration" class="ps-mig-editor">
         <div class="ps-mig-titlebar">
           <span class="ps-mig-title">{{ $t('migration.newTitle') }}</span>
@@ -587,7 +588,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 编辑已有迁移 -->
+      <!-- Edit an existing migration -->
       <div v-else-if="editingMigration" class="ps-mig-editor">
         <div class="ps-mig-titlebar">
           <span class="ps-mig-title">{{ $t('migration.editTitle', { name: editingMigration.name }) }}</span>
@@ -693,14 +694,14 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 环境 -->
+    <!-- Environments -->
     <EnvironmentPanel v-else />
   </div>
 </template>
 
 <style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
-/* 版本管理 */
+/* Version management */
 .ps-version {
   display: flex;
   flex: 1;
@@ -713,12 +714,12 @@ onMounted(() => {
   padding: 12px 16px 0;
 }
 
-/* 共享 tab 自带的下边距在此处多余（内容区已有内边距） */
+/* The shared tab's own bottom margin is redundant here (the content area already has padding) */
 .ps-version-tabs .page-tabs {
   margin-bottom: 0;
 }
 
-/* 各环境执行状态 */
+/* Execution status per environment */
 .ps-env-status {
   margin-top: 12px;
   padding: 10px 12px;
@@ -758,7 +759,7 @@ onMounted(() => {
   color: var(--fg-muted);
 }
 
-/* 版本 tab：时间轴固定在上，下方可滚动的双栏占满剩余高度 */
+/* Version tab: the timeline is fixed at the top; the scrollable two-column area below fills the remaining height */
 .ps-version-tab {
   display: flex;
   flex: 1;
@@ -849,7 +850,7 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-/* 迁移双栏 */
+/* Migration two-column layout */
 .ps-mig {
   display: flex;
   gap: 14px;
@@ -872,7 +873,7 @@ onMounted(() => {
   gap: 10px;
 }
 
-/* 引导 / 空白态 */
+/* Guidance / empty state */
 .ps-mig-guide {
   align-items: center;
   justify-content: center;
@@ -916,7 +917,7 @@ onMounted(() => {
   line-height: 1.9;
 }
 
-/* 标题栏（新建 / 编辑） */
+/* Title bar (create / edit) */
 .ps-mig-titlebar {
   display: flex;
   align-items: center;
@@ -931,7 +932,7 @@ onMounted(() => {
   color: var(--fg);
 }
 
-/* 选版本表单（新建 / 编辑共用） */
+/* Version selection form (shared by create / edit) */
 .ps-mig-pick-form {
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -977,7 +978,7 @@ onMounted(() => {
   margin-left: auto;
 }
 
-/* 警告提示 */
+/* Warning hint */
 .ps-mig-warn {
   font-size: 12px;
   color: var(--warning);
@@ -987,7 +988,7 @@ onMounted(() => {
   padding: 8px 10px;
 }
 
-/* 步骤空态 */
+/* Empty steps state */
 .ps-steps-empty {
   padding: 14px;
 }
@@ -1100,7 +1101,7 @@ onMounted(() => {
   align-self: flex-start;
 }
 
-/* ===== 版本预览 双栏布局 ===== */
+/* ===== Version preview two-column layout ===== */
 .ps-version-root {
   display: flex;
   flex: 1;
@@ -1141,7 +1142,7 @@ onMounted(() => {
   text-align: center;
 }
 
-/* 预览面板头 */
+/* Preview panel header */
 .ps-bp-header {
   display: flex;
   align-items: center;
@@ -1164,7 +1165,7 @@ onMounted(() => {
   display: block;
 }
 
-/* 统计栏 */
+/* Stats bar */
 .ps-bp-stats {
   font-size: 11px;
   color: var(--fg-muted);
@@ -1173,7 +1174,7 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-/* 结构树 */
+/* Structure tree */
 .ps-bp-tree {
   flex: 1;
   min-height: 0;
@@ -1225,7 +1226,7 @@ onMounted(() => {
   margin-left: 8px;
 }
 
-/* 字段表格 */
+/* Field table */
 .ps-bp-fields {
   margin: 4px 0 4px 12px;
   font-size: 11px;
@@ -1265,7 +1266,7 @@ onMounted(() => {
 .ps-bp-col-def  { width: 90px; flex-shrink: 0; }
 .ps-bp-col-comment { flex: 1; min-width: 0; }
 
-/* 索引 */
+/* Indexes */
 .ps-bp-indexes {
   margin: 2px 0 6px 12px;
 }
@@ -1300,7 +1301,7 @@ onMounted(() => {
   color: var(--fg-subtle);
 }
 
-/* SQL 预览区 */
+/* SQL preview section */
 .ps-bp-sql-section {
   border: 1px solid var(--border-muted);
   border-radius: 6px;

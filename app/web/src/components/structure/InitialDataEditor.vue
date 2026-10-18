@@ -17,7 +17,7 @@ const editorMode = ref<'json' | 'table'>('table')
 const jsonText = ref('')
 const jsonError = ref('')
 
-// 当前表的字段名列表（用于 table 模式的列头）
+// Field names of the current table (used for column headers in table mode)
 const fieldNames = computed(() => {
   if (!store.currentTable) return []
   return store.currentTable.fields
@@ -25,7 +25,7 @@ const fieldNames = computed(() => {
     .map(f => f.field_name)
 })
 
-// 字符串类型字段名集合（仅这些字段显示「表达式」复选框）
+// Set of string-type field names (only these fields show the "expression" checkbox)
 const stringFieldSet = computed(() => {
   if (!store.currentTable) return new Set<string>()
   return new Set(
@@ -36,14 +36,14 @@ const stringFieldSet = computed(() => {
   )
 })
 
-// 当前初始数据（wrapper）
+// Current initial data (wrapper)
 const initialData = computed(() => store.currentInitialData)
 const rows = computed(() => initialData.value?.rows)
 
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
 
-/** JSON 文本是否为合法 JSON（语法有效） */
+/** Whether the JSON text is valid JSON (syntactically valid) */
 const isJsonValid = computed(() => {
   try {
     JSON.parse(jsonText.value)
@@ -53,13 +53,13 @@ const isJsonValid = computed(() => {
   }
 })
 
-// 监听当前表切换，重新同步 JSON 文本
+// Watch current table switches and re-sync the JSON text
 watch(() => store.currentInitialDataKey, () => {
   syncJsonText()
   jsonError.value = ''
 }, { immediate: true })
 
-// 同步行及前后置 SQL；监听与切换只读，不隐式创建数据或命令。
+// Sync rows and pre/post SQL; watching and switching are read-only and never implicitly create data or commands.
 watch(() => initialData.value, () => {
   if (editorMode.value === 'table') {
     syncJsonText()
@@ -75,19 +75,19 @@ function syncJsonText() {
   }
 }
 
-/** 格式化 JSON 文本（4 空格缩进） */
+/** Format the JSON text (4-space indent) */
 function formatJson() {
   try {
     const parsed = JSON.parse(jsonText.value)
     jsonText.value = JSON.stringify(parsed, null, 4)
     jsonError.value = ''
-    // 格式化后同步到 store
+    // Sync to the store after formatting
     const result = parseJsonInput(jsonText.value)
     if (result && store.currentSchema && store.currentTable) {
       store.setInitialDataObject(store.currentSchema.schema, store.currentTable.name, result)
     }
   } catch {
-    // 不可达：按钮禁用时不会触发
+    // Unreachable: not triggered while the button is disabled
   }
 }
 
@@ -108,7 +108,7 @@ function clearPrePostSql() {
 
 function parseJsonInput(text: string): InitialData | null {
   const parsed = JSON.parse(text)
-  // 统一归一化为行内结构（兼容纯数组、旧平行数组、行内三种输入）
+  // Normalize uniformly to the inline row structure (supports plain arrays, legacy parallel arrays, and inline input)
   return normalizeInitialData(parsed)
 }
 
@@ -133,14 +133,14 @@ function switchMode(mode: 'json' | 'table') {
   if (mode === editorMode.value) return
 
   if (mode === 'table' && editorMode.value === 'json') {
-    // JSON -> Table: 先校验
+    // JSON -> Table: validate first
     try {
       const parsed = parseJsonInput(jsonText.value)
       if (!parsed) {
         jsonError.value = t('initialData.jsonError.invalidStructure') + t('initialData.jsonError.fixBeforeSwitch')
         return
       }
-      // 编辑已由 onJsonInput 写入；模式切换仅校验，不重复生成历史。
+      // Edits are already written by onJsonInput; switching modes only validates and does not duplicate history.
       jsonError.value = ''
     } catch (e: unknown) {
       jsonError.value = ((e instanceof Error && e.message) || t('initialData.jsonError.invalidSyntax')) + t('initialData.jsonError.fixBeforeSwitch')
@@ -155,7 +155,7 @@ function switchMode(mode: 'json' | 'table') {
   editorMode.value = mode
 }
 
-/** 显式创建空 JSON 文件，不添加 rows 属性。 */
+/** Explicitly create an empty JSON file without adding a rows property. */
 function addInitialData() {
   if (!store.currentSchema || !store.currentTable) return
   store.addInitialData(store.currentSchema.schema, store.currentTable.name)
@@ -231,7 +231,7 @@ function setRowComment(row: InitialDataRow, val: string) {
   store.setInitialDataRowComment(store.currentSchema.schema, store.currentTable.name, row, val)
 }
 
-// ===== Row Skip (不生成该行 INSERT) =====
+// ===== Row Skip (this row's INSERT is not generated) =====
 function isSkipRow(row: InitialDataRow): boolean {
   return row.is_skip === true
 }
@@ -251,7 +251,7 @@ function setFieldComment(row: InitialDataRow, fieldName: string, val: string) {
   store.setInitialDataFieldComment(store.currentSchema.schema, store.currentTable.name, row, fieldName, val)
 }
 
-// ===== Field Expression (值作为 SQL 表达式原样输出，不加引号) =====
+// ===== Field Expression (value output verbatim as a SQL expression, unquoted) =====
 function isExprField(row: InitialDataRow, fieldName: string): boolean {
   return row.expr_fields?.[fieldName] === true
 }
@@ -263,13 +263,13 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 </script>
 
 <template>
-  <!-- 无初始数据：显示添加提示（数据板块和 pre/post SQL 板块均隐藏） -->
+  <!-- No initial data: show the add prompt (data section and pre/post SQL section are both hidden) -->
   <div v-if="initialData === undefined && store.currentTable" class="empty-state">
     <span>{{ $t('initialData.empty') }}</span>
     <button class="btn btn-sm btn-primary" @click="addInitialData">{{ $t('initialData.init') }}</button>
   </div>
 
-  <!-- 有初始数据：显示数据板块 + pre/post SQL 板块 -->
+  <!-- Initial data exists: show the data section + pre/post SQL section -->
   <template v-if="initialData !== undefined">
     <div class="section-card">
       <div class="section-header">
@@ -286,13 +286,13 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
         </div>
       </div>
       <div class="section-body" style="padding: 0;">
-        <!-- rows 未配置：在数据板块内显示“添加数据” -->
+        <!-- rows not configured: show "add data" inside the data section -->
         <div v-if="rows === undefined" class="empty-state">
           <span>{{ $t('initialData.empty') }}</span>
           <button class="btn btn-sm btn-primary" @click="addRow">{{ $t('initialData.addData') }}</button>
         </div>
 
-        <!-- JSON 编辑模式 -->
+        <!-- JSON edit mode -->
         <template v-else-if="editorMode === 'json'">
           <div class="json-toolbar">
             <button class="btn btn-sm" :disabled="!isJsonValid" @click="formatJson">
@@ -304,7 +304,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
           <div v-if="jsonError" class="json-error">{{ jsonError }}</div>
         </template>
 
-        <!-- Table 编辑模式 -->
+        <!-- Table edit mode -->
         <template v-else>
           <div class="table-toolbar">
             <button class="btn btn-sm btn-primary" @click="addRow">{{ $t('initialData.addRow') }}</button>
@@ -542,7 +542,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   vertical-align: middle !important;
 }
 
-/* Row Skip (启用列) */
+/* Row Skip (enable column) */
 .row-skip {
   text-align: center;
   vertical-align: middle !important;
@@ -632,7 +632,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   color: var(--border);
 }
 
-/* Field Expression toggle (仅字符串类型字段显示) */
+/* Field Expression toggle (only shown for string-type fields) */
 .expr-toggle {
   display: inline-flex;
   align-items: center;

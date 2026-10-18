@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    // 与 app/web 保持一致的严格度：包内代码不依赖 vue，只用 DOM 与 ESNext 类型
+    // Same strictness as app/web: this package does not depend on Vue and only uses DOM and ESNext types
     "target": "ESNext",
     "module": "preserve",
     "moduleResolution": "bundler",

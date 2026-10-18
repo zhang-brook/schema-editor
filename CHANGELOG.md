@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.5
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.4...v0.8.5)
+
+### 🚀 Features
+
+- Support conflict handling modes for initial data ([c0e52ef](https://github.com/zhang-brook/schema-editor/commit/c0e52ef))
+- Let initial data insert mode inherit a project default ([2ce8743](https://github.com/zhang-brook/schema-editor/commit/2ce8743))
+
+### 🏡 Chores
+
+- **deps:** Update pnpm-lock.yaml ([ea94e8d](https://github.com/zhang-brook/schema-editor/commit/ea94e8d))
+
 ## v0.8.4
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.3...v0.8.4)

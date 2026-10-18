@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.8.4
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.3...v0.8.4)
+
+### 📖 Documentation
+
+- Rename Chinese docs to *.zh-CN.md ([42e26a4](https://github.com/zhang-brook/schema-editor/commit/42e26a4))
+- Add English docs and language switchers ([3f17d6b](https://github.com/zhang-brook/schema-editor/commit/3f17d6b))
+
+### 🏡 Chores
+
+- Switch tooling, metadata, and UI defaults to English ([36faaf8](https://github.com/zhang-brook/schema-editor/commit/36faaf8))
+- Translate code comments and test titles to English ([d412052](https://github.com/zhang-brook/schema-editor/commit/d412052))
+- Translate remaining config comments to English ([86901ea](https://github.com/zhang-brook/schema-editor/commit/86901ea))
+- **assets:** Replace the app logo with the new S mark ([62b6565](https://github.com/zhang-brook/schema-editor/commit/62b6565))
+
+### 🤖 CI
+
+- **release:** 在 Release 正文末尾追加各平台快捷下载链接 ([0790c51](https://github.com/zhang-brook/schema-editor/commit/0790c51))
+
 ## v0.8.3
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.2...v0.8.3)

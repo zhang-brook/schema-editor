@@ -6,9 +6,9 @@ dedupePeers: true
 
 allowBuilds:
   esbuild: true
-  # electron 的 install.js 负责把 Electron 二进制放进 node_modules，跳过会让 desktop:dev / desktop:start 起不来
+  # electron's install.js places the Electron binary in node_modules; skipping it breaks desktop:dev / desktop:start
   electron: true
-  # squirrel 打包辅助包（NSIS/portable 目标不使用）的构建脚本跳过
+  # Skip the build script of the Squirrel packaging helper (unused by the NSIS/portable targets)
   electron-winstaller: false
 
 overrides:

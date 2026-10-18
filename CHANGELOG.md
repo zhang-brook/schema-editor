@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.2
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.1...v0.8.2)
+
+### 🩹 问题修复
+
+- **desktop:** 打包显式关闭发布，安装包仍由 release job 挂载 ([b65ca8a](https://github.com/zhang-brook/schema-editor/commit/b65ca8a))
+
+### 🏡 杂项
+
+- **desktop:** 允许 electron 执行下载二进制的安装脚本 ([bf9646e](https://github.com/zhang-brook/schema-editor/commit/bf9646e))
+
 ## v0.8.1
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.0...v0.8.1)

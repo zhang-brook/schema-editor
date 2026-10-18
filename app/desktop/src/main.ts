@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { autoUpdater } from 'electron-updater'
 import { DESKTOP_CHANNELS, type DesktopUpdateStatus } from 'schema-editor-bridge'
 import { createFsService } from './fs-service'
+import { createRecentFolders, type RecentFolders } from './recent-folders'
 import { createUpdater } from './updater'
 
 const DEV_SERVER_URL = 'http://localhost:6842'
@@ -35,14 +37,37 @@ const updater = createUpdater(
   publishUpdateStatus,
 )
 
-function registerIpcHandlers(): void {
+async function isDirectory(target: string): Promise<boolean> {
+  try {
+    return (await fs.stat(target)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function registerIpcHandlers(recentFolders: RecentFolders): void {
   ipcMain.handle(DESKTOP_CHANNELS.pickDirectory, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = { properties: ['openDirectory'] }
+    // 默认定位到上次打开的文件夹；已被删除则退回系统默认位置
+    const lastFolder = await recentFolders.mostRecent()
+    if (lastFolder && await isDirectory(lastFolder)) options.defaultPath = lastFolder
     const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     const picked = result.canceled ? undefined : result.filePaths[0]
-    return picked ? fsService.allowRoot(picked) : null
+    if (!picked) return null
+    const root = fsService.allowRoot(picked)
+    await recentFolders.add(root)
+    return root
   })
+
+  ipcMain.handle(DESKTOP_CHANNELS.listRecentFolders, () => recentFolders.list())
+  ipcMain.handle(DESKTOP_CHANNELS.openRecentFolder, async (_event, target: string) => {
+    if (typeof target !== 'string' || !(await isDirectory(target))) return null
+    const root = fsService.allowRoot(target)
+    await recentFolders.add(root)
+    return root
+  })
+  ipcMain.handle(DESKTOP_CHANNELS.removeRecentFolder, (_event, target: string) => recentFolders.remove(target))
 
   ipcMain.handle(DESKTOP_CHANNELS.readDir, (_event, target: string) => fsService.readDir(target))
   ipcMain.handle(DESKTOP_CHANNELS.statKind, (_event, target: string) => fsService.statKind(target))
@@ -118,7 +143,7 @@ async function createWindow(): Promise<void> {
 }
 
 app.whenReady().then(() => {
-  registerIpcHandlers()
+  registerIpcHandlers(createRecentFolders(path.join(app.getPath('userData'), 'recent-folders.json')))
   void createWindow()
 
   app.on('activate', () => {

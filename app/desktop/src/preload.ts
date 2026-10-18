@@ -19,6 +19,9 @@ ipcRenderer.on(DESKTOP_CHANNELS.updateStatus, (_event, payload: DesktopUpdateSta
 
 const bridge: DesktopBridge = {
   pickDirectory: () => ipcRenderer.invoke(DESKTOP_CHANNELS.pickDirectory),
+  listRecentFolders: () => ipcRenderer.invoke(DESKTOP_CHANNELS.listRecentFolders),
+  openRecentFolder: path => ipcRenderer.invoke(DESKTOP_CHANNELS.openRecentFolder, path),
+  removeRecentFolder: path => ipcRenderer.invoke(DESKTOP_CHANNELS.removeRecentFolder, path),
   readDir: path => ipcRenderer.invoke(DESKTOP_CHANNELS.readDir, path),
   statKind: path => ipcRenderer.invoke(DESKTOP_CHANNELS.statKind, path),
   ensureDir: path => ipcRenderer.invoke(DESKTOP_CHANNELS.ensureDir, path),

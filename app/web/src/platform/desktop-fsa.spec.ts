@@ -36,6 +36,15 @@ function memoryBridge(files: Record<string, string> = {}) {
     async pickDirectory() {
       return ROOT
     },
+    async listRecentFolders() {
+      return [ROOT]
+    },
+    async openRecentFolder(path) {
+      return path
+    },
+    async removeRecentFolder() {
+      return []
+    },
     async readDir(path) {
       if (!directories.has(path)) return fail('ENOENT')
       const prefix = `${path}/`

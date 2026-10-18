@@ -8,6 +8,9 @@
 /** IPC 通道名 */
 export const DESKTOP_CHANNELS = {
   pickDirectory: 'desktop:pick-directory',
+  listRecentFolders: 'desktop:list-recent-folders',
+  openRecentFolder: 'desktop:open-recent-folder',
+  removeRecentFolder: 'desktop:remove-recent-folder',
   readDir: 'desktop:read-dir',
   statKind: 'desktop:stat-kind',
   ensureDir: 'desktop:ensure-dir',
@@ -66,6 +69,12 @@ export interface DesktopUpdateStatus {
 export interface DesktopBridge {
   /** 打开原生目录选择器；取消时返回 null */
   pickDirectory(): Promise<string | null>
+  /** 最近打开过的项目文件夹，最新在前 */
+  listRecentFolders(): Promise<string[]>
+  /** 打开最近列表中的文件夹；目录已不存在时返回 null */
+  openRecentFolder(path: string): Promise<string | null>
+  /** 从最近列表移除，返回更新后的列表 */
+  removeRecentFolder(path: string): Promise<string[]>
   readDir(path: string): Promise<DesktopFsResult<DesktopDirEntry[]>>
   /** 路径不存在时 value 为 null */
   statKind(path: string): Promise<DesktopFsResult<DesktopEntryKind | null>>

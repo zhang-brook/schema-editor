@@ -80,6 +80,9 @@
   },
   "toolbar": {
     "openFolder": "開啟資料夾",
+    "recentFolders": "最近開啟",
+    "recentFoldersEmpty": "尚無最近開啟的資料夾",
+    "removeRecentFolder": "從清單中移除",
     "openGitRepo": "開啟 Git 倉庫…",
     "closeFolder": "關閉資料夾",
     "save": "儲存",
@@ -545,6 +548,7 @@
     "opened": "已開啟 {summary}",
     "reloadedFromDisk": "已從磁碟重新載入",
     "failedReloadFromDisk": "從磁碟重新載入失敗",
+    "recentFolderMissing": "資料夾已不存在，已從最近清單移除",
     "failedSaveChanges": "儲存變更失敗",
     "saved": "已儲存",
     "schemaExists": "Schema \"{name}\" 已存在",

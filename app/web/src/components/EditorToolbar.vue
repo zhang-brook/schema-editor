@@ -8,6 +8,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
   PopoverRoot,
   PopoverTrigger,
   PopoverPortal,
@@ -27,11 +30,19 @@ import { useTheme } from '@/composables/useTheme'
 import type { ThemePreference } from '@/composables/useTheme'
 import { useDensity } from '@/composables/useDensity'
 import type { DensityPreference } from '@/composables/useDensity'
+import { folderLabel, useRecentFolders } from '@/composables/useRecentFolders'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
 const { preference: themePreference, setTheme } = useTheme()
 const { preference: densityPreference, setDensity } = useDensity()
+const {
+  supported: recentFoldersSupported,
+  recentFolders,
+  refresh: refreshRecentFolders,
+  open: openRecentFolder,
+  remove: removeRecentFolder,
+} = useRecentFolders()
 
 /** 主题三档：跟随系统 / 浅色 / 深色 */
 const themeOptions = [
@@ -94,6 +105,11 @@ const gitBadgeTitle = computed(() => {
   if (!repo) return ''
   return repo.subdir ? `${repo.webUrl} (${repo.subdir})` : repo.webUrl
 })
+
+/** 菜单展开时刷新最近列表，确保本次会话中新打开的文件夹立即出现 */
+function onFileMenuOpen(open: boolean) {
+  if (open) void refreshRecentFolders()
+}
 
 function switchLocale(newLocale: SupportedLocale) {
   locale.value = newLocale
@@ -193,7 +209,7 @@ onUnmounted(() => {
     <span class="menu-bar-brand">{{ $t('app.title') }}</span>
 
     <!-- File Menu -->
-    <DropdownMenuRoot>
+    <DropdownMenuRoot @update:open="onFileMenuOpen">
       <DropdownMenuTrigger class="menu-item" type="button">{{ $t('menu.file') }}</DropdownMenuTrigger>
       <DropdownMenuPortal>
         <DropdownMenuContent class="menu-dropdown" align="start" :side-offset="4">
@@ -205,6 +221,39 @@ onUnmounted(() => {
             <span>{{ $t('toolbar.openFolder') }}</span>
             <span class="menu-shortcut">{{ isMac ? '⌘O' : 'Ctrl+O' }}</span>
           </DropdownMenuItem>
+          <DropdownMenuSub v-if="recentFoldersSupported">
+            <DropdownMenuSubTrigger class="menu-dropdown-item" :disabled="store.projectOpened">
+              <span>{{ $t('toolbar.recentFolders') }}</span>
+              <span class="menu-shortcut">›</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent class="menu-dropdown recent-folders-menu" :side-offset="4">
+                <DropdownMenuItem v-if="!recentFolders.length" class="menu-dropdown-item" disabled>
+                  {{ $t('toolbar.recentFoldersEmpty') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-for="folder in recentFolders"
+                  :key="folder"
+                  class="menu-dropdown-item recent-folder-item"
+                  @select="openRecentFolder(folder)"
+                >
+                  <span class="recent-folder-text">
+                    <span class="recent-folder-name">{{ folderLabel(folder) }}</span>
+                    <span class="recent-folder-path">{{ folder }}</span>
+                  </span>
+                  <button
+                    class="recent-folder-remove"
+                    type="button"
+                    :title="$t('toolbar.removeRecentFolder')"
+                    :aria-label="$t('toolbar.removeRecentFolder')"
+                    @pointerdown.stop.prevent
+                    @pointerup.stop.prevent
+                    @click.stop="removeRecentFolder(folder)"
+                  >×</button>
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
           <DropdownMenuItem
             class="menu-dropdown-item"
             :disabled="store.projectOpened"
@@ -584,6 +633,56 @@ onUnmounted(() => {
   outline: none;
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
+}
+
+/* ===== 最近打开文件夹 ===== */
+.recent-folders-menu {
+  min-width: 280px;
+  max-width: 440px;
+}
+
+.recent-folder-item {
+  gap: 10px;
+  padding-right: 8px;
+}
+
+.recent-folder-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.recent-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-folder-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--fg-subtle);
+}
+
+.recent-folder-remove {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-subtle);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.recent-folder-remove:hover {
+  background: var(--surface-3);
+  color: var(--danger);
 }
 
 /* ===== 外观按钮（打开主题 / 密度面板） ===== */

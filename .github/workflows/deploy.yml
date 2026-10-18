@@ -56,9 +56,41 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+  desktop:
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Package Windows installers
+        run: pnpm desktop:dist
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-windows
+          path: |
+            app/desktop/release/*.exe
+            app/desktop/release/*.blockmap
+            app/desktop/release/latest.yml
+          if-no-files-found: error
+
   release:
     runs-on: ubuntu-latest
-    needs: [build, deploy]
+    needs: [build, deploy, desktop]
     permissions:
       contents: write
     steps:
@@ -70,6 +102,13 @@ jobs:
         with:
           name: github-pages
           path: pages-artifact
+
+      # 与 Web 包同批挂进 Release，避免两个 job 争着改同一个 tag 的资产
+      - name: Download Windows installers
+        uses: actions/download-artifact@v7
+        with:
+          name: desktop-windows
+          path: release
 
       - name: Package release assets
         run: |

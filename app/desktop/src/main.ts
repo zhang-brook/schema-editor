@@ -19,6 +19,9 @@ import {
 const DEV_SERVER_URL = 'http://localhost:6842'
 const DEV_SERVER_RETRIES = 120
 
+// Same asset electron-builder uses for installers; packaged builds ship it next to dist/ inside the asar
+const WINDOW_ICON = path.join(__dirname, '../build/icon.png')
+
 const fsService = createFsService()
 
 autoUpdater.autoInstallOnAppQuit = false
@@ -146,6 +149,7 @@ async function createWindow(): Promise<void> {
     minWidth: 960,
     minHeight: 640,
     show: false,
+    icon: WINDOW_ICON,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#18181b' : '#ffffff',
     autoHideMenuBar: true,
     ...frameOptions(chrome),

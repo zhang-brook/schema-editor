@@ -94,6 +94,10 @@ const integratedMac = computed(() => integratedChrome.value && desktopPlatform.v
 const overlayControls = computed(
   () => integratedChrome.value && desktopPlatform.value !== 'darwin',
 )
+/** Native chrome: the window frame already shows the app icon and title, so the menu bar only keeps its menus */
+const nativeChrome = computed(
+  () => isDesktop.value && appliedTitleBarMode.value === 'native',
+)
 
 const titleBarOptions = computed(() => [
   { value: 'integrated', label: t('toolbar.titleBarIntegrated') },
@@ -251,10 +255,13 @@ onUnmounted(() => {
       'is-integrated': integratedChrome,
       'is-integrated-mac': integratedMac,
       'has-overlay-controls': overlayControls,
+      'is-native': nativeChrome,
     }"
   >
-    <img :src="logoUrl" alt="Logo" class="menu-bar-logo" />
-    <span class="menu-bar-brand">{{ $t('app.title') }}</span>
+    <template v-if="!nativeChrome">
+      <img :src="logoUrl" alt="Logo" class="menu-bar-logo" />
+      <span class="menu-bar-brand">{{ $t('app.title') }}</span>
+    </template>
 
     <!-- File Menu -->
     <DropdownMenuRoot @update:open="onFileMenuOpen">
@@ -549,6 +556,11 @@ onUnmounted(() => {
 
 .menu-bar.has-overlay-controls {
   padding-right: 150px;
+}
+
+/* Native chrome: start the menus with a small inset now that the branding block is gone */
+.menu-bar.is-native {
+  padding-left: 10px;
 }
 
 .menu-bar-logo {

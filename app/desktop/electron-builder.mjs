@@ -13,7 +13,7 @@ export default {
   directories: {
     output: 'release',
   },
-  files: ['dist/**', 'renderer/**', 'package.json'],
+  files: ['dist/**', 'renderer/**', 'build/icon.png', 'package.json'],
   extraMetadata: { version },
   // Source of the online update metadata: clients read latest.yml from that release; publishing itself is done by CI
   publish: { provider: 'github', owner: 'zhang-brook', repo: 'schema-editor' },

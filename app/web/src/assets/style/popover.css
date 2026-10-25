@@ -5,7 +5,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
-  min-width: 264px;
+  width: 320px;
   z-index: 200;
   padding: 12px 14px;
   /* Position is controlled by the floating layer component's inline styles; fade in only, to avoid conflicts with positioning transforms */
@@ -33,6 +33,61 @@
   font-size: 12px;
   color: var(--fg-muted);
   white-space: nowrap;
+}
+
+/* Desktop-only window chrome setting, separated from theme and density */
+.appearance-block {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.appearance-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fg-subtle);
+}
+
+.appearance-restart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle);
+}
+
+.appearance-restart-text {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.appearance-restart-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+
+.appearance-restart-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.appearance-restart-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 @keyframes appearance-popover-in {

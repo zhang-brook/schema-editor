@@ -11,9 +11,12 @@ import CommitDialog from '@/components/modal/CommitDialog.vue'
 import ConfirmModal from '@/components/modal/ConfirmModal.vue'
 import UpgradingOverlay from '@/components/UpgradingOverlay.vue'
 import { useConfirmState, resolveConfirm } from '@/composables/useConfirm'
+import { useWindowChrome } from '@/composables/useWindowChrome'
 
 const store = useEditorStore()
 const { dragOver, onDragOver, onDragEnter, onDragLeave, onDrop } = useDropFolder()
+
+useWindowChrome()
 
 // Global confirm dialog: binds the useConfirm queue, driven by confirmDialog()/alertDialog()
 const confirmState = useConfirmState()

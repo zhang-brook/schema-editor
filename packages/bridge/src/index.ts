@@ -24,7 +24,17 @@ export const DESKTOP_CHANNELS = {
   getUpdateStatus: 'desktop:get-update-status',
   installUpdate: 'desktop:install-update',
   updateStatus: 'desktop:update-status',
+  getTitleBarModePreference: 'desktop:get-title-bar-mode-preference',
+  setTitleBarMode: 'desktop:set-title-bar-mode',
+  setTitleBarOverlay: 'desktop:set-title-bar-overlay',
+  relaunch: 'desktop:relaunch',
 } as const
+
+/** Window chrome mode: `integrated` draws the caption buttons into the app menu bar, `native` keeps the OS frame */
+export type DesktopTitleBarMode = 'integrated' | 'native'
+
+/** Startup argument carrying the applied title bar mode, so the renderer can lay out before any IPC round-trip */
+export const DESKTOP_TITLE_BAR_ARG = '--schema-editor-title-bar='
 
 /** Entry kind (aligned with FileSystemHandle.kind) */
 export type DesktopEntryKind = 'file' | 'directory'
@@ -67,6 +77,10 @@ export interface DesktopUpdateStatus {
 
 /** Bridge object exposed to the renderer */
 export interface DesktopBridge {
+  /** Title bar mode the current process was started with */
+  readonly titleBarMode: DesktopTitleBarMode
+  /** Host platform, used to reserve space for the caption controls */
+  readonly platform: string
   /** Opens the native directory picker; returns null when cancelled */
   pickDirectory(): Promise<string | null>
   /** Recently opened project folders, newest first */
@@ -95,4 +109,12 @@ export interface DesktopBridge {
   installUpdate(): Promise<void>
   /** Registers the single update status callback */
   setUpdateHandler(handler: (status: DesktopUpdateStatus) => void): void
+  /** Saved title bar mode for the next launch; may differ from the applied mode until the app is relaunched */
+  getTitleBarModePreference(): Promise<DesktopTitleBarMode>
+  /** Persists the title bar mode for the next launch; the current window keeps its chrome until relaunch */
+  setTitleBarMode(mode: DesktopTitleBarMode): Promise<void>
+  /** Recolors the Windows/Linux caption button overlay to match the app theme */
+  setTitleBarOverlay(color: string, symbolColor: string): Promise<void>
+  /** Relaunches the app so a changed title bar mode takes effect */
+  relaunch(): Promise<void>
 }

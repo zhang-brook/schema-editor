@@ -100,7 +100,9 @@ app/
 │   │   ├── preload.ts           # 通过 contextBridge 暴露 window.schemaEditorDesktop
 │   │   ├── fs-service.ts        # 基于 node:fs 的文件系统服务，只依赖已授权根目录（可脱离 Electron 测试）
 │   │   ├── updater.ts           # 在线更新编排：把 electron-updater 事件收敛成状态推送（可脱离 Electron 测试）
-│   │   └── update-state.ts      # 更新状态机：检查中 / 已最新 / 下载中 / 待安装 / 失败
+│   │   ├── update-state.ts      # 更新状态机：检查中 / 已最新 / 下载中 / 待安装 / 失败
+│   │   ├── window-chrome.ts     # 标题栏模式 → 窗口框选项与标题栏按钮覆盖层配色
+│   │   └── ui-preferences.ts    # 创建窗口前读取的窗口外观偏好
 │   ├── vite.config.mts          # 主进程 / preload 的 CJS 构建（两次单入口，preload 必须自包含）
 │   └── electron-builder.mjs     # 打包配置（Windows NSIS/portable、macOS dmg/zip、Linux AppImage/deb），注入根版本号，产物名区分系统与架构
 └── packages/

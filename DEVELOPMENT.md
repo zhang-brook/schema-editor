@@ -100,7 +100,9 @@ app/
 │   │   ├── preload.ts           # Exposes window.schemaEditorDesktop via contextBridge
 │   │   ├── fs-service.ts        # node:fs-based file system service restricted to the authorized root (testable without Electron)
 │   │   ├── updater.ts           # Update orchestration: turns electron-updater events into state updates (testable without Electron)
-│   │   └── update-state.ts      # Update state machine: checking / up to date / downloading / ready / failed
+│   │   ├── update-state.ts      # Update state machine: checking / up to date / downloading / ready / failed
+│   │   ├── window-chrome.ts     # Title bar mode → window frame options and caption overlay colors
+│   │   └── ui-preferences.ts    # Window chrome preferences read before the window is created
 │   ├── vite.config.mts          # CJS build for main / preload (two single-entry builds; preload must be self-contained)
 │   └── electron-builder.mjs     # Packaging config (Windows NSIS/portable, macOS dmg/zip, Linux AppImage/deb); injects the root version and includes OS/arch in artifact names
 └── packages/

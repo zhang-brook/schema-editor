@@ -32,6 +32,16 @@ import type { ThemePreference } from '@/composables/useTheme'
 import { useDensity } from '@/composables/useDensity'
 import type { DensityPreference } from '@/composables/useDensity'
 import { folderLabel, useRecentFolders } from '@/composables/useRecentFolders'
+import {
+  appliedTitleBarMode,
+  desktopPlatform,
+  isDesktop,
+  restartApp,
+  selectedTitleBarMode,
+  setTitleBarMode,
+  titleBarRestartRequired,
+} from '@/composables/useWindowChrome'
+import type { DesktopTitleBarMode } from 'schema-editor-bridge'
 
 const store = useEditorStore()
 const { t, locale } = useI18n()
@@ -74,6 +84,36 @@ function onThemeChange(value: string) {
 
 function onDensityChange(value: string) {
   setDensity(value as DensityPreference)
+}
+
+/** Desktop chrome: the integrated mode merges the caption controls into this menu bar */
+const integratedChrome = computed(
+  () => isDesktop.value && appliedTitleBarMode.value === 'integrated',
+)
+const integratedMac = computed(() => integratedChrome.value && desktopPlatform.value === 'darwin')
+const overlayControls = computed(
+  () => integratedChrome.value && desktopPlatform.value !== 'darwin',
+)
+
+const titleBarOptions = computed(() => [
+  { value: 'integrated', label: t('toolbar.titleBarIntegrated') },
+  { value: 'native', label: t('toolbar.titleBarNative') },
+])
+
+const restarting = ref(false)
+
+function onTitleBarModeChange(value: string) {
+  void setTitleBarMode(value as DesktopTitleBarMode)
+}
+
+async function onRestartApp() {
+  if (store.hasUnsavedChanges || restarting.value) return
+  restarting.value = true
+  try {
+    await restartApp()
+  } finally {
+    restarting.value = false
+  }
 }
 
 const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent || '')
@@ -205,7 +245,14 @@ onUnmounted(() => {
 
 <template>
   <!-- ===== Menu Bar ===== -->
-  <div class="menu-bar">
+  <div
+    class="menu-bar"
+    :class="{
+      'is-integrated': integratedChrome,
+      'is-integrated-mac': integratedMac,
+      'has-overlay-controls': overlayControls,
+    }"
+  >
     <img :src="logoUrl" alt="Logo" class="menu-bar-logo" />
     <span class="menu-bar-brand">{{ $t('app.title') }}</span>
 
@@ -427,6 +474,28 @@ onUnmounted(() => {
                 @update:model-value="onDensityChange"
               />
             </div>
+            <div v-if="isDesktop" class="appearance-block">
+              <div class="appearance-row">
+                <span class="appearance-label">{{ $t('toolbar.titleBar') }}</span>
+                <SegmentedSwitch
+                  :model-value="selectedTitleBarMode"
+                  :options="titleBarOptions"
+                  @update:model-value="onTitleBarModeChange"
+                />
+              </div>
+              <p class="appearance-hint">{{ $t('toolbar.titleBarHint') }}</p>
+              <div v-if="titleBarRestartRequired" class="appearance-restart">
+                <span class="appearance-restart-text">
+                  {{ store.hasUnsavedChanges ? $t('toolbar.titleBarRestartUnsaved') : $t('toolbar.titleBarRestartNotice') }}
+                </span>
+                <button
+                  type="button"
+                  class="appearance-restart-btn"
+                  :disabled="store.hasUnsavedChanges || restarting"
+                  @click="onRestartApp"
+                >{{ $t('toolbar.restartApp') }}</button>
+              </div>
+            </div>
           </PopoverContent>
         </PopoverPortal>
       </PopoverRoot>
@@ -459,6 +528,27 @@ onUnmounted(() => {
   user-select: none;
   box-shadow: var(--shadow-sm);
   position: relative;
+}
+
+/* Integrated desktop chrome: the bar doubles as the window drag region and reserves space for caption controls */
+.menu-bar.is-integrated {
+  -webkit-app-region: drag;
+}
+
+.menu-bar.is-integrated button,
+.menu-bar.is-integrated a,
+.menu-bar.is-integrated input,
+.menu-bar.is-integrated select,
+.menu-bar.is-integrated label {
+  -webkit-app-region: no-drag;
+}
+
+.menu-bar.is-integrated-mac {
+  padding-left: 66px;
+}
+
+.menu-bar.has-overlay-controls {
+  padding-right: 150px;
 }
 
 .menu-bar-logo {

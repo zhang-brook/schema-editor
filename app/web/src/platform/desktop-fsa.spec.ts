@@ -33,6 +33,8 @@ function memoryBridge(files: Record<string, string> = {}) {
   let nextWatchId = 0
 
   const bridge: DesktopBridge = {
+    titleBarMode: 'integrated',
+    platform: 'win32',
     async pickDirectory() {
       return ROOT
     },
@@ -108,6 +110,12 @@ function memoryBridge(files: Record<string, string> = {}) {
     },
     async installUpdate() {},
     setUpdateHandler() {},
+    async getTitleBarModePreference() {
+      return 'integrated'
+    },
+    async setTitleBarMode() {},
+    async setTitleBarOverlay() {},
+    async relaunch() {},
   }
 
   return {

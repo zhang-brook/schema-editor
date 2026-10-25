@@ -1,11 +1,20 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from 'electron'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { autoUpdater } from 'electron-updater'
-import { DESKTOP_CHANNELS, type DesktopUpdateStatus } from 'schema-editor-bridge'
+import { DESKTOP_CHANNELS, DESKTOP_TITLE_BAR_ARG, type DesktopUpdateStatus } from 'schema-editor-bridge'
 import { createFsService } from './fs-service'
 import { createRecentFolders, type RecentFolders } from './recent-folders'
+import { createUiPreferences, type UiPreferencesStore } from './ui-preferences'
 import { createUpdater } from './updater'
+import {
+  defaultOverlay,
+  frameOptions,
+  getWindowChrome,
+  setWindowChrome,
+  TITLE_BAR_OVERLAY_HEIGHT,
+  updateOverlayColors,
+} from './window-chrome'
 
 const DEV_SERVER_URL = 'http://localhost:6842'
 const DEV_SERVER_RETRIES = 120
@@ -46,7 +55,7 @@ async function isDirectory(target: string): Promise<boolean> {
   }
 }
 
-function registerIpcHandlers(recentFolders: RecentFolders): void {
+function registerIpcHandlers(recentFolders: RecentFolders, uiPreferences: UiPreferencesStore): void {
   ipcMain.handle(DESKTOP_CHANNELS.pickDirectory, async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = { properties: ['openDirectory'] }
@@ -87,6 +96,33 @@ function registerIpcHandlers(recentFolders: RecentFolders): void {
   ipcMain.handle(DESKTOP_CHANNELS.getUpdateStatus, () => updater.status())
   ipcMain.handle(DESKTOP_CHANNELS.checkUpdate, () => updater.check())
   ipcMain.handle(DESKTOP_CHANNELS.installUpdate, () => updater.install())
+
+  ipcMain.handle(DESKTOP_CHANNELS.getTitleBarModePreference, async () => {
+    return (await uiPreferences.load()).titleBarMode
+  })
+
+  ipcMain.handle(DESKTOP_CHANNELS.setTitleBarMode, async (_event, mode: unknown) => {
+    if (mode !== 'integrated' && mode !== 'native') return
+    await uiPreferences.setTitleBarMode(mode)
+  })
+
+  ipcMain.handle(DESKTOP_CHANNELS.setTitleBarOverlay, (event, color: unknown, symbolColor: unknown) => {
+    if (typeof color !== 'string' || typeof symbolColor !== 'string') return
+    updateOverlayColors(color, symbolColor)
+    if (process.platform === 'darwin' || getWindowChrome().titleBarMode !== 'integrated') return
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window || window.isDestroyed()) return
+    try {
+      window.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_OVERLAY_HEIGHT })
+    } catch {
+      // Some Linux window managers do not support the caption overlay.
+    }
+  })
+
+  ipcMain.handle(DESKTOP_CHANNELS.relaunch, () => {
+    app.relaunch()
+    app.quit()
+  })
 }
 
 /** In dev mode the Vite server may not be ready yet; retry until it is available */
@@ -103,6 +139,7 @@ async function loadDevServer(window: BrowserWindow): Promise<void> {
 }
 
 async function createWindow(): Promise<void> {
+  const chrome = getWindowChrome()
   const window = new BrowserWindow({
     width: 1360,
     height: 860,
@@ -110,8 +147,11 @@ async function createWindow(): Promise<void> {
     minHeight: 640,
     show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#18181b' : '#ffffff',
+    autoHideMenuBar: true,
+    ...frameOptions(chrome),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      additionalArguments: [`${DESKTOP_TITLE_BAR_ARG}${chrome.titleBarMode}`],
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
@@ -143,9 +183,20 @@ async function createWindow(): Promise<void> {
   window.webContents.openDevTools({ mode: 'detach' })
 }
 
-app.whenReady().then(() => {
-  registerIpcHandlers(createRecentFolders(path.join(app.getPath('userData'), 'recent-folders.json')))
-  void createWindow()
+void app.whenReady().then(async () => {
+  // Windows/Linux standardize on the in-app menu bar; the OS menu bar would duplicate its File/Edit/Help entries
+  if (process.platform !== 'darwin') Menu.setApplicationMenu(null)
+
+  const userData = app.getPath('userData')
+  const uiPreferences = createUiPreferences(path.join(userData, 'ui-preferences.json'))
+  const preferences = await uiPreferences.load()
+  setWindowChrome({
+    titleBarMode: preferences.titleBarMode,
+    overlay: defaultOverlay(nativeTheme.shouldUseDarkColors),
+  })
+
+  registerIpcHandlers(createRecentFolders(path.join(userData, 'recent-folders.json')), uiPreferences)
+  await createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow()

@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.8.6
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.5...v0.8.6)
+
+### 🚀 Features
+
+- **desktop:** Add configurable native and integrated title bars ([7652eb1](https://github.com/zhang-brook/schema-editor/commit/7652eb1))
+- **examples:** Resize and palette-compress the README screenshot ([ee06732](https://github.com/zhang-brook/schema-editor/commit/ee06732))
+
+### 🩹 Bug Fixes
+
+- **desktop:** Hide duplicate branding and set window icon in native title bar mode ([73ef75c](https://github.com/zhang-brook/schema-editor/commit/73ef75c))
+
+### 📖 Documentation
+
+- **readme:** Add structure editor screenshot and its capture example ([7752370](https://github.com/zhang-brook/schema-editor/commit/7752370))
+
 ## v0.8.5
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.4...v0.8.5)

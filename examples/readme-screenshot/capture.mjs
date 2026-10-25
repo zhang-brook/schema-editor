@@ -15,6 +15,23 @@ const profileDir = join(repoRoot, '.fixtures', 'readme-screenshot', 'profile')
 const outputPath = join(repoRoot, 'docs', 'images', 'schema-editor-structure.png')
 const port = 9412
 const devServerUrl = 'http://localhost:6842'
+
+const arg = (name, fallback) => {
+  const index = process.argv.indexOf(`--${name}`)
+  if (index === -1) return fallback
+  const value = Number(process.argv[index + 1])
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`--${name} needs a positive number`)
+  return value
+}
+
+// Layout viewport in CSS pixels. `--dpr` only scales the saved pixels; whether the
+// fields table fits depends on the layout width alone.
+const viewportWidth = arg('width', 1920)
+const viewportHeight = arg('height', 1080)
+const deviceScaleFactor = arg('dpr', 1.5)
+// The saved image is downscaled by this factor after capture: the layout stays wide
+// enough for every column, and the extra capture pixels only act as supersampling.
+const outputScale = 0.72
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
 
 console.log('generating demo project…')
@@ -144,28 +161,29 @@ async function main() {
     throw new Error(`${label} never appeared`)
   }
 
-  // English UI, light theme, a slightly wider sidebar for the table tree.
+  // English UI, light theme, a narrower sidebar and tighter columns so the whole
+  // fields table fits at the emulated viewport width.
   await waitFor(`document.querySelector('.menu-bar') !== null`, 60000, 'menu bar')
   await evaluate(`(() => {
     localStorage.setItem('schema-editor-locale', 'en')
     localStorage.setItem('schema-editor.theme', 'light')
-    localStorage.setItem('schema-editor.structureSidebarWidth', '290')
-    localStorage.setItem('schema-editor.fieldTableColWidths', JSON.stringify({ name: 150, type: 210, length: 90, scale: 90, default: 175, comment: 230 }))
+    localStorage.setItem('schema-editor.structureSidebarWidth', '250')
+    localStorage.setItem('schema-editor.fieldTableColWidths', JSON.stringify({ name: 130, type: 180, length: 80, scale: 80, default: 175, comment: 190 }))
     return true
   })()`)
   await evaluate(`location.reload()`)
   await waitFor(`document.querySelector('.menu-bar') !== null`, 60000, 'menu bar after reload')
-  await sleep(1200)
+  // await sleep(1200)
 
-  // Render at a large desktop viewport (like a 1850×1120 display) regardless of the
-  // physical window size, so the whole field grid fits without horizontal scrolling.
+  // Render at a larger desktop viewport than the physical window, so the whole field
+  // grid fits without horizontal scrolling.
   await cdp.send('Emulation.setDeviceMetricsOverride', {
-    width: 2000,
-    height: 1285,
-    deviceScaleFactor: 1.5,
+    width: viewportWidth,
+    height: viewportHeight,
+    deviceScaleFactor,
     mobile: false,
-    screenWidth: 2000,
-    screenHeight: 1285
+    screenWidth: viewportWidth,
+    screenHeight: viewportHeight
   })
   await sleep(900)
 
@@ -189,9 +207,52 @@ async function main() {
   // Let the "project opened" toast fade out before capturing.
   await sleep(3200)
 
-  const result = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true })
+  const overflow = await evaluate(`(() => {
+    const body = document.querySelector('.fields-table')?.closest('.section-body')
+    return body ? { scrollWidth: body.scrollWidth, clientWidth: body.clientWidth } : null
+  })()`)
+  if (overflow === null) throw new Error('fields table not found')
+  if (overflow.scrollWidth > overflow.clientWidth + 1) {
+    const minWidth = viewportWidth + overflow.scrollWidth - overflow.clientWidth
+    console.warn(
+      `warning: fields table clips at ${viewportWidth}px (needs ${overflow.scrollWidth}px, has ${overflow.clientWidth}px); ` +
+        `use --width ${minWidth} or more to show every column`
+    )
+  }
+
+  // The caption buttons are OS-drawn and absent from the page, so draw Windows-style
+  // glyphs into the 150×40 corner the menu bar reserves for the title bar overlay.
+  await evaluate(`(() => {
+    const icon = (body) => '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#71717a" stroke-width="1">' + body + '</svg>'
+    const glyphs = [
+      icon('<path d="M0 5.5h10"/>'),
+      icon('<rect x="0.5" y="0.5" width="9" height="9"/>'),
+      icon('<path d="M0.5 0.5l9 9M9.5 0.5l-9 9"/>')
+    ]
+    const bar = document.createElement('div')
+    bar.id = 'readme-caption-controls'
+    bar.setAttribute('aria-hidden', 'true')
+    bar.style.cssText = 'position:fixed;top:0;right:0;height:39px;display:flex;align-items:stretch;z-index:2147483647;pointer-events:none;'
+    for (const glyph of glyphs) {
+      const button = document.createElement('div')
+      button.style.cssText = 'width:46px;display:flex;align-items:center;justify-content:center;'
+      button.innerHTML = glyph
+      bar.appendChild(button)
+    }
+    document.body.appendChild(bar)
+    return true
+  })()`)
+
+  const result = await cdp.send('Page.captureScreenshot', {
+    format: 'png',
+    fromSurface: true,
+    captureBeyondViewport: false
+  })
   mkdirSync(dirname(outputPath), { recursive: true })
   writeFileSync(outputPath, Buffer.from(result.data, 'base64'))
+  execFileSync(process.execPath, [join(scriptDir, 'compress-png.mjs'), outputPath, '--scale', String(outputScale)], {
+    stdio: 'inherit'
+  })
   console.log(`saved ${outputPath}`)
   cdp.close()
 }

@@ -29,6 +29,9 @@ coverage
 
 .eslintcache
 
+# Local demo data and Electron profiles for the README screenshot script
+.fixtures/
+
 # Cypress
 /cypress/videos/
 /cypress/screenshots/

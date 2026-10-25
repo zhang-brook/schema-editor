@@ -14,6 +14,10 @@
   <a href="https://github.com/zhang-brook/schema-editor">GitHub</a> · <a href="https://zhang-brook.github.io/schema-editor/">Live Preview</a>
 </p>
 
+<p align="center">
+  <img src="docs/images/schema-editor-structure.png" alt="schema-editor editing an orders table, with schema navigation, field definitions, and indexes" width="100%">
+</p>
+
 Edit JSON schema definitions through a graphical interface, preview MySQL / PostgreSQL CREATE TABLE statements in real time, and export the result as JSON or SQL files.
 
 ## Features

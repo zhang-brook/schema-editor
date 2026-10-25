@@ -14,6 +14,10 @@
   <a href="https://github.com/zhang-brook/schema-editor">GitHub</a> · <a href="https://zhang-brook.github.io/schema-editor/">在线预览</a>
 </p>
 
+<p align="center">
+  <img src="docs/images/schema-editor-structure.png" alt="schema-editor 表结构编辑界面：左侧 Schema 导航，右侧字段定义与索引配置" width="100%">
+</p>
+
 通过图形界面编辑 JSON 格式的 Schema 定义，实时预览 MySQL / PostgreSQL 建表语句，并将结果导出为 JSON 或 SQL 文件。
 
 ## 功能

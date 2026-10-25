@@ -32,7 +32,8 @@
     "desktop:build:renderer": "pnpm -C app/web exec vite build --outDir ../desktop/renderer --emptyOutDir",
     "desktop:build:main": "pnpm -C app/desktop build:main",
     "desktop:dist": "run-s desktop:build desktop:pack",
-    "desktop:pack": "pnpm -C app/desktop run pack"
+    "desktop:pack": "pnpm -C app/desktop run pack",
+    "screenshot:readme": "node examples/readme-screenshot/capture.mjs"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",

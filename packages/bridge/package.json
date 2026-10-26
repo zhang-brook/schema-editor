@@ -1,7 +1,6 @@
 {
   "name": "schema-editor-bridge",
   "private": true,
-  "version": "0.0.0",
   "description": "Bridge protocol between the desktop shell and the renderer (IPC channels and payload types), referenced at build time within the workspace",
   "author": "zhang-brook",
   "license": "MIT",

@@ -1,7 +1,6 @@
 {
   "name": "schema-editor-core",
   "private": true,
-  "version": "0.0.0",
   "description": "UI-independent schema editing core: domain types, SQL generation and parsing, workspace I/O and structure upgrades, version diffing and migrations",
   "author": "zhang-brook",
   "license": "MIT",

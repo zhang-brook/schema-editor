@@ -5,10 +5,10 @@
 1. 改 [package.json](../package.json) 的 `version`（两端与安装包版本在构建期取用这一处）
 2. `pnpm changelog` 生成 CHANGELOG
 3. `git add package.json CHANGELOG.md` → `git commit -m "chore: release vx.y.z"` → `git push`
-4. `git tag vx.y.z` → `git push origin vx.y.z`，触发 [deploy.yml](../.github/workflows/deploy.yml)：先校验 tag 与根版本一致，再 build → 部署 Pages；desktop 在 Windows / macOS / Linux 三个 runner 上并行打包；release 等这些任务都完成后发布 Release（正文取 CHANGELOG 中 `## vx.y.z` 小节）
+4. `git tag vx.y.z` → `git push origin vx.y.z`，触发 [deploy.yml](../.github/workflows/deploy.yml)：先校验 tag 与根版本一致，再构建网页版；正式 tag 会部署到 Pages，预发布 tag 跳过部署。desktop 在 Windows / macOS / Linux 三个 runner 上并行打包；release 等这些任务都完成后发布 Release（正文取 CHANGELOG 中 `## vx.y.z` 小节）
 5. 打开验证
 
-版本号带连字符后缀的 tag（`v1.2.3-beta.1`、`v1.2.3-rc.1`）会把 Release 发布为 **预发布版（pre-release）**；不带后缀的 `v1.2.3` 发布为正式版。根 `package.json` 写同一串值，后缀一并带上。
+版本号带连字符后缀的 tag（`v1.2.3-beta.1`、`v1.2.3-rc.1`）会把 Release 发布为 **预发布版（pre-release）**，Pages 站点保持最新的正式版；不带后缀的 `v1.2.3` 发布为正式版并更新 Pages。根 `package.json` 写同一串值，后缀一并带上。
 
 | 用途 | 地址 |
 | --- | --- |
@@ -30,7 +30,8 @@ Release 资产：`schema-editor-vx.y.z.zip` / `.tar.gz`（网页版）；桌面�
 
 - CHANGELOG 小节标题必须与 tag 一致，否则 Release 正文只有兜底文案
 - 同版本号重复执行 `pnpm changelog` 会被守卫拦截（exit 1），需先删掉该小节或还原 CHANGELOG.md
-- 只有推送 `v*` tag 才触发部署，普通提交不会
+- 只有推送 `v*` tag 才触发工作流，普通提交不会
+- 预发布 tag 仍会发布网页 zip/tar.gz 与桌面安装包，但跳过 Pages 部署，Release 正文也不带 Live Preview 链接
 - Pages 部署不等桌面打包；Release 要等三个平台的安装包都产出后一起挂载
 - 打包固定 `--publish never`：安装包与 `latest*.yml` 由 release job 统一挂载。electron-builder 在 tag 上构建会默认自行上传，CI 没有 `GH_TOKEN` 时整条打包会失败
 - 未配置代码签名：Windows 首次安装会出现 SmartScreen 提示；macOS 包会被 Gatekeeper 拦截且暂不展示应用内更新入口，签名与公证完成后再开放

@@ -24,7 +24,9 @@ if (new RegExp(`^## v${version.replace(/\./g, '\\.')}\\.?\\s*$`, 'm').test(chang
   process.exit(1)
 }
 
-// Only start from versions that have both a CHANGELOG section and a matching tag, so commits tagged without a section are never skipped
+// Only start from versions that have both a CHANGELOG section and a matching tag, so commits tagged without a section are never skipped.
+// The pattern stops at the first hyphen, so a prerelease section (`## v0.9.0-beta.1`) never matches a tag: the anchor stays on the last
+// stable release, which means every prerelease and the final release describe the whole unreleased range.
 const from =
   [...changelog.matchAll(/^##\s+(v?[\d.]+)/gm)]
     .map((match) => match[1])

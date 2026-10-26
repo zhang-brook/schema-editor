@@ -5,8 +5,10 @@
 1. 改 [package.json](../package.json) 的 `version`（两端与安装包版本在构建期取用这一处）
 2. `pnpm changelog` 生成 CHANGELOG
 3. `git add package.json CHANGELOG.md` → `git commit -m "chore: release vx.y.z"` → `git push`
-4. `git tag vx.y.z` → `git push origin vx.y.z`，触发 [deploy.yml](../.github/workflows/deploy.yml)：build → 部署 Pages；desktop 在 Windows / macOS / Linux 三个 runner 上并行打包；release 等这些任务都完成后发布 Release（正文取 CHANGELOG 中 `## vx.y.z` 小节）
+4. `git tag vx.y.z` → `git push origin vx.y.z`，触发 [deploy.yml](../.github/workflows/deploy.yml)：先校验 tag 与根版本一致，再 build → 部署 Pages；desktop 在 Windows / macOS / Linux 三个 runner 上并行打包；release 等这些任务都完成后发布 Release（正文取 CHANGELOG 中 `## vx.y.z` 小节）
 5. 打开验证
+
+版本号带连字符后缀的 tag（`v1.2.3-beta.1`、`v1.2.3-rc.1`）会把 Release 发布为 **预发布版（pre-release）**；不带后缀的 `v1.2.3` 发布为正式版。根 `package.json` 写同一串值，后缀一并带上。
 
 | 用途 | 地址 |
 | --- | --- |

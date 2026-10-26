@@ -16,7 +16,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Verify the tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # The artifact names and the CHANGELOG section are looked up by tag, so a
+      # tag that disagrees with the root package.json version would publish
+      # mislabeled installers with an empty release body.
+      - name: Check the tag against the app version
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if [ "${TAG#v}" = "$TAG" ]; then
+            echo "Not a v* tag (${TAG}); skipping version verification."
+            exit 0
+          fi
+          version=$(node -p "require('./package.json').version")
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "Tag ${TAG} is not version ${version}; bump the root package.json and re-tag." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Verified ${TAG} against the root package.json version ${version}."
+
   build:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -181,3 +207,9 @@ jobs:
           name: ${{ github.ref_name }}
           body_path: release-body.md
           files: release/*
+          # Release convention shared by the abrooka apps: a tag with a hyphen
+          # after the version (v1.2.3-beta.1) publishes as a GitHub pre-release;
+          # a plain v1.2.3 tag publishes as the current stable release.
+          # Pre-releases are skipped by releases/latest, so they do not reach the
+          # in-app updater.
+          prerelease: ${{ contains(github.ref_name, '-') }}

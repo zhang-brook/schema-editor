@@ -5,8 +5,10 @@ English | [简体中文](./release-process.zh-CN.md)
 1. Update `version` in [package.json](../package.json) (the web app, desktop runtime, and installers all read it at build time)
 2. Run `pnpm changelog` to generate CHANGELOG
 3. `git add package.json CHANGELOG.md` → `git commit -m "chore: release vx.y.z"` → `git push`
-4. `git tag vx.y.z` → `git push origin vx.y.z` to trigger [deploy.yml](../.github/workflows/deploy.yml): build → deploy Pages; desktop packages in parallel on Windows / macOS / Linux runners; release publishes the GitHub Release after all of them finish (body taken from the `## vx.y.z` section in CHANGELOG)
+4. `git tag vx.y.z` → `git push origin vx.y.z` to trigger [deploy.yml](../.github/workflows/deploy.yml): the tag is checked against the root version first, then build → deploy Pages; desktop packages in parallel on Windows / macOS / Linux runners; release publishes the GitHub Release after all of them finish (body taken from the `## vx.y.z` section in CHANGELOG)
 5. Open and verify
+
+A tag whose version carries a hyphen suffix (`v1.2.3-beta.1`, `v1.2.3-rc.1`) publishes the GitHub Release as a **pre-release**; a plain `v1.2.3` tag publishes it as the stable release. Root `package.json` holds the same string, suffix included.
 
 | Purpose | URL |
 | --- | --- |

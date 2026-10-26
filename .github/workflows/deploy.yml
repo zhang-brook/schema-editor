@@ -182,7 +182,9 @@ jobs:
       - name: Append download links
         run: |
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          mirror="https://v6.gh-proxy.org/${base}"
           asset() { find release -maxdepth 1 -type f -name "$1" -printf '%f\n' -quit; }
+          link() { printf '[%s](%s/%s) ([国内镜像](%s/%s))' "$1" "$base" "$2" "$mirror" "$2"; }
 
           win_setup=$(asset '*-windows-*-setup.exe')
           win_portable=$(asset '*-windows-*-portable.exe')
@@ -194,10 +196,19 @@ jobs:
             echo ''
             echo '### 📥 Downloads'
             echo ''
-            echo "- **Windows (x64)**: [Installer](${base}/${win_setup}) · [Portable](${base}/${win_portable})"
-            echo "- **macOS (Universal)**: [DMG](${base}/${mac_dmg})"
-            echo "- **Linux (x64)**: [AppImage](${base}/${linux_appimage}) · [DEB](${base}/${linux_deb})"
-            echo "- **Web**: [Live Preview](https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/) · [Offline bundle](${base}/schema-editor-${GITHUB_REF_NAME}.zip)"
+            printf -- '- **Windows (x64)**: '
+            link 'Installer' "$win_setup"
+            printf ' · '
+            link 'Portable' "$win_portable"
+            printf '\n- **macOS (Universal)**: '
+            link 'DMG' "$mac_dmg"
+            printf '\n- **Linux (x64)**: '
+            link 'AppImage' "$linux_appimage"
+            printf ' · '
+            link 'DEB' "$linux_deb"
+            printf '\n- **Web**: [Live Preview](https://%s.github.io/%s/) · ' "${GITHUB_REPOSITORY_OWNER}" "${GITHUB_REPOSITORY#*/}"
+            link 'Offline bundle' "schema-editor-${GITHUB_REF_NAME}.zip"
+            printf '\n'
           } >> release-body.md
 
       - name: Create GitHub Release

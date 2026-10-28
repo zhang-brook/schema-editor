@@ -40,7 +40,6 @@ function isLastEnabled(dialect: SqlDialect): boolean {
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
 <style scoped>
 .dialect-options {
   display: flex;

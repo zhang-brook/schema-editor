@@ -20,7 +20,6 @@ const store = useEditorStore()
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
 <style scoped>
 .ai-guide-switch {
   display: flex;

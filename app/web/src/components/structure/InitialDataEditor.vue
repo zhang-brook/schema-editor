@@ -8,6 +8,8 @@ import { getInitialDataPreSql, getInitialDataPostSql, isStringTypeField, type Sq
 import { confirmDialog } from '@/composables/useConfirm'
 import type { InitialData, InitialDataInsertMode, InitialDataRow } from 'schema-editor-core/types/schema'
 import PrePostSqlEditor from '@/components/common/PrePostSqlEditor.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import InitialDataSqlPreview from './InitialDataSqlPreview.vue'
 
 const store = useEditorStore()
@@ -50,6 +52,13 @@ const rows = computed(() => initialData.value?.rows)
 const insertMode = computed(() => initialData.value?.insert_mode ?? 'inherit')
 const globalInsertMode = computed<InitialDataInsertMode>(() => store.commonConfig?.initial_data_insert_mode ?? 'insert')
 const globalInsertModeLabel = computed(() => t(insertModeLabelKeys[globalInsertMode.value]))
+
+const insertModeOptions = computed(() => [
+  { value: 'inherit', label: t('initialData.insertModeInherit', { mode: globalInsertModeLabel.value }) },
+  { value: 'insert', label: t('initialData.insertModeInsert') },
+  { value: 'ignore', label: t('initialData.insertModeIgnore') },
+  { value: 'overwrite', label: t('initialData.insertModeOverwrite') },
+])
 
 const hasData = computed(() => rows.value !== undefined && rows.value.length > 0)
 const rowCount = computed(() => rows.value?.length ?? 0)
@@ -290,25 +299,29 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   <template v-if="initialData !== undefined">
     <div class="section-card">
       <div class="section-header">
-        <span>{{ $t('initialData.title') }}</span>
-        <span class="badge" v-if="hasData">{{ $t('initialData.badge', { n: rowCount }) }}</span>
+        <span class="section-title">
+          {{ $t('initialData.title') }}
+          <span class="badge" v-if="hasData">{{ $t('initialData.badge', { n: rowCount }) }}</span>
+        </span>
         <div class="header-actions">
           <label class="insert-mode" :title="$t('initialData.insertModeTitle')">
             <span>{{ $t('initialData.insertMode') }}</span>
-            <select class="form-input insert-mode-select" :value="insertMode"
-              @change="handleInsertMode(($event.target as HTMLSelectElement).value)">
-              <option value="inherit">{{ $t('initialData.insertModeInherit', { mode: globalInsertModeLabel }) }}</option>
-              <option value="insert">{{ $t('initialData.insertModeInsert') }}</option>
-              <option value="ignore">{{ $t('initialData.insertModeIgnore') }}</option>
-              <option value="overwrite">{{ $t('initialData.insertModeOverwrite') }}</option>
-            </select>
+            <AppSelect
+              class="insert-mode-select"
+              size="sm"
+              :model-value="insertMode"
+              :options="insertModeOptions"
+              @update:model-value="handleInsertMode"
+            />
           </label>
-          <div class="mode-toggle">
-            <button class="mode-btn" :class="{ active: editorMode === 'table' }" @click="switchMode('table')">{{
-              $t('initialData.table') }}</button>
-            <button class="mode-btn" :class="{ active: editorMode === 'json' }" @click="switchMode('json')">{{
-              $t('initialData.json') }}</button>
-          </div>
+          <SegmentedSwitch
+            :model-value="editorMode"
+            :options="[
+              { value: 'table', label: $t('initialData.table') },
+              { value: 'json', label: $t('initialData.json') },
+            ]"
+            @update:model-value="switchMode($event as 'json' | 'table')"
+          />
           <button class="btn btn-sm btn-danger" @click="clearRows">{{ $t('initialData.clear') }}</button>
         </div>
       </div>
@@ -359,7 +372,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
                       placeholder="" />
                     <label v-if="stringFieldSet.has(fname)" class="expr-toggle"
                       :class="{ active: isExprField(row, fname) }" :title="$t('initialData.exprTitle')">
-                      <input type="checkbox" class="expr-checkbox"
+                      <input type="checkbox" class="expr-checkbox mini-checkbox"
                         :checked="isExprField(row, fname)"
                         @change="setExprField(row, fname, ($event.target as HTMLInputElement).checked)" />
                       <span>{{ $t('initialData.expr') }}</span>
@@ -371,7 +384,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
                       :placeholder="$t('initialData.rowCommentPlaceholder')" />
                   </td>
                   <td class="row-skip">
-                    <input type="checkbox" class="skip-checkbox"
+                    <input type="checkbox" class="skip-checkbox table-checkbox"
                       :checked="isSkipRow(row)"
                       @change="setSkipRow(row, ($event.target as HTMLInputElement).checked)" />
                   </td>
@@ -418,38 +431,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   </template>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/table.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/help.css"></style>
-<style scoped src="@/assets/style/move-btn.css"></style>
 <style scoped>
-.section-header {
-  display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border-muted);
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--fg);
-  gap: 8px;
-}
-
-.section-header .badge {
-  font-weight: 400;
-  font-size: 11px;
-  color: var(--fg-muted);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
 .insert-mode {
   display: inline-flex;
   align-items: center;
@@ -458,55 +440,11 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   font-weight: 400;
   color: var(--fg-muted);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .insert-mode-select {
-  height: 24px;
-  padding-top: 0;
-  padding-bottom: 0;
-  font-size: 11px;
   min-width: 128px;
-}
-
-.mode-toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.mode-btn {
-  padding: 3px 10px;
-  border: none;
-  background: var(--surface);
-  font-size: 11px;
-  cursor: pointer;
-  color: var(--fg-muted);
-  transition: all .15s;
-}
-
-.mode-btn:not(:last-child) {
-  border-right: 1px solid var(--border);
-}
-
-.mode-btn.active {
-  background: var(--accent);
-  color: var(--accent-fg);
-}
-
-.mode-btn:not(.active):hover {
-  background: var(--surface-3);
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 20px;
-  color: var(--fg-subtle);
-  font-size: 12px;
 }
 
 /* JSON Editor */
@@ -556,29 +494,14 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 }
 
 .data-table {
-  width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
 }
 
+/* Data cells stack value + field comment + expression toggle, so they align from the top */
 .data-table th,
 .data-table td {
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--border-muted);
-  text-align: left;
+  padding: var(--pad-cell-y) 6px;
   vertical-align: top;
-}
-
-.data-table th {
-  background: var(--surface-2);
-  font-weight: 600;
-  color: var(--fg-muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.data-table tbody tr:hover {
-  background: var(--surface-2);
 }
 
 .row-num {
@@ -596,22 +519,6 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
 
 .skip-checkbox {
   cursor: pointer;
-}
-
-.table-input {
-  padding: 3px 5px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-family: inherit;
-  width: 100%;
-  min-width: 60px;
-  box-sizing: border-box;
-}
-
-.table-input:focus {
-  outline: none;
-  border-color: var(--accent);
 }
 
 .empty-rows {
@@ -705,64 +612,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   color: var(--accent);
 }
 
-.expr-toggle.active .expr-checkbox {
-  accent-color: var(--accent);
-}
-
 .expr-checkbox {
-  width: 12px;
-  height: 12px;
   margin: 0;
-  cursor: pointer;
 }
-
-/* Buttons */
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.btn:hover {
-  background: var(--surface-2);
-}
-
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.btn:disabled:hover {
-  background: var(--surface);
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-.btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.btn-danger:hover {
-  background: var(--danger-subtle);
-}
-
-.btn-sm {
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-/* Move Buttons */
 </style>

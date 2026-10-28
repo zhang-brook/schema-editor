@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import { toDialectOptions } from '@/composables/useEnabledDialect'
 import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
@@ -157,15 +158,18 @@ const partitionExpression = computed({
           <div class="form-row">
             <div class="form-group narrow">
               <label class="form-label">{{ $t('tableEditor.partitionStrategy') }}</label>
-              <select class="form-input" v-model="partitionStrategy">
-                <option value="">{{ $t('tableEditor.partitionRaw') }}</option>
-                <option value="RANGE">RANGE</option>
-                <option value="LIST">LIST</option>
-                <option value="HASH">HASH</option>
-                <option value="KEY">KEY</option>
-                <option value="RANGE COLUMNS">RANGE COLUMNS</option>
-                <option value="LIST COLUMNS">LIST COLUMNS</option>
-              </select>
+              <AppSelect
+                v-model="partitionStrategy"
+                :options="[
+                  { value: '', label: $t('tableEditor.partitionRaw') },
+                  { value: 'RANGE', label: 'RANGE' },
+                  { value: 'LIST', label: 'LIST' },
+                  { value: 'HASH', label: 'HASH' },
+                  { value: 'KEY', label: 'KEY' },
+                  { value: 'RANGE COLUMNS', label: 'RANGE COLUMNS' },
+                  { value: 'LIST COLUMNS', label: 'LIST COLUMNS' },
+                ]"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">{{ $t('tableEditor.partitionColumns') }}</label>
@@ -193,9 +197,6 @@ const partitionExpression = computed({
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/comment.css"></style>
 <style scoped>
 .more-settings {
   border-top: 1px dashed var(--border);

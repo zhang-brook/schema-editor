@@ -64,9 +64,6 @@ useEnterConfirm(visibleFlag, () => emit('confirm'), confirmBtn)
   </div>
 </template>
 
-<style scoped src="@/assets/style/modal.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-
 <style scoped>
 .confirm-box {
   max-width: 440px;

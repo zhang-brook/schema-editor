@@ -4,14 +4,15 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 6px 14px;
+  height: var(--control-h);
+  padding: 0 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--fg);
-  font-size: 12px;
+  font-size: var(--control-font);
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
@@ -67,8 +68,9 @@
 }
 
 .btn-sm {
-  padding: 3px 9px;
-  font-size: 11px;
+  height: var(--control-h-sm);
+  padding: 0 9px;
+  font-size: var(--control-font-sm);
   border-radius: var(--radius-sm);
 }
 
@@ -91,8 +93,9 @@
 
 /* Small variant of the danger button: combines btn-danger colors with btn-sm sizing */
 .btn-danger-sm {
-  padding: 3px 9px;
-  font-size: 11px;
+  height: var(--control-h-sm);
+  padding: 0 9px;
+  font-size: var(--control-font-sm);
   color: var(--danger);
   border-color: var(--danger-border);
   background: var(--surface);

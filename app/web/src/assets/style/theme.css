@@ -60,6 +60,14 @@
   --radius-lg: 10px;
   --radius-pill: 999px;
 
+  /* ===== Controls ===== */
+  --control-h: 30px;
+  --control-h-sm: 24px;
+  --control-pad-x: 10px;
+  --control-pad-x-sm: 6px;
+  --control-font: 12px;
+  --control-font-sm: 11px;
+
   /* ===== UI density (switched by html[data-density]) ===== */
   --pad-cell-y: 6px;
   --pad-row-y: 7px;
@@ -84,11 +92,13 @@
 :root[data-density="compact"] {
   --pad-cell-y: 4px;
   --pad-row-y: 4px;
+  --control-h-sm: 22px;
 }
 
 :root[data-density="relaxed"] {
   --pad-cell-y: 9px;
   --pad-row-y: 10px;
+  --control-h-sm: 26px;
 }
 
 /* ===== Dark ===== */

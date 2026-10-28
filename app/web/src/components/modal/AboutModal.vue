@@ -178,23 +178,9 @@ const bracket = computed(() => (locale.value.startsWith('zh') ? ['（', '）'] :
   </div>
 </template>
 
-<style scoped src="@/assets/style/modal.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
 .modal-box {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: 22px 26px;
-  min-width: 360px;
   max-width: 480px;
-  width: 90vw;
-  box-shadow: var(--shadow-lg);
-}
-
-.modal-box h3 {
-  margin-bottom: 16px;
-  font-size: 15px;
-  color: var(--fg);
 }
 
 .about-box {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { InitialDataInsertMode } from 'schema-editor-core/types/schema'
 
 const store = useEditorStore()
@@ -13,15 +14,15 @@ const store = useEditorStore()
       <div class="form-row">
         <div class="form-group medium">
           <label class="form-label">{{ $t('commonConfig.initialDataModeLabel') }}</label>
-          <select
-            class="form-input"
-            :value="store.getGlobalInitialDataInsertMode()"
-            @change="store.setGlobalInitialDataInsertMode(($event.target as HTMLSelectElement).value as InitialDataInsertMode)"
-          >
-            <option value="insert">{{ $t('initialData.insertModeInsert') }}</option>
-            <option value="ignore">{{ $t('initialData.insertModeIgnore') }}</option>
-            <option value="overwrite">{{ $t('initialData.insertModeOverwrite') }}</option>
-          </select>
+          <AppSelect
+            :model-value="store.getGlobalInitialDataInsertMode()"
+            :options="[
+              { value: 'insert', label: $t('initialData.insertModeInsert') },
+              { value: 'ignore', label: $t('initialData.insertModeIgnore') },
+              { value: 'overwrite', label: $t('initialData.insertModeOverwrite') },
+            ]"
+            @update:model-value="store.setGlobalInitialDataInsertMode($event as InitialDataInsertMode)"
+          />
           <div class="form-hint">{{ $t('commonConfig.initialDataModeHint') }}</div>
         </div>
       </div>
@@ -29,8 +30,6 @@ const store = useEditorStore()
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 .form-hint {
   margin-top: 6px;

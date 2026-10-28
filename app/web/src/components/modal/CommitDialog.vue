@@ -63,52 +63,9 @@ useEnterConfirm(computed(() => store.commitDialogVisible), () => store.confirmCo
   </div>
 </template>
 
-<style scoped src="@/assets/style/modal.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 .modal-box {
   max-width: 560px;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.modal-header h3 {
-  margin-bottom: 0;
-}
-
-.modal-close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-sm);
-  font-size: 18px;
-  line-height: 1;
-  color: var(--fg-subtle);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all .15s;
-}
-
-.modal-close-btn:hover {
-  background: var(--surface-3);
-  color: var(--fg);
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .change-groups {

@@ -35,8 +35,6 @@ const store = useEditorStore()
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 /* Radio group (DDL mode) */
 .radio-group {

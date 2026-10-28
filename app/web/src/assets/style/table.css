@@ -14,7 +14,7 @@
 .common-fields-table th,
 .data-table th {
   background: var(--surface-2);
-  padding: 8px 10px;
+  padding: 8px;
   text-align: left;
   font-weight: 600;
   font-size: 11px;
@@ -28,7 +28,7 @@
 .indexes-table td,
 .common-fields-table td,
 .data-table td {
-  padding: 5px 10px;
+  padding: var(--pad-cell-y) 8px;
   border-bottom: 1px solid var(--border-muted);
   vertical-align: middle;
 }
@@ -50,17 +50,19 @@
 /* ===== Table Input (inline editable cell) ===== */
 .table-input {
   width: 100%;
-  padding: 4px 7px;
+  height: var(--control-h-sm);
+  padding: 0 var(--control-pad-x-sm);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--control-font);
   font-family: inherit;
   background: transparent;
   color: inherit;
+  box-sizing: border-box;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.table-input:hover {
+.table-input:hover:not(:disabled) {
   background: var(--surface-3);
 }
 
@@ -79,9 +81,72 @@
 }
 
 /* ===== Table Checkbox ===== */
-.table-checkbox {
-  width: 15px;
-  height: 15px;
+.table-checkbox,
+.mini-checkbox {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface);
   cursor: pointer;
-  accent-color: var(--accent);
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.mini-checkbox {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.table-checkbox:hover:not(:disabled),
+.mini-checkbox:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.table-checkbox:checked,
+.mini-checkbox:checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.5 6.3l2.2 2.2L9.5 4'/%3E%3C/svg%3E");
+  background-size: 10px 10px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.table-checkbox:focus-visible,
+.mini-checkbox:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.table-checkbox:disabled,
+.mini-checkbox:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== Inline cell decorations ===== */
+.mini-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 9px;
+  opacity: 0.6;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.disabled-indicator {
+  color: var(--fg-subtle);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.disabled-indicator:hover {
+  color: var(--accent);
 }

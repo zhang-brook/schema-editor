@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import { useColumnResize } from '@/composables/useColumnResize'
 import { displayDefault, displayFieldLength, displayFieldScale, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from 'schema-editor-core/utils/file-helpers'
 import { buildFieldComment, type SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
@@ -256,15 +257,16 @@ function onDropTail(e: DragEvent) {
                   <span v-if="store.hasFieldOverrides(field)" class="override-badge" :title="$t('fieldTable.hasOverrides')">⚡</span>
                 </template>
                 <div v-else class="type-cell">
-                  <select
-                    class="table-input unified-type-select"
-                    :value="field.unified_type ?? ''"
-                    @change="handleUnifiedTypeChange(field, ($event.target as HTMLSelectElement).value)"
-                    style="min-width:80px;"
-                  >
-                    <option value="">{{ $t('fieldTable.customType') }}</option>
-                    <option v-for="ut in store.unifiedTypeNames" :key="ut" :value="ut">{{ ut }}</option>
-                  </select>
+                  <AppSelect
+                    variant="table"
+                    class="unified-type-select"
+                    :model-value="field.unified_type ?? ''"
+                    :options="[
+                      { value: '', label: $t('fieldTable.customType') },
+                      ...store.unifiedTypeNames.map(name => ({ value: name, label: name })),
+                    ]"
+                    @update:model-value="handleUnifiedTypeChange(field, $event)"
+                  />
                   <input
                     v-if="!field.unified_type"
                     class="table-input type-free-input"
@@ -348,17 +350,17 @@ function onDropTail(e: DragEvent) {
                     @change="toggleHasDefault(field)"
                     :title="$t('fieldTable.hasDefault')"
                   >
-                  <select
+                  <AppSelect
                     v-if="field.default !== undefined && getDefaultInputType(field) === 'boolean'"
-                    class="table-input"
-                    :value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
-                    @change="store.updateFieldProp(store.currentTable!, field, 'default', ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined)"
-                    style="min-width:80px;"
-                  >
-                    <option value=""></option>
-                    <option value="TRUE">TRUE</option>
-                    <option value="FALSE">FALSE</option>
-                  </select>
+                    variant="table"
+                    :model-value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
+                    :options="[
+                      { value: '', label: '—' },
+                      { value: 'TRUE', label: 'TRUE' },
+                      { value: 'FALSE', label: 'FALSE' },
+                    ]"
+                    @update:model-value="store.updateFieldProp(store.currentTable!, field, 'default', $event === 'TRUE' ? true : ($event === 'FALSE' ? false : undefined))"
+                  />
                   <input
                     v-else-if="field.default !== undefined"
                     class="table-input"
@@ -479,6 +481,7 @@ function onDropTail(e: DragEvent) {
                       <label class="comment-options-toggle">
                         <input
                           type="checkbox"
+                          class="mini-checkbox"
                           :checked="!!field.comment_options_enabled"
                           @change="store.setFieldCommentOptionsEnabled(store.currentTable!, field, ($event.target as HTMLInputElement).checked)"
                         />
@@ -554,44 +557,16 @@ function onDropTail(e: DragEvent) {
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/table.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/badge.css"></style>
-<style scoped src="@/assets/style/expand.css"></style>
-<style scoped src="@/assets/style/comment.css"></style>
-<style scoped src="@/assets/style/help.css"></style>
-<style scoped src="@/assets/style/move-btn.css"></style>
-<style scoped src="@/assets/style/resize.css"></style>
 <style scoped>
 .fields-table {
-  width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
   /* Fixed layout: column widths are fully determined by the header width, so shrinking by drag takes effect immediately */
   table-layout: fixed;
 }
 
 .fields-table th,
 .fields-table td {
-  padding: var(--pad-cell-y) 8px;
-  border-bottom: 1px solid var(--border-muted);
-  text-align: left;
-  vertical-align: middle;
   overflow: hidden;
-}
-
-.fields-table th {
-  background: var(--surface-2);
-  font-weight: 600;
-  color: var(--fg-muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.fields-table tbody tr:hover {
-  background: var(--surface-2);
 }
 
 .common-field-row {
@@ -612,7 +587,6 @@ function onDropTail(e: DragEvent) {
   background: var(--surface-3) !important;
 }
 
-
 .field-name-cell {
   display: flex;
   align-items: center;
@@ -624,86 +598,6 @@ function onDropTail(e: DragEvent) {
   align-items: center;
   gap: 4px;
 }
-
-
-
-.table-input {
-  padding: 3px 5px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.table-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-
-
-
-
-
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.btn:hover {
-  background: var(--surface-2);
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-.btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.btn-danger:hover {
-  background: var(--danger-subtle);
-}
-
-.btn-sm {
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* Type cell with unified type select + custom input */
 .type-cell {
@@ -736,35 +630,6 @@ function onDropTail(e: DragEvent) {
   display: flex;
   align-items: center;
   gap: 2px;
-}
-
-.mini-checkbox {
-  width: 12px;
-  height: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.mini-checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  font-size: 9px;
-  opacity: 0.6;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.disabled-indicator {
-  color: var(--fg-subtle);
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.disabled-indicator:hover {
-  color: var(--accent);
 }
 
 .resolved-type-row {

@@ -47,7 +47,7 @@ function copyToClipboard() {
         <SegmentedSwitch v-model="activeDialect" :options="dialectOptions" />
       </div>
       <div class="header-actions">
-        <button class="btn-copy" @click="copyToClipboard" :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>
+        <button class="btn btn-sm" @click="copyToClipboard" :title="$t('sqlPreview.copyTitle')">{{ $t('sqlPreview.copy') }}</button>
       </div>
     </div>
     <div class="section-body">
@@ -56,35 +56,11 @@ function copyToClipboard() {
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .header-tabs {
   display: flex;
   align-items: center;
   gap: 0;
-}
-
-.btn-copy {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--fg-muted);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all .15s;
-}
-
-.btn-copy:hover {
-  background: var(--surface-3);
-  border-color: var(--border-strong);
 }
 
 .section-body {

@@ -80,12 +80,6 @@ const confirmState = useConfirmState()
 </template>
 
 <!-- Global base styles -->
-<style src="@/assets/style/base.css"></style>
-<style src="@/assets/style/menu.css"></style>
-<style src="@/assets/style/popover.css"></style>
-
-<style scoped src="@/assets/style/layout.css"></style>
-<style scoped src="@/assets/style/toast.css"></style>
 
 <style scoped>
 /* ===== Drop Overlay (open folder by dragging) ===== */

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { Field, UnifiedTypeDefinition } from 'schema-editor-core/types/schema'
 import { displayFieldLength, displayFieldScale, displayDefault, parseDefaultInput, parseFieldLengthInput, parseFieldScaleInput } from 'schema-editor-core/utils/file-helpers'
 
@@ -252,15 +253,16 @@ function toggleCommonFieldExpand(fieldName: string) {
               <!-- field_type -->
               <td>
                 <div class="type-cell">
-                  <select
-                    class="table-input unified-type-select"
-                    :value="field.unified_type ?? ''"
-                    @change="handleUnifiedTypeChange(field, ($event.target as HTMLSelectElement).value)"
-                    style="min-width:80px;"
-                  >
-                    <option value="">{{ $t('fieldTable.customType') }}</option>
-                    <option v-for="ut in store.unifiedTypeNames" :key="ut" :value="ut">{{ ut }}</option>
-                  </select>
+                  <AppSelect
+                    variant="table"
+                    class="unified-type-select"
+                    :model-value="field.unified_type ?? ''"
+                    :options="[
+                      { value: '', label: $t('fieldTable.customType') },
+                      ...store.unifiedTypeNames.map(name => ({ value: name, label: name })),
+                    ]"
+                    @update:model-value="handleUnifiedTypeChange(field, $event)"
+                  />
                   <input
                     v-if="!field.unified_type"
                     class="table-input type-free-input"
@@ -333,17 +335,17 @@ function toggleCommonFieldExpand(fieldName: string) {
                     @change="toggleHasDefault(field)"
                     :title="$t('fieldTable.hasDefault')"
                   >
-                  <select
+                  <AppSelect
                     v-if="field.default !== undefined && getDefaultInputType(field) === 'boolean'"
-                    class="table-input"
-                    :value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
-                    @change="updateField(field, { default: ($event.target as HTMLSelectElement).value === 'TRUE' ? true : ($event.target as HTMLSelectElement).value === 'FALSE' ? false : undefined })"
-                    style="min-width:80px;"
-                  >
-                    <option value=""></option>
-                    <option value="TRUE">TRUE</option>
-                    <option value="FALSE">FALSE</option>
-                  </select>
+                    variant="table"
+                    :model-value="field.default === true ? 'TRUE' : field.default === false ? 'FALSE' : ''"
+                    :options="[
+                      { value: '', label: '—' },
+                      { value: 'TRUE', label: 'TRUE' },
+                      { value: 'FALSE', label: 'FALSE' },
+                    ]"
+                    @update:model-value="updateField(field, { default: $event === 'TRUE' ? true : ($event === 'FALSE' ? false : undefined) }, true)"
+                  />
                   <input
                     v-else-if="field.default !== undefined"
                     class="table-input"
@@ -460,20 +462,7 @@ function toggleCommonFieldExpand(fieldName: string) {
     </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/table.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/expand.css"></style>
-<style scoped src="@/assets/style/help.css"></style>
-<style scoped src="@/assets/style/move-btn.css"></style>
 <style scoped>
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .new-field-input {
   width: 150px;
   padding: 3px 6px;
@@ -499,58 +488,6 @@ function toggleCommonFieldExpand(fieldName: string) {
 }
 
 /* Button styles */
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.btn:hover {
-  background: var(--surface-2);
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-.btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.btn-danger:hover {
-  background: var(--danger-subtle);
-}
-
-.btn-sm {
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.table-input {
-  padding: 3px 5px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.table-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
 
 .move-btns {
   display: inline-flex;
@@ -588,35 +525,6 @@ function toggleCommonFieldExpand(fieldName: string) {
   display: flex;
   align-items: center;
   gap: 2px;
-}
-
-.mini-checkbox {
-  width: 12px;
-  height: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.mini-checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  font-size: 9px;
-  opacity: 0.6;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.disabled-indicator {
-  color: var(--fg-subtle);
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.disabled-indicator:hover {
-  color: var(--accent);
 }
 
 /* Drag-and-drop styles */

@@ -7,6 +7,7 @@
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { RenameEntry } from 'schema-editor-core/core/version/types'
 import type { RenameSuggestion } from 'schema-editor-core/core/version/identity'
 
@@ -84,8 +85,8 @@ function confirm(row: Row, to: string) {
   emit('confirm', { kind: row.kind, from: row.from, to, source: 'manual', confidence: 1 })
 }
 
-function onSelectTarget(row: Row, event: Event) {
-  confirm(row, (event.target as HTMLSelectElement).value)
+function onSelectTarget(row: Row, value: string) {
+  confirm(row, value)
 }
 </script>
 
@@ -109,12 +110,14 @@ function onSelectTarget(row: Row, event: Event) {
         <span class="ra-path">{{ row.from }}<span class="ra-arrow">→</span>{{ row.to }}</span>
         <span class="ra-score">{{ percent(row.score) }}</span>
         <span v-if="row.ambiguous" class="ra-warn" :title="t('migration.alignAmbiguous')">⚠</span>
-        <select v-if="row.candidates.length > 1" class="ra-select" :value="row.to"
-          @change="onSelectTarget(row, $event)">
-          <option v-for="c in row.candidates" :key="c.to" :value="c.to">
-            {{ c.to }} ({{ percent(c.score) }})
-          </option>
-        </select>
+        <AppSelect
+          v-if="row.candidates.length > 1"
+          class="ra-select"
+          size="sm"
+          :model-value="row.to"
+          :options="row.candidates.map(c => ({ value: c.to, label: `${c.to} (${percent(c.score)})` }))"
+          @update:model-value="onSelectTarget(row, $event)"
+        />
         <span v-else class="ra-spacer" />
         <button class="btn btn-sm btn-primary" @click="confirm(row, row.to)">
           {{ t('migration.alignConfirm') }}

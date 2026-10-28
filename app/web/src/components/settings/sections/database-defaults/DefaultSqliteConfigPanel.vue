@@ -24,5 +24,3 @@ const store = useEditorStore()
   </div>
 </template>
 
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/toggle.css"></style>

@@ -21,6 +21,8 @@ import { availableLocales, persistLocale } from '@/i18n/detection'
 import type { SupportedLocale } from '@/i18n/detection'
 import logoUrl from '@/assets/logo.svg'
 import AboutModal from '@/components/modal/AboutModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import type { SelectOption } from '@/components/ui/select-types'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import MonitorIcon from '@/components/icon/MonitorIcon.vue'
 import SunIcon from '@/components/icon/SunIcon.vue'
@@ -161,6 +163,10 @@ function switchLocale(newLocale: SupportedLocale) {
   persistLocale(newLocale)
   document.documentElement.lang = newLocale
 }
+
+const localeOptions = computed<SelectOption<SupportedLocale>[]>(() =>
+  availableLocales.map(loc => ({ value: loc, label: loc.toUpperCase() })),
+)
 
 /** Check whether the event target is an editable element (input/textarea/contenteditable); native undo/redo should be used in such cases */
 function isEditableTarget(e: KeyboardEvent): boolean {
@@ -423,6 +429,7 @@ onUnmounted(() => {
         <label class="autosave-toggle" :title="store.gitRepo ? $t('toolbar.autoSaveUnsupported') : $t('toolbar.autoSaveTitle')">
           <input
             type="checkbox"
+            class="mini-checkbox"
             :checked="!store.gitRepo && store.autoSaveEnabled"
             :disabled="!!store.gitRepo"
             @change="store.setAutoSave(($event.target as HTMLInputElement).checked)"
@@ -432,6 +439,7 @@ onUnmounted(() => {
         <label class="autosave-toggle" :title="store.gitRepo ? $t('toolbar.autoSaveUnsupported') : $t('toolbar.autoSyncSqlTitle')">
           <input
             type="checkbox"
+            class="mini-checkbox"
             :checked="!store.gitRepo && store.autoSyncOutputsEnabled"
             :disabled="!!store.gitRepo"
             @change="store.setAutoSyncOutputs(($event.target as HTMLInputElement).checked)"
@@ -507,16 +515,15 @@ onUnmounted(() => {
         </PopoverPortal>
       </PopoverRoot>
 
-      <select
+      <AppSelect
         class="locale-select"
+        variant="plain"
+        size="sm"
         :title="$t('toolbar.language')"
-        :value="locale"
-        @change="switchLocale(($event.target as HTMLSelectElement).value as SupportedLocale)"
-      >
-        <option v-for="loc in availableLocales" :key="loc" :value="loc">
-          {{ loc.toUpperCase() }}
-        </option>
-      </select>
+        :model-value="locale"
+        :options="localeOptions"
+        @update:model-value="switchLocale($event as SupportedLocale)"
+      />
     </div>
   </div>
 
@@ -712,30 +719,6 @@ onUnmounted(() => {
 .toolbar-btn--primary:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-}
-
-.locale-select {
-  padding: 3px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--fg-muted);
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  appearance: auto;
-  user-select: none;
-  transition: border-color .12s ease, box-shadow .12s ease;
-}
-
-.locale-select:hover {
-  border-color: var(--border-strong);
-}
-
-.locale-select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
 }
 
 /* ===== Recently Opened Folders ===== */

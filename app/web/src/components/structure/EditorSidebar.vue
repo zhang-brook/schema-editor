@@ -351,7 +351,6 @@ function cancelRenameSchema() {
   </div>
 </template>
 
-<style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
 /* ===== Left Sidebar ===== */
 .sidebar {

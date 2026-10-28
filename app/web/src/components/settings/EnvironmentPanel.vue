@@ -6,6 +6,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { Environment } from 'schema-editor-core/core/version/types'
 import { confirmDialog } from '@/composables/useConfirm'
 
@@ -19,6 +20,7 @@ const isCreating = ref(false)
 const draft = ref<Environment | null>(null)
 
 const hasVersions = computed(() => store.versions.length > 0)
+const versionOptions = computed(() => store.versions.map(v => ({ value: v.id, label: v.name })))
 const canSave = computed(
   () => !!draft.value && !!draft.value.name.trim() && !!draft.value.version_id,
 )
@@ -186,9 +188,7 @@ async function onDelete(env: Environment) {
 
           <div class="ps-env-field">
             <span class="ps-pick-label">{{ t('environment.version') }}</span>
-            <select v-model="draft.version_id" class="form-input">
-              <option v-for="v in store.versions" :key="v.id" :value="v.id">{{ v.name }}</option>
-            </select>
+            <AppSelect v-model="draft.version_id" :options="versionOptions" />
           </div>
 
           <div class="ps-env-field">
@@ -207,9 +207,6 @@ async function onDelete(env: Environment) {
     </div>
   </div>
 </template>
-
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
 
 <style scoped>
 .ps-env {

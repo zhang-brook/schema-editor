@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { UnifiedTypeDefinition } from 'schema-editor-core/types/schema'
 import { displayFieldLength, displayFieldScale } from 'schema-editor-core/utils/file-helpers'
 
@@ -250,10 +251,15 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
                 <input type="checkbox" class="table-checkbox" :checked="!!ut.quote_default" @change="store.updateUnifiedType(ut.name, { quote_default: ($event.target as HTMLInputElement).checked })" />
               </td>
               <td style="text-align:center;">
-                <select class="table-input" :value="ut.default_input ?? ''" @change="store.updateUnifiedType(ut.name, { default_input: ($event.target as HTMLSelectElement).value === 'boolean' ? 'boolean' : undefined })" style="min-width:100px;">
-                  <option value="">{{ $t('commonConfig.unifiedTypes.defaultInputText') }}</option>
-                  <option value="boolean">{{ $t('commonConfig.unifiedTypes.defaultInputBoolean') }}</option>
-                </select>
+                <AppSelect
+                  variant="table"
+                  :model-value="ut.default_input ?? ''"
+                  :options="[
+                    { value: '', label: $t('commonConfig.unifiedTypes.defaultInputText') },
+                    { value: 'boolean', label: $t('commonConfig.unifiedTypes.defaultInputBoolean') },
+                  ]"
+                  @update:model-value="store.updateUnifiedType(ut.name, { default_input: $event === 'boolean' ? 'boolean' : undefined })"
+                />
               </td>
               <td style="min-width: 90px;">
                 <div class="move-btns" style="display:inline-flex; margin-right:2px;">
@@ -288,18 +294,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
     </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/table.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/move-btn.css"></style>
 <style scoped>
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .new-field-input {
   width: 150px;
   padding: 3px 6px;
@@ -311,58 +306,6 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
 }
 
 /* Button styles */
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.btn:hover {
-  background: var(--surface-2);
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-color: var(--accent);
-}
-
-.btn-primary:hover {
-  background: var(--accent-hover);
-}
-
-.btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.btn-danger:hover {
-  background: var(--danger-subtle);
-}
-
-.btn-sm {
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.table-input {
-  padding: 3px 5px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-family: inherit;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.table-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
 
 .move-btns {
   display: inline-flex;

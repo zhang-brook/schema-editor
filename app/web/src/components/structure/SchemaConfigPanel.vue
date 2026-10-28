@@ -56,5 +56,4 @@ function setPostSql(dialect: SqlDialect, val: string) {
   </template>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
 <style scoped></style>

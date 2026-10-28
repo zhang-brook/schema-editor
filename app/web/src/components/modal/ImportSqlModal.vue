@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
 
@@ -50,6 +51,15 @@ const canImport = computed(() =>
 const schemaOptions = computed(() => {
   return store.schemas.map((s, i) => ({ name: s.schema, index: i }))
 })
+
+const targetSchemaOptions = computed(() =>
+  schemaOptions.value.map(opt => ({ value: opt.index, label: opt.name })),
+)
+
+function setTargetSchema(value: number) {
+  store.importSqlTargetSchemaIdx = value
+  store.importSqlDetectedSchema = null
+}
 
 // Expand/collapse table preview
 const expandedTables = ref(new Set<number>())
@@ -304,17 +314,13 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
             :placeholder="$t('importSqlModal.schemaNamePlaceholder')"
             @input="store.importSqlDetectedSchema = null"
           />
-          <select
+          <AppSelect
             v-else
-            class="form-input target-input"
-            v-model="store.importSqlTargetSchemaIdx"
-            @change="store.importSqlDetectedSchema = null"
-          >
-            <option value="-1" disabled>{{ $t('importSqlModal.selectSchema') }}</option>
-            <option v-for="opt in schemaOptions" :key="opt.index" :value="opt.index">
-              {{ opt.name }}
-            </option>
-          </select>
+            :model-value="store.importSqlTargetSchemaIdx >= 0 ? store.importSqlTargetSchemaIdx : undefined"
+            :options="targetSchemaOptions"
+            :placeholder="$t('importSqlModal.selectSchema')"
+            @update:model-value="setTargetSchema"
+          />
         </div>
       </div>
 
@@ -335,59 +341,12 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   </div>
 </template>
 
-<style scoped src="@/assets/style/modal.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 .modal-box {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: 22px 26px;
-  min-width: 360px;
   max-width: 720px;
-  width: 90vw;
-  max-height: 85vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.modal-header h3 {
-  margin-bottom: 0;
-}
-
-.modal-close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-sm);
-  font-size: 18px;
-  line-height: 1;
-  color: var(--fg-subtle);
-  cursor: pointer;
-  transition: all .15s;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.modal-close-btn:hover {
-  background: var(--surface-3);
-  color: var(--fg);
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
   margin-bottom: 12px;
 }
 
@@ -693,10 +652,4 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   box-sizing: border-box;
 }
 
-/* Action buttons */
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
 </style>

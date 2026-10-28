@@ -36,11 +36,17 @@
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--control-font);
   font-family: inherit;
   color: var(--fg);
   background: var(--surface);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input.form-input {
+  height: var(--control-h);
+  padding: 0 var(--control-pad-x);
+  box-sizing: border-box;
 }
 
 .form-input::placeholder {
@@ -67,13 +73,4 @@
 
 .form-input:disabled:hover {
   border-color: var(--border-muted);
-}
-
-select.form-input {
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23636c76' d='M0 0l5 6 5-6z'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 28px;
 }

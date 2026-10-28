@@ -13,6 +13,7 @@ import { generateSchemaSQLite } from 'schema-editor-core/utils/sql-generator/sql
 import { confirmDialog } from '@/composables/useConfirm'
 import { useEnabledDialect } from '@/composables/useEnabledDialect'
 import PageTabs from '@/components/ui/PageTabs.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import SegmentedSwitch from '@/components/ui/SegmentedSwitch.vue'
 import VersionTimeline from './VersionTimeline.vue'
 import RenameAlignPanel from './RenameAlignPanel.vue'
@@ -105,6 +106,10 @@ const isDrafting = ref(false)
 const draftFrom = ref('')
 const draftTo = ref('')
 const editingMigration = ref<Migration | null>(null)
+
+const versionOptions = computed(() =>
+  store.versions.map(v => ({ value: v.id, label: v.name })),
+)
 const preview = ref<MigrationDdlPreview | null>(null)
 // Migration preview: only show enabled dialects
 const { enabledDialects, dialectOptions, activeDialect: previewDialect } = useEnabledDialect()
@@ -564,16 +569,12 @@ onMounted(() => {
         <div class="ps-mig-pick ps-mig-pick-form">
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-            <select v-model="draftFrom">
-              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-            </select>
+            <AppSelect v-model="draftFrom" class="ps-mig-select" :options="versionOptions" />
           </div>
           <span class="ps-pick-arrow">→</span>
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-            <select v-model="draftTo">
-              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-            </select>
+            <AppSelect v-model="draftTo" class="ps-mig-select" :options="versionOptions" />
           </div>
           <button class="btn btn-primary ps-pick-create"
             :disabled="!canCreateMigration" @click="onCreateMigration">{{
@@ -597,16 +598,22 @@ onMounted(() => {
         <div class="ps-mig-pick ps-mig-pick-form">
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.from') }}</span>
-            <select v-model="editingMigration.from_version" @change="onMigrationVersionChange">
-              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-            </select>
+            <AppSelect
+              v-model="editingMigration.from_version"
+              class="ps-mig-select"
+              :options="versionOptions"
+              @update:model-value="onMigrationVersionChange"
+            />
           </div>
           <span class="ps-pick-arrow">→</span>
           <div class="ps-pick-field">
             <span class="ps-pick-label">{{ $t('migration.to') }}</span>
-            <select v-model="editingMigration.to_version" @change="onMigrationVersionChange">
-              <option v-for="b in store.versions" :key="b.id" :value="b.id">{{ b.name }}</option>
-            </select>
+            <AppSelect
+              v-model="editingMigration.to_version"
+              class="ps-mig-select"
+              :options="versionOptions"
+              @update:model-value="onMigrationVersionChange"
+            />
           </div>
         </div>
 
@@ -699,7 +706,6 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
 /* Version management */
 .ps-version {
@@ -966,11 +972,7 @@ onMounted(() => {
   padding-bottom: 2px;
 }
 
-.ps-mig-pick select {
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+.ps-mig-select {
   min-width: 130px;
 }
 

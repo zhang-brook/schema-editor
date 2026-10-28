@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { watch, reactive, ref } from 'vue'
+import { watch, reactive, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { IndexColumn } from 'schema-editor-core/types/schema'
 import type { SqlDialect } from 'schema-editor-core/utils/sql-generator/shared'
 import { isColumnDragging } from '@/utils/column-drag-flag'
@@ -11,6 +12,23 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+
+const sortOrderOptions = computed(() => [
+  { value: '', label: t('indexColumnsEditor.noDirection') },
+  { value: 'ASC', label: t('indexColumnsEditor.asc') },
+  { value: 'DESC', label: t('indexColumnsEditor.desc') },
+])
+
+function columnNameOptions(col: IndexColumn) {
+  const options = [
+    { value: '', label: t('indexColumnsEditor.selectColumn') },
+    ...props.availableFields.map(name => ({ value: name, label: name })),
+  ]
+  if (col.name && !props.availableFields.includes(col.name)) {
+    options.push({ value: col.name, label: col.name })
+  }
+  return options
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: IndexColumn[]]
@@ -216,36 +234,20 @@ watch(() => props.modelValue, () => {
     >
       <div class="column-main">
         <span v-if="modelValue.length > 1" class="col-drag-handle" :title="t('commonConfig.dragToSort')">⋮⋮</span>
-        <select
-          class="form-input column-name-select"
-          :value="col.name"
-          @change="updateColumn(idx, 'name', ($event.target as HTMLSelectElement).value)"
-        >
-          <option value="">{{ $t('indexColumnsEditor.selectColumn') }}</option>
-          <option
-            v-for="fieldName in availableFields"
-            :key="fieldName"
-            :value="fieldName"
-          >
-            {{ fieldName }}
-          </option>
-          <!-- Keep a selected value that is not in the current field list -->
-          <option
-            v-if="col.name && !availableFields.includes(col.name)"
-            :value="col.name"
-          >
-            {{ col.name }}
-          </option>
-        </select>
-        <select
-          class="form-input sort-select"
-          :value="col.sort_order ?? ''"
-          @change="updateColumn(idx, 'sort_order', ($event.target as HTMLSelectElement).value)"
-        >
-          <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
-          <option value="ASC">{{ $t('indexColumnsEditor.asc') }}</option>
-          <option value="DESC">{{ $t('indexColumnsEditor.desc') }}</option>
-        </select>
+        <AppSelect
+          variant="table"
+          class="column-name-select"
+          :model-value="col.name"
+          :options="columnNameOptions(col)"
+          @update:model-value="updateColumn(idx, 'name', $event)"
+        />
+        <AppSelect
+          variant="table"
+          class="sort-select"
+          :model-value="col.sort_order ?? ''"
+          :options="sortOrderOptions"
+          @update:model-value="updateColumn(idx, 'sort_order', $event)"
+        />
         <button
           class="btn btn-sm override-toggle"
           :class="{ active: expandedOverrides.has(idx) }"
@@ -262,39 +264,27 @@ watch(() => props.modelValue, () => {
         <div class="db-override-grid">
           <div class="db-override-group">
             <div class="db-label">MySQL</div>
-            <select
-              class="form-input"
-              :value="col.mysql?.sort_order ?? ''"
-              @change="setDbSortOrder(idx, 'mysql', ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
-              <option value="ASC">ASC</option>
-              <option value="DESC">DESC</option>
-            </select>
+            <AppSelect
+              :model-value="col.mysql?.sort_order ?? ''"
+              :options="sortOrderOptions"
+              @update:model-value="setDbSortOrder(idx, 'mysql', $event)"
+            />
           </div>
           <div class="db-override-group">
             <div class="db-label">PostgreSQL</div>
-            <select
-              class="form-input"
-              :value="col.postgresql?.sort_order ?? ''"
-              @change="setDbSortOrder(idx, 'postgresql', ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
-              <option value="ASC">ASC</option>
-              <option value="DESC">DESC</option>
-            </select>
+            <AppSelect
+              :model-value="col.postgresql?.sort_order ?? ''"
+              :options="sortOrderOptions"
+              @update:model-value="setDbSortOrder(idx, 'postgresql', $event)"
+            />
           </div>
           <div class="db-override-group">
             <div class="db-label">SQLite</div>
-            <select
-              class="form-input"
-              :value="col.sqlite?.sort_order ?? ''"
-              @change="setDbSortOrder(idx, 'sqlite', ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="">{{ $t('indexColumnsEditor.noDirection') }}</option>
-              <option value="ASC">ASC</option>
-              <option value="DESC">DESC</option>
-            </select>
+            <AppSelect
+              :model-value="col.sqlite?.sort_order ?? ''"
+              :options="sortOrderOptions"
+              @update:model-value="setDbSortOrder(idx, 'sqlite', $event)"
+            />
           </div>
         </div>
       </div>
@@ -313,10 +303,6 @@ watch(() => props.modelValue, () => {
   </div>
 </template>
 
-<style scoped src="@/assets/style/table.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/expand.css"></style>
 <style scoped>
 .index-columns-editor {
   display: flex;
@@ -414,64 +400,6 @@ watch(() => props.modelValue, () => {
 }
 
 /* Reuse the existing IndexTable styles */
-.table-input {
-  padding: 3px 5px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.table-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.form-input {
-  padding: 2px 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-family: inherit;
-  color: var(--fg);
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.btn {
-  padding: 2px 6px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  cursor: pointer;
-  font-family: inherit;
-  line-height: 1.4;
-}
-
-.btn:hover {
-  background: var(--surface-2);
-}
-
-.btn-sm {
-  padding: 1px 5px;
-  font-size: 10px;
-}
-
-.btn-danger {
-  color: var(--danger);
-  border-color: var(--danger);
-  padding: 1px 5px;
-  font-size: 11px;
-}
-
-.btn-danger:hover {
-  background: var(--danger-subtle);
-}
 
 .btn-add-col {
   align-self: flex-start;

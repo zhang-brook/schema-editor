@@ -26,7 +26,6 @@ const { dialectOptions, activeDialect } = useEnabledDialect()
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
 <style scoped>
 .header-tabs {
   display: flex;

@@ -80,8 +80,6 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 .ld-check {
   display: flex;

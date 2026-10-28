@@ -95,8 +95,6 @@ function updatePost(val: string) {
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
 .header-tabs {
   display: flex;

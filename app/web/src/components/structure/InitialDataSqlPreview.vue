@@ -72,8 +72,6 @@ function copyToClipboard() {
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
 <style scoped>
 .header-tabs {
   display: flex;
@@ -87,38 +85,8 @@ function copyToClipboard() {
   gap: 8px;
 }
 
-.btn {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.btn:hover {
-  background: var(--surface-2);
-}
-
-.btn-sm {
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-
 .section-body {
   padding: 0;
-}
-
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 20px;
-  color: var(--fg-subtle);
-  font-size: 12px;
 }
 
 .sql-code {

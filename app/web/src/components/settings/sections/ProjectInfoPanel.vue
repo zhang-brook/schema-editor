@@ -37,8 +37,6 @@ const store = useEditorStore()
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 textarea.form-input {
   resize: vertical;

@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import { useEscClose } from '@/composables/useEscClose'
 import { useEnterConfirm } from '@/composables/useEnterConfirm'
 import { displayFieldLength, displayFieldScale } from 'schema-editor-core/utils/file-helpers'
@@ -37,10 +38,10 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
       </div>
       <div v-if="store.addFieldMode === 'normal'" class="form-group">
         <label class="form-label">{{ $t('addFieldModal.fieldType') }}</label>
-        <select class="form-input" v-model="store.newFieldUnifiedType">
-          <option value="">{{ $t('addFieldModal.customType') }}</option>
-          <option v-for="ut in store.unifiedTypeNames" :key="ut" :value="ut">{{ ut }}</option>
-        </select>
+        <AppSelect
+          v-model="store.newFieldUnifiedType"
+          :options="[{ value: '', label: $t('addFieldModal.customType') }, ...store.unifiedTypeNames.map(name => ({ value: name, label: name }))]"
+        />
       </div>
       <div v-else class="form-group">
         <label class="form-label">{{ $t('addFieldModal.selectCommonField') }}</label>
@@ -71,17 +72,9 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
   </div>
 </template>
 
-<style scoped src="@/assets/style/modal.css"></style>
-<style scoped src="@/assets/style/btn.css"></style>
-<style scoped src="@/assets/style/form.css"></style>
 <style scoped>
 .modal-box {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: 22px 26px;
-  min-width: 360px;
   max-width: 560px;
-  box-shadow: var(--shadow-lg);
 }
 
 .modal-box .form-group {
@@ -91,7 +84,6 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
   flex: 1;
   margin-bottom: 12px;
 }
-
 
 /* ===== Common Field List ===== */
 .common-field-list {

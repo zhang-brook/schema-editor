@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import type { TypeCaseMode } from 'schema-editor-core/types/schema'
 
 const store = useEditorStore()
@@ -13,21 +14,19 @@ const store = useEditorStore()
       <div class="form-row">
         <div class="form-group medium">
           <label class="form-label">{{ $t('commonConfig.typeCaseLabel') }}</label>
-          <select
-            class="form-input"
-            :value="store.getCommonTypeCase()"
-            @change="store.setCommonTypeCase(($event.target as HTMLSelectElement).value as TypeCaseMode)"
-          >
-            <option value="keep">{{ $t('commonConfig.typeCaseOptions.keep') }}</option>
-            <option value="lowercase">{{ $t('commonConfig.typeCaseOptions.lowercase') }}</option>
-            <option value="uppercase">{{ $t('commonConfig.typeCaseOptions.uppercase') }}</option>
-            <option value="pascal">{{ $t('commonConfig.typeCaseOptions.pascal') }}</option>
-          </select>
+          <AppSelect
+            :model-value="store.getCommonTypeCase()"
+            :options="[
+              { value: 'keep', label: $t('commonConfig.typeCaseOptions.keep') },
+              { value: 'lowercase', label: $t('commonConfig.typeCaseOptions.lowercase') },
+              { value: 'uppercase', label: $t('commonConfig.typeCaseOptions.uppercase') },
+              { value: 'pascal', label: $t('commonConfig.typeCaseOptions.pascal') },
+            ]"
+            @update:model-value="store.setCommonTypeCase($event as TypeCaseMode)"
+          />
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped src="@/assets/style/section.css"></style>
-<style scoped src="@/assets/style/form.css"></style>

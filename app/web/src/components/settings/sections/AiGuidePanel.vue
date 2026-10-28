@@ -10,6 +10,7 @@ const store = useEditorStore()
       <label class="ai-guide-switch">
         <input
           type="checkbox"
+          class="checkbox"
           :checked="store.generateAiGuide"
           @change="store.setGenerateAiGuide(($event.target as HTMLInputElement).checked)"
         />
@@ -29,12 +30,6 @@ const store = useEditorStore()
   font-size: 14px;
   font-weight: 500;
   color: var(--fg);
-}
-
-.ai-guide-switch input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
 }
 
 .ai-guide-hint {

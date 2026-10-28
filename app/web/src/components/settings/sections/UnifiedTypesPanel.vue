@@ -248,7 +248,7 @@ function sqliteValue(ut: UnifiedTypeDefinition, key: 'type' | 'length' | 'scale'
                 />
               </td>
               <td style="text-align:center;">
-                <input type="checkbox" class="table-checkbox" :checked="!!ut.quote_default" @change="store.updateUnifiedType(ut.name, { quote_default: ($event.target as HTMLInputElement).checked })" />
+                <input type="checkbox" class="checkbox checkbox-sm" :checked="!!ut.quote_default" @change="store.updateUnifiedType(ut.name, { quote_default: ($event.target as HTMLInputElement).checked })" />
               </td>
               <td style="text-align:center;">
                 <AppSelect

@@ -292,10 +292,10 @@ function onDropTail(e: DragEvent) {
                     style="width:38px;"
                   />
                   <span v-else class="disabled-indicator" :title="$t('fieldTable.lengthDisabledHint')" @click="store.updateFieldProp(store.currentTable!, field, 'field_length_disabled', undefined)">—</span>
-                  <label class="mini-checkbox-label" :title="$t('fieldTable.lengthNotSetHint')">
+                  <label class="checkbox-label micro" :title="$t('fieldTable.lengthNotSetHint')">
                     <input
                       type="checkbox"
-                      class="mini-checkbox"
+                      class="checkbox checkbox-xs"
                       :checked="!!field.field_length_disabled"
                       @change="store.updateFieldProp(store.currentTable!, field, 'field_length_disabled', ($event.target as HTMLInputElement).checked || undefined)"
                     />{{ $t('fieldTable.notSet') }}
@@ -316,10 +316,10 @@ function onDropTail(e: DragEvent) {
                     style="width:38px;"
                   />
                   <span v-else class="disabled-indicator" :title="$t('fieldTable.scaleDisabledHint')" @click="store.updateFieldProp(store.currentTable!, field, 'field_scale_disabled', undefined)">—</span>
-                  <label class="mini-checkbox-label" :title="$t('fieldTable.scaleNotSetHint')">
+                  <label class="checkbox-label micro" :title="$t('fieldTable.scaleNotSetHint')">
                     <input
                       type="checkbox"
-                      class="mini-checkbox"
+                      class="checkbox checkbox-xs"
                       :checked="!!field.field_scale_disabled"
                       @change="store.updateFieldProp(store.currentTable!, field, 'field_scale_disabled', ($event.target as HTMLInputElement).checked || undefined)"
                     />{{ $t('fieldTable.notSet') }}
@@ -330,13 +330,13 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).not_null ? '✓' : '' }}
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.not_null" @change="store.updateFieldProp(store.currentTable!, field, 'not_null', ($event.target as HTMLInputElement).checked)">
+                <input v-else type="checkbox" class="checkbox checkbox-sm" :checked="!!field.not_null" @change="store.updateFieldProp(store.currentTable!, field, 'not_null', ($event.target as HTMLInputElement).checked)">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).primary_key ? '✓' : '' }}
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.primary_key" @change="store.updateFieldProp(store.currentTable!, field, 'primary_key', ($event.target as HTMLInputElement).checked)">
+                <input v-else type="checkbox" class="checkbox checkbox-sm" :checked="!!field.primary_key" @change="store.updateFieldProp(store.currentTable!, field, 'primary_key', ($event.target as HTMLInputElement).checked)">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
@@ -345,7 +345,7 @@ function onDropTail(e: DragEvent) {
                 <div v-else class="default-cell">
                   <input
                     type="checkbox"
-                    class="table-checkbox"
+                    class="checkbox checkbox-sm"
                     :checked="field.default !== undefined"
                     @change="toggleHasDefault(field)"
                     :title="$t('fieldTable.hasDefault')"
@@ -381,7 +381,7 @@ function onDropTail(e: DragEvent) {
                   <!-- unified type: quote determined by type definition, non-editable -->
                   <span v-if="store.quoteDefaultForField(field)" style="color:var(--accent); font-size:11px;">✓</span>
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.quote_default" @change="store.updateFieldProp(store.currentTable!, field, 'quote_default', ($event.target as HTMLInputElement).checked || undefined)">
+                <input v-else type="checkbox" class="checkbox checkbox-sm" :checked="!!field.quote_default" @change="store.updateFieldProp(store.currentTable!, field, 'quote_default', ($event.target as HTMLInputElement).checked || undefined)">
               </td>
               <td>
                 <template v-if="store.isCommonField(field)">
@@ -390,7 +390,7 @@ function onDropTail(e: DragEvent) {
                 <div v-else class="on-update-cell">
                   <input
                     type="checkbox"
-                    class="table-checkbox"
+                    class="checkbox checkbox-sm"
                     :checked="!!field.on_update_current_timestamp"
                     @change="toggleOnUpdate(field, ($event.target as HTMLInputElement).checked)"
                   >
@@ -422,7 +422,7 @@ function onDropTail(e: DragEvent) {
                 <template v-if="store.isCommonField(field)">
                   {{ store.getResolvedField(field).is_commented_out ? '✓' : '' }}
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.is_commented_out" @change="store.updateFieldProp(store.currentTable!, field, 'is_commented_out', ($event.target as HTMLInputElement).checked || undefined)">
+                <input v-else type="checkbox" class="checkbox checkbox-sm" :checked="!!field.is_commented_out" @change="store.updateFieldProp(store.currentTable!, field, 'is_commented_out', ($event.target as HTMLInputElement).checked || undefined)">
               </td>
               <td style="min-width: 80px;">
                 <div class="move-btns" style="display:inline-flex; margin-right:2px;">
@@ -481,7 +481,7 @@ function onDropTail(e: DragEvent) {
                       <label class="comment-options-toggle">
                         <input
                           type="checkbox"
-                          class="mini-checkbox"
+                          class="checkbox checkbox-xs"
                           :checked="!!field.comment_options_enabled"
                           @change="store.setFieldCommentOptionsEnabled(store.currentTable!, field, ($event.target as HTMLInputElement).checked)"
                         />

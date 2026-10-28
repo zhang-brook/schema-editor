@@ -55,7 +55,7 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
               type="checkbox"
               :value="field.field_name"
               v-model="store.newFieldSelectCommons"
-              class="common-field-checkbox"
+              class="checkbox"
             />
             <span class="common-field-name">{{ field.field_name }}</span>
             <span class="common-field-type">{{ field.unified_type || (field.field_type ? field.field_type + (field.field_length !== undefined ? '(' + displayFieldLength(field.field_length) + (field.field_scale !== undefined ? ',' + displayFieldScale(field.field_scale) : '') + ')' : '') : '') }}</span>
@@ -111,14 +111,6 @@ useEnterConfirm(computed(() => store.showAddFieldModal), () => store.confirmAddF
 
 .common-field-item:hover {
   background: var(--accent-subtle);
-}
-
-.common-field-checkbox {
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  flex-shrink: 0;
-  accent-color: var(--accent);
 }
 
 .common-field-name {

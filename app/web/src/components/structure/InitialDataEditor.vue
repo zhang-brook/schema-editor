@@ -372,7 +372,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
                       placeholder="" />
                     <label v-if="stringFieldSet.has(fname)" class="expr-toggle"
                       :class="{ active: isExprField(row, fname) }" :title="$t('initialData.exprTitle')">
-                      <input type="checkbox" class="expr-checkbox mini-checkbox"
+                      <input type="checkbox" class="checkbox checkbox-xs"
                         :checked="isExprField(row, fname)"
                         @change="setExprField(row, fname, ($event.target as HTMLInputElement).checked)" />
                       <span>{{ $t('initialData.expr') }}</span>
@@ -384,7 +384,7 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
                       :placeholder="$t('initialData.rowCommentPlaceholder')" />
                   </td>
                   <td class="row-skip">
-                    <input type="checkbox" class="skip-checkbox table-checkbox"
+                    <input type="checkbox" class="checkbox checkbox-sm"
                       :checked="isSkipRow(row)"
                       @change="setSkipRow(row, ($event.target as HTMLInputElement).checked)" />
                   </td>
@@ -517,10 +517,6 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   vertical-align: middle !important;
 }
 
-.skip-checkbox {
-  cursor: pointer;
-}
-
 .empty-rows {
   padding: 14px;
   color: var(--fg-subtle);
@@ -610,9 +606,5 @@ function setExprField(row: InitialDataRow, fieldName: string, checked: boolean) 
   background: var(--accent-subtle);
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.expr-checkbox {
-  margin: 0;
 }
 </style>

@@ -21,6 +21,7 @@ const store = useEditorStore()
             ]" :key="opt.value">
               <input
                 type="radio"
+                class="radio"
                 name="tableDdlMode"
                 :value="opt.value"
                 :checked="store.getTableDdlMode() === opt.value"
@@ -59,14 +60,6 @@ const store = useEditorStore()
 .radio-option:hover {
   border-color: var(--accent);
   background: var(--accent-subtle-2);
-}
-
-.radio-option input[type="radio"] {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  flex-shrink: 0;
 }
 
 .radio-label {

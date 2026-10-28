@@ -429,7 +429,7 @@ onUnmounted(() => {
         <label class="autosave-toggle" :title="store.gitRepo ? $t('toolbar.autoSaveUnsupported') : $t('toolbar.autoSaveTitle')">
           <input
             type="checkbox"
-            class="mini-checkbox"
+            class="checkbox checkbox-xs"
             :checked="!store.gitRepo && store.autoSaveEnabled"
             :disabled="!!store.gitRepo"
             @change="store.setAutoSave(($event.target as HTMLInputElement).checked)"
@@ -439,7 +439,7 @@ onUnmounted(() => {
         <label class="autosave-toggle" :title="store.gitRepo ? $t('toolbar.autoSaveUnsupported') : $t('toolbar.autoSyncSqlTitle')">
           <input
             type="checkbox"
-            class="mini-checkbox"
+            class="checkbox checkbox-xs"
             :checked="!store.gitRepo && store.autoSyncOutputsEnabled"
             :disabled="!!store.gitRepo"
             @change="store.setAutoSyncOutputs(($event.target as HTMLInputElement).checked)"
@@ -690,10 +690,6 @@ onUnmounted(() => {
   background: var(--accent-subtle-2);
 }
 
-.autosave-toggle input:disabled {
-  cursor: not-allowed;
-}
-
 .autosave-toggle {
   display: inline-flex;
   align-items: center;
@@ -703,11 +699,6 @@ onUnmounted(() => {
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-}
-
-.autosave-toggle input {
-  margin: 0;
-  cursor: pointer;
 }
 
 .toolbar-btn--primary {

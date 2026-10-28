@@ -106,8 +106,8 @@ async function submit() {
           spellcheck="false"
           autocomplete="off"
         />
-        <label class="remember-row">
-          <input type="checkbox" class="mini-checkbox" v-model="remember" />
+        <label class="checkbox-label remember-row">
+          <input type="checkbox" class="checkbox" v-model="remember" />
           <span>{{ $t('gitRepo.remember') }}</span>
         </label>
       </div>
@@ -137,19 +137,9 @@ async function submit() {
 }
 
 .remember-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   margin-top: 4px;
   font-size: 12px;
   color: var(--fg-muted);
-  cursor: pointer;
-  user-select: none;
-}
-
-.remember-row input {
-  margin: 0;
-  cursor: pointer;
 }
 
 .repo-error {

@@ -24,6 +24,7 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
           <label class="ld-check" :title="$t('logicalDelete.enabledTip')">
             <input
               type="checkbox"
+              class="checkbox"
               :checked="enabled"
               @change="store.setLogicalDelete({ enabled: ($event.target as HTMLInputElement).checked })"
             >
@@ -63,6 +64,7 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
             ]" :key="opt.value">
               <input
                 type="radio"
+                class="radio"
                 name="logicalDeleteMysqlStrategy"
                 :value="opt.value"
                 :checked="(cfg.mysql_strategy ?? 'functional') === opt.value"
@@ -90,11 +92,6 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
   user-select: none;
 }
 
-.ld-check input {
-  margin: 0;
-  cursor: pointer;
-}
-
 /* Reuse the radio card styles from DdlOptionsPanel */
 .radio-group {
   display: flex;
@@ -118,14 +115,6 @@ const derivedPredicate = computed(() => deriveDeletePredicate(cfg.value.field ??
 .radio-option:hover {
   border-color: var(--accent);
   background: var(--accent-subtle-2);
-}
-
-.radio-option input[type="radio"] {
-  accent-color: var(--accent);
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  flex-shrink: 0;
 }
 
 .radio-label {

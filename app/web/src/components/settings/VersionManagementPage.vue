@@ -682,7 +682,7 @@ onMounted(() => {
           <div class="ps-env-status-head">{{ $t('migration.envStatus') }}</div>
           <div v-for="env in store.environments" :key="env.id" class="ps-env-status-item">
             <label class="ps-env-check">
-              <input type="checkbox" :checked="envStatus(env.id).executed"
+              <input type="checkbox" class="checkbox" :checked="envStatus(env.id).executed"
                 @change="onEnvExecutedToggle(env.id, $event)" />
               <span class="ps-env-name">{{ env.name }}</span>
             </label>

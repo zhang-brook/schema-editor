@@ -285,10 +285,10 @@ function toggleCommonFieldExpand(fieldName: string) {
                     style="width:38px;"
                   />
                   <span v-else class="disabled-indicator" :title="$t('fieldTable.lengthDisabledHint')" @click="updateField(field, { field_length_disabled: undefined })">—</span>
-                  <label class="mini-checkbox-label" :title="$t('fieldTable.lengthNotSetHint')">
+                  <label class="checkbox-label micro" :title="$t('fieldTable.lengthNotSetHint')">
                     <input
                       type="checkbox"
-                      class="mini-checkbox"
+                      class="checkbox checkbox-xs"
                       :checked="!!field.field_length_disabled"
                       @change="updateField(field, { field_length_disabled: ($event.target as HTMLInputElement).checked || undefined })"
                     />{{ $t('fieldTable.notSet') }}
@@ -307,10 +307,10 @@ function toggleCommonFieldExpand(fieldName: string) {
                     style="width:38px;"
                   />
                   <span v-else class="disabled-indicator" :title="$t('fieldTable.scaleDisabledHint')" @click="updateField(field, { field_scale_disabled: undefined })">—</span>
-                  <label class="mini-checkbox-label" :title="$t('fieldTable.scaleNotSetHint')">
+                  <label class="checkbox-label micro" :title="$t('fieldTable.scaleNotSetHint')">
                     <input
                       type="checkbox"
-                      class="mini-checkbox"
+                      class="checkbox checkbox-xs"
                       :checked="!!field.field_scale_disabled"
                       @change="updateField(field, { field_scale_disabled: ($event.target as HTMLInputElement).checked || undefined })"
                     />{{ $t('fieldTable.notSet') }}
@@ -319,18 +319,18 @@ function toggleCommonFieldExpand(fieldName: string) {
               </td>
               <!-- not_null -->
               <td>
-                <input type="checkbox" class="table-checkbox" :checked="!!field.not_null" @change="updateField(field, { not_null: ($event.target as HTMLInputElement).checked })" />
+                <input type="checkbox" class="checkbox checkbox-sm" :checked="!!field.not_null" @change="updateField(field, { not_null: ($event.target as HTMLInputElement).checked })" />
               </td>
               <!-- primary_key -->
               <td>
-                <input type="checkbox" class="table-checkbox" :checked="!!field.primary_key" @change="updateField(field, { primary_key: ($event.target as HTMLInputElement).checked })" />
+                <input type="checkbox" class="checkbox checkbox-sm" :checked="!!field.primary_key" @change="updateField(field, { primary_key: ($event.target as HTMLInputElement).checked })" />
               </td>
               <!-- default -->
               <td>
                 <div class="default-cell">
                   <input
                     type="checkbox"
-                    class="table-checkbox"
+                    class="checkbox checkbox-sm"
                     :checked="field.default !== undefined"
                     @change="toggleHasDefault(field)"
                     :title="$t('fieldTable.hasDefault')"
@@ -362,14 +362,14 @@ function toggleCommonFieldExpand(fieldName: string) {
                 <template v-else-if="field.unified_type">
                   <span v-if="store.quoteDefaultForField(field)" style="color:var(--accent); font-size:11px;">✓</span>
                 </template>
-                <input v-else type="checkbox" class="table-checkbox" :checked="!!field.quote_default" @change="updateField(field, { quote_default: ($event.target as HTMLInputElement).checked })">
+                <input v-else type="checkbox" class="checkbox checkbox-sm" :checked="!!field.quote_default" @change="updateField(field, { quote_default: ($event.target as HTMLInputElement).checked })">
               </td>
               <!-- on_update_current_timestamp -->
               <td>
                 <div class="on-update-cell">
                   <input
                     type="checkbox"
-                    class="table-checkbox"
+                    class="checkbox checkbox-sm"
                     :checked="!!field.on_update_current_timestamp"
                     @change="toggleOnUpdate(field, ($event.target as HTMLInputElement).checked)"
                   >

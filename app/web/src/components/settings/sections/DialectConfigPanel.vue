@@ -27,6 +27,7 @@ function isLastEnabled(dialect: SqlDialect): boolean {
         >
           <input
             type="checkbox"
+            class="checkbox"
             :checked="store.isDialectEnabled(d)"
             :disabled="isLastEnabled(d)"
             :title="isLastEnabled(d) ? $t('dialectConfig.keepOne') : ''"
@@ -59,17 +60,6 @@ function isLastEnabled(dialect: SqlDialect): boolean {
 
 .dialect-option.disabled {
   opacity: .55;
-  cursor: not-allowed;
-}
-
-.dialect-option input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.dialect-option.disabled input {
   cursor: not-allowed;
 }
 

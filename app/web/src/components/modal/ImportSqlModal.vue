@@ -163,6 +163,7 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
           <label v-for="opt in dialectOptions" :key="opt.value" class="radio-label">
             <input
               type="radio"
+              class="radio"
               :value="opt.value"
               v-model="store.importSqlDialect"
               @change="store.parseImportSql()"
@@ -298,11 +299,11 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
 
         <div class="radio-group">
           <label class="radio-label">
-            <input type="radio" value="new" v-model="store.importSqlTargetMode" @change="store.importSqlDetectedSchema = null" />
+            <input type="radio" class="radio" value="new" v-model="store.importSqlTargetMode" @change="store.importSqlDetectedSchema = null" />
             {{ $t('importSqlModal.newSchema') }}
           </label>
           <label class="radio-label">
-            <input type="radio" value="existing" v-model="store.importSqlTargetMode" @change="store.importSqlDetectedSchema = null" />
+            <input type="radio" class="radio" value="existing" v-model="store.importSqlTargetMode" @change="store.importSqlDetectedSchema = null" />
             {{ $t('importSqlModal.existingSchema') }}
           </label>
         </div>
@@ -363,11 +364,6 @@ useEnterConfirm(computed(() => store.showImportSqlModal), () => {
   gap: 4px;
   font-size: 12px;
   color: var(--fg-muted);
-  cursor: pointer;
-}
-
-.radio-label input[type="radio"] {
-  margin: 0;
   cursor: pointer;
 }
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.9.0
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.6...v0.9.0)
+
+### 🚀 Features
+
+- **web:** Unify UI controls and consolidate global styles ([7926736](https://github.com/zhang-brook/schema-editor/commit/7926736))
+
+### 📦 Build
+
+- Verify the tag before building and publish hyphen tags as pre-releases ([884386d](https://github.com/zhang-brook/schema-editor/commit/884386d))
+- Add gh-proxy mirror links to release downloads ([5e2b3b3](https://github.com/zhang-brook/schema-editor/commit/5e2b3b3))
+- Skip Pages deploys for prerelease tags ([f7c328d](https://github.com/zhang-brook/schema-editor/commit/f7c328d))
+
+### 🏡 Chores
+
+- Drop placeholder versions from the internal packages ([3233a46](https://github.com/zhang-brook/schema-editor/commit/3233a46))
+
 ## v0.8.7-alpha.1
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.6...v0.8.7-alpha.1)

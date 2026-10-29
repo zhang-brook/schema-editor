@@ -225,7 +225,7 @@ pnpm desktop:dist         # Build and package an installer for the current platf
 
 ## Deployment
 
-- Pushing a `v*` tag triggers [deploy.yml](./.github/workflows/deploy.yml): `build` builds the frontend and deploys GitHub Pages (output `app/web/dist`); `desktop` packages in parallel on Windows / macOS / Linux runners (macOS builds universal); `release` attaches the web bundle and all platform installers to the same Release
+- Pushing a `v*` tag triggers [release.yml](./.github/workflows/release.yml): `build` builds the frontend and deploys GitHub Pages (output `app/web/dist`); `desktop` packages in parallel on Windows / macOS / Linux runners (macOS builds universal); `publish` attaches the web bundle and all platform installers to the same Release. Pushes to `main` and pull requests run [ci.yml](./.github/workflows/ci.yml) for type checking, unit tests, and the build
 - `base` is the relative path `./`, so the build works under any subpath and can be loaded by the desktop shell over `file://`
 - Pure frontend, no backend; the build output is static files
 - The version is maintained only in the root `package.json`; the web build, desktop runtime, and installer metadata all read it at build time

@@ -225,7 +225,7 @@ pnpm desktop:dist         # 构建并打包当前平台的安装包（app/deskto
 
 ## 部署
 
-- 推送 `v*` tag 触发 [deploy.yml](./.github/workflows/deploy.yml)：`build` 构建前端并部署 GitHub Pages（产物 `app/web/dist`），`desktop` 在 Windows / macOS / Linux runner 上并行打包（macOS 打 universal），`release` 把网页包与各平台安装包一起挂到同一 Release
+- 推送 `v*` tag 触发 [release.yml](./.github/workflows/release.yml)：`build` 构建前端并部署 GitHub Pages（产物 `app/web/dist`），`desktop` 在 Windows / macOS / Linux runner 上并行打包（macOS 打 universal），`publish` 把网页包与各平台安装包一起挂到同一 Release。推送到 `main` 与 Pull Request 由 [ci.yml](./.github/workflows/ci.yml) 做类型检查、单元测试与构建
 - `base` 固定为相对路径 `./`，产物可部署在任意子路径下，也可被桌面外壳以 `file://` 直接加载
 - 纯前端应用，无后端，构建产物为静态文件
 - 版本号只在仓库根 `package.json` 维护，网页版、桌面运行时与安装包元数据在构建期取用同一处

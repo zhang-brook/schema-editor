@@ -1,10 +1,11 @@
-name: Deploy & Release
+name: Release
 
+# Packaging and publishing only. A `vX.Y.Z` tag builds the web and desktop
+# editions, deploys Pages for stable tags, and publishes the GitHub Release;
+# code checks live in ci.yml.
 on:
   push:
     tags: ['v*']
-    # branches: [main]
-  # workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,7 +27,7 @@ jobs:
       # The artifact names and the CHANGELOG section are looked up by tag, so a
       # tag that disagrees with the root package.json version would publish
       # mislabeled installers with an empty release body.
-      - name: Check the tag against the app version
+      - name: Verify the tag against the root version
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
@@ -137,7 +138,8 @@ jobs:
             app/desktop/release/latest*.yml
           if-no-files-found: error
 
-  release:
+  publish:
+    name: Publish GitHub Release
     runs-on: ubuntu-latest
     needs: [build, deploy, desktop]
     # deploy is skipped for prerelease tags, which still publish their assets

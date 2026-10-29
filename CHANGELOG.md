@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.9.1
+
+[compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.9.0...v0.9.1)
+
+### ♻️ Refactoring
+
+- **web:** Extract checkbox/radio primitives into a dedicated stylesheet ([1de477c](https://github.com/zhang-brook/schema-editor/commit/1de477c))
+
+### 📦 Build
+
+- Upgrade checkout to v7 and switch to pnpm/setup with Node 24 ([c9f6f01](https://github.com/zhang-brook/schema-editor/commit/c9f6f01))
+
 ## v0.9.0
 
 [compare changes](https://github.com/zhang-brook/schema-editor/compare/v0.8.6...v0.9.0)

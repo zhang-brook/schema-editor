@@ -2,7 +2,7 @@
   "name": "schema-editor",
   "private": true,
   "description": "A visual editor for database schema JSON definitions with real-time SQL preview and export",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "author": "zhang-brook",
   "license": "MIT",
   "repository": {
